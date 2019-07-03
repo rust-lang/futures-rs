@@ -92,12 +92,11 @@ where
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, E, Item> Sink<Item> for MapErr<S, F>
+impl<S, F, Item> Sink<Item> for MapErr<S, F>
 where
-    S: TryStream + Sink<Item>,
-    F: FnMut(S::Error) -> E,
+    S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

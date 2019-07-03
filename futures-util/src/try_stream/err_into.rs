@@ -80,10 +80,9 @@ where
 // Forwarding impl of Sink from the underlying stream
 impl<S, E, Item> Sink<Item> for ErrInto<S, E>
 where
-    S: TryStream + Sink<Item>,
-    S::Error: Into<E>,
+    S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

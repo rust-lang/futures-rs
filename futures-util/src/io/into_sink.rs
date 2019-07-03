@@ -64,12 +64,12 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
 }
 
 impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
-    type SinkError = io::Error;
+    type Error = io::Error;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>>
+    ) -> Poll<Result<(), Self::Error>>
     {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         Poll::Ready(Ok(()))
@@ -78,7 +78,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
-    ) -> Result<(), Self::SinkError>
+    ) -> Result<(), Self::Error>
     {
         debug_assert!(self.as_mut().buffer().is_none());
         *self.as_mut().buffer() = Some(Block { offset: 0, bytes: item });
@@ -88,7 +88,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>>
+    ) -> Poll<Result<(), Self::Error>>
     {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_flush(cx))?;
@@ -98,7 +98,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>>
+    ) -> Poll<Result<(), Self::Error>>
     {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_close(cx))?;

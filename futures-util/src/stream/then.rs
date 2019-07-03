@@ -29,14 +29,16 @@ where
     }
 }
 
+impl<St, Fut, F> Then<St, Fut, F> {
+    unsafe_pinned!(stream: St);
+    unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(f: F);
+}
+
 impl<St, Fut, F> Then<St, Fut, F>
     where St: Stream,
           F: FnMut(St::Item) -> Fut,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(f: F);
-
     pub(super) fn new(stream: St, f: F) -> Then<St, Fut, F> {
         Then {
             stream,
@@ -112,11 +114,9 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
 
 // Forwarding impl of Sink from the underlying stream
 impl<S, Fut, F, Item> Sink<Item> for Then<S, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(S::Item) -> Fut,
-          Fut: Future,
+    where S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

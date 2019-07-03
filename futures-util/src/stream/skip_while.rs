@@ -138,7 +138,7 @@ impl<S, Fut, F, Item> Sink<Item> for SkipWhile<S, Fut, F>
           F: FnMut(&S::Item) -> Fut,
           Fut: Future<Output = bool>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

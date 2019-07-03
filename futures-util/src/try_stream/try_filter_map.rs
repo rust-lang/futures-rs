@@ -115,12 +115,10 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, Fut, F, T, Item> Sink<Item> for TryFilterMap<S, Fut, F>
-    where S: TryStream + Sink<Item>,
-          Fut: TryFuture<Ok = Option<T>, Error = S::Error>,
-          F: FnMut(S::Ok) -> Fut,
+impl<S, Fut, F, Item> Sink<Item> for TryFilterMap<S, Fut, F>
+    where S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

@@ -19,10 +19,10 @@ pub struct Forward<St: TryStream, Si: Sink<St::Ok>> {
 
 impl<St: TryStream + Unpin, Si: Sink<St::Ok> + Unpin> Unpin for Forward<St, Si> {}
 
-impl<St, Si> Forward<St, Si>
+impl<St, Si, E> Forward<St, Si>
 where
-    Si: Sink<St::Ok, SinkError = St::Error>,
-    St: TryStream + Stream,
+    Si: Sink<St::Ok, Error = E>,
+    St: TryStream<Error = E> + Stream,
 {
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
@@ -40,7 +40,7 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         item: St::Ok,
-    ) -> Poll<Result<(), Si::SinkError>> {
+    ) -> Poll<Result<(), E>> {
         debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.as_mut().sink().as_pin_mut().unwrap();
@@ -61,10 +61,10 @@ impl<St: TryStream, Si: Sink<St::Ok> + Unpin> FusedFuture for Forward<St, Si> {
 
 impl<St, Si, Item, E> Future for Forward<St, Si>
 where
-    Si: Sink<Item, SinkError = E>,
+    Si: Sink<Item, Error = E>,
     St: Stream<Item = Result<Item, E>>,
 {
-    type Output = Result<(), Si::SinkError>;
+    type Output = Result<(), E>;
 
     fn poll(
         mut self: Pin<&mut Self>,

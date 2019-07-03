@@ -111,7 +111,7 @@ impl<S, Item> Sink<Item> for Chunks<S>
 where
     S: Stream + Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

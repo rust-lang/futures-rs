@@ -105,7 +105,7 @@ pub trait Sink01CompatExt: Sink01 {
     /// Converts a futures 0.1
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_01::sink::Sink)
     /// into a futures 0.3
-    /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::Sink).
+    /// [`Sink<T, Error = E>`](futures_sink::Sink).
     ///
     /// ```
     /// #![feature(async_await)]
@@ -222,12 +222,12 @@ impl<S, SinkItem> Sink03<SinkItem> for Compat01As03Sink<S, SinkItem>
 where
     S: Sink01<SinkItem = SinkItem>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::SinkError;
 
     fn start_send(
         mut self: Pin<&mut Self>,
         item: SinkItem,
-    ) -> Result<(), Self::SinkError> {
+    ) -> Result<(), Self::Error> {
         debug_assert!(self.buffer.is_none());
         self.buffer = Some(item);
         Ok(())
@@ -236,7 +236,7 @@ where
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> task03::Poll<Result<(), Self::SinkError>> {
+    ) -> task03::Poll<Result<(), Self::Error>> {
         match self.buffer.take() {
             Some(item) => match self.in_notify(cx, |f| f.start_send(item))? {
                 AsyncSink01::Ready => task03::Poll::Ready(Ok(())),
@@ -252,7 +252,7 @@ where
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> task03::Poll<Result<(), Self::SinkError>> {
+    ) -> task03::Poll<Result<(), Self::Error>> {
         let item = self.buffer.take();
         match self.in_notify(cx, |f| match item {
             Some(i) => match f.start_send(i)? {
@@ -274,7 +274,7 @@ where
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> task03::Poll<Result<(), Self::SinkError>> {
+    ) -> task03::Poll<Result<(), Self::Error>> {
         let item = self.buffer.take();
         let close_started = self.close_started;
 

@@ -50,17 +50,17 @@ impl<T, E, Item> Stream for StreamSink<T, E, Item> {
 }
 
 impl<T, E, Item> Sink<Item> for StreamSink<T, E, Item> {
-    type SinkError = E;
-    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    type Error = E;
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
-    fn start_send(self: Pin<&mut Self>, _: Item) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, _: Item) -> Result<(), Self::Error> {
         panic!()
     }
-    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
-    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
 }

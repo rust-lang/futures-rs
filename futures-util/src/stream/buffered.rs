@@ -129,7 +129,7 @@ where
     S: Stream + Sink<Item>,
     S::Item: Future,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

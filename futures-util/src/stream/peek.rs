@@ -109,7 +109,7 @@ impl<S: Stream> Stream for Peekable<S> {
 impl<S, Item> Sink<Item> for Peekable<S>
     where S: Sink<Item> + Stream
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

@@ -104,7 +104,7 @@ impl<S, F, Item> Sink<Item> for Inspect<S, F>
     where S: Stream + Sink<Item>,
           F: FnMut(&S::Item),
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

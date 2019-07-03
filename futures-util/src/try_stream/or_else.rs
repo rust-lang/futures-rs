@@ -29,15 +29,17 @@ where
     }
 }
 
+impl<St, Fut, F> OrElse<St, Fut, F> {
+    unsafe_pinned!(stream: St);
+    unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(f: F);
+}
+
 impl<St, Fut, F> OrElse<St, Fut, F>
     where St: TryStream,
           F: FnMut(St::Error) -> Fut,
           Fut: TryFuture<Ok = St::Ok>,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(f: F);
-
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
     }
@@ -104,11 +106,9 @@ impl<St, Fut, F> Stream for OrElse<St, Fut, F>
 
 // Forwarding impl of Sink from the underlying stream
 impl<S, Fut, F, Item> Sink<Item> for OrElse<S, Fut, F>
-    where S: TryStream + Sink<Item>,
-          F: FnMut(S::Error) -> Fut,
-          Fut: TryFuture<Ok = S::Ok>,
+    where S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

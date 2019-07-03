@@ -37,10 +37,15 @@ where
 
 impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     where St: TryStream,
+{
+    unsafe_pinned!(stream: St);
+}
+
+impl<St, Fut, F> TrySkipWhile<St, Fut, F>
+    where St: TryStream,
           F: FnMut(&St::Ok) -> Fut,
           Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
-    unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
@@ -128,12 +133,10 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, Fut, F, Item> Sink<Item> for TrySkipWhile<S, Fut, F>
-    where S: TryStream + Sink<Item>,
-          F: FnMut(&S::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = S::Error>,
+impl<S, Fut, F, Item, E> Sink<Item> for TrySkipWhile<S, Fut, F>
+    where S: TryStream + Sink<Item, Error = E>,
 {
-    type SinkError = S::SinkError;
+    type Error = E;
 
     delegate_sink!(stream, Item);
 }

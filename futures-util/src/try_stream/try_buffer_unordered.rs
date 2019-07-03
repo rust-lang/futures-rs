@@ -107,11 +107,11 @@ impl<St> Stream for TryBufferUnordered<St>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, Item> Sink<Item> for TryBufferUnordered<S>
-    where S: TryStream + Sink<Item>,
-          S::Ok: TryFuture<Error = S::Error>,
+impl<S, Item, E> Sink<Item> for TryBufferUnordered<S>
+    where S: TryStream + Sink<Item, Error = E>,
+          S::Ok: TryFuture<Error = E>,
 {
-    type SinkError = S::SinkError;
+    type Error = E;
 
     delegate_sink!(stream, Item);
 }
