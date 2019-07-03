@@ -1,4 +1,4 @@
-# 0.3.0-alpha.17 - Unreleased
+# 0.3.0-alpha.17 - 2019-7-3
 * Removed `try_ready!` macro in favor of `ready!(..)?`. (#1602)
 * Removed `io::Window::{set_start, set_end}` in favor of `io::Window::set`. (#1667)
 * Re-exported `pin_utils::pin_mut!` macro. (#1686)
@@ -25,6 +25,11 @@
 * Implemented `Stream` for `FlattenSink`. (#1651)
 * Implemented `Sink` for `TryFlattenStream`. (#1651)
 * Implemented `AsyncRead`, `AsyncWrite`, `AsyncSeek`, `AsyncBufRead`, `FusedFuture` and  `FusedStream` for Either. (#1695)
+* Replaced empty enums with `Never` type, an alias for `core::convert::Infallible`.
+* Removed the `futures-channel` dependency from `futures-sink` and make `futures-sink`
+  an optional dependency of `futures-channel`.
+* Renamed `Sink::SinkError` to `Sink::Error`.
+* Made a number of dependencies of `futures-util` optional.
 
 # 0.3.0-alpha.16 - 2019-5-10
 * Updated to new nightly `async_await`.
