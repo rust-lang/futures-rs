@@ -1,12 +1,12 @@
 [package]
 name = "futures-sink-preview"
 edition = "2018"
-version = "0.3.0-alpha.16"
+version = "0.3.0-alpha.17"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/futures_sink"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.17/futures_sink"
 description = """
 The asynchronous `Sink` trait for the futures-rs library.
 """
@@ -20,4 +20,4 @@ std = ["alloc", "futures-core-preview/std"]
 alloc = ["futures-core-preview/alloc"]
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.17", default-features = false }

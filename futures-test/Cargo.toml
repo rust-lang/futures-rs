@@ -1,7 +1,7 @@
 [package]
 name = "futures-test-preview"
 edition = "2018"
-version = "0.3.0-alpha.16"
+version = "0.3.0-alpha.17"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -15,14 +15,14 @@ Common utilities for testing components built off futures-rs.
 name = "futures_test"
 
 [dependencies]
-futures-core-preview = { version = "=0.3.0-alpha.16", path = "../futures-core", default-features = false }
-futures-io-preview = { version = "=0.3.0-alpha.16", path = "../futures-io", default-features = false }
-futures-util-preview = { version = "=0.3.0-alpha.16", path = "../futures-util", default-features = false }
-futures-executor-preview = { version = "=0.3.0-alpha.16", path = "../futures-executor", default-features = false }
+futures-core-preview = { version = "=0.3.0-alpha.17", path = "../futures-core", default-features = false }
+futures-io-preview = { version = "=0.3.0-alpha.17", path = "../futures-io", default-features = false }
+futures-util-preview = { version = "=0.3.0-alpha.17", path = "../futures-util", default-features = false }
+futures-executor-preview = { version = "=0.3.0-alpha.17", path = "../futures-executor", default-features = false }
 pin-utils = { version = "0.1.0-alpha.4", default-features = false }
 
 [dev-dependencies]
-futures-preview = { version = "=0.3.0-alpha.16", path = "../futures", default-features = false, features = ["std"] }
+futures-preview = { version = "=0.3.0-alpha.17", path = "../futures", default-features = false, features = ["std"] }
 
 [features]
 default = ["std"]
