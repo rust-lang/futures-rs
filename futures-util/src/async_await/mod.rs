@@ -24,7 +24,9 @@ pub use self::pending::*;
 mod join;
 
 // Primary export is a macro
+#[cfg(feature = "select-macro")]
 mod select_mod;
+#[cfg(feature = "select-macro")]
 pub use self::select_mod::*;
 
 #[doc(hidden)]

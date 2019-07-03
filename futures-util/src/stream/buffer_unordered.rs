@@ -2,6 +2,7 @@ use crate::stream::{Fuse, FuturesUnordered, StreamExt};
 use futures_core::future::Future;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::fmt;
@@ -139,6 +140,7 @@ where
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for BufferUnordered<S>
 where
     S: Stream + Sink<Item>,

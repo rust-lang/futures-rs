@@ -2,6 +2,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 
 /// Combines two different futures, streams, or sinks having the same associated types into a single
@@ -108,6 +109,7 @@ where
     }
 }
 
+#[cfg(feature = "sink")]
 impl<A, B, Item> Sink<Item> for Either<A, B>
 where
     A: Sink<Item>,
@@ -152,6 +154,7 @@ where
     }
 }
 
+#[cfg(feature = "io")]
 #[cfg(feature = "std")]
 mod if_std {
     use super::Either;

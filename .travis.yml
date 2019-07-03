@@ -119,6 +119,28 @@ matrix:
             --no-default-features
             --features nightly,alloc
 
+    - name: cargo check (futures-util)
+      rust: nightly
+      script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+
+        - cargo check --manifest-path futures-util/Cargo.toml
+        - cargo check --manifest-path futures-util/Cargo.toml --all-features
+
+        - cargo check --manifest-path futures-util/Cargo.toml --features sink
+        - cargo check --manifest-path futures-util/Cargo.toml --features io
+        - cargo check --manifest-path futures-util/Cargo.toml --features channel
+        - cargo check --manifest-path futures-util/Cargo.toml --features nightly,async-await
+        - cargo check --manifest-path futures-util/Cargo.toml --features nightly,select-macro
+        - cargo check --manifest-path futures-util/Cargo.toml --features compat
+        - cargo check --manifest-path futures-util/Cargo.toml --features io-compat
+        - cargo check --manifest-path futures-util/Cargo.toml --features sink,compat
+        - cargo check --manifest-path futures-util/Cargo.toml --features sink,channel
+
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
+
     - name: cargo doc
       rust: nightly
       script:

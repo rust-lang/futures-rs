@@ -2,6 +2,7 @@ use futures_core::task::{LocalSpawn, Spawn};
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
 
+#[cfg(feature = "channel")]
 #[cfg(feature = "std")]
 use crate::future::{FutureExt, RemoteHandle};
 #[cfg(feature = "alloc")]
@@ -68,6 +69,7 @@ pub trait SpawnExt: Spawn {
     /// let join_handle_fut = executor.spawn_with_handle(future).unwrap();
     /// assert_eq!(executor.run(join_handle_fut), 1);
     /// ```
+    #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
     fn spawn_with_handle<Fut>(
         &mut self,
@@ -148,6 +150,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// let join_handle_fut = spawner.spawn_local_with_handle(future).unwrap();
     /// assert_eq!(executor.run_until(join_handle_fut), 1);
     /// ```
+    #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
     fn spawn_local_with_handle<Fut>(
         &mut self,

@@ -6,7 +6,7 @@
 //! traits which add methods to the `AsyncRead`, `AsyncWrite`, `AsyncSeek`,
 //! and `AsyncBufRead` types.
 //!
-//! This module is only available when the `std` feature of this
+//! This module is only available when the `io` and `std` features of this
 //! library is activated, and it is activated by default.
 
 pub use futures_io::{
@@ -37,7 +37,9 @@ pub use self::copy_buf_into::CopyBufInto;
 mod flush;
 pub use self::flush::Flush;
 
+#[cfg(feature = "sink")]
 mod into_sink;
+#[cfg(feature = "sink")]
 pub use self::into_sink::IntoSink;
 
 mod lines;
@@ -417,6 +419,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # })?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
+    #[cfg(feature = "sink")]
     fn into_sink<Item: AsRef<[u8]>>(self) -> IntoSink<Self, Item>
         where Self: Sized,
     {

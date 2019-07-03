@@ -71,8 +71,10 @@ cfg_target_has_atomic! {
     pub use self::try_for_each_concurrent::TryForEachConcurrent;
 }
 
+#[cfg(feature = "io")]
 #[cfg(feature = "std")]
 mod into_async_read;
+#[cfg(feature = "io")]
 #[cfg(feature = "std")]
 pub use self::into_async_read::IntoAsyncRead;
 
@@ -776,6 +778,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(buf, &[1, 2, 3, 4, 5]);
     /// # })
     /// ```
+    #[cfg(feature = "io")]
     #[cfg(feature = "std")]
     fn into_async_read(self) -> IntoAsyncRead<Self>
     where

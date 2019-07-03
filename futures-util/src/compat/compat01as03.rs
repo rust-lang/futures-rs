@@ -3,12 +3,15 @@ use futures_01::executor::{
     Spawn as Spawn01, UnsafeNotify as UnsafeNotify01,
 };
 use futures_01::{
-    Async as Async01, AsyncSink as AsyncSink01, Future as Future01,
-    Sink as Sink01, Stream as Stream01,
+    Async as Async01, Future as Future01,
+    Stream as Stream01,
 };
+#[cfg(feature = "sink")]
+use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
 use std::pin::Pin;
 use std::task::Context;
+#[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
 
 #[cfg(feature = "io-compat")]
@@ -101,6 +104,7 @@ pub trait Stream01CompatExt: Stream01 {
 impl<St: Stream01> Stream01CompatExt for St {}
 
 /// Extension trait for futures 0.1 [`Sink`](futures_01::sink::Sink)
+#[cfg(feature = "sink")]
 pub trait Sink01CompatExt: Sink01 {
     /// Converts a futures 0.1
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_01::sink::Sink)
@@ -129,6 +133,7 @@ pub trait Sink01CompatExt: Sink01 {
         Compat01As03Sink::new(self)
     }
 }
+#[cfg(feature = "sink")]
 impl<Si: Sink01> Sink01CompatExt for Si {}
 
 fn poll_01_to_03<T, E>(x: Result<Async01<T>, E>) -> task03::Poll<Result<T, E>> {
@@ -165,6 +170,7 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
 }
 
 /// Converts a futures 0.1 Sink object to a futures 0.3-compatible version
+#[cfg(feature = "sink")]
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Compat01As03Sink<S, SinkItem> {
@@ -173,8 +179,10 @@ pub struct Compat01As03Sink<S, SinkItem> {
     pub(crate) close_started: bool,
 }
 
+#[cfg(feature = "sink")]
 impl<S, SinkItem> Unpin for Compat01As03Sink<S, SinkItem> {}
 
+#[cfg(feature = "sink")]
 impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
     /// Wraps a futures 0.1 Sink object in a futures 0.3-compatible wrapper.
     pub fn new(inner: S) -> Compat01As03Sink<S, SinkItem> {
@@ -200,6 +208,7 @@ impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
     }
 }
 
+#[cfg(feature = "sink")]
 impl<S, SinkItem> Stream03 for Compat01As03Sink<S, SinkItem>
 where
     S: Stream01,
@@ -218,6 +227,7 @@ where
     }
 }
 
+#[cfg(feature = "sink")]
 impl<S, SinkItem> Sink03<SinkItem> for Compat01As03Sink<S, SinkItem>
 where
     S: Sink01<SinkItem = SinkItem>,

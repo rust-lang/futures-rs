@@ -3,6 +3,7 @@ use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
@@ -127,6 +128,7 @@ where
     }
 }
 
+#[cfg(feature = "sink")]
 impl<Fut, Item> Sink<Item> for FlattenStreamSink<Fut>
 where
     Fut: TryFuture,
