@@ -29,16 +29,10 @@ matrix:
     - name: cargo test
       rust: nightly
       os: osx
-      before_script:
-        # TODO: https://github.com/rust-lang-nursery/futures-rs/pull/1685#issuecomment-506927847
-        - rustup update
 
     - name: cargo test
       rust: nightly
       os: linux
-      before_script:
-        # TODO: https://github.com/rust-lang-nursery/futures-rs/pull/1685#issuecomment-506927847
-        - rustup update
 
     - name: cargo build (with minimal versions)
       rust: nightly
