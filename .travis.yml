@@ -13,10 +13,28 @@ matrix:
     # This is the minimum Rust version supported by futures-rs.
     # When updating this, the reminder to update the minimum required version in README.md.
     - name: cargo build (minimum required version)
-      rust: beta # 1.36.0
+      rust: 1.36.0
       script:
+        # default features & compat feature
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --all
+        - cargo build --manifest-path futures/Cargo.toml --features io-compat
+
+    - name: cargo +stable build
+      rust: stable
+      script:
+        # default features & compat feature
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        - cargo build --all
+        - cargo build --manifest-path futures/Cargo.toml --features io-compat
+
+    - name: cargo +beta build
+      rust: stable
+      script:
+        # default features & compat feature
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        - cargo build --all
+        - cargo build --manifest-path futures/Cargo.toml --features io-compat
 
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
@@ -58,7 +76,7 @@ matrix:
         - cargo bench --manifest-path futures-util/Cargo.toml --features=bench
 
     - name: cargo +stable build --no-default-features
-      rust: beta
+      rust: stable
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --manifest-path futures/Cargo.toml --no-default-features
@@ -70,25 +88,13 @@ matrix:
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 
     - name: cargo +stable build (alloc)
-      rust: beta
+      rust: stable
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
-
-    - name: cargo +stable build (default features)
-      rust: beta
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --all
-
-    - name: cargo +stable build (compat feature)
-      rust: beta
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --features io-compat
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
