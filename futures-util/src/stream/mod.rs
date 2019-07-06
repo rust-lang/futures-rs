@@ -680,7 +680,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
+    /// #![feature(async_await, async_closure)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
