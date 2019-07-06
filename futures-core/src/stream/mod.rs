@@ -167,7 +167,7 @@ mod if_alloc {
             self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Option<S::Item>> {
-            unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) }.poll_next(cx)
+            unsafe { self.map_unchecked_mut(|x| &mut x.0) }.poll_next(cx)
         }
     }
 
