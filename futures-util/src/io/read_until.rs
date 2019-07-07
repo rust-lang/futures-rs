@@ -25,10 +25,10 @@ impl<'a, R: AsyncBufRead + ?Sized + Unpin> ReadUntil<'a, R> {
 
 pub(super) fn read_until_internal<R: AsyncBufRead + ?Sized>(
     mut reader: Pin<&mut R>,
+    cx: &mut Context<'_>,
     byte: u8,
     buf: &mut Vec<u8>,
     read: &mut usize,
-    cx: &mut Context<'_>,
 ) -> Poll<io::Result<usize>> {
     loop {
         let (done, used) = {
@@ -54,6 +54,6 @@ impl<R: AsyncBufRead + ?Sized + Unpin> Future for ReadUntil<'_, R> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let Self { reader, byte, buf, read } = &mut *self;
-        read_until_internal(Pin::new(reader), *byte, buf, read, cx)
+        read_until_internal(Pin::new(reader), cx, *byte, buf, read)
     }
 }

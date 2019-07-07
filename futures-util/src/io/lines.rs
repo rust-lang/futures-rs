@@ -35,7 +35,7 @@ impl<R: AsyncBufRead> Stream for Lines<R> {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let Self { reader, buf, bytes, read } = unsafe { self.get_unchecked_mut() };
         let reader = unsafe { Pin::new_unchecked(reader) };
-        let n = ready!(read_line_internal(reader, buf, bytes, read, cx))?;
+        let n = ready!(read_line_internal(reader, cx, buf, bytes, read))?;
         if n == 0 && buf.is_empty() {
             return Poll::Ready(None)
         }
