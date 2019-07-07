@@ -396,7 +396,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, async_closure)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -408,7 +408,7 @@ pub trait TryStreamExt: TryStream {
     /// let stream = stream::iter(vec![rx1, rx2, rx3]);
     /// let fut = stream.map(Ok).try_for_each_concurrent(
     ///     /* limit */ 2,
-    ///     async move |rx| {
+    ///     |rx| async move {
     ///         let res: Result<(), oneshot::Canceled> = rx.await;
     ///         res
     ///     }
