@@ -38,7 +38,7 @@ impl Drop for Guard<'_> {
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
-fn read_to_end_internal<R: AsyncRead + ?Sized>(
+pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
     mut rd: Pin<&mut R>,
     cx: &mut Context<'_>,
     buf: &mut Vec<u8>,
