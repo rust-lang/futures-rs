@@ -1,20 +1,19 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`inspect`](super::FutureExt::inspect) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Inspect<Fut, F> where Fut: Future {
+    #[pin]
     future: Fut,
     f: Option<F>,
 }
 
 impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
-    unsafe_pinned!(future: Fut);
-    unsafe_unpinned!(f: Option<F>);
-
     pub(super) fn new(future: Fut, f: F) -> Inspect<Fut, F> {
         Inspect {
             future,
@@ -22,8 +21,6 @@ impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
         }
     }
 }
-
-impl<Fut: Future + Unpin, F> Unpin for Inspect<Fut, F> {}
 
 impl<Fut: Future + FusedFuture, F> FusedFuture for Inspect<Fut, F> {
     fn is_terminated(&self) -> bool { self.future.is_terminated() }
@@ -35,9 +32,10 @@ impl<Fut, F> Future for Inspect<Fut, F>
 {
     type Output = Fut::Output;
 
+    #[pin_project(self)]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
-        let e = ready!(self.as_mut().future().poll(cx));
-        let f = self.as_mut().f().take().expect("cannot poll Inspect twice");
+        let e = ready!(self.future.as_mut().poll(cx));
+        let f = self.f.take().expect("cannot poll Inspect twice");
         f(&e);
         Poll::Ready(e)
     }

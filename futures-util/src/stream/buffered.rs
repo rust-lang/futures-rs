@@ -1,30 +1,26 @@
 use crate::stream::{Fuse, FuturesOrdered, StreamExt};
+use core::fmt;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use core::fmt;
-use core::pin::Pin;
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`buffered`](super::StreamExt::buffered) method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Buffered<St: Stream>
 where
     St: Stream,
     St::Item: Future,
 {
+    #[pin]
     stream: Fuse<St>,
     in_progress_queue: FuturesOrdered<St::Item>,
     max: usize,
 }
-
-impl<St> Unpin for Buffered<St>
-where
-    St: Stream + Unpin,
-    St::Item: Future,
-{}
 
 impl<St> fmt::Debug for Buffered<St>
 where
@@ -45,9 +41,6 @@ where
     St: Stream,
     St::Item: Future,
 {
-    unsafe_pinned!(stream: Fuse<St>);
-    unsafe_unpinned!(in_progress_queue: FuturesOrdered<St::Item>);
-
     pub(super) fn new(stream: St, n: usize) -> Buffered<St> {
         Buffered {
             stream: super::Fuse::new(stream),
@@ -76,8 +69,9 @@ where
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream().get_pin_mut()
+        self.stream.get_pin_mut()
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -96,21 +90,22 @@ where
 {
     type Item = <St::Item as Future>::Output;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         // Try to spawn off as many futures as possible by filling up
         // our in_progress_queue of futures.
-        while self.in_progress_queue.len() < self.max {
-            match self.as_mut().stream().poll_next(cx) {
-                Poll::Ready(Some(fut)) => self.as_mut().in_progress_queue().push(fut),
+        while self.in_progress_queue.len() < *self.max {
+            match self.stream.as_mut().poll_next(cx) {
+                Poll::Ready(Some(fut)) => self.in_progress_queue.push(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        let res = self.as_mut().in_progress_queue().poll_next_unpin(cx);
+        let res = self.in_progress_queue.poll_next_unpin(cx);
         if let Some(val) = ready!(res) {
             return Poll::Ready(Some(val))
         }

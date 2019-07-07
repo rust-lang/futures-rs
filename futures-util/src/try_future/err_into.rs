@@ -2,21 +2,19 @@ use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`err_into`](super::TryFutureExt::err_into) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ErrInto<Fut, E> {
+    #[pin]
     future: Fut,
     _marker: PhantomData<E>,
 }
 
-impl<Fut: Unpin, E> Unpin for ErrInto<Fut, E> {}
-
 impl<Fut, E> ErrInto<Fut, E> {
-    unsafe_pinned!(future: Fut);
-
     pub(super) fn new(future: Fut) -> ErrInto<Fut, E> {
         ErrInto {
             future,
@@ -35,11 +33,12 @@ impl<Fut, E> Future for ErrInto<Fut, E>
 {
     type Output = Result<Fut::Ok, E>;
 
+    #[pin_project(self)]
     fn poll(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+        self.future.try_poll(cx)
             .map(|res| res.map_err(Into::into))
     }
 }

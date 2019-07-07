@@ -2,22 +2,22 @@ use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Sink that clones incoming items and forwards them to two sinks at the same time.
 ///
 /// Backpressure from any downstream sink propagates up, which means that this sink
 /// can only process items as fast as its _slowest_ downstream sink.
+#[unsafe_project(Unpin)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Fanout<Si1, Si2> {
+    #[pin]
     sink1: Si1,
+    #[pin]
     sink2: Si2
 }
 
 impl<Si1, Si2> Fanout<Si1, Si2> {
-    unsafe_pinned!(sink1: Si1);
-    unsafe_pinned!(sink2: Si2);
-
     pub(super) fn new(sink1: Si1, sink2: Si2) -> Fanout<Si1, Si2> {
         Fanout { sink1, sink2 }
     }
@@ -65,41 +65,45 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
 {
     type Error = Si1::Error;
 
+    #[pin_project(self)]
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        let sink1_ready = self.as_mut().sink1().poll_ready(cx)?.is_ready();
-        let sink2_ready = self.as_mut().sink2().poll_ready(cx)?.is_ready();
+        let sink1_ready = self.sink1.as_mut().poll_ready(cx)?.is_ready();
+        let sink2_ready = self.sink2.as_mut().poll_ready(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
+    #[pin_project(self)]
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
     ) -> Result<(), Self::Error> {
-        self.as_mut().sink1().start_send(item.clone())?;
-        self.as_mut().sink2().start_send(item)?;
+        self.sink1.as_mut().start_send(item.clone())?;
+        self.sink2.as_mut().start_send(item)?;
         Ok(())
     }
 
+    #[pin_project(self)]
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        let sink1_ready = self.as_mut().sink1().poll_flush(cx)?.is_ready();
-        let sink2_ready = self.as_mut().sink2().poll_flush(cx)?.is_ready();
+        let sink1_ready = self.sink1.as_mut().poll_flush(cx)?.is_ready();
+        let sink2_ready = self.sink2.as_mut().poll_flush(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
+    #[pin_project(self)]
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        let sink1_ready = self.as_mut().sink1().poll_close(cx)?.is_ready();
-        let sink2_ready = self.as_mut().sink2().poll_close(cx)?.is_ready();
+        let sink1_ready = self.sink1.as_mut().poll_close(cx)?.is_ready();
+        let sink2_ready = self.sink2.as_mut().poll_close(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }

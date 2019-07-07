@@ -5,20 +5,19 @@ use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`try_filter_map`](super::TryStreamExt::try_filter_map)
 /// method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryFilterMap<St, Fut, F> {
+    #[pin]
     stream: St,
     f: F,
+    #[pin]
     pending: Option<Fut>,
 }
-
-impl<St, Fut, F> Unpin for TryFilterMap<St, Fut, F>
-    where St: Unpin, Fut: Unpin,
-{}
 
 impl<St, Fut, F> fmt::Debug for TryFilterMap<St, Fut, F>
 where
@@ -34,10 +33,6 @@ where
 }
 
 impl<St, Fut, F> TryFilterMap<St, Fut, F> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(pending: Option<Fut>);
-
     pub(super) fn new(stream: St, f: F) -> Self {
         TryFilterMap { stream, f, pending: None }
     }
@@ -62,8 +57,9 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -92,22 +88,23 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 {
     type Item = Result<T, St::Error>;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                let item = match ready!(self.stream.as_mut().try_poll_next(cx)?) {
                     Some(x) => x,
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.as_mut().f())(item);
-                self.as_mut().pending().set(Some(fut));
+                let fut = (self.f)(item);
+                self.pending.set(Some(fut));
             }
 
-            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(cx));
-            self.as_mut().pending().set(None);
+            let result = ready!(self.pending.as_mut().as_pin_mut().unwrap().try_poll(cx));
+            self.pending.set(None);
             if let Some(x) = result? {
                 return Poll::Ready(Some(Ok(x)));
             }

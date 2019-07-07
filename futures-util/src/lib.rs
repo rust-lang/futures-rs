@@ -65,28 +65,28 @@ macro_rules! delegate_sink {
             self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context<'_>,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
-            self.$field().poll_ready(cx)
+            self.project().$field.poll_ready(cx)
         }
 
         fn start_send(
             self: Pin<&mut Self>,
             item: $item,
         ) -> Result<(), Self::Error> {
-            self.$field().start_send(item)
+            self.project().$field.start_send(item)
         }
 
         fn poll_flush(
             self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context<'_>,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
-            self.$field().poll_flush(cx)
+            self.project().$field.poll_flush(cx)
         }
 
         fn poll_close(
             self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context<'_>,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
-            self.$field().poll_close(cx)
+            self.project().$field.poll_close(cx)
         }
     }
 }

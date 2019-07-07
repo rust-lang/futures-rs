@@ -3,22 +3,19 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Enumerate<St: Stream> {
+    #[pin]
     stream: St,
     count: usize,
 }
 
-impl<St: Stream + Unpin> Unpin for Enumerate<St> {}
-
 impl<St: Stream> Enumerate<St> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(count: usize);
-
     pub(super) fn new(stream: St) -> Enumerate<St> {
         Enumerate {
             stream,
@@ -46,8 +43,9 @@ impl<St: Stream> Enumerate<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -68,14 +66,15 @@ impl<St: Stream + FusedStream> FusedStream for Enumerate<St> {
 impl<St: Stream> Stream for Enumerate<St> {
     type Item = (usize, St::Item);
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match ready!(self.as_mut().stream().poll_next(cx)) {
+        match ready!(self.stream.as_mut().poll_next(cx)) {
             Some(item) => {
-                let count = self.count;
-                *self.as_mut().count() += 1;
+                let count = *self.count;
+                *self.count += 1;
                 Poll::Ready(Some((count, item)))
             }
             None => Poll::Ready(None),

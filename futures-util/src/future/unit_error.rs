@@ -1,24 +1,22 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct UnitError<Fut> {
+    #[pin]
     future: Fut,
 }
 
 impl<Fut> UnitError<Fut> {
-    unsafe_pinned!(future: Fut);
-
     pub(super) fn new(future: Fut) -> UnitError<Fut> {
         UnitError { future }
     }
 }
-
-impl<Fut: Unpin> Unpin for UnitError<Fut> {}
 
 impl<Fut: FusedFuture> FusedFuture for UnitError<Fut> {
     fn is_terminated(&self) -> bool { self.future.is_terminated() }
@@ -29,7 +27,8 @@ impl<Fut, T> Future for UnitError<Fut>
 {
     type Output = Result<T, ()>;
 
+    #[pin_project(self)]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, ()>> {
-        self.future().poll(cx).map(Ok)
+        self.future.poll(cx).map(Ok)
     }
 }

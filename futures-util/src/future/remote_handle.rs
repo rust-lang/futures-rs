@@ -5,7 +5,7 @@ use {
         future::Future,
         task::{Context, Poll},
     },
-    pin_utils::{unsafe_pinned, unsafe_unpinned},
+    pin_project::{pin_project, unsafe_project},
     std::{
         any::Any,
         fmt,
@@ -54,10 +54,12 @@ type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'stati
 
 /// A future which sends its output to the corresponding `RemoteHandle`.
 /// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
+#[unsafe_project(Unpin)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Remote<Fut: Future> {
     tx: Option<Sender<SendMsg<Fut>>>,
     keep_running: Arc<AtomicBool>,
+    #[pin]
     future: CatchUnwind<AssertUnwindSafe<Fut>>,
 }
 
@@ -69,29 +71,23 @@ impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
     }
 }
 
-impl<Fut: Future + Unpin> Unpin for Remote<Fut> {}
-
-impl<Fut: Future> Remote<Fut> {
-    unsafe_pinned!(future: CatchUnwind<AssertUnwindSafe<Fut>>);
-    unsafe_unpinned!(tx: Option<Sender<SendMsg<Fut>>>);
-}
-
 impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
+    #[pin_project(self)]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(cx) {
+        if let Poll::Ready(_) = self.tx.as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Poll::Ready(())
             }
         }
 
-        let output = ready!(self.as_mut().future().poll(cx));
+        let output = ready!(self.future.as_mut().poll(cx));
 
         // if the receiving end has gone away then that's ok, we just ignore the
         // send error here.
-        drop(self.as_mut().tx().take().unwrap().send(output));
+        drop(self.tx.take().unwrap().send(output));
         Poll::Ready(())
     }
 }

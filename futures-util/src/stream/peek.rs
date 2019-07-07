@@ -4,26 +4,23 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// A `Stream` that implements a `peek` method.
 ///
 /// The `peek` method can be used to retrieve a reference
 /// to the next `Stream::Item` if available. A subsequent
 /// call to `poll` will return the owned item.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Peekable<St: Stream> {
+    #[pin]
     stream: Fuse<St>,
     peeked: Option<St::Item>,
 }
 
-impl<St: Stream + Unpin> Unpin for Peekable<St> {}
-
 impl<St: Stream> Peekable<St> {
-    unsafe_pinned!(stream: Fuse<St>);
-    unsafe_unpinned!(peeked: Option<St::Item>);
-
     pub(super) fn new(stream: St) -> Peekable<St> {
         Peekable {
             stream: stream.fuse(),
@@ -51,8 +48,9 @@ impl<St: Stream> Peekable<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream().get_pin_mut()
+        self.stream.get_pin_mut()
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -67,20 +65,19 @@ impl<St: Stream> Peekable<St> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
+    #[pin_project(self)]
     pub fn peek<'a>(
         mut self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<&'a St::Item>> {
         if self.peeked.is_some() {
-            let this: &Self = self.into_ref().get_ref();
-            return Poll::Ready(this.peeked.as_ref())
+            return Poll::Ready(self.peeked.as_ref())
         }
-        match ready!(self.as_mut().stream().poll_next(cx)) {
+        match ready!(self.stream.as_mut().poll_next(cx)) {
             None => Poll::Ready(None),
             Some(item) => {
-                *self.as_mut().peeked() = Some(item);
-                let this: &Self = self.into_ref().get_ref();
-                Poll::Ready(this.peeked.as_ref())
+                *self.peeked = Some(item);
+                Poll::Ready(self.peeked.as_ref())
             }
         }
     }
@@ -95,14 +92,15 @@ impl<St: Stream> FusedStream for Peekable<St> {
 impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        if let Some(item) = self.as_mut().peeked().take() {
+        if let Some(item) = self.peeked.take() {
             return Poll::Ready(Some(item))
         }
-        self.as_mut().stream().poll_next(cx)
+        self.stream.poll_next(cx)
     }
 }
 

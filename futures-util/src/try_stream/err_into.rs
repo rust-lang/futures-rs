@@ -4,21 +4,19 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`err_into`](super::TryStreamExt::err_into) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct ErrInto<St, E> {
+    #[pin]
     stream: St,
     _marker: PhantomData<E>,
 }
 
-impl<St: Unpin, E> Unpin for ErrInto<St, E> {}
-
 impl<St, E> ErrInto<St, E> {
-    unsafe_pinned!(stream: St);
-
     pub(super) fn new(stream: St) -> Self {
         ErrInto { stream, _marker: PhantomData }
     }
@@ -43,8 +41,9 @@ impl<St, E> ErrInto<St, E> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -69,11 +68,13 @@ where
 {
     type Item = Result<St::Ok, E>;
 
+    #[pin_project(self)]
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(cx)
+        self.stream
+            .try_poll_next(cx)
             .map(|res| res.map(|some| some.map_err(Into::into)))
     }
 }

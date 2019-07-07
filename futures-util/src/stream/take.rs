@@ -3,22 +3,19 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`take`](super::StreamExt::take) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Take<St> {
+    #[pin]
     stream: St,
     remaining: u64,
 }
 
-impl<St: Unpin> Unpin for Take<St> {}
-
 impl<St: Stream> Take<St> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(remaining: u64);
-
     pub(super) fn new(stream: St, n: u64) -> Take<St> {
         Take {
             stream,
@@ -46,8 +43,9 @@ impl<St: Stream> Take<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -64,17 +62,18 @@ impl<St> Stream for Take<St>
 {
     type Item = St::Item;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        if self.remaining == 0 {
+        if *self.remaining == 0 {
             Poll::Ready(None)
         } else {
-            let next = ready!(self.as_mut().stream().poll_next(cx));
+            let next = ready!(self.stream.as_mut().poll_next(cx));
             match next {
-                Some(_) => *self.as_mut().remaining() -= 1,
-                None => *self.as_mut().remaining() = 0,
+                Some(_) => *self.remaining -= 1,
+                None => *self.remaining = 0,
             }
             Poll::Ready(next)
         }

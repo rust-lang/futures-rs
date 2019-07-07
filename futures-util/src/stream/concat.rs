@@ -2,26 +2,23 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`concat`](super::StreamExt::concat) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Concat<St: Stream> {
+    #[pin]
     stream: St,
     accum: Option<St::Item>,
 }
-
-impl<St: Stream + Unpin> Unpin for Concat<St> {}
 
 impl<St> Concat<St>
 where St: Stream,
       St::Item: Extend<<St::Item as IntoIterator>::Item> +
                 IntoIterator + Default,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(accum: Option<St::Item>);
-
     pub(super) fn new(stream: St) -> Concat<St> {
         Concat {
             stream,
@@ -37,20 +34,18 @@ where St: Stream,
 {
     type Output = St::Item;
 
-    fn poll(
-        mut self: Pin<&mut Self>, cx: &mut Context<'_>
-    ) -> Poll<Self::Output> {
+    #[pin_project(self)]
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().poll_next(cx)) {
+            match ready!(self.stream.as_mut().poll_next(cx)) {
                 None => {
-                    return Poll::Ready(self.as_mut().accum().take().unwrap_or_default())
+                    return Poll::Ready(self.accum.take().unwrap_or_default())
                 }
                 Some(e) => {
-                    let accum = self.as_mut().accum();
-                    if let Some(a) = accum {
+                    if let Some(a) = self.accum {
                         a.extend(e)
                     } else {
-                        *accum = Some(e)
+                        *self.accum = Some(e)
                     }
                 }
             }

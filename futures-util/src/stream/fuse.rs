@@ -3,22 +3,19 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`fuse`](super::StreamExt::fuse) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Fuse<St> {
+    #[pin]
     stream: St,
     done: bool,
 }
 
-impl<St: Unpin> Unpin for Fuse<St> {}
-
 impl<St> Fuse<St> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(done: bool);
-
     pub(super) fn new(stream: St) -> Fuse<St> {
         Fuse { stream, done: false }
     }
@@ -52,8 +49,9 @@ impl<St> Fuse<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -74,17 +72,18 @@ impl<S> FusedStream for Fuse<S> {
 impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
-        if self.done {
+        if *self.done {
             return Poll::Ready(None);
         }
 
-        let item = ready!(self.as_mut().stream().poll_next(cx));
+        let item = ready!(self.stream.as_mut().poll_next(cx));
         if item.is_none() {
-            *self.as_mut().done() = true;
+            *self.done = true;
         }
         Poll::Ready(item)
     }

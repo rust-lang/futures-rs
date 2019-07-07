@@ -4,16 +4,16 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`inspect`](super::StreamExt::inspect) method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Inspect<St, F> {
+    #[pin]
     stream: St,
     f: F,
 }
-
-impl<St: Unpin, F> Unpin for Inspect<St, F> {}
 
 impl<St, F> fmt::Debug for Inspect<St, F>
 where
@@ -30,9 +30,6 @@ impl<St, F> Inspect<St, F>
     where St: Stream,
           F: FnMut(&St::Item),
 {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-
     pub(super) fn new(stream: St, f: F) -> Inspect<St, F> {
         Inspect { stream, f }
     }
@@ -57,8 +54,9 @@ impl<St, F> Inspect<St, F>
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -89,14 +87,15 @@ impl<St, F> Stream for Inspect<St, F>
 {
     type Item = St::Item;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        self.as_mut()
-            .stream()
+        self.stream
+            .as_mut()
             .poll_next(cx)
-            .map(|opt| opt.map(|e| inspect(e, self.as_mut().f())))
+            .map(|opt| opt.map(|e| inspect(e, self.f)))
     }
 }
 

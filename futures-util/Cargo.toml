@@ -42,6 +42,7 @@ slab = { version = "0.4", optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
+pin-project = "0.3.2"
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]

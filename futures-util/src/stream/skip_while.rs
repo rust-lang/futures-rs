@@ -5,19 +5,20 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`skip_while`](super::StreamExt::skip_while) method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct SkipWhile<St, Fut, F> where St: Stream {
+    #[pin]
     stream: St,
     f: F,
+    #[pin]
     pending_fut: Option<Fut>,
     pending_item: Option<St::Item>,
     done_skipping: bool,
 }
-
-impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
 
 impl<St, Fut, F> fmt::Debug for SkipWhile<St, Fut, F>
 where
@@ -40,12 +41,6 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
           F: FnMut(&St::Item) -> Fut,
           Fut: Future<Output = bool>,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(pending_fut: Option<Fut>);
-    unsafe_unpinned!(pending_item: Option<St::Item>);
-    unsafe_unpinned!(done_skipping: bool);
-
     pub(super) fn new(stream: St, f: F) -> SkipWhile<St, Fut, F> {
         SkipWhile {
             stream,
@@ -76,8 +71,9 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -102,31 +98,32 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
 {
     type Item = St::Item;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        if self.done_skipping {
-            return self.as_mut().stream().poll_next(cx);
+        if *self.done_skipping {
+            return self.stream.poll_next(cx);
         }
 
         loop {
             if self.pending_item.is_none() {
-                let item = match ready!(self.as_mut().stream().poll_next(cx)) {
+                let item = match ready!(self.stream.as_mut().poll_next(cx)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.as_mut().f())(&item);
-                self.as_mut().pending_fut().set(Some(fut));
-                *self.as_mut().pending_item() = Some(item);
+                let fut = (self.f)(&item);
+                self.pending_fut.set(Some(fut));
+                *self.pending_item = Some(item);
             }
 
-            let skipped = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(cx));
-            let item = self.as_mut().pending_item().take().unwrap();
-            self.as_mut().pending_fut().set(None);
+            let skipped = ready!(self.pending_fut.as_mut().as_pin_mut().unwrap().poll(cx));
+            let item = self.pending_item.take().unwrap();
+            self.pending_fut.set(None);
 
             if !skipped {
-                *self.as_mut().done_skipping() = true;
+                *self.done_skipping = true;
                 return Poll::Ready(Some(item))
             }
         }

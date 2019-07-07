@@ -5,17 +5,18 @@ use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`or_else`](super::TryStreamExt::or_else) method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct OrElse<St, Fut, F> {
+    #[pin]
     stream: St,
+    #[pin]
     future: Option<Fut>,
     f: F,
 }
-
-impl<St: Unpin, Fut: Unpin, F> Unpin for OrElse<St, Fut, F> {}
 
 impl<St, Fut, F> fmt::Debug for OrElse<St, Fut, F>
 where
@@ -28,12 +29,6 @@ where
             .field("future", &self.future)
             .finish()
     }
-}
-
-impl<St, Fut, F> OrElse<St, Fut, F> {
-    unsafe_pinned!(stream: St);
-    unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(f: F);
 }
 
 impl<St, Fut, F> OrElse<St, Fut, F>
@@ -65,8 +60,9 @@ impl<St, Fut, F> OrElse<St, Fut, F>
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -85,22 +81,23 @@ impl<St, Fut, F> Stream for OrElse<St, Fut, F>
 {
     type Item = Result<St::Ok, Fut::Error>;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        if self.future.is_none() {
-            let item = match ready!(self.as_mut().stream().try_poll_next(cx)) {
+       if self.future.is_none() {
+            let item = match ready!(self.stream.as_mut().try_poll_next(cx)) {
                 None => return Poll::Ready(None),
                 Some(Ok(e)) => return Poll::Ready(Some(Ok(e))),
                 Some(Err(e)) => e,
             };
-            let fut = (self.as_mut().f())(item);
-            self.as_mut().future().set(Some(fut));
+            let fut = (self.f)(item);
+            self.future.set(Some(fut));
         }
 
-        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
-        self.as_mut().future().set(None);
+        let e = ready!(self.future.as_mut().as_pin_mut().unwrap().try_poll(cx));
+        self.future.set(None);
         Poll::Ready(Some(e))
     }
 }

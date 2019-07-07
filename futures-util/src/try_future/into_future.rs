@@ -1,18 +1,18 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`into_future`](super::TryFutureExt::into_future) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct IntoFuture<Fut> {
+    #[pin]
     future: Fut,
 }
 
 impl<Fut> IntoFuture<Fut> {
-    unsafe_pinned!(future: Fut);
-
     #[inline]
     pub(super) fn new(future: Fut) -> IntoFuture<Fut> {
         IntoFuture { future }
@@ -26,11 +26,12 @@ impl<Fut: FusedFuture> FusedFuture for IntoFuture<Fut> {
 impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     type Output = Result<Fut::Ok, Fut::Error>;
 
+    #[pin_project(self)]
     #[inline]
     fn poll(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+        self.future.try_poll(cx)
     }
 }

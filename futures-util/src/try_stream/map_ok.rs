@@ -4,16 +4,16 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, unsafe_project};
 
 /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) method.
+#[unsafe_project(Unpin)]
 #[must_use = "streams do nothing unless polled"]
 pub struct MapOk<St, F> {
+    #[pin]
     stream: St,
     f: F,
 }
-
-impl<St: Unpin, F> Unpin for MapOk<St, F> {}
 
 impl<St, F> fmt::Debug for MapOk<St, F>
 where
@@ -27,9 +27,6 @@ where
 }
 
 impl<St, F> MapOk<St, F> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-
     /// Creates a new MapOk.
     pub(super) fn new(stream: St, f: F) -> Self {
         MapOk { stream, f }
@@ -55,8 +52,9 @@ impl<St, F> MapOk<St, F> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        self.stream()
+        self.stream
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -81,14 +79,15 @@ where
 {
     type Item = Result<T, St::Error>;
 
+    #[pin_project(self)]
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.as_mut()
-            .stream()
+        self.stream
+            .as_mut()
             .try_poll_next(cx)
-            .map(|opt| opt.map(|res| res.map(|x| self.as_mut().f()(x))))
+            .map(|opt| opt.map(|res| res.map(|x| (self.f)(x))))
     }
 }
 

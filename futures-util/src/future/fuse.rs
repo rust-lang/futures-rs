@@ -1,18 +1,18 @@
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// Future for the [`fuse`](super::FutureExt::fuse) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Fuse<Fut: Future> {
+    #[pin]
     future: Option<Fut>,
 }
 
 impl<Fut: Future> Fuse<Fut> {
-    unsafe_pinned!(future: Option<Fut>);
-
     pub(super) fn new(f: Fut) -> Fuse<Fut> {
         Fuse {
             future: Some(f),
@@ -79,13 +79,14 @@ impl<Fut: Future> FusedFuture for Fuse<Fut> {
 impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
+    #[pin_project(self)]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
-        let v = match self.as_mut().future().as_pin_mut() {
+        let v = match self.future.as_mut().as_pin_mut() {
             Some(fut) => ready!(fut.poll(cx)),
             None => return Poll::Pending,
         };
 
-        self.as_mut().future().set(None);
+        self.future.set(None);
         Poll::Ready(v)
     }
 }

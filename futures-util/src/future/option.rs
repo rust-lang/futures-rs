@@ -3,7 +3,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, unsafe_project};
 
 /// A future representing a value which may or may not be present.
 ///
@@ -23,24 +23,23 @@ use pin_utils::unsafe_pinned;
 /// assert_eq!(a.await, None);
 /// # });
 /// ```
+#[unsafe_project(Unpin)]
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct OptionFuture<F> {
+    #[pin]
     option: Option<F>,
-}
-
-impl<F> OptionFuture<F> {
-    unsafe_pinned!(option: Option<F>);
 }
 
 impl<F: Future> Future for OptionFuture<F> {
     type Output = Option<F::Output>;
 
+    #[pin_project(self)]
     fn poll(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.option().as_pin_mut() {
+        match self.option.as_pin_mut() {
             Some(x) => x.poll(cx).map(Some),
             None => Poll::Ready(None),
         }

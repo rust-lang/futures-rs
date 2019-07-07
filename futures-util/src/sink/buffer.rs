@@ -1,14 +1,16 @@
+use alloc::collections::VecDeque;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use core::pin::Pin;
-use alloc::collections::VecDeque;
+use pin_project::{pin_project, unsafe_project};
 
 /// Sink for the [`buffer`](super::SinkExt::buffer) method.
+#[unsafe_project(Unpin)]
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Buffer<Si: Sink<Item>, Item> {
+    #[pin]
     sink: Si,
     buf: VecDeque<Item>,
 
@@ -16,13 +18,7 @@ pub struct Buffer<Si: Sink<Item>, Item> {
     capacity: usize,
 }
 
-impl<Si: Sink<Item> + Unpin, Item> Unpin for Buffer<Si, Item> {}
-
 impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
-    unsafe_pinned!(sink: Si);
-    unsafe_unpinned!(buf: VecDeque<Item>);
-    unsafe_unpinned!(capacity: usize);
-
     pub(super) fn new(sink: Si, capacity: usize) -> Self {
         Buffer {
             sink,
@@ -42,8 +38,9 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     }
 
     /// Get a pinned mutable reference to the inner sink.
+    #[pin_project(self)]
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
-        self.sink()
+        self.sink
     }
 
     /// Consumes this combinator, returning the underlying sink.
@@ -54,77 +51,84 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
         self.sink
     }
 
-    fn try_empty_buffer(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::Error>> {
-        ready!(self.as_mut().sink().poll_ready(cx))?;
-        while let Some(item) = self.as_mut().buf().pop_front() {
-            self.as_mut().sink().start_send(item)?;
-            if !self.buf.is_empty() {
-                ready!(self.as_mut().sink().poll_ready(cx))?;
-            }
+}
+
+fn try_empty_buffer<Si: Sink<Item>, Item>(
+    mut sink: Pin<&mut Si>,
+    buf: &mut VecDeque<Item>,
+    cx: &mut Context<'_>,
+) -> Poll<Result<(), Si::Error>> {
+    ready!(sink.as_mut().poll_ready(cx))?;
+    while let Some(item) = buf.pop_front() {
+        sink.as_mut().start_send(item)?;
+        if !buf.is_empty() {
+            ready!(sink.as_mut().poll_ready(cx))?;
         }
-        Poll::Ready(Ok(()))
     }
+    Poll::Ready(Ok(()))
 }
 
 // Forwarding impl of Stream from the underlying sink
 impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
     type Item = S::Item;
 
+    #[pin_project(self)]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink.poll_next(cx)
     }
 }
 
 impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     type Error = Si::Error;
 
+    #[pin_project(self)]
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        if self.capacity == 0 {
-            return self.as_mut().sink().poll_ready(cx);
+        if *self.capacity == 0 {
+            return self.sink.as_mut().poll_ready(cx);
         }
 
-        let _ = self.as_mut().try_empty_buffer(cx)?;
+        let _ = try_empty_buffer(self.sink.as_mut(), self.buf, cx)?;
 
-        if self.buf.len() >= self.capacity {
+        if self.buf.len() >= *self.capacity {
             Poll::Pending
         } else {
             Poll::Ready(Ok(()))
         }
     }
 
+    #[pin_project(self)]
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
     ) -> Result<(), Self::Error> {
-        if self.capacity == 0 {
-            self.as_mut().sink().start_send(item)
+        if *self.capacity == 0 {
+            self.sink.start_send(item)
         } else {
-            self.as_mut().buf().push_back(item);
+            self.buf.push_back(item);
             Ok(())
         }
     }
 
+    #[pin_project(self)]
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        ready!(self.as_mut().try_empty_buffer(cx))?;
-        debug_assert!(self.as_mut().buf().is_empty());
-        self.as_mut().sink().poll_flush(cx)
+        ready!(try_empty_buffer(self.sink.as_mut(), self.buf, cx))?;
+        debug_assert!(self.buf.is_empty());
+        self.sink.poll_flush(cx)
     }
 
+    #[pin_project(self)]
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        ready!(self.as_mut().try_empty_buffer(cx))?;
-        debug_assert!(self.as_mut().buf().is_empty());
-        self.as_mut().sink().poll_close(cx)
+        ready!(try_empty_buffer(self.sink.as_mut(), self.buf, cx))?;
+        debug_assert!(self.buf.is_empty());
+        self.sink.poll_close(cx)
     }
 }
