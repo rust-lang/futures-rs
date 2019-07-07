@@ -219,6 +219,8 @@ pub trait AsyncReadExt: AsyncRead {
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
     ///
+    /// On success the total number of bytes read is returned.
+    ///
     /// # Examples
     ///
     /// ```
@@ -230,8 +232,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = Vec::with_capacity(4);
     ///
-    /// reader.read_to_end(&mut output).await?;
+    /// let bytes = reader.read_to_end(&mut output).await?;
     ///
+    /// assert_eq!(bytes, 4);
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
@@ -246,6 +249,8 @@ pub trait AsyncReadExt: AsyncRead {
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
     ///
+    /// On success the total number of bytes read is returned.
+    ///
     /// # Examples
     ///
     /// ```
@@ -257,8 +262,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new(&b"1234"[..]);
     /// let mut buffer = String::with_capacity(4);
     ///
-    /// reader.read_to_string(&mut buffer).await?;
+    /// let bytes = reader.read_to_string(&mut buffer).await?;
     ///
+    /// assert_eq!(bytes, 4);
     /// assert_eq!(buffer, String::from("1234"));
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
