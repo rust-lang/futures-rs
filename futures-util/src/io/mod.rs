@@ -60,6 +60,9 @@ pub use self::read_line::ReadLine;
 mod read_to_end;
 pub use self::read_to_end::ReadToEnd;
 
+mod read_to_string;
+pub use self::read_to_string::ReadToString;
+
 mod read_until;
 pub use self::read_until::ReadUntil;
 
@@ -239,6 +242,33 @@ pub trait AsyncReadExt: AsyncRead {
         where Self: Unpin,
     {
         ReadToEnd::new(self, buf)
+    }
+
+    /// Creates a future which will read all the bytes from this `AsyncRead`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let mut reader = Cursor::new(&b"1234"[..]);
+    /// let mut buffer = String::with_capacity(4);
+    ///
+    /// reader.read_to_string(&mut buffer).await?;
+    ///
+    /// assert_eq!(buffer, String::from("1234"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn read_to_string<'a>(
+        &'a mut self,
+        buf: &'a mut String,
+    ) -> ReadToString<'a, Self>
+        where Self: Unpin,
+    {
+        ReadToString::new(self, buf)
     }
 
     /// Helper method for splitting this read/write object into two halves.
