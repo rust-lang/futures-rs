@@ -11,12 +11,12 @@ use std::io::Cursor;
 fn read_to_string() {
     let mut c = Cursor::new(&b""[..]);
     let mut v = String::new();
-    assert!(block_on(c.read_to_string(&mut v)).is_ok());
+    assert_eq!(block_on(c.read_to_string(&mut v)).unwrap(), 0);
     assert_eq!(v, "");
 
     let mut c = Cursor::new(&b"1"[..]);
     let mut v = String::new();
-    assert!(block_on(c.read_to_string(&mut v)).is_ok());
+    assert_eq!(block_on(c.read_to_string(&mut v)).unwrap(), 1);
     assert_eq!(v, "1");
 
     let mut c = Cursor::new(&b"\xff"[..]);
@@ -41,6 +41,6 @@ fn interleave_pending() {
         .interleave_pending();
 
     let mut v = String::new();
-    assert!(run(buf.read_to_string(&mut v)).is_ok());
+    assert_eq!(run(buf.read_to_string(&mut v)).unwrap(), 5);
     assert_eq!(v, "12333");
 }
