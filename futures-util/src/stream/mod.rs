@@ -680,7 +680,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, async_closure)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -691,7 +691,7 @@ pub trait StreamExt: Stream {
     ///
     /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
     ///     /* limit */ 2,
-    ///     async move |rx| {
+    ///     |rx| async move {
     ///         rx.await.unwrap();
     ///     }
     /// );
