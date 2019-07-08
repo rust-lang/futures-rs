@@ -32,6 +32,9 @@ pub use self::collect::Collect;
 mod concat;
 pub use self::concat::Concat;
 
+mod copy_into;
+pub use self::copy_into::CopyInto;
+
 mod empty;
 pub use self::empty::{empty, Empty};
 
