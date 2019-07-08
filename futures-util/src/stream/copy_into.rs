@@ -1,5 +1,3 @@
-// https://github.com/Nemo157/futures-rs/blob/93223f5a2c8d34d1ba7bfc96479ae77f3580d399/futures-util/src/io/copy_into.rs
-
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_core::Stream;
