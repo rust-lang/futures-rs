@@ -3,17 +3,19 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
-#[cfg(feature = "sink")]
-use futures_core::stream::TryStream;
-use futures_core::task::{Context, Poll};
-#[cfg(feature = "sink")]
-use futures_sink::Sink;
+use crate::future::Either;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-use crate::future::Either;
+use core::pin::Pin;
+use futures_core::future::Future;
+#[cfg(feature = "sink")]
+use futures_core::stream::TryStream;
+use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
+#[cfg(feature = "io")]
+use futures_io::AsyncWrite;
+#[cfg(feature = "sink")]
+use futures_sink::Sink;
 
 mod iter;
 pub use self::iter::{iter, Iter};
@@ -1205,5 +1207,41 @@ pub trait StreamExt: Stream {
     /// ```
     fn select_next_some(&mut self) -> SelectNextSome<'_, Self> where Self: Unpin + FusedStream {
         SelectNextSome::new(self)
+    }
+
+    /// Creates a future which copies all the bytes from one object to another.
+    ///
+    /// The returned future will copy all the bytes read from this `Stream` into the
+    /// `writer` specified. This future will only complete once the `stream` has hit
+    /// EOF and all bytes have been written to and flushed from the `writer`
+    /// provided.
+    ///
+    /// On success the number of bytes written is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncWriteExt;
+    /// use futures::stream::{self, StreamExt};
+    /// use std::io::Cursor;
+    ///
+    /// let stream1 = stream::iter(vec![b"hello".to_vec(), b"world".to_vec()]);
+    /// let mut writer = Cursor::new([0u8; 10]);
+    ///
+    /// let bytes = stream1.copy_into(&mut writer).await?;
+    /// writer.close().await?;
+    ///
+    /// assert_eq!(bytes, 10);
+    /// assert_eq!(&writer.into_inner(), b"helloworld");
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn copy_into<W, E>(self, writer: &mut W) -> CopyInto<'_, Self, W, E>
+    where
+        Self: Sized + Unpin,
+        W: AsyncWrite + Unpin + ?Sized,
+    {
+        CopyInto::new(self, writer)
     }
 }
