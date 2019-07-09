@@ -59,8 +59,8 @@ futures-preview = { version = "=0.3.0-alpha.17", default-features = false }
 ### Feature `async-await`
 
 The `async-await` feature provides several convenient features using unstable
-async/await. Note that this is an unstable feature, and upstream changes can
-make it cannot compile. To use futures-rs with async/await, use:
+async/await. Note that this is an unstable feature, and upstream changes might
+prevent it from compiling. To use futures-rs with async/await, use:
 
 ```toml
 [dependencies]
