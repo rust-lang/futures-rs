@@ -491,7 +491,7 @@ pub mod task {
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     #[cfg(feature = "alloc")]
-    pub use futures_util::task::{WakerRef, waker_ref, ArcWake};
+    pub use futures_util::task::{waker, waker_ref, WakerRef, ArcWake};
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
