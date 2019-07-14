@@ -1,5 +1,3 @@
-use core::mem;
-use core::task::{Waker, RawWaker, RawWakerVTable};
 use alloc::sync::Arc;
 
 /// A way of waking up a specific task.
@@ -35,52 +33,4 @@ pub trait ArcWake: Send + Sync {
     /// This function is similar to `wake`, but must not consume the provided data
     /// pointer.
     fn wake_by_ref(arc_self: &Arc<Self>);
-
-    /// Creates a `Waker` from an Arc<T>, if T implements `ArcWake`.
-    ///
-    /// If `wake()` is called on the returned `Waker`,
-    /// the `wake()` function that is defined inside this trait will get called.
-    fn into_waker(self: Arc<Self>) -> Waker where Self: Sized
-    {
-        let ptr = Arc::into_raw(self) as *const ();
-
-        unsafe {
-            Waker::from_raw(RawWaker::new(ptr, waker_vtable!(Self)))
-        }
-    }
-}
-
-// FIXME: panics on Arc::clone / refcount changes could wreak havoc on the
-// code here. We should guard against this by aborting.
-
-unsafe fn increase_refcount<T: ArcWake>(data: *const ()) {
-    // Retain Arc by creating a copy
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    let arc_clone = arc.clone();
-    // Forget the Arcs again, so that the refcount isn't decrased
-    mem::forget(arc);
-    mem::forget(arc_clone);
-}
-
-// used by `waker_ref`
-pub(super) unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
-    increase_refcount::<T>(data);
-    RawWaker::new(data, waker_vtable!(T))
-}
-
-unsafe fn drop_arc_raw<T: ArcWake>(data: *const ()) {
-    drop(Arc::<T>::from_raw(data as *const T))
-}
-
-// used by `waker_ref`
-pub(super) unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    ArcWake::wake(arc);
-}
-
-// used by `waker_ref`
-pub(super) unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    ArcWake::wake_by_ref(&arc);
-    mem::forget(arc);
 }

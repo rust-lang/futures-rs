@@ -1,17 +1,13 @@
-#![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
-
-use super::arc_wake::{ArcWake, clone_arc_raw, wake_by_ref_arc_raw};
+use super::arc_wake::ArcWake;
+use super::waker::{clone_arc_raw, wake_by_ref_arc_raw};
 use alloc::sync::Arc;
 use core::marker::PhantomData;
 use core::ops::Deref;
 use core::task::{Waker, RawWaker, RawWakerVTable};
 
-// TODO: The link to Waker below points to futures::task::Waker and not to std. Is that a
-// bug in rustdoc?
-//
-/// A [`Waker`](::std::task::Waker) that is only valid for a given lifetime.
+/// A [`Waker`] that is only valid for a given lifetime.
 ///
-/// Note: this type implements [`Deref<Target = Waker>`](::std::ops::Deref),
+/// Note: this type implements [`Deref<Target = Waker>`](std::ops::Deref),
 /// so it can be used to get a `&Waker`.
 #[derive(Debug)]
 pub struct WakerRef<'a> {
@@ -56,10 +52,9 @@ unsafe fn wake_unreachable(_data: *const ()) {
     unreachable!("WakerRef::wake");
 }
 
-/// Creates a reference to a [`Waker`](::std::task::Waker)
-/// from a local [`ArcWake`].
+/// Creates a reference to a [`Waker`] from a reference to `Arc<impl ArcWake>`.
 ///
-/// The resulting [`Waker`](::std::task::Waker) will call
+/// The resulting [`Waker`] will call
 /// [`ArcWake.wake()`](ArcWake::wake) if awoken.
 #[inline]
 pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
@@ -68,6 +63,7 @@ where
 {
     // This uses the same mechanism as Arc::into_raw, without needing a reference.
     // This is potentially not stable
+    #![allow(clippy::cast_ptr_alignment)]
     let ptr = &*wake as &W as *const W as *const ();
 
     // Similar to `waker_vtable`, but with a no-op `drop` function.
