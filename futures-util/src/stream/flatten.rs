@@ -9,26 +9,35 @@ use pin_utils::unsafe_pinned;
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Flatten<St>
-    where St: Stream,
+where
+    St: Stream,
 {
     stream: St,
     next: Option<St::Item>,
 }
 
-impl<St: Stream> Unpin for Flatten<St>
-where St: Stream + Unpin,
-      St::Item: Stream + Unpin,
-{}
+impl<St> Unpin for Flatten<St>
+where
+    St: Stream + Unpin,
+    St::Item: Unpin,
+{
+}
 
-impl<St: Stream> Flatten<St>
-where St: Stream,
-      St::Item: Stream,
+impl<St> Flatten<St>
+where
+    St: Stream,
 {
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Item>);
+}
 
-    pub(super) fn new(stream: St) -> Flatten<St>{
-        Flatten { stream, next: None, }
+impl<St> Flatten<St>
+where
+    St: Stream,
+    St::Item: Stream,
+{
+    pub(super) fn new(stream: St) -> Self {
+        Self { stream, next: None }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -64,22 +73,23 @@ where St: Stream,
     }
 }
 
-impl<St: Stream + FusedStream> FusedStream for Flatten<St> {
+impl<St> FusedStream for Flatten<St>
+where
+    St: Stream + FusedStream,
+{
     fn is_terminated(&self) -> bool {
         self.next.is_none() && self.stream.is_terminated()
     }
 }
 
 impl<St> Stream for Flatten<St>
-    where St: Stream,
-          St::Item: Stream,
+where
+    St: Stream,
+    St::Item: Stream,
 {
     type Item = <St::Item as Stream>::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             if self.next.is_none() {
                 match ready!(self.as_mut().stream().poll_next(cx)) {
@@ -87,9 +97,9 @@ impl<St> Stream for Flatten<St>
                     None => return Poll::Ready(None),
                 }
             }
-            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx));
-            if item.is_some() {
-                return Poll::Ready(item);
+
+            if let Some(item) = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx)) {
+                return Poll::Ready(Some(item));
             } else {
                 self.as_mut().next().set(None);
             }
@@ -100,8 +110,8 @@ impl<St> Stream for Flatten<St>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Flatten<S>
-    where S: Stream + Sink<Item>,
-          S::Item: Stream,
+where
+    S: Stream + Sink<Item>,
 {
     type Error = S::Error;
 
