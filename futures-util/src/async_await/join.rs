@@ -25,7 +25,7 @@
 /// ```
 #[macro_export]
 macro_rules! join {
-    ($($fut:ident),*) => { {
+    ($($fut:ident),* $(,)?) => { {
         $(
             // Move future into a local so that it is pinned in one place and
             // is no longer accessible by the end user.
@@ -91,7 +91,7 @@ macro_rules! join {
 /// ```
 #[macro_export]
 macro_rules! try_join {
-    ($($fut:ident),*) => { {
+    ($($fut:ident),* $(,)?) => { {
         $(
             // Move future into a local so that it is pinned in one place and
             // is no longer accessible by the end user.
