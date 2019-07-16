@@ -51,6 +51,7 @@ unstable = ["futures-core/unstable", "futures-task/unstable", "futures-channel/u
 cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic", "futures-task/cfg-target-has-atomic", "futures-channel/cfg-target-has-atomic", "futures-util/cfg-target-has-atomic"]
 bilock = ["futures-util/bilock"]
 read-initializer = ["futures-io/read-initializer", "futures-util/read-initializer"]
+write-all-vectored = ["futures-util/write-all-vectored"]
 
 [package.metadata.docs.rs]
 all-features = true
