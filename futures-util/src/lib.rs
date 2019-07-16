@@ -3,6 +3,7 @@
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read-initializer", feature(read_initializer))]
+#![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]

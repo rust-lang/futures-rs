@@ -30,6 +30,7 @@ unstable = ["futures-core/unstable", "futures-task/unstable"]
 cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic", "futures-task/cfg-target-has-atomic"]
 bilock = []
 read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
+write-all-vectored = ["io"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.3.4", default-features = false }
