@@ -193,12 +193,20 @@ impl LocalPool {
     /// Though only one task will be completed, progress may be made on multiple tasks.
     pub fn try_run_one(&mut self) -> bool {
         poll_executor(|ctx| {
-            let ret = self.poll_pool_once(ctx);
+            loop {
+                let ret = self.poll_pool_once(ctx);
 
-            // return if we really have executed a future
-            match ret {
-                Poll::Ready(Some(_)) => true,
-                _ => false
+                // return if we have executed a future
+                if let Poll::Ready(Some(_)) = ret {
+                    return true;
+                }
+
+                // if there are no new incoming futures
+                // then there is no feature that can make progress
+                // and we can return without having completed a single future
+                if self.incoming.borrow().is_empty() {
+                    return false;
+                }
             }
         })
     }
@@ -229,17 +237,9 @@ impl LocalPool {
     /// of the pool's run or poll methods. While the function is running, all tasks
     /// in the pool will try to make progress.
     pub fn run_until_stalled(&mut self) {
-        poll_executor(|ctx| {
-            loop {
-                let result = self.poll_pool_once(ctx);
-
-                // if there are no more ready futures exit
-                match result {
-                    Poll::Pending | Poll::Ready(None) => return,
-                    _ => continue
-                }
-            }
-        })
+        poll_executor(|ctx| { 
+            let _ = self.poll_pool(ctx);
+        });
     }
 
     // Make maximal progress on the entire pool of spawned task, returning `Ready`
