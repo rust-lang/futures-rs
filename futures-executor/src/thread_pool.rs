@@ -27,6 +27,7 @@ pub struct ThreadPool {
 pub struct ThreadPoolBuilder {
     pool_size: usize,
     stack_size: usize,
+    join_on_drop: bool,
     name_prefix: Option<String>,
     after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>,
@@ -40,6 +41,7 @@ struct PoolState {
     rx: Mutex<mpsc::Receiver<Message>>,
     cnt: AtomicUsize,
     size: usize,
+    join_handles: Mutex<Vec<thread::JoinHandle<()>>>,
 }
 
 impl fmt::Debug for ThreadPool {
@@ -163,6 +165,9 @@ impl Drop for ThreadPool {
             for _ in 0..self.state.size {
                 self.state.send(Message::Close);
             }
+            for join_handle in self.state.join_handles.lock().unwrap().drain(0..) {
+                join_handle.join().unwrap();
+            }
         }
     }
 }
@@ -175,6 +180,7 @@ impl ThreadPoolBuilder {
         ThreadPoolBuilder {
             pool_size: num_cpus::get(),
             stack_size: 0,
+            join_on_drop: false,
             name_prefix: None,
             after_start: None,
             before_stop: None,
@@ -195,6 +201,14 @@ impl ThreadPoolBuilder {
     /// By default, worker threads use Rust's standard stack size.
     pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {
         self.stack_size = stack_size;
+        self
+    }
+
+    /// Set if worker threads should be joined when the ThreadPool is dropped
+    ///
+    /// By default, worker threads are not joined.
+    pub fn join_on_drop(&mut self, join_on_drop: bool) -> &mut Self {
+        self.join_on_drop = join_on_drop;
         self
     }
 
@@ -253,23 +267,31 @@ impl ThreadPoolBuilder {
                 rx: Mutex::new(rx),
                 cnt: AtomicUsize::new(1),
                 size: self.pool_size,
+                join_handles: Mutex::new(vec!()),
             }),
         };
         assert!(self.pool_size > 0);
-
-        for counter in 0..self.pool_size {
-            let state = pool.state.clone();
-            let after_start = self.after_start.clone();
-            let before_stop = self.before_stop.clone();
-            let mut thread_builder = thread::Builder::new();
-            if let Some(ref name_prefix) = self.name_prefix {
-                thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+        
+        {
+            let mut join_handles = pool.state.join_handles.lock().unwrap();
+            for counter in 0..self.pool_size {
+                let state = pool.state.clone();
+                let after_start = self.after_start.clone();
+                let before_stop = self.before_stop.clone();
+                let mut thread_builder = thread::Builder::new();
+                if let Some(ref name_prefix) = self.name_prefix {
+                    thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+                }
+                if self.stack_size > 0 {
+                    thread_builder = thread_builder.stack_size(self.stack_size);
+                }
+                let join_handle = thread_builder.spawn(move || state.work(counter, after_start, before_stop))?;
+                if self.join_on_drop {
+                    join_handles.push(join_handle);
+                }
             }
-            if self.stack_size > 0 {
-                thread_builder = thread_builder.stack_size(self.stack_size);
-            }
-            thread_builder.spawn(move || state.work(counter, after_start, before_stop))?;
         }
+
         Ok(pool)
     }
 }
@@ -349,17 +371,58 @@ impl ArcWake for WakeHandle {
 mod tests {
     use super::*;
     use std::sync::mpsc;
+    use std::time::Duration;
 
     #[test]
     fn test_drop_after_start() {
         let (tx, rx) = mpsc::sync_channel(2);
         let _cpu_pool = ThreadPoolBuilder::new()
             .pool_size(2)
-            .after_start(move |_| tx.send(1).unwrap()).create().unwrap();
+            .after_start(move |_| tx.send(1).unwrap())
+            .create().unwrap();
 
         // After ThreadPoolBuilder is deconstructed, the tx should be droped
         // so that we can use rx as an iterator.
         let count = rx.into_iter().count();
         assert_eq!(count, 2);
+    }
+
+    const JOIN_ON_DROP_SLEEP_DURATION: Duration = Duration::from_millis(50);
+
+    #[test]
+    fn test_join_on_drop() {
+        let cnt = Arc::new(AtomicUsize::new(0));
+        {
+            let cnt = cnt.clone();
+            ThreadPoolBuilder::new()
+                .pool_size(2)
+                .join_on_drop(true)
+                .before_stop(move |_| {
+                    thread::sleep(JOIN_ON_DROP_SLEEP_DURATION);
+                    cnt.fetch_add(1, Ordering::Relaxed);
+                })
+                .create().unwrap();
+        };
+        
+        assert_eq!(cnt.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn test_not_join_on_drop() {
+        let cnt = Arc::new(AtomicUsize::new(0));
+        {
+            let cnt = cnt.clone();
+            ThreadPoolBuilder::new()
+                .pool_size(2)
+                //.join_on_drop(false) <- is default
+                .before_stop(move |_| {
+                    thread::sleep(JOIN_ON_DROP_SLEEP_DURATION);
+                    cnt.fetch_add(1, Ordering::Relaxed);
+                })
+                .create().unwrap();
+        };
+        
+        // the adding should not have happened yet
+        assert_eq!(cnt.load(Ordering::Relaxed), 0);
     }
 }
