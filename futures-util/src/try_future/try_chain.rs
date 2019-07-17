@@ -27,8 +27,8 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
 
     pub(crate) fn is_terminated(&self) -> bool {
         match self {
-            TryChain::First(..) | TryChain::Second(_) => true,
-            TryChain::Empty => false,
+            TryChain::First(..) | TryChain::Second(_) => false,
+            TryChain::Empty => true,
         }
     }
 
@@ -53,7 +53,12 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
                 }
                 TryChain::Second(fut2) => {
                     // Poll the second future
-                    return unsafe { Pin::new_unchecked(fut2) }.try_poll(cx)
+                    return unsafe { Pin::new_unchecked(fut2) }
+                        .try_poll(cx)
+                        .map(|res| {
+                            *this = TryChain::Empty; // Drop fut2.
+                            res
+                        });
                 }
                 TryChain::Empty => {
                     panic!("future must not be polled after it returned `Poll::Ready`");
@@ -67,5 +72,35 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
                 TryChainAction::Output(output) => return Poll::Ready(output),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::pin::Pin;
+    use std::task::Poll;
+
+    use futures_test::task::noop_context;
+
+    use crate::future::ready;
+
+    use super::{TryChain, TryChainAction};
+
+    #[test]
+    fn try_chain_is_terminated() {
+        let mut cx = noop_context();
+
+        let mut future = TryChain::new(ready(Ok(1)), ());
+        assert!(!future.is_terminated());
+
+        let res = Pin::new(&mut future).poll(
+            &mut cx,
+            |res: Result<usize, ()>, ()| {
+                assert!(res.is_ok());
+                TryChainAction::Future(ready(Ok(2)))
+            },
+        );
+        assert_eq!(res, Poll::Ready::<Result<usize, ()>>(Ok(2)));
+        assert!(future.is_terminated());
     }
 }
