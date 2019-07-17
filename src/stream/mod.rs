@@ -180,6 +180,7 @@ if_std! {
 /// please feel welcome to comment on [the issue][being considered]!
 ///
 /// [being considered]: https://github.com/rust-lang-nursery/futures-rs/issues/206
+#[must_use = "streams do nothing unless polled"]
 pub trait Stream {
     /// The type of item this stream will yield on success.
     type Item;

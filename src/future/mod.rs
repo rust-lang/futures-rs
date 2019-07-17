@@ -174,6 +174,7 @@ use {Poll, stream};
 /// More information about combinators can be found [on tokio.rs].
 ///
 /// [on tokio.rs]: https://tokio.rs/docs/going-deeper-futures/futures-mechanics/
+#[must_use = "futures do nothing unless polled"]
 pub trait Future {
     /// The type of value that this future will resolved with if it is
     /// successful.
