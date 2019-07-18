@@ -1,13 +1,12 @@
 //! A channel for sending a single message between asynchronous tasks.
 
+use alloc::sync::Arc;
+use core::fmt;
+use core::pin::Pin;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering::SeqCst;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
-use std::error::Error;
-use std::fmt;
 
 use crate::lock::Lock;
 
@@ -387,7 +386,8 @@ impl fmt::Display for Canceled {
     }
 }
 
-impl Error for Canceled {}
+#[cfg(feature = "std")]
+impl std::error::Error for Canceled {}
 
 impl<T> Receiver<T> {
     /// Gracefully close this receiver, preventing any subsequent attempts to

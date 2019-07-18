@@ -15,9 +15,12 @@ Channels for asynchronous communication using futures-rs.
 name = "futures_channel"
 
 [features]
-std = ["futures-core-preview/std"]
-sink = ["futures-sink-preview"]
 default = ["std"]
+std = ["alloc", "futures-core-preview/std"]
+alloc = ["futures-core-preview/alloc"]
+sink = ["futures-sink-preview"]
+nightly = ["futures-core-preview/nightly"]
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.17", default-features = false }
