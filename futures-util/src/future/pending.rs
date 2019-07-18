@@ -46,3 +46,6 @@ impl<T> Future for Pending<T> {
         Poll::Pending
     }
 }
+
+impl<T> Unpin for Pending<T> {
+}
