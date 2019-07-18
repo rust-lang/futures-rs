@@ -82,12 +82,13 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll, Waker};
 use futures_core::task::__internal::AtomicWaker;
 use std::any::Any;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::sync::{Arc, Mutex};
 
 use crate::mpsc::queue::Queue;
 
@@ -146,15 +147,16 @@ pub struct UnboundedReceiver<T>(Receiver<T>);
 impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SendError {
+#[derive(Clone, PartialEq, Eq)]
+pub struct SendError<T> {
     kind: SendErrorKind,
+    val: Option<T>,
 }
 
 /// The error type returned from [`try_send`](Sender::try_send).
 #[derive(Clone, PartialEq, Eq)]
 pub struct TrySendError<T> {
-    err: SendError,
+    kind: SendErrorKind,
     val: T,
 }
 
@@ -169,7 +171,15 @@ pub struct TryRecvError {
     _inner: (),
 }
 
-impl fmt::Display for SendError {
+impl<T> fmt::Debug for SendError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SendError")
+            .field("kind", &self.kind)
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for SendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
             write!(f, "send failed because channel is full")
@@ -179,30 +189,40 @@ impl fmt::Display for SendError {
     }
 }
 
-impl Error for SendError {}
+impl<T> Error for SendError<T> {}
 
-impl SendError {
+impl<T> From<TrySendError<T>> for SendError<T> {
+    fn from(e: TrySendError<T>) -> Self {
+        Self {
+            kind: e.kind,
+            val: Some(e.val),
+        }
+    }
+}
+
+impl<T> SendError<T> {
     /// Returns true if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
-        match self.kind {
-            SendErrorKind::Full => true,
-            _ => false,
-        }
+        self.kind.is_full()
     }
 
     /// Returns true if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
-        match self.kind {
-            SendErrorKind::Disconnected => true,
-            _ => false,
-        }
+        self.kind.is_disconnected()
+    }
+
+    /// Returns the message that was attempted to be sent but failed.
+    ///
+    /// Returns `None` if this error is caused by an operation other than sending.
+    pub fn into_inner(self) -> Option<T> {
+        self.val
     }
 }
 
 impl<T> fmt::Debug for TrySendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TrySendError")
-            .field("kind", &self.err.kind)
+            .field("kind", &self.kind)
             .finish()
     }
 }
@@ -219,25 +239,48 @@ impl<T> fmt::Display for TrySendError<T> {
 
 impl<T: Any> Error for TrySendError<T> {}
 
+impl<T> TryFrom<SendError<T>> for TrySendError<T> {
+    type Error = SendError<T>;
+
+    fn try_from(e: SendError<T>) -> Result<Self, SendError<T>> {
+        if let SendError { kind, val: Some(val) } = e {
+            Ok(Self { kind, val })
+        } else {
+            Err(e)
+        }
+    }
+}
+
 impl<T> TrySendError<T> {
     /// Returns true if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
-        self.err.is_full()
+        self.kind.is_full()
     }
 
     /// Returns true if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
-        self.err.is_disconnected()
+        self.kind.is_disconnected()
     }
 
     /// Returns the message that was attempted to be sent but failed.
     pub fn into_inner(self) -> T {
         self.val
     }
+}
 
-    /// Drops the message and converts into a `SendError`.
-    pub fn into_send_error(self) -> SendError {
-        self.err
+impl SendErrorKind {
+    fn is_full(&self) -> bool {
+        match self {
+            SendErrorKind::Full => true,
+            _ => false,
+        }
+    }
+
+    fn is_disconnected(&self) -> bool {
+        match self {
+            SendErrorKind::Disconnected => true,
+            _ => false,
+        }
     }
 }
 
@@ -396,9 +439,7 @@ impl<T> SenderInner<T> {
         // If the sender is currently blocked, reject the message
         if !self.poll_unparked(None).is_ready() {
             return Err(TrySendError {
-                err: SendError {
-                    kind: SendErrorKind::Full,
-                },
+                kind: SendErrorKind::Full,
                 val: msg,
             });
         }
@@ -409,9 +450,7 @@ impl<T> SenderInner<T> {
 
     // Do the send without failing.
     // Can be called only by bounded sender.
-    fn do_send_b(&mut self, msg: T)
-        -> Result<(), TrySendError<T>>
-    {
+    fn do_send_b(&mut self, msg: T) -> Result<(), TrySendError<T>> {
         // Anyone callig do_send *should* make sure there is room first,
         // but assert here for tests as a sanity check.
         debug_assert!(self.poll_unparked(None).is_ready());
@@ -430,9 +469,7 @@ impl<T> SenderInner<T> {
                 num_messages > self.inner.buffer.unwrap()
             }
             None => return Err(TrySendError {
-                err: SendError {
-                    kind: SendErrorKind::Disconnected,
-                },
+                kind: SendErrorKind::Disconnected,
                 val: msg,
             }),
         };
@@ -453,17 +490,17 @@ impl<T> SenderInner<T> {
         Ok(())
     }
 
-    fn poll_ready_nb(&self) -> Poll<Result<(), SendError>> {
+    fn poll_ready_nb(&self) -> Poll<Result<(), SendError<T>>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if state.is_open {
             Poll::Ready(Ok(()))
         } else {
             Poll::Ready(Err(SendError {
                 kind: SendErrorKind::Disconnected,
+                val: None,
             }))
         }
     }
-
 
     // Push message to the queue and signal to the receiver
     fn queue_push_and_signal(&self, msg: T) {
@@ -537,11 +574,12 @@ impl<T> SenderInner<T> {
     fn poll_ready(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), SendError>> {
+    ) -> Poll<Result<(), SendError<T>>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
             return Poll::Ready(Err(SendError {
                 kind: SendErrorKind::Disconnected,
+                val: None,
             }));
         }
 
@@ -603,9 +641,7 @@ impl<T> Sender<T> {
             inner.try_send(msg)
         } else {
             Err(TrySendError {
-                err: SendError {
-                    kind: SendErrorKind::Disconnected,
-                },
+                kind: SendErrorKind::Disconnected,
                 val: msg,
             })
         }
@@ -616,9 +652,8 @@ impl<T> Sender<T> {
     /// This function should only be called after
     /// [`poll_ready`](Sender::poll_ready) has reported that the channel is
     /// ready to receive a message.
-    pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
-        self.try_send(msg)
-            .map_err(|e| e.err)
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        self.try_send(msg).map_err(Into::into)
     }
 
     /// Polls the channel to determine if there is guaranteed capacity to send
@@ -636,9 +671,10 @@ impl<T> Sender<T> {
     pub fn poll_ready(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), SendError>> {
+    ) -> Poll<Result<(), SendError<T>>> {
         let inner = self.0.as_mut().ok_or(SendError {
             kind: SendErrorKind::Disconnected,
+            val: None,
         })?;
         inner.poll_ready(cx)
     }
@@ -674,9 +710,10 @@ impl<T> UnboundedSender<T> {
     pub fn poll_ready(
         &self,
         _: &mut Context<'_>,
-    ) -> Poll<Result<(), SendError>> {
+    ) -> Poll<Result<(), SendError<T>>> {
         let inner = self.0.as_ref().ok_or(SendError {
             kind: SendErrorKind::Disconnected,
+            val: None
         })?;
         inner.poll_ready_nb()
     }
@@ -708,9 +745,7 @@ impl<T> UnboundedSender<T> {
         }
 
         Err(TrySendError {
-            err: SendError {
-                kind: SendErrorKind::Disconnected,
-            },
+            kind: SendErrorKind::Disconnected,
             val: msg,
         })
     }
@@ -719,9 +754,8 @@ impl<T> UnboundedSender<T> {
     ///
     /// This method should only be called after `poll_ready` has been used to
     /// verify that the channel is ready to receive a message.
-    pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
-        self.do_send_nb(msg)
-            .map_err(|e| e.err)
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        self.do_send_nb(msg).map_err(Into::into)
     }
 
     /// Sends a message along this channel.

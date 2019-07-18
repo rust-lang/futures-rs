@@ -1,10 +1,10 @@
-use super::{SendError, Sender, TrySendError, UnboundedSender};
+use super::{SendError, Sender, UnboundedSender};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use std::pin::Pin;
 
 impl<T> Sink<T> for Sender<T> {
-    type Error = SendError;
+    type Error = SendError<T>;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
@@ -43,7 +43,7 @@ impl<T> Sink<T> for Sender<T> {
 }
 
 impl<T> Sink<T> for UnboundedSender<T> {
-    type Error = SendError;
+    type Error = SendError<T>;
 
     fn poll_ready(
         self: Pin<&mut Self>,
@@ -76,7 +76,7 @@ impl<T> Sink<T> for UnboundedSender<T> {
 }
 
 impl<T> Sink<T> for &UnboundedSender<T> {
-    type Error = SendError;
+    type Error = SendError<T>;
 
     fn poll_ready(
         self: Pin<&mut Self>,
@@ -86,8 +86,7 @@ impl<T> Sink<T> for &UnboundedSender<T> {
     }
 
     fn start_send(self: Pin<&mut Self>, msg: T) -> Result<(), Self::Error> {
-        self.unbounded_send(msg)
-            .map_err(TrySendError::into_send_error)
+        self.unbounded_send(msg).map_err(Into::into)
     }
 
     fn poll_flush(
