@@ -7,17 +7,17 @@ use futures_01::{
     AsyncSink as AsyncSink01, Sink as Sink01, StartSend as StartSend01,
 };
 use futures_core::{
-    task::{
-        self as task03,
-        RawWaker,
-        RawWakerVTable,
-    },
+    task::{RawWaker, RawWakerVTable},
     TryFuture as TryFuture03,
     TryStream as TryStream03,
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
-use crate::task::{ArcWake as ArcWake03, WakerRef};
+use crate::task::{
+    self as task03,
+    ArcWake as ArcWake03,
+    WakerRef,
+};
 #[cfg(feature = "sink")]
 use std::marker::PhantomData;
 use std::{
@@ -85,7 +85,7 @@ impl<T, Item> CompatSink<T, Item> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Get a reference to 0.3 Sink contained within.
     pub fn get_ref(&self) -> &T {
         &self.inner
@@ -192,7 +192,7 @@ impl Current {
             // FIXME: remove `transmute` when a `Waker` -> `RawWaker` conversion
             // function is landed in `core`.
             mem::transmute::<task03::Waker, RawWaker>(
-                Arc::new(ptr_to_current(ptr).clone()).into_waker()
+                task03::waker(Arc::new(ptr_to_current(ptr).clone()))
             )
         }
         unsafe fn drop(_: *const ()) {}

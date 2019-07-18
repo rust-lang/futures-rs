@@ -1,4 +1,4 @@
-use futures::task::{ArcWake, Waker};
+use futures::task::{self, ArcWake, Waker};
 use std::sync::{Arc, Mutex};
 
 struct CountingWaker {
@@ -28,7 +28,7 @@ impl ArcWake for CountingWaker {
 fn create_waker_from_arc() {
     let some_w = Arc::new(CountingWaker::new());
 
-    let w1: Waker = ArcWake::into_waker(some_w.clone());
+    let w1: Waker = task::waker(some_w.clone());
     assert_eq!(2, Arc::strong_count(&some_w));
     w1.wake_by_ref();
     assert_eq!(1, some_w.wakes());

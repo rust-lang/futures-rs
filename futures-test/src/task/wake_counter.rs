@@ -1,7 +1,7 @@
-use futures_core::task::{Waker};
+use futures_core::task::Waker;
+use futures_util::task::{self, ArcWake};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use futures_util::task::ArcWake;
 
 /// Number of times the waker was awoken.
 ///
@@ -55,5 +55,5 @@ impl ArcWake for WakerInner {
 /// ```
 pub fn new_count_waker() -> (Waker, AwokenCount) {
     let inner = Arc::new(WakerInner { count: AtomicUsize::new(0) });
-    (ArcWake::into_waker(inner.clone()), AwokenCount { inner })
+    (task::waker(inner.clone()), AwokenCount { inner })
 }

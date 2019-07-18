@@ -16,7 +16,7 @@ fn noop_raw_waker() -> RawWaker {
     RawWaker::new(null(), &NOOP_WAKER_VTABLE)
 }
 
-/// Create a new [`Waker`](futures_core::task::Waker) which does
+/// Create a new [`Waker`] which does
 /// nothing when `wake()` is called on it.
 ///
 /// # Examples
@@ -33,7 +33,7 @@ pub fn noop_waker() -> Waker {
     }
 }
 
-/// Get a static reference to a [`Waker`](futures_core::task::Waker) which
+/// Get a static reference to a [`Waker`] which
 /// does nothing when `wake()` is called on it.
 ///
 /// # Examples

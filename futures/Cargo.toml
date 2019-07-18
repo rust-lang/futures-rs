@@ -20,7 +20,6 @@ name = "futures"
 
 [badges]
 travis-ci = { repository = "rust-lang-nursery/futures-rs" }
-appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.17", default-features = false }

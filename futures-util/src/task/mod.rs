@@ -21,6 +21,11 @@ cfg_target_has_atomic! {
     pub use self::arc_wake::ArcWake;
 
     #[cfg(feature = "alloc")]
+    mod waker;
+    #[cfg(feature = "alloc")]
+    pub use self::waker::waker;
+
+    #[cfg(feature = "alloc")]
     mod waker_ref;
     #[cfg(feature = "alloc")]
     pub use self::waker_ref::{waker_ref, WakerRef};
