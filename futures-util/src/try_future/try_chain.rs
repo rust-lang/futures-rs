@@ -10,6 +10,8 @@ pub(crate) enum TryChain<Fut1, Fut2, Data> {
     Empty,
 }
 
+impl<Fut1: Unpin, Fut2: Unpin, Data> Unpin for TryChain<Fut1, Fut2, Data> {}
+
 pub(crate) enum TryChainAction<Fut2>
     where Fut2: TryFuture,
 {

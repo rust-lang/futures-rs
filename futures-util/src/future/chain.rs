@@ -10,6 +10,8 @@ pub(crate) enum Chain<Fut1, Fut2, Data> {
     Empty,
 }
 
+impl<Fut1: Unpin, Fut2: Unpin, Data> Unpin for Chain<Fut1, Fut2, Data> {}
+
 impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data> {
     pub(crate)fn is_terminated(&self) -> bool {
         if let Chain::Empty = *self { true } else { false }
