@@ -29,7 +29,7 @@ matrix:
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
 
     - name: cargo +beta build
-      rust: stable
+      rust: beta
       script:
         # default features & compat feature
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
