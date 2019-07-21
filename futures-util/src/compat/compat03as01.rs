@@ -180,7 +180,6 @@ impl Current {
 
     fn as_waker(&self) -> WakerRef<'_> {
         unsafe fn ptr_to_current<'a>(ptr: *const ()) -> &'a Current {
-            #[allow(clippy::cast_ptr_alignment)]
             &*(ptr as *const Current)
         }
         fn current_to_ptr(current: &Current) -> *const () {
