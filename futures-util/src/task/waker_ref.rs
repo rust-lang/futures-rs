@@ -63,7 +63,6 @@ where
 {
     // This uses the same mechanism as Arc::into_raw, without needing a reference.
     // This is potentially not stable
-    #![allow(clippy::cast_ptr_alignment)]
     let ptr = &*wake as &W as *const W as *const ();
 
     // Similar to `waker_vtable`, but with a no-op `drop` function.
