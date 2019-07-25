@@ -1,40 +1,41 @@
 use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
-/// Stream for the [`flatten`](super::StreamExt::flatten) method.
+/// Stream for the [`try_flatten`](super::TryStreamExt::try_flatten) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Flatten<St>
+pub struct TryFlatten<St>
 where
-    St: Stream,
+    St: TryStream,
 {
     stream: St,
-    next: Option<St::Item>,
+    next: Option<St::Ok>,
 }
 
-impl<St> Unpin for Flatten<St>
+impl<St> Unpin for TryFlatten<St>
 where
-    St: Stream + Unpin,
-    St::Item: Unpin,
+    St: TryStream + Unpin,
+    St::Ok: Unpin,
 {
 }
 
-impl<St> Flatten<St>
+impl<St> TryFlatten<St>
 where
-    St: Stream,
+    St: TryStream,
 {
     unsafe_pinned!(stream: St);
-    unsafe_pinned!(next: Option<St::Item>);
+    unsafe_pinned!(next: Option<St::Ok>);
 }
 
-impl<St> Flatten<St>
+impl<St> TryFlatten<St>
 where
-    St: Stream,
-    St::Item: Stream,
+    St: TryStream,
+    St::Ok: TryStream,
+    <St::Ok as TryStream>::Error: From<St::Error>,
 {
     pub(super) fn new(stream: St) -> Self {
         Self { stream, next: None }
@@ -73,33 +74,40 @@ where
     }
 }
 
-impl<St> FusedStream for Flatten<St>
+impl<St> FusedStream for TryFlatten<St>
 where
-    St: Stream + FusedStream,
+    St: TryStream + FusedStream,
 {
     fn is_terminated(&self) -> bool {
         self.next.is_none() && self.stream.is_terminated()
     }
 }
 
-impl<St> Stream for Flatten<St>
+impl<St> Stream for TryFlatten<St>
 where
-    St: Stream,
-    St::Item: Stream,
+    St: TryStream,
+    St::Ok: TryStream,
+    <St::Ok as TryStream>::Error: From<St::Error>,
 {
-    type Item = <St::Item as Stream>::Item;
+    type Item = Result<<St::Ok as TryStream>::Ok, <St::Ok as TryStream>::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             if self.next.is_none() {
-                match ready!(self.as_mut().stream().poll_next(cx)) {
+                match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
 
-            if let Some(item) = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx)) {
-                return Poll::Ready(Some(item));
+            if let Some(item) = ready!(self
+                .as_mut()
+                .next()
+                .as_pin_mut()
+                .unwrap()
+                .try_poll_next(cx)?)
+            {
+                return Poll::Ready(Some(Ok(item)));
             } else {
                 self.as_mut().next().set(None);
             }
@@ -109,11 +117,11 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, Item> Sink<Item> for Flatten<S>
+impl<S, Item> Sink<Item> for TryFlatten<S>
 where
-    S: Stream + Sink<Item>,
+    S: TryStream + Sink<Item>,
 {
-    type Error = S::Error;
+    type Error = <S as Sink<Item>>::Error;
 
     delegate_sink!(stream, Item);
 }

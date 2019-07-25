@@ -47,6 +47,9 @@ pub use self::try_filter::TryFilter;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_flatten;
+pub use self::try_flatten::TryFlatten;
+
 mod try_collect;
 pub use self::try_collect::TryCollect;
 
@@ -556,6 +559,52 @@ pub trait TryStreamExt: TryStream {
         TryFilterMap::new(self, f)
     }
 
+    /// Flattens a stream of streams into just one continuous stream.
+    ///
+    /// If this stream's elements are themselves streams then this combinator
+    /// will flatten out the entire stream to one long chain of elements. Any
+    /// errors are passed through without looking at them, but otherwise each
+    /// individual stream will get exhausted before moving on to the next.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::stream::{StreamExt, TryStreamExt};
+    /// use std::thread;
+    ///
+    /// let (tx1, rx1) = mpsc::unbounded();
+    /// let (tx2, rx2) = mpsc::unbounded();
+    /// let (tx3, rx3) = mpsc::unbounded();
+    ///
+    /// thread::spawn(move || {
+    ///     tx1.unbounded_send(Ok(1)).unwrap();
+    /// });
+    /// thread::spawn(move || {
+    ///     tx2.unbounded_send(Ok(2)).unwrap();
+    ///     tx2.unbounded_send(Err(3)).unwrap();
+    /// });
+    /// thread::spawn(move || {
+    ///     tx3.unbounded_send(Ok(rx1)).unwrap();
+    ///     tx3.unbounded_send(Ok(rx2)).unwrap();
+    ///     tx3.unbounded_send(Err(4)).unwrap();
+    /// });
+    ///
+    /// let mut stream = rx3.try_flatten();
+    /// assert_eq!(stream.next().await, Some(Ok(1)));
+    /// assert_eq!(stream.next().await, Some(Ok(2)));
+    /// assert_eq!(stream.next().await, Some(Err(3)));
+    /// # });
+    /// ```
+    fn try_flatten(self) -> TryFlatten<Self>
+        where Self::Ok: TryStream,
+              <Self::Ok as TryStream>::Error: From<Self::Error>,
+              Self: Sized,
+    {
+        TryFlatten::new(self)
+    }
 
     /// Attempt to execute an accumulating asynchronous computation over a
     /// stream, collecting all the values into one final result.

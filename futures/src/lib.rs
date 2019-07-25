@@ -449,7 +449,7 @@ pub mod stream {
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
         InspectOk, InspectErr,
-        TryNext, TryForEach, TryFilterMap,
+        TryNext, TryForEach, TryFilterMap, TryFlatten,
         TryCollect, TryFold, TrySkipWhile,
         IntoStream,
     };
