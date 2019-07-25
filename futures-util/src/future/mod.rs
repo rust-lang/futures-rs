@@ -531,6 +531,54 @@ pub trait FutureExt: Future {
     {
         Pin::new(self).poll(cx)
     }
+
+    /// Evaluates and consumes the future, returning the resulting output if
+    /// the future is ready after the first call to `Future::poll`.
+    ///
+    /// If `poll` instead returns `Poll::Pending`, `None` is returned.
+    ///
+    /// This method is useful in cases where immediacy is more important than
+    /// waiting for a result. It is also convenient for quickly obtaining
+    /// the value of a future that is known to always resolve immediately.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::prelude::*;
+    /// use futures::{future::ready, future::pending};
+    /// let future_ready = ready("foobar");
+    /// let future_pending = pending::<&'static str>();
+    ///
+    /// assert_eq!(future_ready.now_or_never(), Some("foobar"));
+    /// assert_eq!(future_pending.now_or_never(), None);
+    /// ```
+    ///
+    /// In cases where it is absolutely known that a future should always
+    /// resolve immediately and never return `Poll::Pending`, this method can
+    /// be combined with `expect()`:
+    ///
+    /// ```
+    /// # use futures::{prelude::*, future::ready};
+    /// let future_ready = ready("foobar");
+    ///
+    /// assert_eq!(future_ready.now_or_never().expect("Future not ready"), "foobar");
+    /// ```
+    fn now_or_never(mut self) -> Option<Self::Output>
+        where Self: Sized
+    {
+        let noop_waker = crate::task::noop_waker();
+        let mut cx = Context::from_waker(&noop_waker);
+
+        // SAFETY: This is safe because this method consumes the future, so `poll` is
+        //         only going to be called once. Thus it doesn't matter to us if the
+        //         future is `Unpin` or not.
+        let pinned = unsafe { Pin::new_unchecked(&mut self) };
+
+        match pinned.poll(&mut cx) {
+            Poll::Ready(x) => Some(x),
+            _ => None,
+        }
+    }
 }
 
 // Just a helper function to ensure the futures we're returning all have the
