@@ -2,7 +2,7 @@ use crate::try_stream::TryStreamExt;
 use core::pin::Pin;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncBufRead};
+use futures_io::{AsyncRead, AsyncWrite, AsyncBufRead};
 use std::cmp;
 use std::io::{Error, Result};
 
@@ -97,6 +97,34 @@ where
                 }
             }
         }
+    }
+}
+
+impl<St> AsyncWrite for IntoAsyncRead<St>
+where
+    St: TryStream<Error = Error> + AsyncWrite + Unpin,
+    St::Ok: AsRef<[u8]>,
+{
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8]
+    ) -> Poll<Result<usize>> {
+        Pin::new( &mut self.stream ).poll_write( cx, buf )
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>
+    ) -> Poll<Result<()>> {
+        Pin::new( &mut self.stream ).poll_flush( cx )
+    }
+
+    fn poll_close(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>
+    ) -> Poll<Result<()>> {
+        Pin::new( &mut self.stream ).poll_close( cx )
     }
 }
 

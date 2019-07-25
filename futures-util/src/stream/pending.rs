@@ -17,6 +17,8 @@ pub fn pending<T>() -> Pending<T> {
     Pending { _data: marker::PhantomData }
 }
 
+impl<T> Unpin for Pending<T> {}
+
 impl<T> FusedStream for Pending<T> {
     fn is_terminated(&self) -> bool {
         true

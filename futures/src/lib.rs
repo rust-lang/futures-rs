@@ -73,7 +73,11 @@ pub use futures_util::{
     join, try_join, pending, poll,
 };
 
-#[cfg(feature = "std")]
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
+#[cfg(feature = "alloc")]
 pub mod channel {
     //! Cross-task communication.
     //!
@@ -86,10 +90,13 @@ pub mod channel {
     //!   channel for sending values between tasks, analogous to the
     //!   similarly-named structure in the standard library.
     //!
-    //! This module is only available when the `std` feature of this
+    //! This module is only available when the `std` or `alloc` feature of this
     //! library is activated, and it is activated by default.
 
-    pub use futures_channel::{oneshot, mpsc};
+    pub use futures_channel::oneshot;
+
+    #[cfg(feature = "std")]
+    pub use futures_channel::mpsc;
 }
 
 #[cfg(feature = "compat")]
@@ -298,9 +305,10 @@ pub mod io {
 
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
-        BufReader, BufWriter, Close, CopyInto, CopyBufInto, Flush, Lines, Read,
-        ReadExact, ReadHalf, ReadLine, ReadToEnd, ReadToString, ReadUntil,
-        ReadVectored, Seek, Window, Write, WriteAll, WriteHalf, WriteVectored,
+        BufReader, BufWriter, Close, CopyInto, CopyBufInto, Flush, IntoSink,
+        Lines, Read, ReadExact, ReadHalf, ReadLine, ReadToEnd, ReadToString,
+        ReadUntil, ReadVectored, Seek, Window, Write, WriteAll, WriteHalf,
+        WriteVectored,
     };
 }
 

@@ -30,6 +30,8 @@ pub fn drain<T>() -> Drain<T> {
     Drain { marker: PhantomData }
 }
 
+impl<T> Unpin for Drain<T> {}
+
 impl<T> Sink<T> for Drain<T> {
     type Error = Never;
 

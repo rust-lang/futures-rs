@@ -95,22 +95,12 @@ impl ThreadPool {
     pub fn run<F: Future>(&mut self, f: F) -> F::Output {
         crate::LocalPool::new().run_until(f)
     }
-}
 
-impl Spawn for ThreadPool {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
-        (&*self).spawn_obj(future)
-    }
-}
-
-impl Spawn for &ThreadPool {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    /// Spawns a future that will be run to completion.
+    ///
+    /// > **Note**: This method is similar to `Spawn::spawn_obj`, except that
+    /// >           it is guaranteed to always succeed.
+    pub fn spawn_obj_ok(&self, future: FutureObj<'static, ()>) {
         let task = Task {
             future,
             wake_handle: Arc::new(WakeHandle {
@@ -120,6 +110,47 @@ impl Spawn for &ThreadPool {
             exec: self.clone(),
         };
         self.state.send(Message::Run(task));
+    }
+
+    /// Spawns a task that polls the given future with output `()` to
+    /// completion.
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// use futures::executor::ThreadPool;
+    ///
+    /// let pool = ThreadPool::new().unwrap();
+    ///
+    /// let future = async { /* ... */ };
+    /// pool.spawn_ok(future);
+    /// ```
+    ///
+    /// > **Note**: This method is similar to `SpawnExt::spawn`, except that
+    /// >           it is guaranteed to always succeed.
+    pub fn spawn_ok<Fut>(&self, future: Fut)
+    where
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        self.spawn_obj_ok(FutureObj::new(Box::new(future)))
+    }
+}
+
+impl Spawn for ThreadPool {
+    fn spawn_obj(
+        &mut self,
+        future: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnError> {
+        self.spawn_obj_ok(future);
+        Ok(())
+    }
+}
+
+impl Spawn for &ThreadPool {
+    fn spawn_obj(
+        &mut self,
+        future: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnError> {
+        self.spawn_obj_ok(future);
         Ok(())
     }
 }
