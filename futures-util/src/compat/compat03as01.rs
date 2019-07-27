@@ -15,7 +15,7 @@ use futures_core::{
 use futures_sink::Sink as Sink03;
 use crate::task::{
     self as task03,
-    ArcWake as ArcWake03,
+    Wake as Wake03,
     WakerRef,
 };
 #[cfg(feature = "sink")]
@@ -207,7 +207,7 @@ impl Current {
     }
 }
 
-impl ArcWake03 for Current {
+impl Wake03 for Current {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.0.notify();
     }

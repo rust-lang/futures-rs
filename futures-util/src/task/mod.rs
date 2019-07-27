@@ -2,7 +2,7 @@
 
 cfg_target_has_atomic! {
     /// A macro for creating a `RawWaker` vtable for a type that implements
-    /// the `ArcWake` trait.
+    /// the `Wake` trait.
     #[cfg(feature = "alloc")]
     macro_rules! waker_vtable {
         ($ty:ident) => {
@@ -16,9 +16,9 @@ cfg_target_has_atomic! {
     }
 
     #[cfg(feature = "alloc")]
-    mod arc_wake;
+    mod wake;
     #[cfg(feature = "alloc")]
-    pub use self::arc_wake::ArcWake;
+    pub use self::wake::Wake;
 
     #[cfg(feature = "alloc")]
     mod waker;

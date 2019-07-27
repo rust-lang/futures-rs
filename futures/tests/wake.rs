@@ -1,4 +1,4 @@
-use futures::task::{self, ArcWake, Waker};
+use futures::task::{self, Wake, Waker};
 use std::sync::{Arc, Mutex};
 
 struct CountingWaker {
@@ -17,7 +17,7 @@ impl CountingWaker {
     }
 }
 
-impl ArcWake for CountingWaker {
+impl Wake for CountingWaker {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         let mut lock = arc_self.nr_wake.lock().unwrap();
         *lock += 1;

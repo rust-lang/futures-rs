@@ -3,7 +3,7 @@ use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
 use futures_core::task::{Context, Poll, Spawn, SpawnError};
 use futures_util::future::FutureExt;
-use futures_util::task::{ArcWake, waker_ref};
+use futures_util::task::{Wake, waker_ref};
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -367,7 +367,7 @@ impl fmt::Debug for Task {
     }
 }
 
-impl ArcWake for WakeHandle {
+impl Wake for WakeHandle {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         match arc_self.mutex.notify() {
             Ok(task) => arc_self.exec.state.send(Message::Run(task)),

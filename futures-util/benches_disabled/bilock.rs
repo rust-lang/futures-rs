@@ -7,7 +7,7 @@ use futures::executor::LocalPool;
 use futures_util::lock::BiLock;
 use futures_util::lock::BiLockAcquire;
 use futures_util::lock::BiLockAcquired;
-use futures_util::task::ArcWake;
+use futures_util::task::Wake;
 
 use std::sync::Arc;
 use test::Bencher;
@@ -15,11 +15,11 @@ use test::Bencher;
 fn notify_noop() -> Waker {
     struct Noop;
 
-    impl ArcWake for Noop {
+    impl Wake for Noop {
         fn wake(_: &Arc<Self>) {}
     }
 
-    ArcWake::into_waker(Arc::new(Noop))
+    Wake::into_waker(Arc::new(Noop))
 }
 
 

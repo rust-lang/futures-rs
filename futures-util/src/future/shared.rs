@@ -1,4 +1,4 @@
-use crate::task::{ArcWake, waker_ref};
+use crate::task::{Wake, waker_ref};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
@@ -319,7 +319,7 @@ where
     }
 }
 
-impl ArcWake for Notifier {
+impl Wake for Notifier {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 

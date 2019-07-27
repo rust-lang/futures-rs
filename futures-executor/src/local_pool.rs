@@ -2,7 +2,7 @@ use crate::enter;
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{Stream};
 use futures_core::task::{Context, Poll, Spawn, LocalSpawn, SpawnError};
-use futures_util::task::{waker_ref, ArcWake};
+use futures_util::task::{waker_ref, Wake};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 use futures_util::pin_mut;
@@ -48,7 +48,7 @@ thread_local! {
     });
 }
 
-impl ArcWake for ThreadNotify {
+impl Wake for ThreadNotify {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.thread.unpark();
     }

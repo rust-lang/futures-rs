@@ -1,4 +1,4 @@
-use super::arc_wake::ArcWake;
+use super::wake::Wake;
 use super::waker::{clone_arc_raw, wake_by_ref_arc_raw};
 use alloc::sync::Arc;
 use core::marker::PhantomData;
@@ -42,7 +42,7 @@ unsafe fn noop(_data: *const ()) {}
 
 unsafe fn wake_unreachable(_data: *const ()) {
     // With only a reference, calling `wake_arc_raw()` would be unsound,
-    // since the `WakerRef` didn't increment the refcount of the `ArcWake`,
+    // since the `WakerRef` didn't increment the refcount of the `Wake`,
     // and `wake_arc_raw` would *decrement* it.
     //
     // This should never be reachable, since `WakerRef` only provides a `Deref`
@@ -52,14 +52,14 @@ unsafe fn wake_unreachable(_data: *const ()) {
     unreachable!("WakerRef::wake");
 }
 
-/// Creates a reference to a [`Waker`] from a reference to `Arc<impl ArcWake>`.
+/// Creates a reference to a [`Waker`] from a reference to `Arc<impl Wake>`.
 ///
 /// The resulting [`Waker`] will call
-/// [`ArcWake.wake()`](ArcWake::wake) if awoken.
+/// [`Wake.wake()`](Wake::wake) if awoken.
 #[inline]
 pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
-    W: ArcWake
+    W: Wake
 {
     // This uses the same mechanism as Arc::into_raw, without needing a reference.
     // This is potentially not stable

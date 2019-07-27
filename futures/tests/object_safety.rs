@@ -41,7 +41,7 @@ fn io() {
 
 #[test]
 fn task() {
-    // `ArcWake`, `SpawnExt` and `LocalSpawnExt` are not object safe.
+    // `Wake`, `SpawnExt` and `LocalSpawnExt` are not object safe.
     use futures::task::{LocalSpawn, Spawn};
 
     assert_is_object_safe::<&dyn Spawn>();

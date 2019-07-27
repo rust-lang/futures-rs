@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicPtr, AtomicBool};
 use core::sync::atomic::Ordering::SeqCst;
 use alloc::sync::{Arc, Weak};
 
-use crate::task::{ArcWake, WakerRef, waker_ref};
+use crate::task::{Wake, WakerRef, waker_ref};
 use super::ReadyToRunQueue;
 use super::abort::abort;
 
@@ -35,7 +35,7 @@ pub(super) struct Task<Fut> {
 unsafe impl<Fut> Send for Task<Fut> {}
 unsafe impl<Fut> Sync for Task<Fut> {}
 
-impl<Fut> ArcWake for Task<Fut> {
+impl<Fut> Wake for Task<Fut> {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         let inner = match arc_self.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
