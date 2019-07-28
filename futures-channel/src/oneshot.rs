@@ -296,6 +296,39 @@ impl<T> Inner<T> {
         }
     }
 
+    fn poll_complete(&self, cx: &mut Context<'_>) -> Poll<()> {
+        // Check to see if some data has arrived. If it hasn't then we need to
+        // block our task.
+        //
+        // Note that the acquisition of the `rx_task` lock might fail below, but
+        // the only situation where this can happen is during `Sender::drop`
+        // when we are indeed completed already. If that's happening then we
+        // know we're completed so keep going.
+        let done = if self.complete.load(SeqCst) {
+            true
+        } else {
+            let task = cx.waker().clone();
+            match self.rx_task.try_lock() {
+                Some(mut slot) => { *slot = Some(task); false },
+                None => true,
+            }
+        };
+
+        // If we're `done` via one of the paths above, then we're ready.
+        // If, however, we stored `rx_task` successfully above we need
+        // to check again if we're completed in case a message was sent
+        // while `rx_task` was locked and couldn't notify us otherwise.
+        //
+        // If we're not done, and we're not complete, though, then we've
+        // successfully blocked our task and we return `Pending`.
+        if done || self.complete.load(SeqCst) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+
+    }
+
     fn drop_rx(&self) {
         // Indicate to the `Sender` that we're done, so any future calls to
         // `poll_cancel` are weeded out.
@@ -411,6 +444,11 @@ impl<T> Receiver<T> {
     /// Returns an error if the sender was dropped.
     pub fn try_recv(&mut self) -> Result<Option<T>, Canceled> {
         self.inner.try_recv()
+    }
+
+    /// Poll whether result is available, but do not extract result.
+    pub fn poll_complete(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.inner.poll_complete(cx)
     }
 }
 
