@@ -69,6 +69,15 @@ impl<T> RemoteHandle<T> {
         self.rx.poll_complete(cx)
     }
 
+    /// Create a future only polling for completion without returning the result
+    ///
+    /// Use [`try_recv`] to extract final result after completion is ready.
+    ///
+    /// [`try_recv`]: [RemoteHandle::try_recv]
+    pub fn completion_handle(&mut self) -> RemoteCompletionHandle<'_> {
+        RemoteCompletionHandle { remote_handle: self }
+    }
+
     /// Try to extract final result
     ///
     /// Returns `None` if underlying future is still running.
@@ -86,6 +95,38 @@ impl<T: 'static> Future for RemoteHandle<T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
         Poll::Ready(unwrap_result(ready!(self.rx.poll_unpin(cx))))
+    }
+}
+
+trait Completion {
+    fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<()>;
+}
+
+impl<T> Completion for RemoteHandle<T> {
+    fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        Pin::new(self).poll_complete(cx)
+    }
+}
+
+/// A completion handle for a [RemoteHandle]
+///
+/// Only waits for completion, but doesn't return the actual result.
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+pub struct RemoteCompletionHandle<'a> {
+    remote_handle: &'a mut dyn Completion,
+}
+
+impl fmt::Debug for RemoteCompletionHandle<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("RemoteCompletionHandle").finish()
+    }
+}
+
+impl Future for RemoteCompletionHandle<'_> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        self.remote_handle.poll_unpin(cx)
     }
 }
 
