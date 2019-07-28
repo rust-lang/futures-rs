@@ -21,6 +21,9 @@ impl<Fut: Unpin> Unpin for SelectAll<Fut> {}
 /// completion the item resolved will be returned, along with the index of the
 /// future that was ready and the list of all the remaining futures.
 ///
+/// There are no guarantees provided on the order of the list with the remaining
+/// futures. They might be swapped around, reversed, or completely random.
+///
 /// This function is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
 ///
@@ -50,7 +53,7 @@ impl<Fut: Future + Unpin> Future for SelectAll<Fut> {
         });
         match item {
             Some((idx, res)) => {
-                self.inner.remove(idx);
+                let _ = self.inner.swap_remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 Poll::Ready((res, idx, rest))
             }
