@@ -4,7 +4,7 @@
 mod poll;
 
 mod spawn;
-pub use self::spawn::{Spawn, LocalSpawn, SpawnError};
+pub use self::spawn::{Spawn, SharedSpawn, LocalSpawn, SharedLocalSpawn, SpawnError};
 
 #[doc(hidden)]
 pub mod __internal;
