@@ -1,6 +1,6 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Receiver, Sender},
+    futures_channel::oneshot::{self, Canceled, Receiver, Sender},
     futures_core::{
         future::Future,
         ready,
@@ -20,6 +20,16 @@ use {
         thread,
     },
 };
+
+fn unwrap_result<T>(result: Result<thread::Result<T>, Canceled>) -> T {
+    match result {
+        Ok(Ok(output)) => output,
+        // the remote future panicked.
+        Ok(Err(e)) => panic::resume_unwind(e),
+        // The oneshot sender was dropped.
+        Err(e) => panic::resume_unwind(Box::new(e)),
+    }
+}
 
 /// The handle to a remote future returned by
 /// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
@@ -53,19 +63,29 @@ impl<T> RemoteHandle<T> {
     pub fn forget(self) {
         self.keep_running.store(true, Ordering::SeqCst);
     }
+
+    /// Poll whether result is available, but do not extract result.
+    pub fn poll_complete(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.rx.poll_complete(cx)
+    }
+
+    /// Try to extract final result
+    ///
+    /// Returns `None` if underlying future is still running.
+    ///
+    /// # Panics
+    ///
+    /// Panics in the same way as polling [RemoteHandle].
+    pub fn try_recv(&mut self) -> Option<T> {
+        Some(unwrap_result(self.rx.try_recv().transpose()?))
+    }
 }
 
 impl<T: 'static> Future for RemoteHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        match ready!(self.rx.poll_unpin(cx)) {
-            Ok(Ok(output)) => Poll::Ready(output),
-            // the remote future panicked.
-            Ok(Err(e)) => panic::resume_unwind(e),
-            // The oneshot sender was dropped.
-            Err(e) => panic::resume_unwind(Box::new(e)),
-        }
+        Poll::Ready(unwrap_result(ready!(self.rx.poll_unpin(cx))))
     }
 }
 
