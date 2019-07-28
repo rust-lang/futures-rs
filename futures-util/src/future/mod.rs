@@ -100,7 +100,7 @@ pub use self::catch_unwind::CatchUnwind;
 mod remote_handle;
 #[cfg(feature = "channel")]
 #[cfg(feature = "std")]
-pub use self::remote_handle::{Remote, RemoteHandle};
+pub use self::remote_handle::{Remote, RemoteCompletionHandle, RemoteHandle};
 
 #[cfg(feature = "std")]
 mod shared;
