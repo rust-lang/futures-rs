@@ -168,7 +168,6 @@ where
     Fut1: Future,
     Fut2: Future,
     Fut3: Future,
-    Fut3: Future,
     Fut4: Future,
 {
     Join4::new(future1, future2, future3, future4)
