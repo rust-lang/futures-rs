@@ -172,7 +172,7 @@ impl AtomicWaker {
     /// use futures::future::Future;
     /// use futures::task::{Context, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
-    /// use std::sync::atomic::Ordering::SeqCst;
+    /// use std::sync::atomic::Ordering::Relaxed;
     /// use std::pin::Pin;
     ///
     /// struct Flag {
@@ -188,7 +188,7 @@ impl AtomicWaker {
     ///         // that would result in lost notifications.
     ///         self.waker.register(cx.waker());
     ///
-    ///         if self.set.load(SeqCst) {
+    ///         if self.set.load(Relaxed) {
     ///             Poll::Ready(())
     ///         } else {
     ///             Poll::Pending
