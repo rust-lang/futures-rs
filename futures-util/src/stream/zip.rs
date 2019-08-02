@@ -14,6 +14,7 @@ pub struct Zip<St1: Stream, St2: Stream> {
     queued2: Option<St2::Item>,
 }
 
+#[allow(clippy::type_repetition_in_bounds)] // https://github.com/rust-lang/rust-clippy/issues/4323
 impl<St1, St2> Unpin for Zip<St1, St2>
 where
     St1: Stream,

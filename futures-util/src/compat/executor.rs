@@ -66,8 +66,8 @@ pub struct Executor01As03<Ex> {
 }
 
 impl<Ex> Spawn03 for Executor01As03<Ex>
-where Ex: Executor01<Executor01Future>,
-      Ex: Clone + Send + 'static,
+where
+    Ex: Executor01<Executor01Future> + Clone + Send + 'static,
 {
     fn spawn_obj(
         &mut self,
