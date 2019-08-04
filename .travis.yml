@@ -62,12 +62,14 @@ matrix:
     - name: cargo clippy
       rust: nightly
       script:
-        - if rustup component add clippy-preview;
-          then
-            cargo clippy --all --all-features;
-          else
-            echo 'Skipping clippy';
+        - if ! rustup component add clippy; then
+            target=`curl https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy`;
+            echo "'clippy' is unavailable on the toolchain 'nightly', use the toolchain 'nightly-$target' instead";
+            rustup toolchain install nightly-$target;
+            rustup default nightly-$target;
+            rustup component add clippy;
           fi
+        - cargo clippy --all --all-features
 
     - name: cargo bench
       rust: nightly
