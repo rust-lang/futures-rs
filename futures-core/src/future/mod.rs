@@ -47,9 +47,17 @@ where
     }
 }
 
+mod private_try_future {
+    use super::Future;
+
+    pub trait Sealed {}
+
+    impl<F, T, E> Sealed for F where F: ?Sized + Future<Output = Result<T, E>> {}
+}
+
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait TryFuture {
+pub trait TryFuture: private_try_future::Sealed {
     /// The type of successful values yielded by this future
     type Ok;
 
