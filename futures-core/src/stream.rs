@@ -112,9 +112,17 @@ where
     }
 }
 
+mod private_try_stream {
+    use super::Stream;
+
+    pub trait Sealed {}
+
+    impl<S, T, E> Sealed for S where S: ?Sized + Stream<Item = Result<T, E>> {}
+}
+
 /// A convenience for streams that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait TryStream {
+pub trait TryStream: private_try_stream::Sealed {
     /// The type of successful values yielded by this future
     type Ok;
 
