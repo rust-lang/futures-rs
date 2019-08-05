@@ -384,6 +384,7 @@ mod io {
         ///
         /// ```
         /// #![feature(async_await, impl_trait_in_bindings)]
+        /// # #![allow(incomplete_features)]
         /// # futures::executor::block_on(async {
         /// use futures::io::AsyncReadExt;
         /// use futures_util::compat::AsyncRead01CompatExt;
@@ -412,7 +413,7 @@ mod io {
         /// [`AsyncWrite`](futures_io::AsyncWrite).
         ///
         /// ```
-        /// #![feature(async_await, impl_trait_in_bindings)]
+        /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
         /// use futures::io::AsyncWriteExt;
         /// use futures_util::compat::AsyncWrite01CompatExt;
