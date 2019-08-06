@@ -51,7 +51,7 @@ impl<St: Stream> Peekable<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut St> {
         self.stream().get_pin_mut()
     }
 
@@ -67,10 +67,10 @@ impl<St: Stream> Peekable<St> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn peek<'a>(
-        mut self: Pin<&'a mut Self>,
+    pub fn peek(
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<&'a St::Item>> {
+    ) -> Poll<Option<&St::Item>> {
         if self.peeked.is_some() {
             let this: &Self = self.into_ref().get_ref();
             return Poll::Ready(this.peeked.as_ref())

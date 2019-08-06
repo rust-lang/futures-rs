@@ -39,7 +39,7 @@ matrix:
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
     - name: cargo +nightly build (minimum required version)
-      rust: nightly-2019-05-09
+      rust: nightly-2019-07-29
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --all --all-features

@@ -25,7 +25,7 @@ impl<F> ElemState<F>
 where
     F: TryFuture,
 {
-    fn pending_pin_mut<'a>(self: Pin<&'a mut Self>) -> Option<Pin<&'a mut F>> {
+    fn pending_pin_mut(self: Pin<&mut Self>) -> Option<Pin<&mut F>> {
         // Safety: Basic enum pin projection, no drop + optionally Unpin based
         // on the type of this variant
         match unsafe { self.get_unchecked_mut() } {

@@ -69,9 +69,7 @@ enum State<Fut, T> {
 
 impl<Fut, T> State<Fut, T> {
     #[allow(clippy::wrong_self_convention)]
-    fn as_pin_mut<'a>(
-        self: Pin<&'a mut Self>,
-    ) -> State<Pin<&'a mut Fut>, Pin<&'a mut T>> {
+    fn as_pin_mut(self: Pin<&mut Self>) -> State<Pin<&mut Fut>, Pin<&mut T>> {
         unsafe {
             match self.get_unchecked_mut() {
                 State::Empty =>
@@ -118,7 +116,7 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
     }
 
     /// Get a pinned mutable reference to the inner sink.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut Si> {
         self.sink()
     }
 

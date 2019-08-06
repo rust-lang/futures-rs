@@ -75,7 +75,7 @@ impl<R: AsyncRead> BufReader<R> {
     /// Gets a pinned mutable reference to the underlying reader.
     ///
     /// It is inadvisable to directly read from the underlying reader.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut R> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut R> {
         self.inner()
     }
 
@@ -172,10 +172,10 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
 }
 
 impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
-    fn poll_fill_buf<'a>(
-        self: Pin<&'a mut Self>,
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&'a [u8]>> {
+    ) -> Poll<io::Result<&[u8]>> {
         let Self { inner, buf, cap, pos } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 

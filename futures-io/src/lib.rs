@@ -319,8 +319,8 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
-            -> Poll<Result<&'a [u8]>>;
+        fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>)
+            -> Poll<Result<&[u8]>>;
 
         /// Tells this buffer that `amt` bytes have been consumed from the buffer,
         /// so they should no longer be returned in calls to [`poll_read`].
@@ -597,8 +597,8 @@ mod if_std {
 
     macro_rules! deref_async_buf_read {
         () => {
-            fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
-                -> Poll<Result<&'a [u8]>>
+            fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>)
+                -> Poll<Result<&[u8]>>
             {
                 Pin::new(&mut **self.get_mut()).poll_fill_buf(cx)
             }
@@ -622,8 +622,8 @@ mod if_std {
         P: DerefMut + Unpin,
         P::Target: AsyncBufRead,
     {
-        fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
-            -> Poll<Result<&'a [u8]>>
+        fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>)
+            -> Poll<Result<&[u8]>>
         {
             self.get_mut().as_mut().poll_fill_buf(cx)
         }
@@ -635,8 +635,8 @@ mod if_std {
 
     macro_rules! delegate_async_buf_read_to_stdio {
         () => {
-            fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, _: &mut Context<'_>)
-                -> Poll<Result<&'a [u8]>>
+            fn poll_fill_buf(self: Pin<&mut Self>, _: &mut Context<'_>)
+                -> Poll<Result<&[u8]>>
             {
                 Poll::Ready(io::BufRead::fill_buf(self.get_mut()))
             }

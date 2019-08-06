@@ -67,7 +67,7 @@ prevent it from compiling. To use futures-rs with async/await, use:
 futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
 ```
 
-The current `async-await` feature requires Rust nightly 2019-05-09 or later.
+The current `async-await` feature requires Rust nightly 2019-07-29 or later.
 
 # License
 

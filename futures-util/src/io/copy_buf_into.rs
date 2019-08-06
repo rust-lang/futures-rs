@@ -26,7 +26,7 @@ impl<R, W: ?Sized> CopyBufInto<'_, R, W> {
 }
 
 impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
-    fn project<'b>(self: Pin<&'b mut Self>) -> (Pin<&'b mut R>, Pin<&'b mut W>, &'b mut u64) {
+    fn project(self: Pin<&mut Self>) -> (Pin<&mut R>, Pin<&mut W>, &mut u64) {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.reader), Pin::new(&mut *this.writer), &mut this.amt)

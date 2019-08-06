@@ -56,7 +56,7 @@ impl<St1, St2> Select<St1, St2> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut St1>, Pin<&'a mut St2>)
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut St1>, Pin<&mut St2>)
         where St1: Unpin, St2: Unpin,
     {
         let Self { stream1, stream2, .. } = self.get_mut();

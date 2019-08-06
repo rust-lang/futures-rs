@@ -96,7 +96,7 @@ impl<W: AsyncWrite> BufWriter<W> {
     /// Gets a pinned mutable reference to the underlying writer.
     ///
     /// It is inadvisable to directly write to the underlying writer.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut W> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut W> {
         self.inner()
     }
 

@@ -278,10 +278,10 @@ mod if_std {
         A: AsyncBufRead,
         B: AsyncBufRead,
     {
-        fn poll_fill_buf<'a>(
-            self: Pin<&'a mut Self>,
+        fn poll_fill_buf(
+            self: Pin<&mut Self>,
             cx: &mut Context<'_>,
-        ) -> Poll<Result<&'a [u8]>> {
+        ) -> Poll<Result<&[u8]>> {
             unsafe {
                 match self.get_unchecked_mut() {
                     Either::Left(x) => Pin::new_unchecked(x).poll_fill_buf(cx),

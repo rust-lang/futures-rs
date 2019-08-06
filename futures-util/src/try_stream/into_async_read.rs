@@ -133,10 +133,10 @@ where
     St: TryStream<Error = Error> + Unpin,
     St::Ok: AsRef<[u8]>,
 {
-    fn poll_fill_buf<'a>(
-        mut self: Pin<&'a mut Self>,
+    fn poll_fill_buf(
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<&'a [u8]>> {
+    ) -> Poll<Result<&[u8]>> {
         while let ReadState::PendingChunk = self.state {
             match ready!(self.stream.try_poll_next_unpin(cx)) {
                 Some(Ok(chunk)) => {

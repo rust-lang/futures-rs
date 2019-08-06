@@ -32,7 +32,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
         IntoSink { writer, buffer: None }
     }
 
-    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut W>, &'a mut Option<Block<Item>>) {
+    fn project(self: Pin<&mut Self>) -> (Pin<&mut W>, &mut Option<Block<Item>>) {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.writer), &mut this.buffer)
