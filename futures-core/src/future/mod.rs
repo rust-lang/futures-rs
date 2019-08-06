@@ -9,13 +9,13 @@ pub use core::future::Future;
 mod future_obj;
 pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
-#[cfg(feature = "alloc")]
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
+#[cfg(feature = "alloc")]
 pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
 
-#[cfg(feature = "alloc")]
 /// `BoxFuture`, but without the `Send` requirement.
+#[cfg(feature = "alloc")]
 pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
 /// A `Future` or `TryFuture` which tracks whether or not the underlying future

@@ -492,6 +492,9 @@ pub trait FutureExt: Future {
     }
 
     /// Wrap the future in a Box, pinning it.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed<'a>(self) -> BoxFuture<'a, Self::Output>
         where Self: Sized + Send + 'a
@@ -502,6 +505,9 @@ pub trait FutureExt: Future {
     /// Wrap the future in a Box, pinning it.
     ///
     /// Similar to `boxed`, but without the `Send` requirement.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed_local<'a>(self) -> LocalBoxFuture<'a, Self::Output>
         where Self: Sized + 'a

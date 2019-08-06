@@ -3,6 +3,7 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
+use crate::future::Either;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
@@ -13,7 +14,8 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-use crate::future::Either;
+#[cfg(feature = "alloc")]
+use futures_core::stream::{BoxStream, LocalBoxStream};
 
 mod iter;
 pub use self::iter::{iter, Iter};
@@ -894,8 +896,21 @@ pub trait StreamExt: Stream {
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
-    fn boxed(self) -> Pin<Box<Self>>
-        where Self: Sized
+    fn boxed<'a>(self) -> BoxStream<'a, Self::Item>
+        where Self: Sized + Send + 'a
+    {
+        Box::pin(self)
+    }
+
+    /// Wrap the stream in a Box, pinning it.
+    ///
+    /// Similar to `boxed`, but without the `Send` requirement.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    #[cfg(feature = "alloc")]
+    fn boxed_local<'a>(self) -> LocalBoxStream<'a, Self::Item>
+        where Self: Sized + 'a
     {
         Box::pin(self)
     }
