@@ -1,0 +1,24 @@
+[package]
+name = "futures-join-macro-preview"
+edition = "2018"
+version = "0.3.0-alpha.17"
+authors = ["Taiki Endo <te316e89@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://rust-lang-nursery.github.io/futures-rs"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.17/futures_join_macro"
+description = """
+Definition of the `join!` macro and the `try_join!` macro.
+"""
+
+[lib]
+name = "futures_join_macro"
+proc-macro = true
+
+[features]
+
+[dependencies]
+proc-macro2 = "0.4"
+proc-macro-hack = "0.5.3"
+quote = "0.6"
+syn = { version = "0.15.25", features = ["full"] }

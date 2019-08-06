@@ -5,6 +5,7 @@ members = [
   "futures-channel",
   "futures-executor",
   "futures-io",
+  "futures-join-macro",
   "futures-select-macro",
   "futures-sink",
   "futures-util",

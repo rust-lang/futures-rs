@@ -20,8 +20,10 @@ mod pending;
 pub use self::pending::*;
 
 // Primary export is a macro
-#[macro_use]
-mod join;
+#[cfg(feature = "join-macro")]
+mod join_mod;
+#[cfg(feature = "join-macro")]
+pub use self::join_mod::*;
 
 // Primary export is a macro
 #[cfg(feature = "select-macro")]

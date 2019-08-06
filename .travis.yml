@@ -140,6 +140,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features io
         - cargo check --manifest-path futures-util/Cargo.toml --features channel
         - cargo check --manifest-path futures-util/Cargo.toml --features nightly,async-await
+        - cargo check --manifest-path futures-util/Cargo.toml --features nightly,join-macro
         - cargo check --manifest-path futures-util/Cargo.toml --features nightly,select-macro
         - cargo check --manifest-path futures-util/Cargo.toml --features compat
         - cargo check --manifest-path futures-util/Cargo.toml --features io-compat
