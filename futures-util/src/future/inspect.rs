@@ -25,7 +25,10 @@ impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
 
 impl<Fut: Future + Unpin, F> Unpin for Inspect<Fut, F> {}
 
-impl<Fut: Future + FusedFuture, F> FusedFuture for Inspect<Fut, F> {
+impl<Fut, F> FusedFuture for Inspect<Fut, F>
+    where Fut: FusedFuture,
+          F: FnOnce(&Fut::Output),
+{
     fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 

@@ -69,7 +69,7 @@ where
 impl<A, B> FusedFuture for Either<A, B>
 where
     A: FusedFuture,
-    B: FusedFuture,
+    B: FusedFuture<Output = A::Output>,
 {
     fn is_terminated(&self) -> bool {
         match self {
@@ -99,7 +99,7 @@ where
 impl<A, B> FusedStream for Either<A, B>
 where
     A: FusedStream,
-    B: FusedStream,
+    B: FusedStream<Item = A::Item>,
 {
     fn is_terminated(&self) -> bool {
         match self {

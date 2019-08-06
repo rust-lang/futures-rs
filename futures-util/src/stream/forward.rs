@@ -53,7 +53,11 @@ where
     }
 }
 
-impl<St: TryStream, Si: Sink<St::Ok> + Unpin> FusedFuture for Forward<St, Si> {
+impl<St, Si, Item, E> FusedFuture for Forward<St, Si>
+where
+    Si: Sink<Item, Error = E>,
+    St: Stream<Item = Result<Item, E>>,
+{
     fn is_terminated(&self) -> bool {
         self.sink.is_none()
     }

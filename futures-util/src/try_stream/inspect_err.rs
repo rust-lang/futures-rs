@@ -74,7 +74,11 @@ where
     }
 }
 
-impl<St: TryStream + FusedStream, F> FusedStream for InspectErr<St, F> {
+impl<St, F> FusedStream for InspectErr<St, F>
+where
+    St: TryStream + FusedStream,
+    F: FnMut(&St::Error),
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

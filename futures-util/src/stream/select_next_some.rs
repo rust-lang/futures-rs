@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::FusedStream;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll};
 use crate::stream::StreamExt;
@@ -18,13 +18,13 @@ impl<'a, St: ?Sized> SelectNextSome<'a, St> {
     }
 }
 
-impl<St: ?Sized + FusedStream> FusedFuture for SelectNextSome<'_, St> {
+impl<St: ?Sized + FusedStream + Unpin> FusedFuture for SelectNextSome<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-impl<St: ?Sized + Stream + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
+impl<St: ?Sized + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
     type Output = St::Item;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

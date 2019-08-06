@@ -18,7 +18,7 @@ pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send 
 /// `BoxFuture`, but without the `Send` requirement.
 pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
-/// A `Future` or `TryFuture` which tracks whether or not the underlying future
+/// A future which tracks whether or not the underlying future
 /// should no longer be polled.
 ///
 /// `is_terminated` will return `true` if a future should no longer be polled.
@@ -26,12 +26,12 @@ pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 
 /// `Poll::Ready`. However, `is_terminated` may also return `true` if a future
 /// has become inactive and can no longer make progress and should be ignored
 /// or dropped rather than being `poll`ed again.
-pub trait FusedFuture {
+pub trait FusedFuture: Future {
     /// Returns `true` if the underlying future should no longer be polled.
     fn is_terminated(&self) -> bool;
 }
 
-impl<F: FusedFuture + ?Sized> FusedFuture for &mut F {
+impl<F: FusedFuture + ?Sized + Unpin> FusedFuture for &mut F {
     fn is_terminated(&self) -> bool {
         <F as FusedFuture>::is_terminated(&**self)
     }
@@ -92,7 +92,7 @@ mod if_alloc {
     use alloc::boxed::Box;
     use super::*;
 
-    impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
+    impl<F: FusedFuture + ?Sized + Unpin> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)
         }

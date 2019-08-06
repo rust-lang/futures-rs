@@ -68,7 +68,11 @@ impl<St, F> MapOk<St, F> {
     }
 }
 
-impl<St: FusedStream, F> FusedStream for MapOk<St, F> {
+impl<St, F, T> FusedStream for MapOk<St, F>
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Ok) -> T,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

@@ -25,7 +25,11 @@ impl<Fut1, Fut2, F> Then<Fut1, Fut2, F>
     }
 }
 
-impl<Fut1, Fut2, F> FusedFuture for Then<Fut1, Fut2, F> {
+impl<Fut1, Fut2, F> FusedFuture for Then<Fut1, Fut2, F>
+    where Fut1: Future,
+          Fut2: Future,
+          F: FnOnce(Fut1::Output) -> Fut2,
+{
     fn is_terminated(&self) -> bool { self.chain.is_terminated() }
 }
 

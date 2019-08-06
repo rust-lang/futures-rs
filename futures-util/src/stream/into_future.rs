@@ -71,7 +71,7 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     }
 }
 
-impl<St> FusedFuture for StreamFuture<St> {
+impl<St: Stream + Unpin> FusedFuture for StreamFuture<St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_none()
     }

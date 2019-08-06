@@ -38,7 +38,11 @@ where
     }
 }
 
-impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F> {
+impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F>
+    where St: TryStream,
+          F: FnMut(St::Ok) -> Fut,
+          Fut: Future<Output = Result<(), St::Error>>,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_none() && self.futures.is_empty()
     }

@@ -89,7 +89,11 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
     }
 }
 
-impl<St: Stream + FusedStream, Fut, F> FusedStream for SkipWhile<St, Fut, F> {
+impl<St, Fut, F> FusedStream for SkipWhile<St, Fut, F>
+    where St: FusedStream,
+          F: FnMut(&St::Item) -> Fut,
+          Fut: Future<Output = bool>,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

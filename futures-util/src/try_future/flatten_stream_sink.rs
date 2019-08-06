@@ -100,7 +100,7 @@ where
 impl<Fut> FusedStream for FlattenStreamSink<Fut>
 where
     Fut: TryFuture,
-    Fut::Ok: FusedStream,
+    Fut::Ok: TryStream<Error = Fut::Error> + FusedStream,
 {
     fn is_terminated(&self) -> bool {
         match &self.state {

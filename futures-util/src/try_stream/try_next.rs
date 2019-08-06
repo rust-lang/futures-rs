@@ -19,7 +19,7 @@ impl<'a, St: ?Sized + TryStream + Unpin> TryNext<'a, St> {
     }
 }
 
-impl<St: ?Sized + Unpin + FusedStream> FusedFuture for TryNext<'_, St> {
+impl<St: ?Sized + TryStream + Unpin + FusedStream> FusedFuture for TryNext<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

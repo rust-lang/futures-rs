@@ -32,7 +32,7 @@ where
 impl<Fut, S> FusedStream for FlattenSink<Fut, S>
 where
     Fut: TryFuture<Ok = S>,
-    S: FusedStream,
+    S: TryStream<Error = Fut::Error> + FusedStream,
 {
     fn is_terminated(&self) -> bool {
         self.inner.is_terminated()

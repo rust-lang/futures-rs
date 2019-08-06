@@ -50,9 +50,9 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// assert_eq!(result, vec![0, 2, 4]);
 /// # });
 /// ```
-pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
+pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(It, T)>>,
+          Fut: Future<Output = Option<(Item, T)>>,
 {
     Unfold {
         f,
@@ -90,22 +90,25 @@ impl<T, F, Fut> Unfold<T, F, Fut> {
     unsafe_pinned!(fut: Option<Fut>);
 }
 
-impl<T, F, Fut> FusedStream for Unfold<T, F, Fut> {
+impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
+    where F: FnMut(T) -> Fut,
+          Fut: Future<Output = Option<(Item, T)>>,
+{
     fn is_terminated(&self) -> bool {
         self.state.is_none() && self.fut.is_none()
     }
 }
 
-impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
+impl<T, F, Fut, Item> Stream for Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(It, T)>>,
+          Fut: Future<Output = Option<(Item, T)>>,
 {
-    type Item = It;
+    type Item = Item;
 
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<It>> {
+    ) -> Poll<Option<Self::Item>> {
         if let Some(state) = self.as_mut().state().take() {
             let fut = (self.as_mut().f())(state);
             self.as_mut().fut().set(Some(fut));

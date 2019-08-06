@@ -25,7 +25,10 @@ impl<Fut, E> ErrInto<Fut, E> {
     }
 }
 
-impl<Fut: FusedFuture, E> FusedFuture for ErrInto<Fut, E> {
+impl<Fut, E> FusedFuture for ErrInto<Fut, E>
+    where Fut: TryFuture + FusedFuture,
+          Fut::Error: Into<E>,
+{
     fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 
