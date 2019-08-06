@@ -53,7 +53,7 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     /// implementation of `Future::poll` consumes the underlying stream during polling
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Option<Pin<&'a mut St>> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Option<Pin<&mut St>> {
         Pin::new(&mut self.get_mut().stream).as_pin_mut()
     }
 

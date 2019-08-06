@@ -50,7 +50,7 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// future has been completed and [`take_output`](MaybeDone::take_output)
     /// has not yet been called.
     #[inline]
-    pub fn output_mut<'a>(self: Pin<&'a mut Self>) -> Option<&'a mut Fut::Output> {
+    pub fn output_mut(self: Pin<&mut Self>) -> Option<&mut Fut::Output> {
         unsafe {
             let this = self.get_unchecked_mut();
             match this {

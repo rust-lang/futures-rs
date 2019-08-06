@@ -42,7 +42,7 @@ impl<Io> Limited<Io> {
 
     /// Acquires a pinned mutable reference to the underlying I/O object that
     /// this adaptor is wrapping.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Io> {
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut Io> {
         self.io()
     }
 
@@ -89,10 +89,10 @@ impl<R: AsyncRead> AsyncRead for Limited<R> {
 }
 
 impl<R: AsyncBufRead> AsyncBufRead for Limited<R> {
-    fn poll_fill_buf<'a>(
-        self: Pin<&'a mut Self>,
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&'a [u8]>> {
+    ) -> Poll<io::Result<&[u8]>> {
         self.io().poll_fill_buf(cx)
     }
 

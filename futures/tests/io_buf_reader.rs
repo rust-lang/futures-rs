@@ -237,8 +237,8 @@ impl AsyncRead for MaybePending<'_> {
 }
 
 impl AsyncBufRead for MaybePending<'_> {
-    fn poll_fill_buf<'a>(mut self: Pin<&'a mut Self>, _: &mut Context<'_>)
-        -> Poll<io::Result<&'a [u8]>>
+    fn poll_fill_buf(mut self: Pin<&mut Self>, _: &mut Context<'_>)
+        -> Poll<io::Result<&[u8]>>
     {
         if self.ready_fill_buf {
             self.ready_fill_buf = false;
@@ -340,8 +340,8 @@ impl AsyncRead for MaybePendingSeek<'_> {
 }
 
 impl AsyncBufRead for MaybePendingSeek<'_> {
-    fn poll_fill_buf<'a>(mut self: Pin<&'a mut Self>, cx: &mut Context<'_>)
-        -> Poll<io::Result<&'a [u8]>>
+    fn poll_fill_buf(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
+        -> Poll<io::Result<&[u8]>>
     {
         let this: *mut Self = &mut *self as *mut _;
         Pin::new(&mut unsafe { &mut *this }.inner).poll_fill_buf(cx)
