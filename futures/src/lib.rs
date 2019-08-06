@@ -68,10 +68,7 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` featu
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
 #[cfg(feature = "async-await")]
-pub use futures_util::{
-    // Async-await
-    join, try_join, pending, poll,
-};
+pub use futures_util::{pending, poll}; // Async-await
 
 #[cfg_attr(
     feature = "cfg-target-has-atomic",
@@ -516,7 +513,7 @@ pub mod never {
     pub use futures_core::never::Never;
 }
 
-// `select!` re-export --------------------------------------
+// proc-macro re-export --------------------------------------
 
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
@@ -524,8 +521,33 @@ pub use futures_util::rand_reexport;
 
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
-pub mod inner_select {
+pub mod inner_macro {
+    pub use futures_util::join;
+    pub use futures_util::try_join;
     pub use futures_util::select;
+}
+
+#[cfg(feature = "async-await")]
+futures_util::document_join_macro! {
+    #[macro_export]
+    macro_rules! join { // replace `::futures_util` with `::futures` as the crate path
+        ($($tokens:tt)*) => {
+            $crate::inner_macro::join! {
+                futures_crate_path ( ::futures )
+                $( $tokens )*
+            }
+        }
+    }
+
+    #[macro_export]
+    macro_rules! try_join { // replace `::futures_util` with `::futures` as the crate path
+        ($($tokens:tt)*) => {
+            $crate::inner_macro::try_join! {
+                futures_crate_path ( ::futures )
+                $( $tokens )*
+            }
+        }
+    }
 }
 
 #[cfg(feature = "async-await")]
@@ -533,7 +555,7 @@ futures_util::document_select_macro! {
     #[macro_export]
     macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
         ($($tokens:tt)*) => {
-            $crate::inner_select::select! {
+            $crate::inner_macro::select! {
                 futures_crate_path ( ::futures )
                 $( $tokens )*
             }
