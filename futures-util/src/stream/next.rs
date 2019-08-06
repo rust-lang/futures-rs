@@ -19,7 +19,7 @@ impl<'a, St: ?Sized + Stream + Unpin> Next<'a, St> {
     }
 }
 
-impl<St: ?Sized + FusedStream> FusedFuture for Next<'_, St> {
+impl<St: ?Sized + FusedStream + Unpin> FusedFuture for Next<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

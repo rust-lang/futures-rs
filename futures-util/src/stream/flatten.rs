@@ -75,7 +75,8 @@ where
 
 impl<St> FusedStream for Flatten<St>
 where
-    St: Stream + FusedStream,
+    St: FusedStream,
+    St::Item: Stream,
 {
     fn is_terminated(&self) -> bool {
         self.next.is_none() && self.stream.is_terminated()

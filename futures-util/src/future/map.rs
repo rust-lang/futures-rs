@@ -23,7 +23,10 @@ impl<Fut, F> Map<Fut, F> {
 
 impl<Fut: Unpin, F> Unpin for Map<Fut, F> {}
 
-impl<Fut, F> FusedFuture for Map<Fut, F> {
+impl<Fut, F, T> FusedFuture for Map<Fut, F>
+    where Fut: Future,
+          F: FnOnce(Fut::Output) -> T,
+{
     fn is_terminated(&self) -> bool { self.f.is_none() }
 }
 

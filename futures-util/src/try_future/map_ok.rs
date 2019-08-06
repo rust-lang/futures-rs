@@ -23,7 +23,10 @@ impl<Fut, F> MapOk<Fut, F> {
 
 impl<Fut: Unpin, F> Unpin for MapOk<Fut, F> {}
 
-impl<Fut, F> FusedFuture for MapOk<Fut, F> {
+impl<Fut, F, T> FusedFuture for MapOk<Fut, F>
+    where Fut: TryFuture,
+          F: FnOnce(Fut::Ok) -> T,
+{
     fn is_terminated(&self) -> bool {
         self.f.is_none()
     }

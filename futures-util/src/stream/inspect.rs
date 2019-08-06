@@ -70,7 +70,10 @@ impl<St, F> Inspect<St, F>
     }
 }
 
-impl<St: Stream + FusedStream, F> FusedStream for Inspect<St, F> {
+impl<St, F> FusedStream for Inspect<St, F>
+    where St: FusedStream,
+          F: FnMut(&St::Item),
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

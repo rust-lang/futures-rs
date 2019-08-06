@@ -70,7 +70,10 @@ impl<St, T, F> Map<St, F>
     }
 }
 
-impl<St: FusedStream, F> FusedStream for Map<St, F> {
+impl<St, F, T> FusedStream for Map<St, F>
+    where St: FusedStream,
+          F: FnMut(St::Item) -> T,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

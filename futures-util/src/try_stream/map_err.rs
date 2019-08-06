@@ -68,7 +68,11 @@ impl<St, F> MapErr<St, F> {
     }
 }
 
-impl<St: FusedStream, F> FusedStream for MapErr<St, F> {
+impl<St, F, E> FusedStream for MapErr<St, F>
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Error) -> E,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

@@ -31,14 +31,20 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
 
 impl<St: Unpin + TryStream, C> Unpin for TryCollect<St, C> {}
 
-impl<St: FusedStream, C> FusedFuture for TryCollect<St, C> {
+impl<St, C> FusedFuture for TryCollect<St, C>
+where
+    St: TryStream + FusedStream,
+    C: Default + Extend<St::Ok>,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
 impl<St, C> Future for TryCollect<St, C>
-    where St: TryStream, C: Default + Extend<St::Ok>
+where
+    St: TryStream,
+    C: Default + Extend<St::Ok>,
 {
     type Output = Result<C, St::Error>;
 

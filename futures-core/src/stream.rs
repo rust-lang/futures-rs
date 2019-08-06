@@ -87,7 +87,7 @@ where
     }
 }
 
-/// A `Stream` or `TryStream` which tracks whether or not the underlying stream
+/// A stream which tracks whether or not the underlying stream
 /// should no longer be polled.
 ///
 /// `is_terminated` will return `true` if a future should no longer be polled.
@@ -95,12 +95,12 @@ where
 /// `Poll::Ready(None)`. However, `is_terminated` may also return `true` if a
 /// stream has become inactive and can no longer make progress and should be
 /// ignored or dropped rather than being polled again.
-pub trait FusedStream {
+pub trait FusedStream: Stream {
     /// Returns `true` if the stream should no longer be polled.
     fn is_terminated(&self) -> bool;
 }
 
-impl<F: ?Sized + FusedStream> FusedStream for &mut F {
+impl<F: ?Sized + FusedStream + Unpin> FusedStream for &mut F {
     fn is_terminated(&self) -> bool {
         <F as FusedStream>::is_terminated(&**self)
     }
@@ -194,7 +194,7 @@ mod if_alloc {
         }
     }
 
-    impl<S: ?Sized + FusedStream> FusedStream for Box<S> {
+    impl<S: ?Sized + FusedStream + Unpin> FusedStream for Box<S> {
         fn is_terminated(&self) -> bool {
             <S as FusedStream>::is_terminated(&**self)
         }

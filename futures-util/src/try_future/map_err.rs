@@ -23,7 +23,10 @@ impl<Fut, F> MapErr<Fut, F> {
 
 impl<Fut: Unpin, F> Unpin for MapErr<Fut, F> {}
 
-impl<Fut, F> FusedFuture for MapErr<Fut, F> {
+impl<Fut, F, E> FusedFuture for MapErr<Fut, F>
+    where Fut: TryFuture,
+          F: FnOnce(Fut::Error) -> E,
+{
     fn is_terminated(&self) -> bool { self.f.is_none() }
 }
 

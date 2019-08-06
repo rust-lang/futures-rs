@@ -19,7 +19,7 @@ impl<Fut> IntoFuture<Fut> {
     }
 }
 
-impl<Fut: FusedFuture> FusedFuture for IntoFuture<Fut> {
+impl<Fut: TryFuture + FusedFuture> FusedFuture for IntoFuture<Fut> {
     fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 

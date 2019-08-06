@@ -38,11 +38,13 @@ pub fn lazy<F, R>(f: F) -> Lazy<F>
     Lazy { f: Some(f) }
 }
 
-impl<F> FusedFuture for Lazy<F> {
+impl<F, R> FusedFuture for Lazy<F>
+    where F: FnOnce(&mut Context<'_>) -> R,
+{
     fn is_terminated(&self) -> bool { self.f.is_none() }
 }
 
-impl<R, F> Future for Lazy<F>
+impl<F, R> Future for Lazy<F>
     where F: FnOnce(&mut Context<'_>) -> R,
 {
     type Output = R;

@@ -6,18 +6,18 @@ fn future() {
     use futures::future::{FusedFuture, Future, TryFuture};
 
     assert_is_object_safe::<&dyn Future<Output = ()>>();
+    assert_is_object_safe::<&dyn FusedFuture<Output = ()>>();
     assert_is_object_safe::<&dyn TryFuture<Ok = (), Error = ()>>();
-    assert_is_object_safe::<&dyn FusedFuture>();
 }
 
 #[test]
 fn stream() {
-    // `StreamExt` and `StreamExt` are not object safe.
+    // `StreamExt` and `TryStreamExt` are not object safe.
     use futures::stream::{FusedStream, Stream, TryStream};
 
     assert_is_object_safe::<&dyn Stream<Item = ()>>();
+    assert_is_object_safe::<&dyn FusedStream<Item = ()>>();
     assert_is_object_safe::<&dyn TryStream<Ok = (), Error = ()>>();
-    assert_is_object_safe::<&dyn FusedStream>();
 }
 
 #[test]

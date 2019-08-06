@@ -26,7 +26,11 @@ where
     }
 }
 
-impl<Fut: FusedFuture, F> FusedFuture for InspectOk<Fut, F> {
+impl<Fut, F> FusedFuture for InspectOk<Fut, F>
+where
+    Fut: TryFuture + FusedFuture,
+    F: FnOnce(&Fut::Ok),
+{
     fn is_terminated(&self) -> bool {
         self.future.is_terminated()
     }

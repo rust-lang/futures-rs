@@ -53,7 +53,7 @@ impl<St> IntoStream<St> {
     }
 }
 
-impl<St: FusedStream> FusedStream for IntoStream<St> {
+impl<St: TryStream + FusedStream> FusedStream for IntoStream<St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

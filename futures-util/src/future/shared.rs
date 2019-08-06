@@ -173,14 +173,19 @@ where
     }
 }
 
-impl<Fut: Future> FusedFuture for Shared<Fut> {
+impl<Fut> FusedFuture for Shared<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
     fn is_terminated(&self) -> bool {
         self.inner.is_none()
     }
 }
 
-impl<Fut: Future> Future for Shared<Fut>
+impl<Fut> Future for Shared<Fut>
 where
+    Fut: Future,
     Fut::Output: Clone,
 {
     type Output = Fut::Output;

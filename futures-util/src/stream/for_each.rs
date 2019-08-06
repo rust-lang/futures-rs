@@ -50,7 +50,11 @@ where St: Stream,
     }
 }
 
-impl<St: FusedStream, Fut, F> FusedFuture for ForEach<St, Fut, F> {
+impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
+    where St: FusedStream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future<Output = ()>,
+{
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
     }

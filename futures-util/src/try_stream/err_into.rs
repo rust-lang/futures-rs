@@ -56,7 +56,11 @@ impl<St, E> ErrInto<St, E> {
     }
 }
 
-impl<St: FusedStream, E> FusedStream for ErrInto<St, E> {
+impl<St, E> FusedStream for ErrInto<St, E>
+where
+    St: TryStream + FusedStream,
+    St::Error: Into<E>,
+{
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }

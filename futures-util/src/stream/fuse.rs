@@ -65,7 +65,7 @@ impl<St> Fuse<St> {
     }
 }
 
-impl<S> FusedStream for Fuse<S> {
+impl<S: Stream> FusedStream for Fuse<S> {
     fn is_terminated(&self) -> bool {
         self.done
     }

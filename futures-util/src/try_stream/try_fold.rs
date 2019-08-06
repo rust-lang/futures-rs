@@ -51,7 +51,11 @@ where St: TryStream,
     }
 }
 
-impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F> {
+impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
+    where St: TryStream,
+          F: FnMut(T, St::Ok) -> Fut,
+          Fut: TryFuture<Ok = T, Error = St::Error>,
+{
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
     }

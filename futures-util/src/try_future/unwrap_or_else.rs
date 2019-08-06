@@ -24,7 +24,10 @@ impl<Fut, F> UnwrapOrElse<Fut, F> {
 
 impl<Fut: Unpin, F> Unpin for UnwrapOrElse<Fut, F> {}
 
-impl<Fut, F> FusedFuture for UnwrapOrElse<Fut, F> {
+impl<Fut, F> FusedFuture for UnwrapOrElse<Fut, F>
+    where Fut: TryFuture,
+          F: FnOnce(Fut::Error) -> Fut::Ok,
+{
     fn is_terminated(&self) -> bool {
         self.f.is_none()
     }
