@@ -4,10 +4,14 @@ use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-#[cfg(feature = "alloc")]
 /// An owned dynamically typed [`Stream`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
+#[cfg(feature = "alloc")]
 pub type BoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + Send + 'a>>;
+
+/// `BoxStream`, but without the `Send` requirement.
+#[cfg(feature = "alloc")]
+pub type LocalBoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + 'a>>;
 
 /// A stream of values produced asynchronously.
 ///

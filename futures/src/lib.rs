@@ -213,7 +213,7 @@ pub mod future {
     };
 
     #[cfg(feature = "alloc")]
-    pub use futures_core::future::BoxFuture;
+    pub use futures_core::future::{BoxFuture, LocalBoxFuture};
 
     pub use futures_util::future::{
         lazy, Lazy,
@@ -398,7 +398,7 @@ pub mod stream {
     };
 
     #[cfg(feature = "alloc")]
-    pub use futures_core::stream::BoxStream;
+    pub use futures_core::stream::{BoxStream, LocalBoxStream};
 
     pub use futures_util::stream::{
         iter, Iter,
