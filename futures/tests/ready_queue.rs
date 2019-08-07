@@ -1,11 +1,12 @@
-use futures::executor::{block_on, block_on_stream};
-use futures::Async::*;
-use futures::future;
-use futures::stream::FuturesUnordered;
 use futures::channel::oneshot;
+use futures::executor::{block_on, block_on_stream};
+use futures::future;
+use futures::stream::{FuturesUnordered, StreamExt};
+use futures::task::Poll;
+use futures_test::task::noop_context;
 use std::panic::{self, AssertUnwindSafe};
-
-mod support;
+use std::sync::{Arc, Barrier};
+use std::thread;
 
 trait AssertSendSync: Send + Sync {}
 impl AssertSendSync for FuturesUnordered<()> {}
@@ -22,22 +23,20 @@ fn basic_usage() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll_next(cx).unwrap().is_ready());
+        assert!(!queue.poll_next_unpin(cx).is_ready());
 
         tx2.send("hello").unwrap();
 
-        assert_eq!(Ready(Some("hello")), queue.poll_next(cx).unwrap());
-        assert!(!queue.poll_next(cx).unwrap().is_ready());
+        assert_eq!(Poll::Ready(Some(Ok("hello"))), queue.poll_next_unpin(cx));
+        assert!(!queue.poll_next_unpin(cx).is_ready());
 
         tx1.send("world").unwrap();
         tx3.send("world2").unwrap();
 
-        assert_eq!(Ready(Some("world")), queue.poll_next(cx).unwrap());
-        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
-        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
-
-        Ok::<_, ()>(())
-    })).unwrap();
+        assert_eq!(Poll::Ready(Some(Ok("world"))), queue.poll_next_unpin(cx));
+        assert_eq!(Poll::Ready(Some(Ok("world2"))), queue.poll_next_unpin(cx));
+        assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
+    }));
 }
 
 #[test]
@@ -52,22 +51,20 @@ fn resolving_errors() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll_next(cx).unwrap().is_ready());
+        assert!(!queue.poll_next_unpin(cx).is_ready());
 
         drop(tx2);
 
-        assert!(queue.poll_next(cx).is_err());
-        assert!(!queue.poll_next(cx).unwrap().is_ready());
+        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
+        assert!(!queue.poll_next_unpin(cx).is_ready());
 
         drop(tx1);
         tx3.send("world2").unwrap();
 
-        assert!(queue.poll_next(cx).is_err());
-        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
-        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
-
-        Ok::<_, ()>(())
-    })).unwrap();
+        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
+        assert_eq!(Poll::Ready(Some(Ok("world2"))), queue.poll_next_unpin(cx));
+        assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
+    }));
 }
 
 #[test]
@@ -82,28 +79,24 @@ fn dropping_ready_queue() {
         queue.push(rx2);
         queue.push(rx3);
 
-        support::noop_waker_lw(|cx| {
-            assert!(!tx1.poll_cancel(cx).unwrap().is_ready());
-            assert!(!tx2.poll_cancel(cx).unwrap().is_ready());
-            assert!(!tx3.poll_cancel(cx).unwrap().is_ready());
+        {
+            let cx = &mut noop_context();
+            assert!(!tx1.poll_cancel(cx).is_ready());
+            assert!(!tx2.poll_cancel(cx).is_ready());
+            assert!(!tx3.poll_cancel(cx).is_ready());
 
             drop(queue);
 
-            assert!(tx1.poll_cancel(cx).unwrap().is_ready());
-            assert!(tx2.poll_cancel(cx).unwrap().is_ready());
-            assert!(tx3.poll_cancel(cx).unwrap().is_ready());
-        });
-
-        Ok::<_, ()>(()).into_future()
-    })).unwrap();
+            assert!(tx1.poll_cancel(cx).is_ready());
+            assert!(tx2.poll_cancel(cx).is_ready());
+            assert!(tx3.poll_cancel(cx).is_ready());
+        }
+    }));
 }
 
 #[test]
 fn stress() {
     const ITER: usize = 300;
-
-    use std::sync::{Arc, Barrier};
-    use std::thread;
 
     for i in 0..ITER {
         let n = (i % 10) + 1;
@@ -129,10 +122,7 @@ fn stress() {
 
             let mut sync = block_on_stream(queue);
 
-            let mut rx: Vec<_> = (&mut sync)
-                .take(n)
-                .map(|res| res.unwrap())
-                .collect();
+            let mut rx: Vec<_> = (&mut sync).take(n).map(|res| res.unwrap()).collect();
 
             assert_eq!(rx.len(), n);
 
@@ -151,15 +141,11 @@ fn stress() {
 fn panicking_future_dropped() {
     block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
-        queue.push(future::poll_fn(|_| -> Poll<i32, i32> {
-            panic!()
-        }));
+        queue.push(future::poll_fn(|_| -> Poll<Result<i32, i32>> { panic!() }));
 
-        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next(cx)));
+        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next_unpin(cx)));
         assert!(r.is_err());
         assert!(queue.is_empty());
-        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
-
-        Ok::<_, ()>(())
-    })).unwrap();
+        assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
+    }));
 }
