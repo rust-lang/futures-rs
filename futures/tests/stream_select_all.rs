@@ -1,8 +1,7 @@
-#![feature(async_await)]
-
+use futures::channel::mpsc;
 use futures::executor::block_on_stream;
 use futures::future::{self, FutureExt};
-use futures::stream::{self, FusedStream, SelectAll, StreamExt};
+use futures::stream::{self, select_all, FusedStream, SelectAll, StreamExt};
 use futures::task::Poll;
 use futures_test::task::noop_context;
 
@@ -47,4 +46,33 @@ fn issue_1626() {
     assert_eq!(s.next(), Some(13));
     assert_eq!(s.next(), Some(14));
     assert_eq!(s.next(), None);
+}
+
+#[test]
+fn works_1() {
+    let (a_tx, a_rx) = mpsc::unbounded::<u32>();
+    let (b_tx, b_rx) = mpsc::unbounded::<u32>();
+    let (c_tx, c_rx) = mpsc::unbounded::<u32>();
+
+    let streams = vec![a_rx, b_rx, c_rx];
+
+    let mut stream = block_on_stream(select_all(streams));
+
+    b_tx.unbounded_send(99).unwrap();
+    a_tx.unbounded_send(33).unwrap();
+    assert_eq!(Some(33), stream.next());
+    assert_eq!(Some(99), stream.next());
+
+    b_tx.unbounded_send(99).unwrap();
+    a_tx.unbounded_send(33).unwrap();
+    assert_eq!(Some(33), stream.next());
+    assert_eq!(Some(99), stream.next());
+
+    c_tx.unbounded_send(42).unwrap();
+    assert_eq!(Some(42), stream.next());
+    a_tx.unbounded_send(43).unwrap();
+    assert_eq!(Some(43), stream.next());
+
+    drop((a_tx, b_tx, c_tx));
+    assert_eq!(None, stream.next());
 }

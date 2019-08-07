@@ -1,18 +1,19 @@
 use futures::channel::oneshot;
-use futures::future::{ok, err};
+use futures::executor::ThreadPool;
+use futures::future::{self, ok, Future, FutureExt, TryFutureExt};
+use futures::task::SpawnExt;
 use std::sync::mpsc;
 use std::thread;
 
-mod support;
-use support::*;
-
+fn run<F: Future + Send + 'static>(future: F) {
+    let mut tp = ThreadPool::new().unwrap();
+    tp.spawn(future.map(drop)).unwrap();
+}
 
 #[test]
 fn join1() {
     let (tx, rx) = mpsc::channel();
-    ok::<i32, i32>(1).join(ok(2))
-                           .map(move |v| tx.send(v).unwrap())
-                           .forget();
+    run(future::try_join(ok::<i32, i32>(1), ok(2)).map_ok(move |v| tx.send(v).unwrap()));
     assert_eq!(rx.recv(), Ok((1, 2)));
     assert!(rx.recv().is_err());
 }
@@ -22,7 +23,7 @@ fn join2() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.join(p2).map(move |v| tx.send(v).unwrap()).forget();
+    run(future::try_join(p1, p2).map_ok(move |v| tx.send(v).unwrap()));
     assert!(rx.try_recv().is_err());
     c1.send(1).unwrap();
     assert!(rx.try_recv().is_err());
@@ -36,7 +37,7 @@ fn join3() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.join(p2).map_err(move |_v| tx.send(1).unwrap()).forget();
+    run(future::try_join(p1, p2).map_err(move |_v| tx.send(1).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     assert_eq!(rx.recv(), Ok(1));
@@ -49,7 +50,7 @@ fn join4() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.join(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    run(future::try_join(p1, p2).map_err(move |v| tx.send(v).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     assert!(rx.recv().is_ok());
@@ -63,7 +64,7 @@ fn join5() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (c3, p3) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.join(p2).join(p3).map(move |v| tx.send(v).unwrap()).forget();
+    run(future::try_join(future::try_join(p1, p2), p3).map_ok(move |v| tx.send(v).unwrap()));
     assert!(rx.try_recv().is_err());
     c1.send(1).unwrap();
     assert!(rx.try_recv().is_err());
@@ -79,7 +80,7 @@ fn select1() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
+    run(future::try_select(p1, p2).map_ok(move |v| tx.send(v).unwrap()));
     assert!(rx.try_recv().is_err());
     c1.send(1).unwrap();
     let (v, p2) = rx.recv().unwrap().into_inner();
@@ -87,7 +88,7 @@ fn select1() {
     assert!(rx.recv().is_err());
 
     let (tx, rx) = mpsc::channel();
-    p2.map(move |v| tx.send(v).unwrap()).forget();
+    run(p2.map_ok(move |v| tx.send(v).unwrap()));
     c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
@@ -98,7 +99,7 @@ fn select2() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.select(p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()).forget();
+    run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
@@ -106,7 +107,7 @@ fn select2() {
     assert!(rx.recv().is_err());
 
     let (tx, rx) = mpsc::channel();
-    p2.map(move |v| tx.send(v).unwrap()).forget();
+    run(p2.map_ok(move |v| tx.send(v).unwrap()));
     c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
@@ -117,7 +118,7 @@ fn select3() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.select(p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()).forget();
+    run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
@@ -125,7 +126,7 @@ fn select3() {
     assert!(rx.recv().is_err());
 
     let (tx, rx) = mpsc::channel();
-    p2.map_err(move |_v| tx.send(2).unwrap()).forget();
+    run(p2.map_err(move |_v| tx.send(2).unwrap()));
     drop(c2);
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
@@ -147,7 +148,7 @@ fn select4() {
         let (c2, p2) = oneshot::channel::<i32>();
 
         let tx3 = tx2.clone();
-        p1.select(p2).map(move |_| tx3.send(()).unwrap()).forget();
+        run(future::try_select(p1, p2).map_ok(move |_| tx3.send(()).unwrap()));
         tx.send(c1).unwrap();
         rx2.recv().unwrap();
         drop(c2);
