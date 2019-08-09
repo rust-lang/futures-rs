@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.17/futures/">
+  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures/">
     Documentation
   </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
     Website
@@ -34,7 +34,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "=0.3.0-alpha.17"
+futures-preview = "=0.3.0-alpha.18"
 ```
 
 Now, you can use futures-rs:
@@ -53,7 +53,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "=0.3.0-alpha.17", default-features = false }
+futures-preview = { version = "=0.3.0-alpha.18", default-features = false }
 ```
 
 ### Feature `async-await`
@@ -64,7 +64,7 @@ prevent it from compiling. To use futures-rs with async/await, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
+futures-preview = { version = "=0.3.0-alpha.18", features = ["async-await", "nightly"] }
 ```
 
 The current `async-await` feature requires Rust nightly 2019-07-29 or later.
