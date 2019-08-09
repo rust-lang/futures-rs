@@ -1,3 +1,22 @@
+# 0.3.0-alpha.18 - Unreleased
+* Rewrote `join!` and `try_join!` as procedural macros to allow passing expressions (#1783)
+* Banned manual implementation of `TryFuture` and `TryStream` for forward compatibility. See #1776 for more details. (#1777)
+* Changed `AsyncReadExt::read_to_end` to return the total number of bytes read (#1721)
+* Changed `ArcWake::into_waker` to a free function `waker` (#1676)
+* Supported trailing commas in macros (#1733)
+* Removed futures-channel dependency from futures-executor (#1735)
+* Supported `channel::oneshot` in no_std environment (#1749)
+* Added `Future` bounds to `FusedFuture` (#1779)
+* Added `Stream` bounds to `FusedStream` (#1779)
+* Changed `StreamExt::boxed` to return `BoxStream` (#1780)
+* Added `StreamExt::boxed_local` (#1780)
+* Added `AsyncReadExt::read_to_string` (#1721)
+* Implemented `AsyncWrite` for `IntoAsyncRead` (#1734)
+* Added get_ref, get_mut and into_inner methods to `Compat01As03` and `Compat01As03Sink` (#1705)
+* Added `ThreadPool::{spawn_ok, spawn_obj_ok}` (#1750)
+* Added `TryStreamExt::try_flatten` (#1731)
+* Added `FutureExt::now_or_never` (#1747)
+
 # 0.3.0-alpha.17 - 2019-7-3
 * Removed `try_ready!` macro in favor of `ready!(..)?`. (#1602)
 * Removed `io::Window::{set_start, set_end}` in favor of `io::Window::set`. (#1667)
