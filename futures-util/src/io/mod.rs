@@ -75,6 +75,9 @@ pub use self::seek::Seek;
 mod split;
 pub use self::split::{ReadHalf, WriteHalf};
 
+mod take;
+pub use self::take::Take;
+
 mod window;
 pub use self::window::Window;
 
@@ -312,6 +315,33 @@ pub trait AsyncReadExt: AsyncRead {
         where Self: AsyncWrite + Sized,
     {
         split::split(self)
+    }
+
+    /// Creates an AsyncRead adapter which will read at most `limit` bytes
+    /// from the underlying reader.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let reader = Cursor::new(&b"12345678"[..]);
+    /// let mut buffer = [0; 5];
+    ///
+    /// let mut take = reader.take(4);
+    /// let n = take.read(&mut buffer).await?;
+    ///
+    /// assert_eq!(n, 4);
+    /// assert_eq!(&buffer, b"1234\0");
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn take(self, limit: u64) -> Take<Self>
+        where Self: Sized + Unpin
+    {
+        Take::new(self, limit)
     }
 
     /// Wraps an [`AsyncRead`] in a compatibility wrapper that allows it to be
