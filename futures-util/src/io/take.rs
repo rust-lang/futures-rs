@@ -11,9 +11,19 @@ pub struct Take<R: Unpin> {
     limit: u64,
 }
 
+impl<R: Unpin> Unpin for Take<R> { }
+
 impl<R: AsyncRead + Unpin> Take<R> {
     pub(super) fn new(inner: R, limit: u64) -> Self {
         Take { inner, limit }
+    }
+
+    pub fn limit(&self) -> u64 {
+        self.limit
+    }
+
+    pub fn set_limit(&mut self, limit: u64) {
+        self.limit = limit
     }
 }
 
