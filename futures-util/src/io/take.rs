@@ -78,6 +78,84 @@ impl<R: AsyncRead + Unpin> Take<R> {
     pub fn set_limit(&mut self, limit: u64) {
         self.limit = limit
     }
+
+    /// Consumes the `Take`, returning the wrapped reader.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let reader = Cursor::new(&b"12345678"[..]);
+    /// let mut buffer = [0; 4];
+    ///
+    /// let mut take = reader.take(4);
+    /// let n = take.read(&mut buffer).await?;
+    ///
+    /// let cursor = take.into_inner();
+    /// assert_eq!(cursor.position(), 4);
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    pub fn into_inner(self) -> R {
+        self.inner
+    }
+
+    /// Gets a reference to the underlying reader.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let reader = Cursor::new(&b"12345678"[..]);
+    /// let mut buffer = [0; 4];
+    ///
+    /// let mut take = reader.take(4);
+    /// let n = take.read(&mut buffer).await?;
+    ///
+    /// let cursor_ref = take.get_ref();
+    /// assert_eq!(cursor_ref.position(), 4);
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    pub fn get_ref(&self) -> &R {
+        &self.inner
+    }
+
+    /// Gets a mutable reference to the underlying reader.
+    ///
+    /// Care should be taken to avoid modifying the internal I/O state of the
+    /// underlying reader as doing so may corrupt the internal limit of this
+    /// `Take`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let reader = Cursor::new(&b"12345678"[..]);
+    /// let mut buffer = [0; 4];
+    ///
+    /// let mut take = reader.take(4);
+    /// let n = take.read(&mut buffer).await?;
+    ///
+    /// let cursor_mut = take.get_mut();
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.inner
+    }
 }
 
 impl<R: AsyncRead + Unpin> AsyncRead for Take<R> {
