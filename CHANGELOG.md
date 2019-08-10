@@ -1,4 +1,4 @@
-# 0.3.0-alpha.18 - 2019-9-9
+# 0.3.0-alpha.18 - 2019-8-9
 * Rewrote `join!` and `try_join!` as procedural macros to allow passing expressions (#1783)
 * Banned manual implementation of `TryFuture` and `TryStream` for forward compatibility. See #1776 for more details. (#1777)
 * Changed `AsyncReadExt::read_to_end` to return the total number of bytes read (#1721)
