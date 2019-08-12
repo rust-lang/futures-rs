@@ -22,12 +22,10 @@ where
 // code here. We should guard against this by aborting.
 
 unsafe fn increase_refcount<T: ArcWake>(data: *const ()) {
-    // Retain Arc by creating a copy
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    let arc_clone = arc.clone();
-    // Forget the Arcs again, so that the refcount isn't decrased
-    mem::forget(arc);
-    mem::forget(arc_clone);
+    // Retain Arc, but don't touch refcount by wrapping in ManuallyDrop
+    let arc = mem::ManuallyDrop::new(Arc::<T>::from_raw(data as *const T));
+    // Now increase refcount, but don't drop new refcount either
+    let _arc_clone: mem::ManuallyDrop<_> = arc.clone();
 }
 
 // used by `waker_ref`
@@ -43,9 +41,9 @@ unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
 
 // used by `waker_ref`
 pub(super) unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
+    // Retain Arc, but don't touch refcount by wrapping in ManuallyDrop
+    let arc = mem::ManuallyDrop::new(Arc::<T>::from_raw(data as *const T));
     ArcWake::wake_by_ref(&arc);
-    mem::forget(arc);
 }
 
 unsafe fn drop_arc_raw<T: ArcWake>(data: *const ()) {
