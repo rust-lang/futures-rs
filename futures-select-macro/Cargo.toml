@@ -20,6 +20,6 @@ std = []
 
 [dependencies]
 proc-macro2 = "1.0"
-proc-macro-hack = "0.5.3"
+proc-macro-hack = "0.5.9"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }

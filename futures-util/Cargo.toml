@@ -37,7 +37,7 @@ futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.18", defa
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.18", default-features = false, optional = true }
 futures-join-macro-preview = { path = "../futures-join-macro", version = "=0.3.0-alpha.18", default-features = false, optional = true }
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.18", default-features = false, optional = true }
-proc-macro-hack = { version = "0.5", optional = true }
+proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
 rand = { version = "0.7.0", optional = true }
 slab = { version = "0.4", optional = true }
