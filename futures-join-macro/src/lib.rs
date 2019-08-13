@@ -11,7 +11,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro_hack::proc_macro_hack;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::{parenthesized, parse_quote, Expr, Ident, Token};
 
@@ -61,7 +61,7 @@ fn bind_futures(
         .into_iter()
         .enumerate()
         .map(|(i, expr)| {
-            let name = Ident::new(&format!("_fut{}", i), span);
+            let name = format_ident!("_fut{}", i, span = span);
             future_let_bindings.push(quote! {
                 // Move future into a local so that it is pinned in one place and
                 // is no longer accessible by the end user.

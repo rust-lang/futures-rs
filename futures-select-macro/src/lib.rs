@@ -11,7 +11,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_hack::proc_macro_hack;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{parenthesized, parse_quote, Expr, Ident, Pat, Token};
 use syn::parse::{Parse, ParseStream};
 
@@ -119,7 +119,7 @@ fn declare_result_enum(
     // "_0", "_1", "_2"
     let variant_names: Vec<Ident> =
         (0..variants)
-            .map(|num| Ident::new(&format!("_{}", num), span))
+            .map(|num| format_ident!("_{}", num, span = span))
             .collect();
 
     let type_parameters = &variant_names;
