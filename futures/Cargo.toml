@@ -45,5 +45,9 @@ compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 
+# re-export optional WASM dependencies to avoid breakage in rand:
+wasm-bindgen = ["futures-util-preview/wasm-bindgen"]
+stdweb = ["futures-util-preview/stdweb"]
+
 [package.metadata.docs.rs]
 all-features = true

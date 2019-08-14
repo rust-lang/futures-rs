@@ -30,6 +30,10 @@ channel = ["std", "futures-channel-preview"]
 join-macro = ["async-await", "futures-join-macro-preview", "proc-macro-hack", "proc-macro-nested"]
 select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested", "rand"]
 
+# re-export optional WASM dependencies to avoid breakage in getrandom:
+wasm-bindgen = ["rand/wasm-bindgen"]
+stdweb = ["rand/stdweb"]
+
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.18", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.18", default-features = false, features = ["std"], optional = true }
