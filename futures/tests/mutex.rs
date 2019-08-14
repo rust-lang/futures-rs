@@ -37,9 +37,11 @@ fn mutex_wakes_waiters() {
 
 #[test]
 fn mutex_contested() {
+    use std::num::NonZeroUsize;
+
     let (tx, mut rx) = mpsc::unbounded();
     let mut pool = futures::executor::ThreadPool::builder()
-        .pool_size(16)
+        .pool_size(NonZeroUsize::new(16).unwrap())
         .create()
         .unwrap();
 

@@ -5,6 +5,7 @@ use futures_core::task::{Context, Poll, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::{ArcWake, waker_ref};
 use std::io;
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
@@ -25,7 +26,7 @@ pub struct ThreadPool {
 
 /// Thread pool configuration object.
 pub struct ThreadPoolBuilder {
-    pool_size: usize,
+    pool_size: NonZeroUsize,
     stack_size: usize,
     name_prefix: Option<String>,
     after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
@@ -39,13 +40,13 @@ struct PoolState {
     tx: Mutex<mpsc::Sender<Message>>,
     rx: Mutex<mpsc::Receiver<Message>>,
     cnt: AtomicUsize,
-    size: usize,
+    size: NonZeroUsize,
 }
 
 impl fmt::Debug for ThreadPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ThreadPool")
-            .field("size", &self.state.size)
+            .field("size", &self.state.size.get())
             .finish()
     }
 }
@@ -191,7 +192,7 @@ impl Clone for ThreadPool {
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         if self.state.cnt.fetch_sub(1, Ordering::Relaxed) == 1 {
-            for _ in 0..self.state.size {
+            for _ in 0..self.state.size.get() {
                 self.state.send(Message::Close);
             }
         }
@@ -204,7 +205,7 @@ impl ThreadPoolBuilder {
     /// See the other methods on this type for details on the defaults.
     pub fn new() -> ThreadPoolBuilder {
         ThreadPoolBuilder {
-            pool_size: num_cpus::get(),
+            pool_size: NonZeroUsize::new(num_cpus::get()).unwrap(),
             stack_size: 0,
             name_prefix: None,
             after_start: None,
@@ -216,7 +217,7 @@ impl ThreadPoolBuilder {
     ///
     /// The size of a thread pool is the number of worker threads spawned.  By
     /// default, this is equal to the number of CPU cores.
-    pub fn pool_size(&mut self, size: usize) -> &mut Self {
+    pub fn pool_size(&mut self, size: NonZeroUsize) -> &mut Self {
         self.pool_size = size;
         self
     }
@@ -272,10 +273,6 @@ impl ThreadPoolBuilder {
     }
 
     /// Create a [`ThreadPool`](ThreadPool) with the given configuration.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `pool_size == 0`.
     pub fn create(&mut self) -> Result<ThreadPool, io::Error> {
         let (tx, rx) = mpsc::channel();
         let pool = ThreadPool {
@@ -286,9 +283,8 @@ impl ThreadPoolBuilder {
                 size: self.pool_size,
             }),
         };
-        assert!(self.pool_size > 0);
 
-        for counter in 0..self.pool_size {
+        for counter in 0..self.pool_size.get() {
             let state = pool.state.clone();
             let after_start = self.after_start.clone();
             let before_stop = self.before_stop.clone();
@@ -385,7 +381,7 @@ mod tests {
     fn test_drop_after_start() {
         let (tx, rx) = mpsc::sync_channel(2);
         let _cpu_pool = ThreadPoolBuilder::new()
-            .pool_size(2)
+            .pool_size(NonZeroUsize::new(2).unwrap())
             .after_start(move |_| tx.send(1).unwrap()).create().unwrap();
 
         // After ThreadPoolBuilder is deconstructed, the tx should be droped
