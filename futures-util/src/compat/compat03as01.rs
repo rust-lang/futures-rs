@@ -201,9 +201,9 @@ impl Current {
 
         let ptr = current_to_ptr(self);
         let vtable = &RawWakerVTable::new(clone, wake, wake, drop);
-        unsafe {
-            WakerRef::new(task03::Waker::from_raw(RawWaker::new(ptr, vtable)))
-        }
+        WakerRef::new_unowned(std::mem::ManuallyDrop::new(unsafe {
+            task03::Waker::from_raw(RawWaker::new(ptr, vtable))
+        }))
     }
 }
 

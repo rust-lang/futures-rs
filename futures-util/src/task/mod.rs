@@ -1,20 +1,6 @@
 //! Task notification
 
 cfg_target_has_atomic! {
-    /// A macro for creating a `RawWaker` vtable for a type that implements
-    /// the `ArcWake` trait.
-    #[cfg(feature = "alloc")]
-    macro_rules! waker_vtable {
-        ($ty:ident) => {
-            &RawWakerVTable::new(
-                clone_arc_raw::<$ty>,
-                wake_arc_raw::<$ty>,
-                wake_by_ref_arc_raw::<$ty>,
-                drop_arc_raw::<$ty>,
-            )
-        };
-    }
-
     #[cfg(feature = "alloc")]
     mod arc_wake;
     #[cfg(feature = "alloc")]

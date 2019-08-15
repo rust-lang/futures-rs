@@ -63,3 +63,15 @@ fn proper_refcount_on_wake_panic() {
     drop(w1);
     assert_eq!(1, Arc::strong_count(&some_w)); // some_w
 }
+
+#[test]
+fn waker_ref_wake_same() {
+    let some_w = Arc::new(CountingWaker::new());
+
+    let w1: Waker = task::waker(some_w.clone());
+    let w2 = task::waker_ref(&some_w);
+    let w3 = w2.clone();
+
+    assert!(w1.will_wake(&w2));
+    assert!(w2.will_wake(&w3));
+}
