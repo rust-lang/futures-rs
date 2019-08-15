@@ -1,9 +1,10 @@
-use super::arc_wake::ArcWake;
-use super::waker::{clone_arc_raw, wake_by_ref_arc_raw};
+use super::arc_wake::{ArcWake};
+use super::waker::waker_vtable;
 use alloc::sync::Arc;
+use core::mem::ManuallyDrop;
 use core::marker::PhantomData;
 use core::ops::Deref;
-use core::task::{Waker, RawWaker, RawWakerVTable};
+use core::task::{Waker, RawWaker};
 
 /// A [`Waker`] that is only valid for a given lifetime.
 ///
@@ -11,17 +12,29 @@ use core::task::{Waker, RawWaker, RawWakerVTable};
 /// so it can be used to get a `&Waker`.
 #[derive(Debug)]
 pub struct WakerRef<'a> {
-    waker: Waker,
+    waker: ManuallyDrop<Waker>,
     _marker: PhantomData<&'a ()>,
 }
 
-impl WakerRef<'_> {
-    /// Create a new [`WakerRef`] from a [`Waker`].
+impl<'a> WakerRef<'a> {
+    /// Create a new [`WakerRef`] from a [`Waker`] reference.
+    pub fn new(waker: &'a Waker) -> Self {
+        // copy the underlying (raw) waker without calling a clone,
+        // as we won't call Waker::drop either.
+        let waker = ManuallyDrop::new(unsafe { core::ptr::read(waker) });
+        WakerRef {
+            waker,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Create a new [`WakerRef`] from a [`Waker`] that must not be dropped.
     ///
-    /// Note: this function is safe, but it is generally only used
-    /// from `unsafe` contexts that need to create a `Waker`
-    /// that is guaranteed not to outlive a particular lifetime.
-    pub fn new(waker: Waker) -> Self {
+    /// Note: this if for rare cases where the caller created a [`Waker`] in
+    /// an unsafe way (that will be valid only for a lifetime to be determined
+    /// by the caller), and the [`Waker`] doesn't need to or must not be
+    /// destroyed.
+    pub fn new_unowned(waker: ManuallyDrop<Waker>) -> Self {
         WakerRef {
             waker,
             _marker: PhantomData,
@@ -37,21 +50,6 @@ impl Deref for WakerRef<'_> {
     }
 }
 
-#[inline]
-unsafe fn noop(_data: *const ()) {}
-
-unsafe fn wake_unreachable(_data: *const ()) {
-    // With only a reference, calling `wake_arc_raw()` would be unsound,
-    // since the `WakerRef` didn't increment the refcount of the `ArcWake`,
-    // and `wake_arc_raw` would *decrement* it.
-    //
-    // This should never be reachable, since `WakerRef` only provides a `Deref`
-    // to the inner `Waker`.
-    //
-    // Still, safer to panic here than to call `wake_arc_raw`.
-    unreachable!("WakerRef::wake");
-}
-
 /// Creates a reference to a [`Waker`] from a reference to `Arc<impl ArcWake>`.
 ///
 /// The resulting [`Waker`] will call
@@ -61,21 +59,12 @@ pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
     W: ArcWake
 {
-    // This uses the same mechanism as Arc::into_raw, without needing a reference.
-    // This is potentially not stable
-    let ptr = &*wake as &W as *const W as *const ();
+    // simply copy the pointer instead of using Arc::into_raw,
+    // as we don't actually keep a refcount by using ManuallyDrop.<
+    let ptr = (&**wake as *const W) as *const ();
 
-    // Similar to `waker_vtable`, but with a no-op `drop` function.
-    // Clones of the resulting `RawWaker` will still be dropped normally.
-    let vtable = &RawWakerVTable::new(
-        clone_arc_raw::<W>,
-        wake_unreachable,
-        wake_by_ref_arc_raw::<W>,
-        noop,
-    );
-
-    let waker = unsafe {
-        Waker::from_raw(RawWaker::new(ptr, vtable))
-    };
-    WakerRef::new(waker)
+    let waker = ManuallyDrop::new(unsafe {
+        Waker::from_raw(RawWaker::new(ptr, waker_vtable::<W>()))
+    });
+    WakerRef::new_unowned(waker)
 }

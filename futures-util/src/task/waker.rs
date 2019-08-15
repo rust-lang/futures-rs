@@ -3,6 +3,15 @@ use core::mem;
 use core::task::{Waker, RawWaker, RawWakerVTable};
 use alloc::sync::Arc;
 
+pub(super) fn waker_vtable<W: ArcWake>() -> &'static RawWakerVTable {
+    &RawWakerVTable::new(
+        clone_arc_raw::<W>,
+        wake_arc_raw::<W>,
+        wake_by_ref_arc_raw::<W>,
+        drop_arc_raw::<W>,
+    )
+}
+
 /// Creates a [`Waker`] from an `Arc<impl ArcWake>`.
 ///
 /// The returned [`Waker`] will call
@@ -14,7 +23,7 @@ where
     let ptr = Arc::into_raw(wake) as *const ();
 
     unsafe {
-        Waker::from_raw(RawWaker::new(ptr, waker_vtable!(W)))
+        Waker::from_raw(RawWaker::new(ptr, waker_vtable::<W>()))
     }
 }
 
@@ -29,9 +38,9 @@ unsafe fn increase_refcount<T: ArcWake>(data: *const ()) {
 }
 
 // used by `waker_ref`
-pub(super) unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
+unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
     increase_refcount::<T>(data);
-    RawWaker::new(data, waker_vtable!(T))
+    RawWaker::new(data, waker_vtable::<T>())
 }
 
 unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
@@ -40,7 +49,7 @@ unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
 }
 
 // used by `waker_ref`
-pub(super) unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
+unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
     // Retain Arc, but don't touch refcount by wrapping in ManuallyDrop
     let arc = mem::ManuallyDrop::new(Arc::<T>::from_raw(data as *const T));
     ArcWake::wake_by_ref(&arc);
