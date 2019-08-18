@@ -28,6 +28,12 @@ pub use self::buf_reader::BufReader;
 mod buf_writer;
 pub use self::buf_writer::BufWriter;
 
+mod chain;
+pub use self::chain::Chain;
+
+mod close;
+pub use self::close::Close;
+
 mod copy_into;
 pub use self::copy_into::CopyInto;
 
@@ -66,9 +72,6 @@ pub use self::read_to_string::ReadToString;
 mod read_until;
 pub use self::read_until::ReadUntil;
 
-mod close;
-pub use self::close::Close;
-
 mod seek;
 pub use self::seek::Seek;
 
@@ -92,6 +95,39 @@ pub use self::write_all::WriteAll;
 
 /// An extension trait which adds utility methods to `AsyncRead` types.
 pub trait AsyncReadExt: AsyncRead {
+    /// Creates an adaptor which will chain this stream with another.
+    ///
+    /// The returned `AsyncRead` instance will first read all bytes from this object
+    /// until EOF is encountered. Afterwards the output is equivalent to the
+    /// output of `next`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let reader1 = Cursor::new([1, 2, 3, 4]);
+    /// let reader2 = Cursor::new([5, 6, 7, 8]);
+    ///
+    /// let mut reader = reader1.chain(reader2);
+    /// let mut buffer = Vec::new();
+    ///
+    /// // read the value into a Vec.
+    /// reader.read_to_end(&mut buffer).await?;
+    /// assert_eq!(buffer, [1, 2, 3, 4, 5, 6, 7, 8]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn chain<R>(self, next: R) -> Chain<Self, R>
+    where
+        Self: Sized,
+        R: AsyncRead,
+    {
+        Chain::new(self, next)
+    }
+
     /// Creates a future which copies all the bytes from one object to another.
     ///
     /// The returned future will copy all the bytes read from this `AsyncRead` into the
