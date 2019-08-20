@@ -5,11 +5,12 @@
 
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
-use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
+
+pub use futures_core::stream::TryStream;
 
 mod and_then;
 pub use self::and_then::AndThen;

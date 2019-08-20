@@ -4,13 +4,14 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::pin::Pin;
-use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
+
+pub use futures_core::future::TryFuture;
 
 mod try_join;
 pub use self::try_join::{

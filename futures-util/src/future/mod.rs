@@ -4,17 +4,14 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::pin::Pin;
-use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-#[cfg(feature = "alloc")]
-use futures_core::future::{BoxFuture, LocalBoxFuture};
 
-// re-export for `select!`
-#[doc(hidden)]
-pub use futures_core::future::FusedFuture;
+pub use futures_core::future::{FusedFuture, Future};
+#[cfg(feature = "alloc")]
+pub use futures_core::future::{BoxFuture, LocalBoxFuture};
 
 // Primitive futures
 mod lazy;

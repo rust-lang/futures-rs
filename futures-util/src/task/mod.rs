@@ -41,6 +41,4 @@ pub use self::noop_waker::noop_waker_ref;
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
-// re-export for `select!`
-#[doc(hidden)]
-pub use futures_core::task::{Context, Poll, Waker};
+pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};

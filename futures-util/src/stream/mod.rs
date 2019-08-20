@@ -6,7 +6,6 @@
 use crate::future::Either;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
 #[cfg(feature = "sink")]
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
@@ -14,8 +13,10 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
+
+pub use futures_core::stream::{FusedStream, Stream};
 #[cfg(feature = "alloc")]
-use futures_core::stream::{BoxStream, LocalBoxStream};
+pub use futures_core::stream::{BoxStream, LocalBoxStream};
 
 mod iter;
 pub use self::iter::{iter, Iter};

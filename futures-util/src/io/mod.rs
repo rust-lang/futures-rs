@@ -10,7 +10,8 @@
 //! library is activated, and it is activated by default.
 
 pub use futures_io::{
-    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom,
+    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
+    IoSlice, IoSliceMut, Result, SeekFrom,
 };
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;
