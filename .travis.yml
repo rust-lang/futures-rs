@@ -126,7 +126,7 @@ matrix:
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv7m-none-eabi
             --no-default-features
-            --features nightly,alloc
+            --features alloc
 
     - name: cargo check (futures-util)
       rust: nightly
@@ -150,6 +150,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features nightly,async-await
 
     - name: cargo doc
       rust: nightly

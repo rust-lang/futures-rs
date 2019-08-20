@@ -67,6 +67,7 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` featu
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 pub use futures_util::{pending, poll}; // Async-await
 
@@ -515,10 +516,12 @@ pub mod never {
 
 // proc-macro re-export --------------------------------------
 
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use futures_util::rand_reexport;
 
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod inner_macro {
@@ -527,6 +530,7 @@ pub mod inner_macro {
     pub use futures_util::select;
 }
 
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 futures_util::document_join_macro! {
     #[macro_export]
@@ -550,6 +554,7 @@ futures_util::document_join_macro! {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 futures_util::document_select_macro! {
     #[macro_export]
