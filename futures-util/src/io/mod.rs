@@ -367,7 +367,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn take(self, limit: u64) -> Take<Self>
-        where Self: Sized + Unpin
+        where Self: Sized
     {
         Take::new(self, limit)
     }
