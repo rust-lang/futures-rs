@@ -31,7 +31,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// # Example
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 /// use futures::stream::{self, StreamExt};

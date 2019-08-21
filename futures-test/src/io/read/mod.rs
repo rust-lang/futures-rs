@@ -13,7 +13,6 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::io::AsyncRead;
     /// use futures_test::task::noop_context;
@@ -44,7 +43,6 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// The returned reader will also implement `AsyncBufRead` if the underlying reader does.
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::io::AsyncBufRead;
     /// use futures_test::task::noop_context;
@@ -79,7 +77,6 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::io::AsyncRead;
     /// use futures_test::task::noop_context;

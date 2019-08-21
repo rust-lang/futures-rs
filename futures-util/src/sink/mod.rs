@@ -90,7 +90,6 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::sink::SinkExt;

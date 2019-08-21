@@ -29,7 +29,6 @@ impl<T> Future for Ready<T> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -46,7 +45,6 @@ pub fn ready<T>(t: T) -> Ready<T> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -63,7 +61,6 @@ pub fn ok<T, E>(t: T) -> Ready<Result<T, E>> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///

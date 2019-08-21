@@ -20,7 +20,6 @@ impl<F> Unpin for PollFn<F> {}
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::poll_fn;
 /// use futures::task::{Context, Poll};

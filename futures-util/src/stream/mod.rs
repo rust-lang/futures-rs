@@ -181,7 +181,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -215,7 +214,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -248,7 +246,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -290,7 +287,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -326,7 +322,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -359,7 +354,6 @@ pub trait StreamExt: Stream {
     ///
     /// # Examples
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -394,7 +388,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -421,7 +414,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::StreamExt;
@@ -458,7 +450,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::StreamExt;
@@ -498,7 +489,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -521,7 +511,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::StreamExt;
@@ -566,7 +555,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -596,7 +584,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -632,7 +619,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -683,7 +669,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -729,7 +714,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -752,7 +736,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -820,7 +803,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
@@ -866,7 +848,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -956,7 +937,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -997,7 +977,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -1024,7 +1003,6 @@ pub trait StreamExt: Stream {
     /// first stream reaches the end, emits the elements from the second stream.
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -1190,7 +1168,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::{future, select};
     /// use futures::stream::{StreamExt, FuturesUnordered};

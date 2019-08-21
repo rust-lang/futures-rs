@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures::channel::mpsc;
 use futures::future::{ready, FutureExt};
 use futures::lock::Mutex;

@@ -13,7 +13,6 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::io::AsyncWrite;
     /// use futures_test::task::noop_context;
@@ -54,7 +53,6 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::io::AsyncWrite;
     /// use futures_test::task::noop_context;

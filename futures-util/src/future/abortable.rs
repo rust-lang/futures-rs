@@ -29,7 +29,6 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     /// Example:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     ///
@@ -70,7 +69,6 @@ impl AbortHandle {
     /// Example:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     ///

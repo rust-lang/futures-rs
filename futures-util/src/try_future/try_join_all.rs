@@ -100,7 +100,6 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::{self, try_join_all};
 ///

@@ -35,7 +35,6 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::future::FutureExt;
     /// use futures_test::task::noop_context;
@@ -62,7 +61,6 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures_test::future::FutureTestExt;
@@ -88,7 +86,6 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::future::{self, Future};
     /// use futures_test::task::noop_context;

@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures::{future, select};
 use futures::future::{FusedFuture, FutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};

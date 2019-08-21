@@ -126,7 +126,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -158,7 +157,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -184,7 +182,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -214,7 +211,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -243,7 +239,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::StreamExt;
@@ -277,7 +272,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -307,7 +301,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::{self, StreamExt};
@@ -360,7 +353,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -395,7 +387,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
     ///
@@ -428,7 +419,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -446,7 +436,6 @@ pub trait FutureExt: Future {
     /// // synchronous function to better illustrate the cross-thread aspect of
     /// // the `shared` combinator.
     ///
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::executor::block_on;

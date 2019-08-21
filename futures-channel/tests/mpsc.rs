@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{FutureExt, poll_fn};

@@ -136,7 +136,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -150,7 +149,6 @@ pub trait TryFutureExt: TryFuture {
     /// effect:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -184,7 +182,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -198,7 +195,6 @@ pub trait TryFutureExt: TryFuture {
     /// no effect:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -229,7 +225,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -259,7 +254,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -273,7 +267,6 @@ pub trait TryFutureExt: TryFuture {
     /// effect:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -305,7 +298,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -319,7 +311,6 @@ pub trait TryFutureExt: TryFuture {
     /// no effect:
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -346,7 +337,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, TryFutureExt};
     ///
@@ -372,7 +362,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, TryFutureExt};
     ///
@@ -401,7 +390,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, TryFutureExt};
     /// use futures::stream::{self, TryStreamExt};
@@ -435,7 +423,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {

@@ -16,7 +16,6 @@ pub struct Repeat<T> {
 /// available memory as it tries to just fill up all RAM.
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///

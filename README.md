@@ -58,16 +58,14 @@ futures-preview = { version = "=0.3.0-alpha.18", default-features = false }
 
 ### Feature `async-await`
 
-The `async-await` feature provides several convenient features using unstable
-async/await. Note that this is an unstable feature, and upstream changes might
-prevent it from compiling. To use futures-rs with async/await, use:
+The `async-await` feature provides several convenient features using async/await. To use futures-rs with async/await, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "=0.3.0-alpha.18", features = ["async-await", "nightly"] }
+futures-preview = { version = "=0.3.0-alpha.18", features = ["async-await"] }
 ```
 
-The current `async-await` feature requires Rust nightly 2019-07-29 or later.
+The current `async-await` feature requires Rust nightly 2019-08-21 or later.
 
 # License
 

@@ -29,7 +29,6 @@ impl<R: AsyncRead + Unpin> Take<R> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -55,7 +54,6 @@ impl<R: AsyncRead + Unpin> Take<R> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -84,7 +82,6 @@ impl<R: AsyncRead + Unpin> Take<R> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -109,7 +106,6 @@ impl<R: AsyncRead + Unpin> Take<R> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -138,7 +134,6 @@ impl<R: AsyncRead + Unpin> Take<R> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;

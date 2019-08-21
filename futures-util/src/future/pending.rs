@@ -24,7 +24,6 @@ impl<T> FusedFuture for Pending<T> {
 /// # Examples
 ///
 /// ```ignore
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///

@@ -47,7 +47,7 @@ tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.18", features = ["async-await", "nightly"] }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.18", features = ["async-await"] }
 futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.18" }
 tokio = "0.1.11"
 

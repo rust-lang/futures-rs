@@ -22,7 +22,6 @@ pub fn panic_context() -> Context<'static> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// use futures::future::Future;
 /// use futures::task::Poll;
 /// use futures_test::task::noop_context;
