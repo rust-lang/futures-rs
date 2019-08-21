@@ -33,11 +33,11 @@ impl<Si1, Si2> Fanout<Si1, Si2> {
     }
 
     /// Get a pinned mutable reference to the inner sinks.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut Si1>, Pin<&mut Si2>)
-        where Si1: Unpin, Si2: Unpin,
-    {
-        let Self { sink1, sink2 } = self.get_mut();
-        (Pin::new(sink1), Pin::new(sink2))
+    pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut Si1>, Pin<&mut Si2>) {
+        unsafe {
+            let Self { sink1, sink2 } = self.get_unchecked_mut();
+            (Pin::new_unchecked(sink1), Pin::new_unchecked(sink2))
+        }
     }
 
     /// Consumes this combinator, returning the underlying sinks.
