@@ -105,7 +105,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -141,7 +140,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::{AsyncReadExt, AsyncWriteExt};
     /// use std::io::Cursor;
@@ -173,7 +171,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -218,7 +215,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -235,7 +231,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// ## EOF is hit before `buf` is filled
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::{self, Cursor};
@@ -264,7 +259,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -294,7 +288,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -325,7 +318,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -360,7 +352,6 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -404,7 +395,6 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::{AllowStdIo, AsyncWriteExt};
     /// use std::io::{BufWriter, Cursor};
@@ -466,7 +456,6 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncWriteExt;
     /// use std::io::Cursor;
@@ -506,7 +495,6 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncWriteExt;
     /// use futures::stream::{self, StreamExt};
@@ -562,7 +550,6 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::{AsyncBufReadExt, AsyncWriteExt};
     /// use std::io::Cursor;
@@ -602,7 +589,6 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use std::io::Cursor;
@@ -665,7 +651,6 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use std::io::Cursor;
@@ -716,7 +701,6 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use futures::stream::StreamExt;

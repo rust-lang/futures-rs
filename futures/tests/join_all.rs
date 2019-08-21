@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures_util::future::*;
 use std::future::Future;
 use futures::executor::block_on;

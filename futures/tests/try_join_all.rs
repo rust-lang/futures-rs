@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures_util::future::*;
 use futures_util::try_future::{try_join_all, TryJoinAll};
 use std::future::Future;

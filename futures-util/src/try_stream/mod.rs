@@ -92,7 +92,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -118,7 +117,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -144,7 +142,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -298,7 +295,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -330,7 +326,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -365,7 +360,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -400,7 +394,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -456,7 +449,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::TryStreamExt;
@@ -498,7 +490,6 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -537,7 +528,6 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -570,7 +560,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::{StreamExt, TryStreamExt};
@@ -623,7 +612,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -660,7 +648,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::stream::TryStreamExt;
@@ -708,7 +695,6 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Results are returned in the order of completion:
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -732,7 +718,6 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Errors from the underlying stream itself are propagated:
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::future;
@@ -776,7 +761,6 @@ pub trait TryStreamExt: TryStream {
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
     /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
     /// ```
-    /// #![feature(async_await)]
     /// use futures::future::{FutureExt, TryFutureExt};
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
@@ -815,7 +799,6 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     /// use futures::io::AsyncReadExt;

@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures::executor::block_on;
 use futures::stream;
 use futures_util::StreamExt;

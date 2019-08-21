@@ -1,7 +1,6 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![cfg_attr(feature = "async-await", feature(async_await))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -16,9 +15,6 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
-
-#[cfg(all(feature = "async-await", not(feature = "nightly")))]
-compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

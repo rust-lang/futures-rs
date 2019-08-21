@@ -7,7 +7,6 @@ use futures_core::task::{Spawn, SpawnError};
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// use futures::task::SpawnExt;
 /// use futures_test::task::RecordSpawner;
 ///

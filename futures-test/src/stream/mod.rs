@@ -12,7 +12,6 @@ pub trait StreamTestExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::task::Poll;
     /// use futures::stream::{self, Stream};
     /// use futures_test::task::noop_context;

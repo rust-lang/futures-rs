@@ -116,7 +116,6 @@ impl ThreadPool {
     /// completion.
     ///
     /// ```
-    /// #![feature(async_await)]
     /// use futures::executor::ThreadPool;
     ///
     /// let pool = ThreadPool::new().unwrap();

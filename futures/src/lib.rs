@@ -34,9 +34,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures")]
 
-#[cfg(all(feature = "async-await", not(feature = "nightly")))]
-compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
-
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 

@@ -19,7 +19,6 @@ impl<F> Unpin for Lazy<F> {}
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///

@@ -1,4 +1,3 @@
-#![feature(async_await)]
 #![cfg(feature = "compat")]
 
 use tokio::timer::Delay;

@@ -18,7 +18,6 @@ pub struct Drain<T> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::sink::{self, SinkExt};
 ///

@@ -18,7 +18,6 @@ impl<I> Unpin for Iter<I> {}
 /// simply always calls `iter.next()` and returns that.
 ///
 /// ```
-/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///

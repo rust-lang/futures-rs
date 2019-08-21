@@ -19,7 +19,6 @@ macro_rules! document_join_macro {
         /// # Examples
         ///
         /// ```
-        /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
         /// use futures::{join, future};
         ///
@@ -47,7 +46,6 @@ macro_rules! document_join_macro {
         /// `Ok` of a tuple of the values:
         ///
         /// ```
-        /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
         /// use futures::{try_join, future};
         ///
@@ -62,7 +60,6 @@ macro_rules! document_join_macro {
         /// that error:
         ///
         /// ```
-        /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
         /// use futures::{try_join, future};
         ///
