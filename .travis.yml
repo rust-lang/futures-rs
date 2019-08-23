@@ -75,7 +75,7 @@ matrix:
       rust: nightly
       script:
         - cargo bench --all
-        - cargo bench --manifest-path futures-util/Cargo.toml --features=bench
+        - cargo bench --manifest-path futures-util/Cargo.toml --features=bench,unstable
 
     - name: cargo +stable build --no-default-features
       rust: stable
@@ -108,11 +108,11 @@ matrix:
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv6m-none-eabi
             --no-default-features
-            --features nightly,cfg-target-has-atomic
+            --features unstable,cfg-target-has-atomic
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv6m-none-eabi
             --no-default-features
-            --features nightly,alloc,cfg-target-has-atomic
+            --features unstable,alloc,cfg-target-has-atomic
 
     - name: cargo build --target=thumbv7m-none-eabi
       rust: nightly
@@ -150,7 +150,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features nightly,async-await
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features async-await
 
     - name: cargo doc
       rust: nightly
