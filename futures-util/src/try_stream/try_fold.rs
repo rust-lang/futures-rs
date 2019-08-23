@@ -75,7 +75,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 let accum = match ready!(
                     self.as_mut().future().as_pin_mut()
                        .expect("TryFold polled after completion")
-                       .try_poll(cx)
+                       .poll(cx)
                 ) {
                     Ok(accum) => accum,
                     Err(e) => {
@@ -88,7 +88,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 self.as_mut().future().set(None);
             }
 
-            let item = match ready!(self.as_mut().stream().try_poll_next(cx)) {
+            let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                 Some(Ok(item)) => Some(item),
                 Some(Err(e)) => {
                     // Indicate that the future can no longer be polled.

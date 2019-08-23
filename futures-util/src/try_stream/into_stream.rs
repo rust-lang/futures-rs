@@ -60,14 +60,14 @@ impl<St: TryStream + FusedStream> FusedStream for IntoStream<St> {
 }
 
 impl<St: TryStream> Stream for IntoStream<St> {
-    type Item = Result<St::Ok, St::Error>;
+    type Item = St::Item;
 
     #[inline]
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(cx)
+        self.stream().poll_next(cx)
     }
 }
 

@@ -85,7 +85,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
             // Check if we've already created a number of futures greater than `limit`
             if self.limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let poll_res = match self.as_mut().stream().as_pin_mut() {
-                    Some(stream) => stream.try_poll_next(cx),
+                    Some(stream) => stream.poll_next(cx),
                     None => Poll::Ready(None),
                 };
 

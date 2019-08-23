@@ -111,7 +111,7 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
     ) -> Poll<Option<Result<St::Ok, St::Error>>> {
         loop {
             if self.pending_fut.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                let item = match ready!(self.as_mut().stream().poll_next(cx)?) {
                     Some(x) => x,
                     None => return Poll::Ready(None),
                 };

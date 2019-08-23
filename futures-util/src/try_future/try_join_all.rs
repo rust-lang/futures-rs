@@ -142,7 +142,7 @@ where
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {
             if let Some(pending) = elem.as_mut().pending_pin_mut() {
-                match pending.try_poll(cx) {
+                match pending.poll(cx) {
                     Poll::Pending => state = FinalState::Pending,
                     Poll::Ready(output) => match output {
                         Ok(item) => elem.set(ElemState::Done(Some(item))),

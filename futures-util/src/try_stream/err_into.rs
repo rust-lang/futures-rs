@@ -77,7 +77,7 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(cx)
+        self.stream().poll_next(cx)
             .map(|res| res.map(|some| some.map_err(Into::into)))
     }
 }

@@ -45,7 +45,7 @@ impl<Fut, F> Future for UnwrapOrElse<Fut, F>
     ) -> Poll<Self::Output> {
         self.as_mut()
             .future()
-            .try_poll(cx)
+            .poll(cx)
             .map(|result| {
                 let op = self.as_mut().f().take()
                     .expect("UnwrapOrElse already returned `Poll::Ready` before");

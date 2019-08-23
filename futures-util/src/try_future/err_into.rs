@@ -42,7 +42,7 @@ impl<Fut, E> Future for ErrInto<Fut, E>
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+        self.future().poll(cx)
             .map(|res| res.map_err(Into::into))
     }
 }

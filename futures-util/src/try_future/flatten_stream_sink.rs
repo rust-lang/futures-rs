@@ -78,7 +78,7 @@ where
 {
     fn poll_future(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Fut::Error>> {
         if let State::Future(f) = self.as_mut().get_pin_mut() {
-            match ready!(f.try_poll(cx)) {
+            match ready!(f.poll(cx)) {
                 Ok(s) => {
                     // Future resolved to stream.
                     // We do not return, but poll that
@@ -121,7 +121,7 @@ where
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         ready!(self.as_mut().state().poll_future(cx)?);
         match self.as_mut().state().get_pin_mut() {
-            State::StreamOrSink(s) => s.try_poll_next(cx),
+            State::StreamOrSink(s) => s.poll_next(cx),
             State::Done => Poll::Ready(None),
             State::Future(_) => unreachable!(),
         }

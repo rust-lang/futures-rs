@@ -96,7 +96,7 @@ where
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             if self.next.is_none() {
-                match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                match ready!(self.as_mut().stream().poll_next(cx)?) {
                     Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
@@ -107,7 +107,7 @@ where
                 .next()
                 .as_pin_mut()
                 .unwrap()
-                .try_poll_next(cx)?)
+                .poll_next(cx)?)
             {
                 return Poll::Ready(Some(Ok(item)));
             } else {

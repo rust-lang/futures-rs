@@ -44,7 +44,7 @@ impl<Fut, F, T> Future for MapOk<Fut, F>
     ) -> Poll<Self::Output> {
         self.as_mut()
             .future()
-            .try_poll(cx)
+            .poll(cx)
             .map(|result| {
                 let op = self.as_mut().f().take()
                     .expect("MapOk must not be polled after it returned `Poll::Ready`");

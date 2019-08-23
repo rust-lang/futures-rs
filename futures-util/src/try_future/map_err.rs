@@ -42,7 +42,7 @@ impl<Fut, F, E> Future for MapErr<Fut, F>
     ) -> Poll<Self::Output> {
         self.as_mut()
             .future()
-            .try_poll(cx)
+            .poll(cx)
             .map(|result| {
                 let f = self.as_mut().f().take()
                     .expect("MapErr must not be polled after it returned `Poll::Ready`");

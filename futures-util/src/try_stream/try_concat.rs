@@ -39,7 +39,7 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+            match ready!(self.as_mut().stream().poll_next(cx)?) {
                 Some(x) => {
                     let accum = self.as_mut().accum();
                     if let Some(a) = accum {

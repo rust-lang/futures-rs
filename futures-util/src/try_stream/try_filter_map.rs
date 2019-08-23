@@ -98,7 +98,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                let item = match ready!(self.as_mut().stream().poll_next(cx)?) {
                     Some(x) => x,
                     None => return Poll::Ready(None),
                 };
@@ -106,7 +106,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
                 self.as_mut().pending().set(Some(fut));
             }
 
-            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(cx));
+            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().poll(cx));
             self.as_mut().pending().set(None);
             if let Some(x) = result? {
                 return Poll::Ready(Some(Ok(x)));

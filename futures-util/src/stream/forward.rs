@@ -22,7 +22,7 @@ impl<St: TryStream + Unpin, Si: Sink<St::Ok> + Unpin> Unpin for Forward<St, Si> 
 impl<St, Si, E> Forward<St, Si>
 where
     Si: Sink<St::Ok, Error = E>,
-    St: TryStream<Error = E> + Stream,
+    St: TryStream<Error = E>,
 {
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
@@ -53,20 +53,20 @@ where
     }
 }
 
-impl<St, Si, Item, E> FusedFuture for Forward<St, Si>
+impl<St, Si, E> FusedFuture for Forward<St, Si>
 where
-    Si: Sink<Item, Error = E>,
-    St: Stream<Item = Result<Item, E>>,
+    Si: Sink<St::Ok, Error = E>,
+    St: TryStream<Error = E>,
 {
     fn is_terminated(&self) -> bool {
         self.sink.is_none()
     }
 }
 
-impl<St, Si, Item, E> Future for Forward<St, Si>
+impl<St, Si, E> Future for Forward<St, Si>
 where
-    Si: Sink<Item, Error = E>,
-    St: Stream<Item = Result<Item, E>>,
+    Si: Sink<St::Ok, Error = E>,
+    St: TryStream<Error = E>,
 {
     type Output = Result<(), E>;
 

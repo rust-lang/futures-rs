@@ -119,7 +119,7 @@ where
     type Error = Fut::Error;
 
     fn poll(&mut self) -> Poll01<Self::Item, Self::Error> {
-        with_context(self, |inner, cx| poll_03_to_01(inner.try_poll(cx)))
+        with_context(self, |inner, cx| poll_03_to_01(inner.poll(cx)))
     }
 }
 
@@ -131,7 +131,7 @@ where
     type Error = St::Error;
 
     fn poll(&mut self) -> Poll01<Option<Self::Item>, Self::Error> {
-        with_context(self, |inner, cx| match inner.try_poll_next(cx)? {
+        with_context(self, |inner, cx| match inner.poll_next(cx)? {
             task03::Poll::Ready(None) => Ok(Async01::Ready(None)),
             task03::Poll::Ready(Some(t)) => Ok(Async01::Ready(Some(t))),
             task03::Poll::Pending => Ok(Async01::NotReady),

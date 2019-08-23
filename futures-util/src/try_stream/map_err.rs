@@ -91,7 +91,7 @@ where
     ) -> Poll<Option<Self::Item>> {
         self.as_mut()
             .stream()
-            .try_poll_next(cx)
+            .poll_next(cx)
             .map(|opt| opt.map(|res| res.map_err(|e| self.as_mut().f()(e))))
     }
 }

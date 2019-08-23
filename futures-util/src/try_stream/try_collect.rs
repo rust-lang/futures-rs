@@ -53,7 +53,7 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+            match ready!(self.as_mut().stream().poll_next(cx)?) {
                 Some(x) => self.as_mut().items().extend(Some(x)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),
             }

@@ -90,7 +90,7 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         if self.future.is_none() {
-            let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+            let item = match ready!(self.as_mut().stream().poll_next(cx)?) {
                 None => return Poll::Ready(None),
                 Some(e) => e,
             };
@@ -98,7 +98,7 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
             self.as_mut().future().set(Some(fut));
         }
 
-        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
+        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }
