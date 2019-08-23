@@ -17,9 +17,13 @@ name = "futures_core"
 [features]
 default = ["std"]
 std = ["alloc"]
-nightly = []
-cfg-target-has-atomic = []
 alloc = []
+
+# Unstable features
+# These features are outside of the normal semver guarantees and require the
+# `unstable` feature as an explicit opt-in to unstable API.
+unstable = []
+cfg-target-has-atomic = []
 
 [dependencies]
 

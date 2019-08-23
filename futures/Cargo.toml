@@ -39,10 +39,14 @@ assert_matches = "1.3.0"
 default = ["std"]
 std = ["alloc", "futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std", "futures-util-preview/io", "futures-util-preview/channel"]
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-channel-preview/alloc", "futures-util-preview/alloc"]
-nightly = ["futures-core-preview/nightly", "futures-channel-preview/nightly", "futures-util-preview/nightly"]
 async-await = ["futures-util-preview/async-await", "futures-util-preview/join-macro", "futures-util-preview/select-macro"]
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
+
+# Unstable features
+# These features are outside of the normal semver guarantees and require the
+# `unstable` feature as an explicit opt-in to unstable API.
+unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-util-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 
 [package.metadata.docs.rs]

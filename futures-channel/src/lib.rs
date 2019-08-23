@@ -19,8 +19,8 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_channel")]
 
-#[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
-compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+#[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
+compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
