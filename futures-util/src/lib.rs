@@ -19,6 +19,9 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
+#[cfg(all(feature = "bytes", not(feature = "unstable")))]
+compile_error!("The `bytes` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 

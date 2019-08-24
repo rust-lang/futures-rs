@@ -34,6 +34,7 @@ pin-utils = "0.1.0-alpha.4"
 futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.18" }
 tokio = "0.1.11"
 assert_matches = "1.3.0"
+bytes_crate = { version = "0.4.7", package = "bytes" }
 
 [features]
 default = ["std"]
@@ -46,9 +47,10 @@ io-compat = ["compat", "futures-util-preview/io-compat"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-util-preview/unstable"]
+unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-io-preview/unstable", "futures-util-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 bilock = ["futures-util-preview/bilock"]
+bytes = ["futures-io-preview/bytes", "futures-util-preview/bytes"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -19,6 +19,9 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_io")]
 
+#[cfg(all(feature = "bytes", not(feature = "unstable")))]
+compile_error!("The `bytes` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+
 #[cfg(feature = "std")]
 mod if_std {
     use std::cmp;
@@ -39,6 +42,10 @@ mod if_std {
         IoSliceMut as IoSliceMut,
         SeekFrom as SeekFrom,
     };
+
+    #[cfg(feature = "bytes")]
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use bytes::{Buf, BufMut};
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
     /// methods, modeled after `std`.
@@ -154,6 +161,42 @@ mod if_std {
                 Poll::Ready(Ok(0))
             }
         }
+
+        /// Pull some bytes from this source into the specified `BufMut`, returning
+        /// how many bytes were read.
+        ///
+        /// The `buf` provided will have bytes read into it and the internal cursor
+        /// will be advanced if any bytes were read. Note that this method typically
+        /// will not reallocate the buffer provided.
+        #[cfg(feature = "bytes")]
+        fn poll_read_buf<B: BufMut>(
+            self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut B,
+        ) -> Poll<Result<usize>>
+        where
+            Self: Sized,
+        {
+            if !buf.has_remaining_mut() {
+                return Poll::Ready(Ok(0));
+            }
+
+            unsafe {
+                let n = {
+                    let mut b = buf.bytes_mut();
+
+                    self.initializer().initialize(&mut b);
+
+                    match self.poll_read(cx, b)? {
+                        Poll::Ready(n) => n,
+                        Poll::Pending => return Poll::Pending,
+                    }
+                };
+
+                buf.advance_mut(n);
+                Poll::Ready(Ok(n))
+            }
+        }
     }
 
     /// Write bytes asynchronously.
@@ -250,6 +293,31 @@ mod if_std {
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>>;
+
+        /// Write a `Buf` into this value, returning how many bytes were written.
+        ///
+        /// Note that this method will advance the `buf` provided automatically by
+        /// the number of bytes written.
+        #[cfg(feature = "bytes")]
+        fn poll_write_buf<B: Buf>(
+            self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut B,
+        ) -> Poll<Result<usize>>
+        where
+            Self: Sized,
+        {
+            if !buf.has_remaining() {
+                return Poll::Ready(Ok(0));
+            }
+
+            let n = match self.poll_write(cx, buf.bytes())? {
+                Poll::Ready(n) => n,
+                Poll::Pending => return Poll::Pending,
+            };
+            buf.advance(n);
+            Poll::Ready(Ok(n))
+        }
     }
 
     /// Seek bytes asynchronously.

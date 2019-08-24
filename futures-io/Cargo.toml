@@ -18,7 +18,13 @@ name = "futures_io"
 default = ["std"]
 std = []
 
+# Unstable features
+# `bytes` feature is outside of the normal semver guarantees and require the
+# `unstable` feature as an explicit opt-in to unstable API.
+unstable = []
+
 [dependencies]
+bytes = { version = "0.4.7", optional = true }
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.18" }

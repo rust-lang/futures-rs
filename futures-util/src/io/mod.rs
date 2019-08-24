@@ -13,6 +13,8 @@ pub use futures_io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
     IoSlice, IoSliceMut, Result, SeekFrom,
 };
+#[cfg(feature = "bytes")]
+pub use futures_io::{Buf, BufMut};
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;
 
@@ -61,6 +63,11 @@ pub use self::read::Read;
 mod read_vectored;
 pub use self::read_vectored::ReadVectored;
 
+#[cfg(feature = "bytes")]
+mod read_buf;
+#[cfg(feature = "bytes")]
+pub use self::read_buf::ReadBuf;
+
 mod read_exact;
 pub use self::read_exact::ReadExact;
 
@@ -99,6 +106,11 @@ pub use self::write::Write;
 
 mod write_vectored;
 pub use self::write_vectored::WriteVectored;
+
+#[cfg(feature = "bytes")]
+mod write_buf;
+#[cfg(feature = "bytes")]
+pub use self::write_buf::WriteBuf;
 
 mod write_all;
 pub use self::write_all::WriteAll;
@@ -211,6 +223,17 @@ pub trait AsyncReadExt: AsyncRead {
         where Self: Unpin,
     {
         ReadVectored::new(self, bufs)
+    }
+
+    /// Creates a future which will read from the `AsyncRead` into `buf`.
+    ///
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    #[cfg(feature = "bytes")]
+    fn read_buf<'a, B: BufMut>(&'a mut self, buf: &'a mut B) -> ReadBuf<'a, Self, B>
+        where Self: Unpin,
+    {
+        ReadBuf::new(self, buf)
     }
 
     /// Creates a future which will read exactly enough bytes to fill `buf`,
@@ -453,6 +476,17 @@ pub trait AsyncWriteExt: AsyncWrite {
         where Self: Unpin,
     {
         WriteVectored::new(self, bufs)
+    }
+
+    /// Creates a future which will write bytes from `buf` into the object.
+    ///
+    /// The returned future will resolve to the number of bytes written once the write
+    /// operation is completed.
+    #[cfg(feature = "bytes")]
+    fn write_buf<'a, B: Buf>(&'a mut self, buf: &'a mut B) -> WriteBuf<'a, Self, B>
+        where Self: Unpin,
+    {
+        WriteBuf::new(self, buf)
     }
 
     /// Write data into this object.
