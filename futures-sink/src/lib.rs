@@ -16,9 +16,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use futures_core::task::{Context, Poll};
 use core::ops::DerefMut;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -84,8 +84,7 @@ pub trait Sink<Item> {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn start_send(self: Pin<&mut Self>, item: Item)
-                  -> Result<(), Self::Error>;
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error>;
 
     /// Flush any remaining output from this sink.
     ///
@@ -162,7 +161,7 @@ where
 #[cfg(feature = "alloc")]
 mod if_alloc {
     use super::*;
-    use futures_core::never::Never;
+    use core::convert::Infallible as Never;
 
     impl<T> Sink<T> for alloc::vec::Vec<T> {
         type Error = Never;
