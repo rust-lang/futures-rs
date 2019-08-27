@@ -416,14 +416,6 @@ mod if_std {
         unsafe_delegate_async_read_to_stdio!();
     }
 
-    impl AsyncRead for io::Repeat {
-        unsafe_delegate_async_read_to_stdio!();
-    }
-
-    impl AsyncRead for io::Empty {
-        unsafe_delegate_async_read_to_stdio!();
-    }
-
     impl<T: AsRef<[u8]> + Unpin> AsyncRead for io::Cursor<T> {
         unsafe_delegate_async_read_to_stdio!();
     }
@@ -547,10 +539,6 @@ mod if_std {
         delegate_async_write_to_stdio!();
     }
 
-    impl AsyncWrite for io::Sink {
-        delegate_async_write_to_stdio!();
-    }
-
     macro_rules! deref_async_seek {
         () => {
             fn poll_seek(mut self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom)
@@ -648,10 +636,6 @@ mod if_std {
     }
 
     impl AsyncBufRead for &[u8] {
-        delegate_async_buf_read_to_stdio!();
-    }
-
-    impl AsyncBufRead for io::Empty {
         delegate_async_buf_read_to_stdio!();
     }
 

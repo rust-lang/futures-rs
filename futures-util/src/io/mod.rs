@@ -41,6 +41,9 @@ pub use self::copy_into::CopyInto;
 mod copy_buf_into;
 pub use self::copy_buf_into::CopyBufInto;
 
+mod empty;
+pub use self::empty::{empty, Empty};
+
 mod flush;
 pub use self::flush::Flush;
 
@@ -73,8 +76,14 @@ pub use self::read_to_string::ReadToString;
 mod read_until;
 pub use self::read_until::ReadUntil;
 
+mod repeat;
+pub use self::repeat::{repeat, Repeat};
+
 mod seek;
 pub use self::seek::Seek;
+
+mod sink;
+pub use self::sink::{sink, Sink};
 
 mod split;
 pub use self::split::{ReadHalf, WriteHalf};
