@@ -1,4 +1,4 @@
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -75,6 +75,12 @@ impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
+    }
+}
+
+impl<S, Item> FusedStream for Buffer<S, Item> where S: Sink<Item> + FusedStream {
+    fn is_terminated(&self) -> bool {
+        self.sink.is_terminated()
     }
 }
 

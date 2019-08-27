@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -49,5 +49,11 @@ impl<Fut: Future> Stream for Once<Fut> {
         };
         self.future().set(None);
         Poll::Ready(Some(val))
+    }
+}
+
+impl<Fut: Future> FusedStream for Once<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.future.is_none()
     }
 }

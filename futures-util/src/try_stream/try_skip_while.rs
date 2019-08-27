@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -130,6 +130,16 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
                 return Poll::Ready(Some(Ok(item)))
             }
         }
+    }
+}
+
+impl<St, Fut, F> FusedStream for TrySkipWhile<St, Fut, F>
+    where St: TryStream + FusedStream,
+          F: FnMut(&St::Ok) -> Fut,
+          Fut: TryFuture<Ok = bool, Error = St::Error>,
+{
+    fn is_terminated(&self) -> bool {
+        self.pending_item.is_none() && self.stream.is_terminated()
     }
 }
 

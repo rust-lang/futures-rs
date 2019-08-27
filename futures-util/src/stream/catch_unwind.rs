@@ -1,4 +1,4 @@
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::any::Any;
@@ -22,8 +22,7 @@ impl<St: Stream + UnwindSafe> CatchUnwind<St> {
     }
 }
 
-impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
-{
+impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St> {
     type Item = Result<St::Item, Box<dyn Any + Send>>;
 
     fn poll_next(
@@ -45,5 +44,11 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
                 },
             }
         }
+    }
+}
+
+impl<St: FusedStream + UnwindSafe> FusedStream for CatchUnwind<St> {
+    fn is_terminated(&self) -> bool {
+        self.caught_unwind || self.stream.is_terminated()
     }
 }

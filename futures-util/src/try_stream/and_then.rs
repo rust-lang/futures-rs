@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -101,6 +101,16 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
         let e = ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
+    }
+}
+
+impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
+    where St: TryStream + FusedStream,
+          F: FnMut(St::Ok) -> Fut,
+          Fut: TryFuture<Error = St::Error>,
+{
+    fn is_terminated(&self) -> bool {
+        self.future.is_none() && self.stream.is_terminated()
     }
 }
 

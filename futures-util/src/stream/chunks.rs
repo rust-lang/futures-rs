@@ -1,5 +1,5 @@
 use crate::stream::Fuse;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -104,6 +104,12 @@ impl<St: Stream> Stream for Chunks<St> {
                 }
             }
         }
+    }
+}
+
+impl<St: FusedStream> FusedStream for Chunks<St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated() && self.items.is_empty()
     }
 }
 

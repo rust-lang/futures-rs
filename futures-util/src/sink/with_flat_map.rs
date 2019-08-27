@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -113,6 +113,7 @@ where
     }
 }
 
+// Forwarding impl of Stream from the underlying sink
 impl<S, Item, U, St, F> Stream for WithFlatMap<S, Item, U, St, F>
 where
     S: Stream + Sink<Item>,
@@ -125,6 +126,17 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
+    }
+}
+
+impl<S, Item, U, St, F> FusedStream for WithFlatMap<S, Item, U, St, F>
+where
+    S: FusedStream + Sink<Item>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = Result<Item, S::Error>>,
+{
+    fn is_terminated(&self) -> bool {
+        self.sink.is_terminated()
     }
 }
 

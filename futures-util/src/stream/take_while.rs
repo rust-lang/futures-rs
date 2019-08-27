@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -126,6 +126,16 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             *self.as_mut().done_taking() = true;
             Poll::Ready(None)
         }
+    }
+}
+
+impl<St, Fut, F> FusedStream for TakeWhile<St, Fut, F>
+    where St: FusedStream,
+          F: FnMut(&St::Item) -> Fut,
+          Fut: Future<Output = bool>,
+{
+    fn is_terminated(&self) -> bool {
+        self.done_taking || self.pending_item.is_none() && self.stream.is_terminated()
     }
 }
 
