@@ -1,6 +1,6 @@
 use crate::sink::{SinkExt, SinkMapErr};
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::{Sink};
 use pin_utils::unsafe_pinned;
@@ -57,6 +57,7 @@ impl<Si, Item, E> Sink<Item> for SinkErrInto<Si, Item, E>
     delegate_sink!(sink, Item);
 }
 
+// Forwarding impl of Stream from the underlying sink
 impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
     where S: Sink<Item> + Stream,
           S::Error: Into<E>
@@ -68,5 +69,14 @@ impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
         cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
+    }
+}
+
+impl<S, Item, E> FusedStream for SinkErrInto<S, Item, E>
+    where S: Sink<Item> + FusedStream,
+          S::Error: Into<E>
+{
+    fn is_terminated(&self) -> bool {
+        self.sink.is_terminated()
     }
 }

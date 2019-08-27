@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 
 /// Stream for the [`repeat`] function.
@@ -38,5 +38,13 @@ impl<T> Stream for Repeat<T>
 
     fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(Some(self.item.clone()))
+    }
+}
+
+impl<T> FusedStream for Repeat<T>
+    where T: Clone,
+{
+    fn is_terminated(&self) -> bool {
+        false
     }
 }
