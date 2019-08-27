@@ -4,8 +4,8 @@ use std::fmt;
 use std::io;
 use std::pin::Pin;
 
-/// Stream for the [`empty()`] function.
-#[must_use = "streams do nothing unless polled"]
+/// Reader for the [`empty()`] function.
+#[must_use = "readers do nothing unless polled"]
 pub struct Empty {
     _priv: (),
 }
