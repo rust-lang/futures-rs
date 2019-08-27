@@ -5,8 +5,8 @@ use std::fmt;
 use std::io;
 use std::pin::Pin;
 
-/// Stream for the [`chain`](super::AsyncReadExt::chain) method.
-#[must_use = "streams do nothing unless polled"]
+/// Reader for the [`chain`](super::AsyncReadExt::chain) method.
+#[must_use = "readers do nothing unless polled"]
 pub struct Chain<T, U> {
     first: T,
     second: U,

@@ -4,8 +4,8 @@ use std::fmt;
 use std::io;
 use std::pin::Pin;
 
-/// Stream for the [`sink()`] function.
-#[must_use = "streams do nothing unless polled"]
+/// Writer for the [`sink()`] function.
+#[must_use = "writers do nothing unless polled"]
 pub struct Sink {
     _priv: (),
 }

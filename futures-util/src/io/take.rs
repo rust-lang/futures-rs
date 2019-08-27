@@ -4,9 +4,9 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{cmp, io};
 use std::pin::Pin;
 
-/// Future for the [`take`](super::AsyncReadExt::take) method.
+/// Reader for the [`take`](super::AsyncReadExt::take) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
+#[must_use = "readers do nothing unless you `.await` or poll them"]
 pub struct Take<R> {
     inner: R,
     // Add '_' to avoid conflicts with `limit` method.

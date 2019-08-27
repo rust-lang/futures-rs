@@ -6,9 +6,9 @@ use futures_io::{AsyncRead, AsyncWrite, AsyncBufRead};
 use std::cmp;
 use std::io::{Error, Result};
 
-/// An `AsyncRead` for the [`into_async_read`](super::TryStreamExt::into_async_read) combinator.
+/// Reader for the [`into_async_read`](super::TryStreamExt::into_async_read) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "readers do nothing unless polled"]
 pub struct IntoAsyncRead<St>
 where
     St: TryStream<Error = Error> + Unpin,

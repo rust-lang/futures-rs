@@ -4,8 +4,8 @@ use std::fmt;
 use std::io;
 use std::pin::Pin;
 
-/// Stream for the [`repeat()`] function.
-#[must_use = "streams do nothing unless polled"]
+/// Reader for the [`repeat()`] function.
+#[must_use = "readers do nothing unless polled"]
 pub struct Repeat {
     byte: u8,
 }
