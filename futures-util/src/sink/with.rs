@@ -68,16 +68,12 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    #[allow(clippy::wrong_self_convention)]
-    fn as_pin_mut(self: Pin<&mut Self>) -> State<Pin<&mut Fut>, Pin<&mut T>> {
+    fn get_pin_mut(self: Pin<&mut Self>) -> State<Pin<&mut Fut>, Pin<&mut T>> {
         unsafe {
             match self.get_unchecked_mut() {
-                State::Empty =>
-                    State::Empty,
-                State::Process(fut) =>
-                    State::Process(Pin::new_unchecked(fut)),
-                State::Buffered(item) =>
-                    State::Buffered(Pin::new_unchecked(item)),
+                State::Empty => State::Empty,
+                State::Process(fut) => State::Process(Pin::new_unchecked(fut)),
+                State::Buffered(item) => State::Buffered(Pin::new_unchecked(item)),
             }
         }
     }
@@ -136,7 +132,7 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), E>> {
-        let buffered = match self.as_mut().state().as_pin_mut() {
+        let buffered = match self.as_mut().state().get_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
             State::Process(fut) => Some(ready!(fut.poll(cx))?),
             State::Buffered(_) => None,
