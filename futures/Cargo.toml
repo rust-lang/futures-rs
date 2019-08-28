@@ -48,6 +48,7 @@ io-compat = ["compat", "futures-util-preview/io-compat"]
 # `unstable` feature as an explicit opt-in to unstable API.
 unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-util-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
+bilock = ["futures-util-preview/bilock"]
 
 [package.metadata.docs.rs]
 all-features = true

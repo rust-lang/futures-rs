@@ -37,6 +37,9 @@
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
+#[cfg(all(feature = "bilock", not(feature = "unstable")))]
+compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+
 #[doc(hidden)] pub use futures_core::core_reexport;
 
 #[doc(hidden)] pub use futures_core::future::Future;
@@ -307,13 +310,21 @@ pub mod io {
     };
 }
 
-#[cfg(feature = "std")]
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
+#[cfg(feature = "alloc")]
 pub mod lock {
     //! Futures-powered synchronization primitives.
     //!
-    //! This module is only available when the `std` feature of this
+    //! This module is only available when the `std` or `alloc` feature of this
     //! library is activated, and it is activated by default.
 
+    #[cfg(feature = "bilock")]
+    pub use futures_util::lock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
+
+    #[cfg(feature = "std")]
     pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
 }
 

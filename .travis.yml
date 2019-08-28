@@ -75,7 +75,7 @@ matrix:
       rust: nightly
       script:
         - cargo bench --all
-        - cargo bench --manifest-path futures-util/Cargo.toml --features=bench,unstable
+        - cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
 
     - name: cargo +stable build --no-default-features
       rust: stable
@@ -146,11 +146,18 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features io-compat
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,compat
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,channel
+        - cargo check --manifest-path futures-util/Cargo.toml --features bilock,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --features sink,bilock,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --features io,bilock,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --features sink,io
 
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features async-await
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features bilock,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink,bilock,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features io,bilock,unstable
 
     - name: cargo doc
       rust: nightly
