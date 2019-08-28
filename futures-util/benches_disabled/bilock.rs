@@ -1,6 +1,6 @@
 #![feature(test)]
 
-#[cfg(feature = "bench")]
+#[cfg(feature = "bilock")]
 mod bench {
 use futures::task::{Context, Waker};
 use futures::executor::LocalPool;

@@ -32,7 +32,7 @@ select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack"
 # `unstable` feature as an explicit opt-in to unstable API.
 unstable = ["futures-core-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
-bench = []
+bilock = []
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.18", default-features = false }
