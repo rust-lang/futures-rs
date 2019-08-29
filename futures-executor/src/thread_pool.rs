@@ -4,12 +4,13 @@ use futures_core::future::{Future, FutureObj};
 use futures_core::task::{Context, Poll, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::{ArcWake, waker_ref};
+use std::cmp;
+use std::fmt;
 use std::io;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::fmt;
 
 /// A general-purpose thread pool for scheduling tasks that poll futures to
 /// completion.
@@ -203,7 +204,7 @@ impl ThreadPoolBuilder {
     /// See the other methods on this type for details on the defaults.
     pub fn new() -> ThreadPoolBuilder {
         ThreadPoolBuilder {
-            pool_size: num_cpus::get(),
+            pool_size: cmp::max(1, num_cpus::get()),
             stack_size: 0,
             name_prefix: None,
             after_start: None,
