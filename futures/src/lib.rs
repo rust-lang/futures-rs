@@ -527,7 +527,7 @@ pub mod never {
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
-pub use futures_util::rand_reexport;
+pub use futures_util::async_await;
 
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]

@@ -39,14 +39,6 @@ pub mod async_await;
 #[doc(hidden)]
 pub use self::async_await::*;
 
-#[cfg(feature = "std")]
-#[cfg(feature = "select-macro")]
-#[doc(hidden)]
-pub mod rand_reexport { // used by select!
-    #[doc(hidden)]
-    pub use rand::{prelude::SliceRandom, thread_rng};
-}
-
 #[doc(hidden)]
 pub use futures_core::core_reexport;
 

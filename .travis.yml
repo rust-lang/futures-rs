@@ -112,7 +112,11 @@ matrix:
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv6m-none-eabi
             --no-default-features
-            --features unstable,alloc,cfg-target-has-atomic
+            --features unstable,cfg-target-has-atomic,alloc
+        - cargo build --manifest-path futures/Cargo.toml
+            --target thumbv6m-none-eabi
+            --no-default-features
+            --features unstable,cfg-target-has-atomic,async-await
 
     - name: cargo build --target=thumbv7m-none-eabi
       rust: nightly
@@ -127,6 +131,10 @@ matrix:
             --target thumbv7m-none-eabi
             --no-default-features
             --features alloc
+        - cargo build --manifest-path futures/Cargo.toml
+            --target thumbv7m-none-eabi
+            --no-default-features
+            --features async-await
 
     - name: cargo check (futures-util)
       rust: nightly

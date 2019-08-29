@@ -149,7 +149,6 @@ pub fn select(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Select);
 
     let futures_crate: syn::Path = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
-    let rand_crate: syn::Path = parse_quote!(#futures_crate::rand_reexport);
 
     // should be def_site, but that's unstable
     let span = Span::call_site();
@@ -265,10 +264,7 @@ pub fn select(input: TokenStream) -> TokenStream {
             #( #poll_functions )*
 
             let mut __select_arr = [#( #variant_names ),*];
-            <[_] as #rand_crate::SliceRandom>::shuffle(
-                &mut __select_arr,
-                &mut #rand_crate::thread_rng(),
-            );
+            #futures_crate::async_await::shuffle(&mut __select_arr);
             for poller in &mut __select_arr {
                 let poller: &mut &mut dyn FnMut(
                     &mut #futures_crate::task::Context<'_>
