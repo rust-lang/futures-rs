@@ -62,7 +62,7 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 
 #[doc(hidden)] pub use futures_core::task::Poll;
 
-#[doc(hidden)] pub use futures_core::never::Never;
+#[doc(hidden)] pub use futures_util::never::Never;
 
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
@@ -519,7 +519,7 @@ pub mod never {
     //!
     //! Values of this type can never be created and will never exist.
 
-    pub use futures_core::never::Never;
+    pub use futures_util::never::Never;
 }
 
 // proc-macro re-export --------------------------------------

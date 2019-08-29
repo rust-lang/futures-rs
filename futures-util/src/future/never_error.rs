@@ -1,7 +1,7 @@
+use crate::never::Never;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{self, Poll};
-use futures_core::never::Never;
 use pin_utils::unsafe_pinned;
 
 /// Future for the [`never_error`](super::FutureExt::never_error) combinator.

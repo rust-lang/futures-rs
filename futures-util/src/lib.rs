@@ -112,6 +112,9 @@ pub mod sink;
 
 pub mod task;
 
+pub mod never;
+#[doc(hidden)] pub use crate::never::Never;
+
 #[cfg(feature = "compat")]
 pub mod compat;
 
