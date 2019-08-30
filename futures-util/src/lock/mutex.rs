@@ -25,6 +25,12 @@ impl<T: ?Sized> fmt::Debug for Mutex<T> {
     }
 }
 
+impl<T> From<T> for Mutex<T> {
+    fn from(t: T) -> Self {
+        Self::new(t)
+    }
+}
+
 impl<T: Default> Default for Mutex<T> {
     fn default() -> Mutex<T> {
         Mutex::new(Default::default())
