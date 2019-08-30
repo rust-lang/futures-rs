@@ -138,6 +138,7 @@ impl<T> Clone for CompletionHandle<T> {
 /// means that if the [Completable](self::Completable) itself is dropped then the value is
 /// guaranteed to have been dropped as well, even if there are still live handles.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Completable<T>(Arc<Mutex<Option<State<T>>>>);
 
 impl<T> Future for Completable<T> {
