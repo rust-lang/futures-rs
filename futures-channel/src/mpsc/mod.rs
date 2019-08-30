@@ -166,7 +166,7 @@ enum SendErrorKind {
 
 /// The error type returned from [`try_next`](Receiver::try_next).
 pub struct TryRecvError {
-    _inner: (),
+    _priv: (),
 }
 
 impl fmt::Display for SendError {
@@ -834,7 +834,7 @@ impl<T> Receiver<T> {
             Poll::Ready(msg) => {
                 Ok(msg)
             },
-            Poll::Pending => Err(TryRecvError { _inner: () }),
+            Poll::Pending => Err(TryRecvError { _priv: () }),
         }
     }
 

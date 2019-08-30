@@ -417,7 +417,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// // The final result is an error because the second future
     /// // resulted in an error.
-    /// assert_eq!(Err(oneshot::Canceled), fut.await);
+    /// assert!(fut.await.is_err());
     /// # })
     /// ```
     #[cfg_attr(

@@ -1,6 +1,6 @@
 use futures::channel::oneshot;
 use futures::executor::block_on;
-use futures::future::{abortable, Aborted, FutureExt};
+use futures::future::{abortable, FutureExt};
 use futures::task::{Context, Poll};
 use futures_test::task::new_count_waker;
 
@@ -10,7 +10,7 @@ fn abortable_works() {
     let (abortable_rx, abort_handle) = abortable(a_rx);
 
     abort_handle.abort();
-    assert_eq!(Err(Aborted), block_on(abortable_rx));
+    assert!(block_on(abortable_rx).is_err());
 }
 
 #[test]
@@ -25,7 +25,10 @@ fn abortable_awakens() {
     assert_eq!(counter, 0);
     abort_handle.abort();
     assert_eq!(counter, 1);
-    assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(&mut cx));
+    match abortable_rx.poll_unpin(&mut cx) {
+        Poll::Ready(Err(_)) => {}
+        _ => unreachable!()
+    }
 }
 
 #[test]

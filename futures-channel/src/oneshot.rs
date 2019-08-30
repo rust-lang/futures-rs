@@ -249,7 +249,7 @@ impl<T> Inner<T> {
                     return Ok(Some(data));
                 }
             }
-            Err(Canceled)
+            Err(Canceled { _priv: () })
         } else {
             Ok(None)
         }
@@ -290,7 +290,7 @@ impl<T> Inner<T> {
                     return Poll::Ready(Ok(data));
                 }
             }
-            Poll::Ready(Err(Canceled))
+            Poll::Ready(Err(Canceled { _priv: () }))
         } else {
             Poll::Pending
         }
@@ -377,8 +377,16 @@ impl<T> Drop for Sender<T> {
 
 /// Error returned from a [`Receiver`](Receiver) when the corresponding
 /// [`Sender`](Sender) is dropped.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Canceled;
+#[derive(Clone, PartialEq, Eq)]
+pub struct Canceled {
+    _priv: (),
+}
+
+impl fmt::Debug for Canceled {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Canceled").finish()
+    }
+}
 
 impl fmt::Display for Canceled {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -137,9 +137,9 @@ fn iter_mut_cancel() {
     assert!(b_tx.is_canceled());
     assert!(c_tx.is_canceled());
 
-    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
-    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
-    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
+    assert!(iter.next().unwrap().is_err());
+    assert!(iter.next().unwrap().is_err());
+    assert!(iter.next().unwrap().is_err());
     assert_eq!(iter.next(), None);
 }
 

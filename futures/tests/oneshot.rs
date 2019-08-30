@@ -43,7 +43,7 @@ fn oneshot_drop_tx1() {
     drop(tx1);
     rx1.map(move |result| tx2.send(result).unwrap()).run_in_background();
 
-    assert_eq!(Err(oneshot::Canceled), rx2.recv().unwrap());
+    assert!(rx2.recv().unwrap().is_err());
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn oneshot_drop_tx2() {
     rx1.map(move |result| tx2.send(result).unwrap()).run_in_background();
     t.join().unwrap();
 
-    assert_eq!(Err(oneshot::Canceled), rx2.recv().unwrap());
+    assert!(rx2.recv().unwrap().is_err());
 }
 
 #[test]

@@ -2,6 +2,7 @@ use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
+use core::fmt;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
 use alloc::sync::Arc;
@@ -30,12 +31,12 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{Abortable, AbortHandle, Aborted};
+    /// use futures::future::{Abortable, AbortHandle};
     ///
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
     /// let future = Abortable::new(async { 2 }, abort_registration);
     /// abort_handle.abort();
-    /// assert_eq!(future.await, Err(Aborted));
+    /// assert!(future.await.is_err());
     /// # });
     /// ```
     pub fn new(future: Fut, reg: AbortRegistration) -> Self {
@@ -70,12 +71,12 @@ impl AbortHandle {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{Abortable, AbortHandle, Aborted};
+    /// use futures::future::{Abortable, AbortHandle};
     ///
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
     /// let future = Abortable::new(async { 2 }, abort_registration);
     /// abort_handle.abort();
-    /// assert_eq!(future.await, Err(Aborted));
+    /// assert!(future.await.is_err());
     /// # });
     /// ```
     pub fn new_pair() -> (Self, AbortRegistration) {
@@ -121,8 +122,16 @@ pub fn abortable<Fut>(future: Fut) -> (Abortable<Fut>, AbortHandle)
 }
 
 /// Indicator that the `Abortable` future was aborted.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Aborted;
+#[derive(Clone, Eq, PartialEq)]
+pub struct Aborted {
+    _priv: (),
+}
+
+impl fmt::Debug for Aborted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Aborted").finish()
+    }
+}
 
 impl<Fut> Future for Abortable<Fut> where Fut: Future {
     type Output = Result<Fut::Output, Aborted>;
@@ -130,7 +139,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Check if the future has been aborted
         if self.inner.cancel.load(Ordering::Relaxed) {
-            return Poll::Ready(Err(Aborted))
+            return Poll::Ready(Err(Aborted { _priv: () }))
         }
 
         // attempt to complete the future
@@ -146,7 +155,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         // Checking with `Relaxed` is sufficient because `register` introduces an
         // `AcqRel` barrier.
         if self.inner.cancel.load(Ordering::Relaxed) {
-            return Poll::Ready(Err(Aborted))
+            return Poll::Ready(Err(Aborted { _priv: () }))
         }
 
         Poll::Pending
