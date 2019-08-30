@@ -126,3 +126,6 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     pub mod lock;
 }
+
+#[cfg(test)]
+pub(crate) mod test_support;

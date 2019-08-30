@@ -79,6 +79,11 @@ pub use self::never_error::NeverError;
 mod either;
 pub use self::either::Either;
 
+#[cfg(feature = "std")]
+mod completable;
+#[cfg(feature = "std")]
+pub use self::completable::{completable, Completable, CompletionHandle};
+
 // Implementation details
 mod chain;
 pub(crate) use self::chain::Chain;

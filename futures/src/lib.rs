@@ -268,6 +268,11 @@ pub mod future {
         try_join_all, TryJoinAll,
         select_ok, SelectOk,
     };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::future::{
+        completable, Completable, CompletionHandle
+    };
 }
 
 #[cfg(feature = "std")]
