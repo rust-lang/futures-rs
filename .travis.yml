@@ -136,14 +136,23 @@ matrix:
             --no-default-features
             --features async-await
 
-    - name: cargo check (futures-util)
+    - name: cargo check (sub crates)
       rust: nightly
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
 
+        # futures-io
+        # Check default-features, all-features
+        - cargo check --manifest-path futures-io/Cargo.toml
+        - cargo check --manifest-path futures-io/Cargo.toml --all-features
+        # Check each features
+        - cargo check --manifest-path futures-io/Cargo.toml --features read_initializer,unstable
+
+        # futures-util
+        # Check default-features, all-features
         - cargo check --manifest-path futures-util/Cargo.toml
         - cargo check --manifest-path futures-util/Cargo.toml --all-features
-
+        # Check each features
         - cargo check --manifest-path futures-util/Cargo.toml --features sink
         - cargo check --manifest-path futures-util/Cargo.toml --features io
         - cargo check --manifest-path futures-util/Cargo.toml --features channel
@@ -158,6 +167,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --features io,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,io
+        - cargo check --manifest-path futures-util/Cargo.toml --features read_initializer,unstable
 
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink

@@ -1,5 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, Initializer, IoSliceMut};
+#[cfg(feature = "read_initializer")]
+use futures_io::Initializer;
+use futures_io::{AsyncRead, IoSliceMut};
 use std::fmt;
 use std::io;
 use std::pin::Pin;
@@ -57,6 +59,7 @@ impl AsyncRead for Repeat {
         Poll::Ready(Ok(nwritten))
     }
 
+    #[cfg(feature = "read_initializer")]
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()

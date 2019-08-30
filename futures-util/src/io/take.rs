@@ -1,5 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncBufRead, Initializer};
+#[cfg(feature = "read_initializer")]
+use futures_io::Initializer;
+use futures_io::{AsyncRead, AsyncBufRead};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{cmp, io};
 use std::pin::Pin;
@@ -183,6 +185,7 @@ impl<R: AsyncRead> AsyncRead for Take<R> {
         Poll::Ready(Ok(n))
     }
 
+    #[cfg(feature = "read_initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }

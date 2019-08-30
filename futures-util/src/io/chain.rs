@@ -1,5 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncBufRead, AsyncRead, Initializer, IoSliceMut};
+#[cfg(feature = "read_initializer")]
+use futures_io::Initializer;
+use futures_io::{AsyncBufRead, AsyncRead, IoSliceMut};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::io;
@@ -117,6 +119,7 @@ where
         self.second().poll_read_vectored(cx, bufs)
     }
 
+    #[cfg(feature = "read_initializer")]
     unsafe fn initializer(&self) -> Initializer {
         let initializer = self.first.initializer();
         if initializer.should_initialize() {

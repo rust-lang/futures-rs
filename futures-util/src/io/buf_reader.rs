@@ -1,5 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, Initializer, IoSliceMut, SeekFrom};
+#[cfg(feature = "read_initializer")]
+use futures_io::Initializer;
+use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, IoSliceMut, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::io::{self, Read};
 use std::pin::Pin;
@@ -48,7 +50,7 @@ impl<R: AsyncRead> BufReader<R> {
         unsafe {
             let mut buffer = Vec::with_capacity(capacity);
             buffer.set_len(capacity);
-            inner.initializer().initialize(&mut buffer);
+            super::initialize(&inner, &mut buffer);
             Self {
                 inner,
                 buf: buffer.into_boxed_slice(),
@@ -166,6 +168,7 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
     }
 
     // we can't skip unconditionally because of the large buffer case in read.
+    #[cfg(feature = "read_initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }

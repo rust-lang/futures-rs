@@ -18,6 +18,12 @@ name = "futures_io"
 default = ["std"]
 std = []
 
+# Unstable features
+# These features are outside of the normal semver guarantees and require the
+# `unstable` feature as an explicit opt-in to unstable API.
+unstable = []
+read_initializer = []
+
 [dependencies]
 
 [dev-dependencies]

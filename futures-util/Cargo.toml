@@ -33,6 +33,7 @@ select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack"
 unstable = ["futures-core-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
 bilock = []
+read_initializer = ["io", "futures-io-preview/read_initializer", "futures-io-preview/unstable"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.18", default-features = false }
