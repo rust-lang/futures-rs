@@ -103,7 +103,7 @@ where
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future::{join_all};
+/// use futures::future::join_all;
 ///
 /// async fn foo(i: u32) -> u32 { i }
 ///

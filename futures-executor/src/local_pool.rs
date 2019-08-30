@@ -132,10 +132,9 @@ impl LocalPool {
     ///
     /// ```
     /// use futures::executor::LocalPool;
-    /// use futures::future::ready;
     ///
     /// let mut pool = LocalPool::new();
-    /// # let my_app  = ready(());
+    /// # let my_app  = async {};
     ///
     /// // run tasks in the pool until `my_app` completes, by default spawning
     /// // further tasks back onto the pool

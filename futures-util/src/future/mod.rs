@@ -127,9 +127,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
-    /// let future = future::ready(1);
+    /// let future = async { 1 };
     /// let new_future = future.map(|x| x + 3);
     /// assert_eq!(new_future.await, 4);
     /// # });
@@ -158,10 +158,10 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
-    /// let future_of_1 = future::ready(1);
-    /// let future_of_4 = future_of_1.then(|x| future::ready(x + 3));
+    /// let future_of_1 = async { 1 };
+    /// let future_of_4 = future_of_1.then(|x| async move { x + 3 });
     /// assert_eq!(future_of_4.await, 4);
     /// # });
     /// ```
@@ -183,13 +183,13 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
     /// let x = 6;
     /// let future = if x < 10 {
-    ///     future::ready(true).left_future()
+    ///     async { true }.left_future()
     /// } else {
-    ///     future::ready(false).right_future()
+    ///     async { false }.right_future()
     /// };
     ///
     /// assert_eq!(future.await, true);
@@ -212,13 +212,13 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
     /// let x = 6;
     /// let future = if x > 10 {
-    ///     future::ready(true).left_future()
+    ///     async { true }.left_future()
     /// } else {
-    ///     future::ready(false).right_future()
+    ///     async { false }.right_future()
     /// };
     ///
     /// assert_eq!(future.await, false);
@@ -240,10 +240,10 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     /// use futures::stream::StreamExt;
     ///
-    /// let future = future::ready(17);
+    /// let future = async { 17 };
     /// let stream = future.into_stream();
     /// let collected: Vec<_> = stream.collect().await;
     /// assert_eq!(collected, vec![17]);
@@ -273,9 +273,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
-    /// let nested_future = future::ready(future::ready(1));
+    /// let nested_future = async { async { 1 } };
     /// let future = nested_future.flatten();
     /// assert_eq!(future.await, 1);
     /// # });
@@ -302,11 +302,11 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream_items = vec![17, 18, 19];
-    /// let future_of_a_stream = future::ready(stream::iter(stream_items));
+    /// let future_of_a_stream = async { stream::iter(stream_items) };
     ///
     /// let stream = future_of_a_stream.flatten_stream();
     /// let list: Vec<_> = stream.collect().await;
@@ -354,9 +354,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
-    /// let future = future::ready(1);
+    /// let future = async { 1 };
     /// let new_future = future.inspect(|&x| println!("about to resolve: {}", x));
     /// assert_eq!(new_future.await, 1);
     /// # });
@@ -420,9 +420,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     ///
-    /// let future = future::ready(6);
+    /// let future = async { 6 };
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     ///
@@ -437,11 +437,11 @@ pub trait FutureExt: Future {
     /// // the `shared` combinator.
     ///
     /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
+    /// use futures::future::FutureExt;
     /// use futures::executor::block_on;
     /// use std::thread;
     ///
-    /// let future = future::ready(6);
+    /// let future = async { 6 };
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     /// let join_handle = thread::spawn(move || {

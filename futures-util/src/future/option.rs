@@ -13,9 +13,9 @@ use pin_utils::unsafe_pinned;
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future::{self, OptionFuture};
+/// use futures::future::OptionFuture;
 ///
-/// let mut a: OptionFuture<_> = Some(future::ready(123)).into();
+/// let mut a: OptionFuture<_> = Some(async { 123 }).into();
 /// assert_eq!(a.await, Some(123));
 ///
 /// a = None.into();
