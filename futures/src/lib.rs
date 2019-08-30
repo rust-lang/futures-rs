@@ -407,12 +407,13 @@ pub mod stream {
     pub use futures_core::stream::{BoxStream, LocalBoxStream};
 
     pub use futures_util::stream::{
-        iter, Iter,
-        repeat, Repeat,
         empty, Empty,
-        pending, Pending,
+        from_fn, FromFn,
+        iter, Iter,
         once, Once,
+        pending, Pending,
         poll_fn, PollFn,
+        repeat, Repeat,
         select, Select,
         unfold, Unfold,
 

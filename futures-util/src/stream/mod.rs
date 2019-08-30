@@ -59,6 +59,9 @@ pub use self::forward::Forward;
 mod for_each;
 pub use self::for_each::ForEach;
 
+mod from_fn;
+pub use self::from_fn::{from_fn, FromFn};
+
 mod fuse;
 pub use self::fuse::Fuse;
 

@@ -32,21 +32,19 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future;
 /// use futures::stream::{self, StreamExt};
 ///
-/// let stream = stream::unfold(0, |state| {
+/// let stream = stream::unfold(0, |state| async move {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
 ///         let yielded = state  * 2;
-///         future::ready(Some((yielded, next_state)))
+///         Some((yielded, next_state))
 ///     } else {
-///         future::ready(None)
+///         None
 ///     }
 /// });
 ///
-/// let result = stream.collect::<Vec<i32>>().await;
-/// assert_eq!(result, vec![0, 2, 4]);
+/// assert_eq!(stream.collect::<Vec<i32>>().await, vec![0, 2, 4]);
 /// # });
 /// ```
 pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
