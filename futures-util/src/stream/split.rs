@@ -99,11 +99,11 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
     }
 }
 
-pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, SplitStream<S>) {
+pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitStream<S>, SplitSink<S, Item>) {
     let (a, b) = BiLock::new(s);
     let read = SplitStream(a);
     let write = SplitSink(b);
-    (write, read)
+    (read, write)
 }
 
 /// Error indicating a `SplitSink<S>` and `SplitStream<S>` were not two halves

@@ -67,9 +67,9 @@ fn test_split() {
             sink: &mut dest
         };
 
-        let (sink, stream) = join.split();
+        let (stream, sink) = join.split();
         let join = sink.reunite(stream).expect("test_split: reunite error");
-        let (mut sink, mut stream) = join.split();
+        let (mut stream, mut sink) = join.split();
         block_on(sink.send_all(&mut stream)).unwrap();
     }
     assert_eq!(dest, vec![10, 20, 30]);

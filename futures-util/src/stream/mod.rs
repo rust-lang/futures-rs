@@ -1090,7 +1090,7 @@ pub trait StreamExt: Stream {
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     #[cfg(feature = "alloc")]
-    fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)
+    fn split<Item>(self) -> (SplitStream<Self>, SplitSink<Self, Item>)
         where Self: Sink<Item> + Sized
     {
         split::split(self)
