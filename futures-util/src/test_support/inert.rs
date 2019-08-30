@@ -4,8 +4,12 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, Weak};
 use std::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
 
+/// Handle to a future spawned on a [InertExecutor](self::InertExecutor).
 pub(crate) struct InertTaskHandle<T>(usize, Arc<Mutex<Option<T>>>);
 
+/// A future executor which is totally inert, making it useful for testing future
+/// implementations. It spawns no threads, and all progress is driven by explicit control
+/// methods such as [poll_one](self::InertExecutor::poll_one()).
 pub(crate) struct InertExecutor(Arc<Mutex<InertExecutorInner>>);
 
 struct InertExecutorInner {
@@ -16,6 +20,8 @@ struct InertExecutorInner {
 }
 
 impl InertExecutor {
+    /// Create a new [InertExecutor](self::InertExecutor). Absolutely no threads were
+    /// spawned in the making of this executor.
     pub(crate) fn new() -> Self {
         Self(Arc::new(Mutex::new(InertExecutorInner {
             next_id: 1,
@@ -25,6 +31,8 @@ impl InertExecutor {
         })))
     }
 
+    /// Spawn a [Future](std::future::Future) onto the inert executor, returning a handle
+    /// to the spawned task.
     pub(crate) fn spawn<F: 'static + Future>(&self, future: F) -> InertTaskHandle<F::Output> {
         let mut inner = self.0.lock().unwrap();
         let id = inner.next_id;
@@ -40,6 +48,8 @@ impl InertExecutor {
         InertTaskHandle(id, complete)
     }
 
+    /// Removes completed tasks from the executor. Completed tasks are tasks which have
+    /// previously returned Poll::Ready when polled.
     pub(crate) fn clear_completed(&self) {
         let mut inner = self.0.lock().unwrap();
         let mut completed = std::mem::replace(&mut inner.completed, Vec::with_capacity(0));
@@ -50,6 +60,7 @@ impl InertExecutor {
         std::mem::replace(&mut inner.completed, completed);
     }
 
+    /// Polls all tasks which woke their waker, and clears their wake status.
     pub(crate) fn poll_woken(&self) {
         let mut inner = self.0.lock().unwrap();
         let wakes = inner.wakes.clone();
@@ -65,6 +76,8 @@ impl InertExecutor {
         }
     }
 
+    /// Number of times the given task has been woken. Note that poll_woken resets this
+    /// count, and poll_one decrements it by 1.
     pub(crate) fn wake_count<T>(&self, task_handle: &InertTaskHandle<T>) -> usize {
         self.0.lock().unwrap()
             .wakes.iter()
@@ -72,6 +85,8 @@ impl InertExecutor {
             .count()
     }
 
+    /// Poll a single task, and decrement its wake count (if any) by 1. Returns the result
+    /// of polling the task.
     pub(crate) fn poll_one<T>(&self, task_handle: &InertTaskHandle<T>) -> Poll<T> {
         let mut inner = self.0.lock().unwrap();
         if let Some(pos) = inner.wakes.iter().position(|&task| task == task_handle.0) {
