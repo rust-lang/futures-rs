@@ -9,16 +9,34 @@
 //! This module is only available when the `io` and `std` features of this
 //! library is activated, and it is activated by default.
 
+#[cfg(feature = "io-compat")]
+use crate::compat::Compat;
+use std::ptr;
+
 pub use futures_io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
     IoSlice, IoSliceMut, Result, SeekFrom,
 };
-
-#[cfg(feature = "io-compat")] use crate::compat::Compat;
+#[cfg(feature = "read_initializer")]
+pub use futures_io::Initializer;
 
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
 const DEFAULT_BUF_SIZE: usize = 8 * 1024;
+
+/// Initializes a buffer if necessary.
+///
+/// A buffer is always initialized if `read_initializer` feature is disabled.
+#[inline]
+unsafe fn initialize<R: AsyncRead>(_reader: &R, buf: &mut [u8]) {
+    #[cfg(feature = "read_initializer")]
+    {
+        if !_reader.initializer().should_initialize() {
+            return;
+        }
+    }
+    ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len())
+}
 
 mod allow_std;
 pub use self::allow_std::AllowStdIo;

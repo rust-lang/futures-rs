@@ -160,9 +160,10 @@ mod if_std {
     use super::Either;
     use core::pin::Pin;
     use core::task::{Context, Poll};
+    #[cfg(feature = "read_initializer")]
+    use futures_io::Initializer;
     use futures_io::{
-        AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, Initializer, IoSlice, IoSliceMut, Result,
-        SeekFrom,
+        AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, Result, SeekFrom,
     };
 
     impl<A, B> AsyncRead for Either<A, B>
@@ -170,6 +171,7 @@ mod if_std {
         A: AsyncRead,
         B: AsyncRead,
     {
+        #[cfg(feature = "read_initializer")]
         unsafe fn initializer(&self) -> Initializer {
             match self {
                 Either::Left(x) => x.initializer(),

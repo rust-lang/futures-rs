@@ -46,9 +46,10 @@ io-compat = ["compat", "futures-util-preview/io-compat"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-util-preview/unstable"]
+unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-io-preview/unstable", "futures-util-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 bilock = ["futures-util-preview/bilock"]
+read_initializer = ["futures-io-preview/read_initializer", "futures-util-preview/read_initializer"]
 
 [package.metadata.docs.rs]
 all-features = true
