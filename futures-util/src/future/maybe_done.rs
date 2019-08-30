@@ -31,7 +31,7 @@ impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 /// use futures::future;
 /// use futures::pin_mut;
 ///
-/// let future = future::maybe_done(future::ready(5));
+/// let future = future::maybe_done(async { 5 });
 /// pin_mut!(future);
 /// assert_eq!(future.as_mut().take_output(), None);
 /// let () = future.as_mut().await;

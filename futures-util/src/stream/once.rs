@@ -8,10 +8,9 @@ use pin_utils::unsafe_pinned;
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future;
 /// use futures::stream::{self, StreamExt};
 ///
-/// let stream = stream::once(future::ready(17));
+/// let stream = stream::once(async { 17 });
 /// let collected = stream.collect::<Vec<i32>>().await;
 /// assert_eq!(collected, vec![17]);
 /// # });
