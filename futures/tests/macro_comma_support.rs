@@ -18,7 +18,7 @@ fn ready() {
 #[test]
 fn poll() {
     block_on(async {
-        let _ = poll!(async { () }.boxed(),);
+        let _ = poll!(async {}.boxed(),);
     })
 }
 

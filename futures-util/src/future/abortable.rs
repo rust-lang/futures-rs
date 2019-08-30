@@ -30,10 +30,10 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
+    /// use futures::future::{Abortable, AbortHandle, Aborted};
     ///
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    /// let future = Abortable::new(ready(2), abort_registration);
+    /// let future = Abortable::new(async { 2 }, abort_registration);
     /// abort_handle.abort();
     /// assert_eq!(future.await, Err(Aborted));
     /// # });
@@ -70,10 +70,10 @@ impl AbortHandle {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
+    /// use futures::future::{Abortable, AbortHandle, Aborted};
     ///
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    /// let future = Abortable::new(ready(2), abort_registration);
+    /// let future = Abortable::new(async { 2 }, abort_registration);
     /// abort_handle.abort();
     /// assert_eq!(future.await, Err(Aborted));
     /// # });

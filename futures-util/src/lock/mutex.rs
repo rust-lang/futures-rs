@@ -25,6 +25,12 @@ impl<T: ?Sized> fmt::Debug for Mutex<T> {
     }
 }
 
+impl<T> From<T> for Mutex<T> {
+    fn from(t: T) -> Self {
+        Self::new(t)
+    }
+}
+
 impl<T: Default> Default for Mutex<T> {
     fn default() -> Mutex<T> {
         Mutex::new(Default::default())
@@ -61,9 +67,23 @@ impl<T> Mutex<T> {
     pub fn new(t: T) -> Mutex<T> {
         Mutex {
             state: AtomicUsize::new(0),
-            value: UnsafeCell::new(t),
             waiters: StdMutex::new(Slab::new()),
+            value: UnsafeCell::new(t),
         }
+    }
+
+    /// Consumes this mutex, returning the underlying data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::lock::Mutex;
+    ///
+    /// let mutex = Mutex::new(0);
+    /// assert_eq!(mutex.into_inner(), 0);
+    /// ```
+    pub fn into_inner(self) -> T {
+        self.value.into_inner()
     }
 }
 
@@ -89,6 +109,28 @@ impl<T: ?Sized> Mutex<T> {
             mutex: Some(self),
             wait_key: WAIT_KEY_NONE,
         }
+    }
+
+    /// Returns a mutable reference to the underlying data.
+    ///
+    /// Since this call borrows the `Mutex` mutably, no actual locking needs to
+    /// take place -- the mutable borrow statically guarantees no locks exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::lock::Mutex;
+    ///
+    /// let mut mutex = Mutex::new(0);
+    /// *mutex.get_mut() = 10;
+    /// assert_eq!(*mutex.lock().await, 10);
+    /// # });
+    /// ```
+    pub fn get_mut(&mut self) -> &mut T {
+        // We know statically that there are no other references to `self`, so
+        // there's no need to lock the inner mutex.
+        unsafe { &mut *self.value.get() }
     }
 
     fn remove_waker(&self, wait_key: usize, wake_another: bool) {

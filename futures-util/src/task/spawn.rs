@@ -136,13 +136,12 @@ pub trait LocalSpawnExt: LocalSpawn {
     ///
     /// ```
     /// use futures::executor::LocalPool;
-    /// use futures::future;
     /// use futures::task::LocalSpawnExt;
     ///
     /// let mut executor = LocalPool::new();
     /// let mut spawner = executor.spawner();
     ///
-    /// let future = future::ready(1);
+    /// let future = async { 1 };
     /// let join_handle_fut = spawner.spawn_local_with_handle(future).unwrap();
     /// assert_eq!(executor.run_until(join_handle_fut), 1);
     /// ```

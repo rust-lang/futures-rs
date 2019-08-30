@@ -39,14 +39,6 @@ pub mod async_await;
 #[doc(hidden)]
 pub use self::async_await::*;
 
-#[cfg(feature = "std")]
-#[cfg(feature = "select-macro")]
-#[doc(hidden)]
-pub mod rand_reexport { // used by select!
-    #[doc(hidden)]
-    pub use rand::{prelude::SliceRandom, thread_rng};
-}
-
 #[doc(hidden)]
 pub use futures_core::core_reexport;
 
@@ -111,6 +103,9 @@ pub mod sink;
 #[doc(hidden)] pub use crate::sink::SinkExt;
 
 pub mod task;
+
+pub mod never;
+#[doc(hidden)] pub use crate::never::Never;
 
 #[cfg(feature = "compat")]
 pub mod compat;

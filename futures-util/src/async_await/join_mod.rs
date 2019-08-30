@@ -20,10 +20,10 @@ macro_rules! document_join_macro {
         ///
         /// ```
         /// # futures::executor::block_on(async {
-        /// use futures::{join, future};
+        /// use futures::join;
         ///
-        /// let a = future::ready(1);
-        /// let b = future::ready(2);
+        /// let a = async { 1 };
+        /// let b = async { 2 };
         ///
         /// assert_eq!(join!(a, b), (1, 2));
         /// # });
@@ -47,10 +47,10 @@ macro_rules! document_join_macro {
         ///
         /// ```
         /// # futures::executor::block_on(async {
-        /// use futures::{try_join, future};
+        /// use futures::try_join;
         ///
-        /// let a = future::ready(Ok::<i32, i32>(1));
-        /// let b = future::ready(Ok::<u64, i32>(2));
+        /// let a = async { Ok::<i32, i32>(1) };
+        /// let b = async { Ok::<u64, i32>(2) };
         ///
         /// assert_eq!(try_join!(a, b), Ok((1, 2)));
         /// # });
@@ -61,10 +61,10 @@ macro_rules! document_join_macro {
         ///
         /// ```
         /// # futures::executor::block_on(async {
-        /// use futures::{try_join, future};
+        /// use futures::try_join;
         ///
-        /// let a = future::ready(Ok::<i32, i32>(1));
-        /// let b = future::ready(Err::<u64, i32>(2));
+        /// let a = async { Ok::<i32, i32>(1) };
+        /// let b = async { Err::<u64, i32>(2) };
         ///
         /// assert_eq!(try_join!(a, b), Err(2));
         /// # });

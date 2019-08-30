@@ -529,15 +529,16 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use futures::pin_mut;
     ///
     /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
-    /// let mut halves = stream.try_filter_map(|x| {
+    /// let halves = stream.try_filter_map(|x| async move {
     ///     let ret = if x % 2 == 0 { Some(x / 2) } else { None };
-    ///     future::ready(Ok(ret))
+    ///     Ok(ret)
     /// });
     ///
+    /// pin_mut!(halves);
     /// assert_eq!(halves.next().await, Some(Ok(3)));
     /// assert_eq!(halves.next().await, Some(Err("error")));
     /// # })
@@ -613,15 +614,14 @@ pub trait TryStreamExt: TryStream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
     ///
     /// let number_stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2)]);
-    /// let sum = number_stream.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// let sum = number_stream.try_fold(0, |acc, x| async move { Ok(acc + x) });
     /// assert_eq!(sum.await, Ok(3));
     ///
     /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(1)]);
-    /// let sum = number_stream_with_err.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// let sum = number_stream_with_err.try_fold(0, |acc, x| async move { Ok(acc + x) });
     /// assert_eq!(sum.await, Err(2));
     /// # })
     /// ```
@@ -720,13 +720,12 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::future;
     /// use futures::stream::{StreamExt, TryStreamExt};
     ///
     /// let (sink, stream_of_futures) = mpsc::unbounded();
     /// let mut buffered = stream_of_futures.try_buffer_unordered(10);
     ///
-    /// sink.unbounded_send(Ok(future::ready(Ok(7i32))))?;
+    /// sink.unbounded_send(Ok(async { Ok(7i32) }))?;
     /// assert_eq!(buffered.next().await, Some(Ok(7i32)));
     ///
     /// sink.unbounded_send(Err("error in the stream"))?;

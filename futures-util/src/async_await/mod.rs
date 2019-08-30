@@ -31,6 +31,11 @@ mod select_mod;
 #[cfg(feature = "select-macro")]
 pub use self::select_mod::*;
 
+#[cfg(feature = "select-macro")]
+mod random;
+#[cfg(feature = "select-macro")]
+pub use self::random::*;
+
 #[doc(hidden)]
 #[inline(always)]
 pub fn assert_unpin<T: Unpin>(_: &T) {}

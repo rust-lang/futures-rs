@@ -355,13 +355,11 @@ pub trait StreamExt: Stream {
     /// # Examples
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
-    /// let evens = stream.filter_map(|x| {
-    ///     let ret = if x % 2 == 0 { Some(x + 1) } else { None };
-    ///     future::ready(ret)
+    /// let evens = stream.filter_map(|x| async move {
+    ///     if x % 2 == 0 { Some(x + 1) } else { None }
     /// });
     ///
     /// assert_eq!(vec![3, 5, 7, 9, 11], evens.collect::<Vec<_>>().await);
@@ -389,11 +387,10 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
-    /// let stream = stream.then(|x| future::ready(x + 3));
+    /// let stream = stream.then(|x| async move { x + 3 });
     ///
     /// assert_eq!(vec![4, 5, 6], stream.collect::<Vec<_>>().await);
     /// # });
@@ -490,11 +487,10 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let number_stream = stream::iter(0..6);
-    /// let sum = number_stream.fold(0, |acc, x| future::ready(acc + x));
+    /// let sum = number_stream.fold(0, |acc, x| async move { acc + x });
     /// assert_eq!(sum.await, 15);
     /// # });
     /// ```
@@ -804,20 +800,19 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..5);
     ///
     /// let sum = stream.by_ref()
     ///                 .take(2)
-    ///                 .fold(0, |a, b| future::ready(a + b))
+    ///                 .fold(0, |a, b| async move { a + b })
     ///                 .await;
     /// assert_eq!(sum, 3);
     ///
     /// // You can use the stream again
     /// let sum = stream.take(2)
-    ///                 .fold(0, |a, b| future::ready(a + b))
+    ///                 .fold(0, |a, b| async move { a + b })
     ///                 .await;
     /// assert_eq!(sum, 7);
     /// # });
