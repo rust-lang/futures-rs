@@ -19,6 +19,3 @@ default = ["std"]
 std = []
 
 [dependencies]
-
-[dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.18" }
