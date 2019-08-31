@@ -1,11 +1,13 @@
+use core::mem;
 use core::pin::Pin;
+use core::ptr;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub(crate) enum Chain<Fut1, Fut2, Data> {
-    First(Fut1, Option<Data>),
+    First(Fut1, Data),
     Second(Fut2),
     Empty,
 }
@@ -18,12 +20,37 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data> {
     }
 }
 
+struct UnsafeEmptyOnDrop<Fut1, Fut2, Data>(*mut Chain<Fut1, Fut2, Data>);
+
+impl<Fut1, Fut2, Data> Drop for UnsafeEmptyOnDrop<Fut1, Fut2, Data> {
+    fn drop(&mut self) {
+        unsafe {
+            ptr::write(self.0, Chain::Empty);
+        }
+    }
+}
+
 impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     where Fut1: Future,
           Fut2: Future,
 {
     pub(crate) fn new(fut1: Fut1, data: Data) -> Chain<Fut1, Fut2, Data> {
-        Chain::First(fut1, Some(data))
+        Chain::First(fut1, data)
+    }
+
+    fn take_data(&mut self) -> Data {
+        unsafe {
+            let auto_empty = UnsafeEmptyOnDrop(self);
+            let data = match self {
+                Chain::First(fut1, data) => {
+                    ptr::drop_in_place(fut1);
+                    ptr::read(data)
+                }
+                _ => unreachable!()
+            };
+            mem::drop(auto_empty);
+            data
+        }
     }
 
     pub(crate) fn poll<F>(
@@ -39,10 +66,9 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         let this = unsafe { self.get_unchecked_mut() };
 
         loop {
-            let (output, data) = match this {
-                Chain::First(fut1, data) => {
-                    let output = ready!(unsafe { Pin::new_unchecked(fut1) }.poll(cx));
-                    (output, data.take().unwrap())
+            let output = match this {
+                Chain::First(fut1, _data) => {
+                    ready!(unsafe { Pin::new_unchecked(fut1) }.poll(cx))
                 }
                 Chain::Second(fut2) => {
                     return unsafe { Pin::new_unchecked(fut2) }.poll(cx);
@@ -50,7 +76,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
                 Chain::Empty => unreachable!()
             };
 
-            *this = Chain::Empty; // Drop fut1
+            let data = Chain::take_data(this); // Drop fut1
             let fut2 = (f.take().unwrap())(output, data);
             *this = Chain::Second(fut2)
         }
