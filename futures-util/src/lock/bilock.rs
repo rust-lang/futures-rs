@@ -157,7 +157,7 @@ impl<T> BiLock<T> {
     where
         T: Unpin,
     {
-        if &*self.arc as *const _ == &*other.arc as *const _ {
+        if Arc::ptr_eq(&self.arc, &other.arc) {
             drop(other);
             let inner = Arc::try_unwrap(self.arc)
                 .ok()
