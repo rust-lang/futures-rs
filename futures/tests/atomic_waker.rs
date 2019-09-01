@@ -3,10 +3,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
 
-use futures_core::Poll;
-use futures_executor::block_on;
-use futures_util::future::poll_fn;
-use futures_util::task::AtomicWaker;
+use futures::executor::block_on;
+use futures::future::poll_fn;
+use futures::task::{AtomicWaker, Poll};
 
 #[test]
 fn basic() {

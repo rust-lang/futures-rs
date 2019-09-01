@@ -64,8 +64,6 @@ compile_error!("The `read_initializer` feature requires the `unstable` feature a
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
 
-#[doc(hidden)] pub use futures_core::task::Poll;
-
 #[doc(hidden)] pub use futures_util::never::Never;
 
 // Macro reexports

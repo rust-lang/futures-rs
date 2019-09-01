@@ -27,7 +27,6 @@ pub mod stream;
 
 #[macro_use]
 pub mod task;
-#[doc(hidden)] pub use self::task::Poll;
 
 #[doc(hidden)]
 pub mod core_reexport {
