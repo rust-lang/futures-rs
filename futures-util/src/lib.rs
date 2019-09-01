@@ -92,21 +92,15 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::FutureExt;
 
 pub mod try_future;
-#[doc(hidden)] pub use crate::try_future::TryFutureExt;
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::StreamExt;
 
 pub mod try_stream;
-#[doc(hidden)] pub use crate::try_stream::TryStreamExt;
 
 #[cfg(feature = "sink")]
 pub mod sink;
-#[cfg(feature = "sink")]
-#[doc(hidden)] pub use crate::sink::SinkExt;
 
 pub mod task;
 
@@ -118,9 +112,6 @@ pub mod compat;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
 pub mod io;
-#[cfg(feature = "io")]
-#[cfg(feature = "std")]
-#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]

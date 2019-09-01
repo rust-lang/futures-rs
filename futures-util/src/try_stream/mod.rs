@@ -384,7 +384,7 @@ pub trait TryStreamExt: TryStream {
     /// available, exiting as soon as an error occurs.
     ///
     /// This is similar to
-    /// [`StreamExt::for_each_concurrent`](super::StreamExt::for_each_concurrent),
+    /// [`StreamExt::for_each_concurrent`](crate::stream::StreamExt::for_each_concurrent),
     /// but will resolve to an error immediately if the underlying stream or the provided
     /// closure return an error.
     ///
@@ -606,7 +606,7 @@ pub trait TryStreamExt: TryStream {
     /// Once the entire stream has been exhausted the returned future will
     /// resolve to this value.
     ///
-    /// This method is similar to [`fold`](super::StreamExt::fold), but will
+    /// This method is similar to [`fold`](crate::stream::StreamExt::fold), but will
     /// exit early if an error is encountered in either the stream or the
     /// provided closure.
     ///
@@ -642,7 +642,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Works with all collections that implement the [`Extend`](std::iter::Extend) trait.
     ///
-    /// This method is similar to [`concat`](super::StreamExt::concat), but will
+    /// This method is similar to [`concat`](crate::stream::StreamExt::concat), but will
     /// exit early if an error is encountered in the stream.
     ///
     /// # Examples

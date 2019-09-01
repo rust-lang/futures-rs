@@ -1,6 +1,5 @@
 use futures::executor::block_on;
-use futures::stream;
-use futures_util::StreamExt;
+use futures::stream::{self, StreamExt};
 
 #[test]
 fn select() {

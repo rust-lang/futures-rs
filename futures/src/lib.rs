@@ -44,24 +44,6 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 #[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
 compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[doc(hidden)] pub use futures_core::future::Future;
-#[doc(hidden)] pub use futures_core::future::TryFuture;
-#[doc(hidden)] pub use futures_util::future::FutureExt;
-#[doc(hidden)] pub use futures_util::try_future::TryFutureExt;
-
-#[doc(hidden)] pub use futures_core::stream::Stream;
-#[doc(hidden)] pub use futures_core::stream::TryStream;
-#[doc(hidden)] pub use futures_util::stream::StreamExt;
-#[doc(hidden)] pub use futures_util::try_stream::TryStreamExt;
-
-#[doc(hidden)] pub use futures_sink::Sink;
-#[doc(hidden)] pub use futures_util::sink::SinkExt;
-
-#[cfg(feature = "std")]
-#[doc(hidden)] pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
-#[cfg(feature = "std")]
-#[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
-
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
