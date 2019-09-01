@@ -33,4 +33,8 @@ impl<T> Stream for Empty<T> {
     fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(None)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(0))
+    }
 }

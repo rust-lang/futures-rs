@@ -94,6 +94,10 @@ impl<St, F, T> Stream for Map<St, F>
             .poll_next(cx)
             .map(|opt| opt.map(|x| self.as_mut().f()(x)))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

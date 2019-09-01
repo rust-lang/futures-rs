@@ -94,6 +94,10 @@ where
             .try_poll_next(cx)
             .map(|opt| opt.map(|res| res.map_err(|e| self.as_mut().f()(e))))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

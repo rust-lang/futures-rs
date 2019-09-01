@@ -37,17 +37,22 @@ impl<Fut> Once<Fut> {
 impl<Fut: Future> Stream for Once<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Fut::Output>> {
-        let val = if let Some(f) = self.as_mut().future().as_pin_mut() {
-            ready!(f.poll(cx))
-        } else {
-            return Poll::Ready(None)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let v = match self.as_mut().future().as_pin_mut() {
+            Some(fut) => ready!(fut.poll(cx)),
+            None => return Poll::Ready(None),
         };
-        self.future().set(None);
-        Poll::Ready(Some(val))
+
+        self.as_mut().future().set(None);
+        Poll::Ready(Some(v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.future.is_some() {
+            (1, Some(1))
+        } else {
+            (0, Some(0))
+        }
     }
 }
 

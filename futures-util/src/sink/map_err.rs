@@ -95,6 +95,10 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sink.size_hint()
+    }
 }
 
 impl<S: FusedStream, F> FusedStream for SinkMapErr<S, F> {

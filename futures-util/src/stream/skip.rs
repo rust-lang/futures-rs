@@ -81,6 +81,18 @@ impl<St: Stream> Stream for Skip<St> {
 
         self.as_mut().stream().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lower, upper) = self.stream.size_hint();
+
+        let lower = lower.saturating_sub(self.remaining as usize);
+        let upper = match upper {
+            Some(x) => Some(x.saturating_sub(self.remaining as usize)),
+            None => None,
+        };
+
+        (lower, upper)
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

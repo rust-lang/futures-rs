@@ -39,6 +39,10 @@ impl<T> Stream for Repeat<T>
     fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(Some(self.item.clone()))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::max_value(), None)
+    }
 }
 
 impl<T> FusedStream for Repeat<T>

@@ -127,6 +127,20 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             Poll::Ready(None)
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.done_taking {
+            return (0, Some(0));
+        }
+
+        let pending_len = if self.pending_item.is_some() { 1 } else { 0 };
+        let (_, upper) = self.stream.size_hint();
+        let upper = match upper {
+            Some(x) => x.checked_add(pending_len),
+            None => None,
+        };
+        (0, upper) // can't know a lower bound, due to the predicate
+    }
 }
 
 impl<St, Fut, F> FusedStream for TakeWhile<St, Fut, F>

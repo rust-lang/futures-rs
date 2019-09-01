@@ -88,6 +88,14 @@ impl<S: Stream> Stream for Fuse<S> {
         }
         Poll::Ready(item)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.done {
+            (0, Some(0))
+        } else {
+            self.stream.size_hint()
+        }
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

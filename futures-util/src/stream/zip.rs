@@ -1,4 +1,5 @@
 use crate::stream::{StreamExt, Fuse};
+use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -113,5 +114,30 @@ impl<St1, St2> Stream for Zip<St1, St2>
         } else {
             Poll::Pending
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let queued1_len = if self.queued1.is_some() { 1 } else { 0 };
+        let queued2_len = if self.queued2.is_some() { 1 } else { 0 };
+        let (stream1_lower, stream1_upper) = self.stream1.size_hint();
+        let (stream2_lower, stream2_upper) = self.stream2.size_hint();
+
+        let stream1_lower = stream1_lower.saturating_add(queued1_len);
+        let stream2_lower = stream2_lower.saturating_add(queued2_len);
+
+        let lower = cmp::min(stream1_lower, stream2_lower);
+
+        let upper = match (stream1_upper, stream2_upper) {
+            (Some(x), Some(y)) => {
+                let x = x.saturating_add(queued1_len);
+                let y = y.saturating_add(queued2_len);
+                Some(cmp::min(x, y))
+            }
+            (Some(x), None) => x.checked_add(queued1_len),
+            (None, Some(y)) => y.checked_add(queued2_len),
+            (None, None) => None
+        };
+
+        (lower, upper)
     }
 }

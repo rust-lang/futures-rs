@@ -1,3 +1,4 @@
+use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
@@ -78,6 +79,23 @@ impl<St> Stream for Take<St>
             }
             Poll::Ready(next)
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.remaining == 0 {
+            return (0, Some(0));
+        }
+
+        let (lower, upper) = self.stream.size_hint();
+
+        let lower = cmp::min(lower, self.remaining as usize);
+
+        let upper = match upper {
+            Some(x) if x < self.remaining as usize => Some(x),
+            _ => Some(self.remaining as usize)
+        };
+
+        (lower, upper)
     }
 }
 
