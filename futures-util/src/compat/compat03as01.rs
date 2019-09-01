@@ -8,8 +8,8 @@ use futures_01::{
 };
 use futures_core::{
     task::{RawWaker, RawWakerVTable},
-    TryFuture as TryFuture03,
-    TryStream as TryStream03,
+    future::TryFuture as TryFuture03,
+    stream::TryStream as TryStream03,
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
