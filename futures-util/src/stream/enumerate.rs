@@ -81,6 +81,10 @@ impl<St: Stream> Stream for Enumerate<St> {
             None => Poll::Ready(None),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

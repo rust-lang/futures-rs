@@ -121,11 +121,16 @@ where
     St: Stream<Item = Result<Item, S::Error>>,
 {
     type Item = S::Item;
+
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sink.size_hint()
     }
 }
 

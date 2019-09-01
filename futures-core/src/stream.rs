@@ -59,6 +59,37 @@ pub trait Stream {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>>;
+
+    /// Returns the bounds on the remaining length of the stream.
+    ///
+    /// Specifically, `size_hint()` returns a tuple where the first element
+    /// is the lower bound, and the second element is the upper bound.
+    ///
+    /// The second half of the tuple that is returned is an [`Option`]`<`[`usize`]`>`.
+    /// A [`None`] here means that either there is no known upper bound, or the
+    /// upper bound is larger than [`usize`].
+    ///
+    /// # Implementation notes
+    ///
+    /// It is not enforced that a stream implementation yields the declared
+    /// number of elements. A buggy stream may yield less than the lower bound
+    /// or more than the upper bound of elements.
+    ///
+    /// `size_hint()` is primarily intended to be used for optimizations such as
+    /// reserving space for the elements of the stream, but must not be
+    /// trusted to e.g., omit bounds checks in unsafe code. An incorrect
+    /// implementation of `size_hint()` should not lead to memory safety
+    /// violations.
+    ///
+    /// That said, the implementation should provide a correct estimation,
+    /// because otherwise it would be a violation of the trait's protocol.
+    ///
+    /// The default implementation returns `(0, `[`None`]`)` which is correct for any
+    /// stream.
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, None)
+    }
 }
 
 impl<S: ?Sized + Stream + Unpin> Stream for &mut S {
@@ -69,6 +100,10 @@ impl<S: ?Sized + Stream + Unpin> Stream for &mut S {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         S::poll_next(Pin::new(&mut **self), cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (**self).size_hint()
     }
 }
 
@@ -84,6 +119,10 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         self.get_mut().as_mut().poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (**self).size_hint()
     }
 }
 
@@ -126,7 +165,7 @@ mod private_try_stream {
 
 /// A convenience for streams that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait TryStream: private_try_stream::Sealed {
+pub trait TryStream: Stream + private_try_stream::Sealed {
     /// The type of successful values yielded by this future
     type Ok;
 
@@ -169,10 +208,30 @@ mod if_alloc {
         ) -> Poll<Option<Self::Item>> {
             Pin::new(&mut **self).poll_next(cx)
         }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (**self).size_hint()
+        }
+    }
+
+    impl<T: Unpin> Stream for alloc::collections::VecDeque<T> {
+        type Item = T;
+
+        fn poll_next(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Self::Item>> {
+            Poll::Ready(self.pop_front())
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.len();
+            (len, Some(len))
+        }
     }
 
     #[cfg(feature = "std")]
-    impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
+    impl<S: Stream> Stream for std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
         fn poll_next(
@@ -181,16 +240,9 @@ mod if_alloc {
         ) -> Poll<Option<S::Item>> {
             unsafe { self.map_unchecked_mut(|x| &mut x.0) }.poll_next(cx)
         }
-    }
 
-    impl<T: Unpin> Stream for ::alloc::collections::VecDeque<T> {
-        type Item = T;
-
-        fn poll_next(
-            mut self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Option<Self::Item>> {
-            Poll::Ready(self.pop_front())
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
         }
     }
 

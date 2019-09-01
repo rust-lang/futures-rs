@@ -54,4 +54,22 @@ where St1: Stream,
         self.as_mut().first().set(None);
         self.as_mut().second().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if let Some(first) = &self.first {
+            let (first_lower, first_upper) = first.size_hint();
+            let (second_lower, second_upper) = self.second.size_hint();
+
+            let lower = first_lower.saturating_add(second_lower);
+
+            let upper = match (first_upper, second_upper) {
+                (Some(x), Some(y)) => x.checked_add(y),
+                _ => None
+            };
+
+            (lower, upper)
+        } else {
+            self.second.size_hint()
+        }
+    }
 }

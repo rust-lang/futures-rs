@@ -69,6 +69,10 @@ impl<St: TryStream> Stream for IntoStream<St> {
     ) -> Poll<Option<Self::Item>> {
         self.stream().try_poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

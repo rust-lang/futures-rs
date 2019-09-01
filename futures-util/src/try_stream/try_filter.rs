@@ -129,6 +129,16 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let pending_len = if self.pending_fut.is_some() { 1 } else { 0 };
+        let (_, upper) = self.stream.size_hint();
+        let upper = match upper {
+            Some(x) => x.checked_add(pending_len),
+            None => None,
+        };
+        (0, upper) // can't know a lower bound, due to the predicate
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

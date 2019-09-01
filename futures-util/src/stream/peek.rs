@@ -104,6 +104,17 @@ impl<S: Stream> Stream for Peekable<S> {
         }
         self.as_mut().stream().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let peek_len = if self.peeked.is_some() { 1 } else { 0 };
+        let (lower, upper) = self.stream.size_hint();
+        let lower = lower.saturating_add(peek_len);
+        let upper = match upper {
+            Some(x) => x.checked_add(peek_len),
+            None => None,
+        };
+        (lower, upper)
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream

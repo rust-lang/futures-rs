@@ -1,3 +1,4 @@
+use crate::stream::{self, Once};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -8,15 +9,15 @@ use pin_utils::unsafe_pinned;
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<Fut: Future> {
-    future: Option<Fut>
+    inner: Once<Fut>
 }
 
 impl<Fut: Future> IntoStream<Fut> {
-    unsafe_pinned!(future: Option<Fut>);
+    unsafe_pinned!(inner: Once<Fut>);
 
     pub(super) fn new(future: Fut) -> IntoStream<Fut> {
         IntoStream {
-            future: Some(future)
+            inner: stream::once(future)
         }
     }
 }
@@ -24,13 +25,13 @@ impl<Fut: Future> IntoStream<Fut> {
 impl<Fut: Future> Stream for IntoStream<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let v = match self.as_mut().future().as_pin_mut() {
-            Some(fut) => ready!(fut.poll(cx)),
-            None => return Poll::Ready(None),
-        };
+    #[inline]
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner().poll_next(cx)
+    }
 
-        self.as_mut().future().set(None);
-        Poll::Ready(Some(v))
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }

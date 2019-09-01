@@ -104,6 +104,10 @@ impl<St: Stream> Stream for InterleavePending<St> {
             Poll::Pending
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 impl<W: AsyncWrite> AsyncWrite for InterleavePending<W> {

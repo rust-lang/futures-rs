@@ -76,6 +76,10 @@ impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sink.size_hint()
+    }
 }
 
 impl<S, Item> FusedStream for Buffer<S, Item> where S: Sink<Item> + FusedStream {

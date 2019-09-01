@@ -122,6 +122,17 @@ where
             Poll::Pending
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let queue_len = self.in_progress_queue.len();
+        let (lower, upper) = self.stream.size_hint();
+        let lower = lower.saturating_add(queue_len);
+        let upper = match upper {
+            Some(x) => x.checked_add(queue_len),
+            None => None,
+        };
+        (lower, upper)
+    }
 }
 
 // Forwarding impl of Sink from the underlying stream
