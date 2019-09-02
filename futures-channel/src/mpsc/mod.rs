@@ -81,8 +81,6 @@
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll, Waker};
 use futures_core::task::__internal::AtomicWaker;
-use std::any::Any;
-use std::error::Error;
 use std::fmt;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -166,7 +164,7 @@ enum SendErrorKind {
 
 /// The error type returned from [`try_next`](Receiver::try_next).
 pub struct TryRecvError {
-    _inner: (),
+    _priv: (),
 }
 
 impl fmt::Display for SendError {
@@ -179,7 +177,7 @@ impl fmt::Display for SendError {
     }
 }
 
-impl Error for SendError {}
+impl std::error::Error for SendError {}
 
 impl SendError {
     /// Returns true if this error is a result of the channel being full.
@@ -217,7 +215,7 @@ impl<T> fmt::Display for TrySendError<T> {
     }
 }
 
-impl<T: Any> Error for TrySendError<T> {}
+impl<T: core::any::Any> std::error::Error for TrySendError<T> {}
 
 impl<T> TrySendError<T> {
     /// Returns true if this error is a result of the channel being full.
@@ -254,7 +252,7 @@ impl fmt::Display for TryRecvError {
     }
 }
 
-impl Error for TryRecvError {}
+impl std::error::Error for TryRecvError {}
 
 #[derive(Debug)]
 struct Inner<T> {
@@ -834,7 +832,7 @@ impl<T> Receiver<T> {
             Poll::Ready(msg) => {
                 Ok(msg)
             },
-            Poll::Pending => Err(TryRecvError { _inner: () }),
+            Poll::Pending => Err(TryRecvError { _priv: () }),
         }
     }
 

@@ -3,10 +3,6 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use core::fmt;
 use core::pin::Pin;
-#[cfg(feature = "std")]
-use std::any::Any;
-#[cfg(feature = "std")]
-use std::error::Error;
 
 use crate::lock::BiLock;
 
@@ -47,12 +43,12 @@ fn SplitSink<S: Sink<Item>, Item>(lock: BiLock<S>) -> SplitSink<S, Item> {
 /// A `Sink` part of the split pair
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct SplitSink<S: Sink<Item>, Item> {
+pub struct SplitSink<S, Item> {
     lock: BiLock<S>,
     slot: Option<Item>,
 }
 
-impl<S: Sink<Item>, Item> Unpin for SplitSink<S, Item> {}
+impl<S, Item> Unpin for SplitSink<S, Item> {}
 
 impl<S: Sink<Item> + Unpin, Item> SplitSink<S, Item> {
     /// Attempts to put the two "halves" of a split `Stream + Sink` back
@@ -112,9 +108,9 @@ pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, 
 
 /// Error indicating a `SplitSink<S>` and `SplitStream<S>` were not two halves
 /// of a `Stream + Split`, and thus could not be `reunite`d.
-pub struct ReuniteError<T: Sink<Item>, Item>(pub SplitSink<T, Item>, pub SplitStream<T>);
+pub struct ReuniteError<T, Item>(pub SplitSink<T, Item>, pub SplitStream<T>);
 
-impl<T: Sink<Item>, Item> fmt::Debug for ReuniteError<T, Item> {
+impl<T, Item> fmt::Debug for ReuniteError<T, Item> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ReuniteError")
             .field(&"...")
@@ -122,11 +118,11 @@ impl<T: Sink<Item>, Item> fmt::Debug for ReuniteError<T, Item> {
     }
 }
 
-impl<T: Sink<Item>, Item> fmt::Display for ReuniteError<T, Item> {
+impl<T, Item> fmt::Display for ReuniteError<T, Item> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "tried to reunite a SplitStream and SplitSink that don't form a pair")
     }
 }
 
 #[cfg(feature = "std")]
-impl<T: Any + Sink<Item>, Item> Error for ReuniteError<T, Item> {}
+impl<T: core::any::Any, Item> std::error::Error for ReuniteError<T, Item> {}

@@ -55,7 +55,7 @@ pub trait LocalSpawn {
 
 /// An error that occurred during spawning.
 pub struct SpawnError {
-    _hidden: (),
+    _priv: (),
 }
 
 impl fmt::Debug for SpawnError {
@@ -78,7 +78,7 @@ impl std::error::Error for SpawnError {}
 impl SpawnError {
     /// Spawning failed because the executor has been shut down.
     pub fn shutdown() -> Self {
-        Self { _hidden: () }
+        Self { _priv: () }
     }
 
     /// Check whether spawning failed to the executor being shut down.

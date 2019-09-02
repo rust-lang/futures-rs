@@ -11,10 +11,6 @@ use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-#[cfg(feature = "std")]
-use std::any::Any;
-#[cfg(feature = "std")]
-use std::error::Error;
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -218,7 +214,7 @@ impl<T> fmt::Display for ReuniteError<T> {
 }
 
 #[cfg(feature = "std")]
-impl<T: Any> Error for ReuniteError<T> {}
+impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 
 /// Returned RAII guard from the `poll_lock` method.
 ///
