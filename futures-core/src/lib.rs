@@ -27,8 +27,8 @@ pub mod stream;
 
 #[macro_use]
 pub mod task;
-#[doc(hidden)] pub use self::task::Poll;
 
+// Not public API.
 #[doc(hidden)]
 pub mod core_reexport {
     #[doc(hidden)]
