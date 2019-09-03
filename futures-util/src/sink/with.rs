@@ -97,6 +97,10 @@ impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sink.size_hint()
+    }
 }
 
 impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>

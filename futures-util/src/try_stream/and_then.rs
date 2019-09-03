@@ -102,6 +102,17 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let future_len = if self.future.is_some() { 1 } else { 0 };
+        let (lower, upper) = self.stream.size_hint();
+        let lower = lower.saturating_add(future_len);
+        let upper = match upper {
+            Some(x) => x.checked_add(future_len),
+            None => None,
+        };
+        (lower, upper)
+    }
 }
 
 impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>

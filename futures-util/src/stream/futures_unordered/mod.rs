@@ -427,6 +427,11 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
 }
 
 impl<Fut> Debug for FuturesUnordered<Fut> {

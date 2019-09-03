@@ -57,7 +57,7 @@ mod private_try_future {
 
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait TryFuture: private_try_future::Sealed {
+pub trait TryFuture: Future + private_try_future::Sealed {
     /// The type of successful values yielded by this future
     type Ok;
 

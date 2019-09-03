@@ -70,6 +70,10 @@ impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sink.size_hint()
+    }
 }
 
 impl<S, Item, E> FusedStream for SinkErrInto<S, Item, E>
