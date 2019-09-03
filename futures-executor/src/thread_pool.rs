@@ -214,7 +214,7 @@ impl ThreadPoolBuilder {
 
     /// Set size of a future ThreadPool
     ///
-    /// The size of a thread pool is the number of worker threads spawned.  By
+    /// The size of a thread pool is the number of worker threads spawned. By
     /// default, this is equal to the number of CPU cores.
     pub fn pool_size(&mut self, size: usize) -> &mut Self {
         self.pool_size = size;
