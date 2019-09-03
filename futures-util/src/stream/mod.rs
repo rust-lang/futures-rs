@@ -747,7 +747,7 @@ pub trait StreamExt: Stream {
     }
 
     /// Fuse a stream such that [`poll_next`](Stream::poll_next) will never
-    /// again be called once it has finished. This method can be used t turn
+    /// again be called once it has finished. This method can be used to turn
     /// any `Stream` into a `FusedStream`.
     ///
     /// Normally, once a stream has returned [`None`] from
@@ -992,7 +992,7 @@ pub trait StreamExt: Stream {
         Zip::new(self, other)
     }
 
-    /// Adapter for chaining two stream.
+    /// Adapter for chaining two streams.
     ///
     /// The resulting stream emits elements from the first stream, and when
     /// first stream reaches the end, emits the elements from the second stream.
@@ -1063,9 +1063,9 @@ pub trait StreamExt: Stream {
     /// exhausted, sending each item to the sink. It will complete once the
     /// stream is exhausted, the sink has received and flushed all items, and
     /// the sink is closed. Note that neither the original stream nor provided
-    /// sink will be output by this future.  Pass the sink by `Pin<&mut S>`
+    /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
-    /// order to preserve access to the Sink.
+    /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
