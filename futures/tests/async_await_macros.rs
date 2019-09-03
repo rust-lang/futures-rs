@@ -1,12 +1,12 @@
 #![recursion_limit="128"]
 
-use futures::{Poll, pending, pin_mut, poll, join, try_join, select};
+use futures::{pending, pin_mut, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, FutureExt, poll_fn};
-use futures::stream::StreamExt;
 use futures::sink::SinkExt;
-use futures::task::Context;
+use futures::stream::StreamExt;
+use futures::task::{Context, Poll};
 
 #[test]
 fn poll_and_pending() {

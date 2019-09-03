@@ -8,7 +8,7 @@ use futures_01::{
 };
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
-use futures_core::{task as task03, Future as Future03, Stream as Stream03};
+use futures_core::{task as task03, future::Future as Future03, stream::Stream as Stream03};
 use std::pin::Pin;
 use std::task::Context;
 #[cfg(feature = "sink")]

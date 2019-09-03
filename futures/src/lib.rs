@@ -44,8 +44,6 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 #[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
 compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[doc(hidden)] pub use futures_core::core_reexport;
-
 #[doc(hidden)] pub use futures_core::future::Future;
 #[doc(hidden)] pub use futures_core::future::TryFuture;
 #[doc(hidden)] pub use futures_util::future::FutureExt;
@@ -63,10 +61,6 @@ compile_error!("The `read_initializer` feature requires the `unstable` feature a
 #[doc(hidden)] pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
-
-#[doc(hidden)] pub use futures_core::task::Poll;
-
-#[doc(hidden)] pub use futures_util::never::Never;
 
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
@@ -531,11 +525,17 @@ pub mod never {
 
 // proc-macro re-export --------------------------------------
 
+// Not public API.
+#[doc(hidden)]
+pub use futures_core::core_reexport;
+
+// Not public API.
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use futures_util::async_await;
 
+// Not public API.
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
