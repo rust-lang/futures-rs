@@ -91,7 +91,7 @@ impl<T, U> Future for Forward<T, U>
         }
 
         loop {
-            match self.stream_mut()
+            match self.stream.as_mut()
                 .expect("Attempted to poll Forward after completion")
                 .poll()?
             {
