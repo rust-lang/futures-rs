@@ -42,6 +42,8 @@ mod if_std {
         IoSlice as IoSlice,
         IoSliceMut as IoSliceMut,
         SeekFrom as SeekFrom,
+        Sink as Sink,
+        Empty as Empty,
     };
 
     #[cfg(feature = "read_initializer")]
@@ -390,6 +392,10 @@ mod if_std {
         delegate_async_read_to_stdio!();
     }
 
+    impl AsyncRead for Empty {
+        delegate_async_read_to_stdio!();
+    }
+
     macro_rules! deref_async_write {
         () => {
             fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
@@ -506,6 +512,10 @@ mod if_std {
     }
 
     impl AsyncWrite for Vec<u8> {
+        delegate_async_write_to_stdio!();
+    }
+
+    impl AsyncWrite for Sink {
         delegate_async_write_to_stdio!();
     }
 
