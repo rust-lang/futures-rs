@@ -174,7 +174,7 @@ fn join_size() {
         let ready2 = future::ready(0i32);
         join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 32);
+    assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn try_join_size() {
         let ready2 = future::ready(Ok::<i32, i32>(0));
         try_join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 32);
+    assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
 #[test]
