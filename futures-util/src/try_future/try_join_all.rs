@@ -1,14 +1,14 @@
 //! Definition of the `TryJoinAll` combinator, waiting for all of a list of
 //! futures to finish with either success or error.
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::fmt;
 use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 use super::TryFuture;
 
@@ -57,7 +57,7 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
 enum FinalState<E = ()> {
     Pending,
     AllDone,
-    Error(E)
+    Error(E),
 }
 
 /// Future for the [`try_join_all`] function.
@@ -137,7 +137,10 @@ where
 {
     type Output = Result<Vec<F::Ok>, F::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         let mut state = FinalState::AllDone;
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {
@@ -150,7 +153,7 @@ where
                             state = FinalState::Error(e);
                             break;
                         }
-                    }
+                    },
                 }
             }
         }
@@ -163,11 +166,11 @@ where
                     .map(|e| e.take_done().unwrap())
                     .collect();
                 Poll::Ready(Ok(results))
-            },
+            }
             FinalState::Error(e) => {
                 let _ = mem::replace(&mut self.elems, Box::pin([]));
                 Poll::Ready(Err(e))
-            },
+            }
         }
     }
 }

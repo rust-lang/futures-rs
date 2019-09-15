@@ -57,4 +57,4 @@ mod record_spawner;
 pub use self::record_spawner::RecordSpawner;
 
 mod wake_counter;
-pub use self::wake_counter::{AwokenCount, new_count_waker};
+pub use self::wake_counter::{new_count_waker, AwokenCount};

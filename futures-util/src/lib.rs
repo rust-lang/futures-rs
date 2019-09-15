@@ -3,16 +3,23 @@
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read_initializer", feature(read_initializer))]
-
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    unreachable_pub
+)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_util")]
+#![doc(test(attr(
+    deny(warnings),
+    allow(dead_code, unused_assignments, unused_variables)
+)))]
+#![doc(
+    html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_util"
+)]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -90,26 +97,32 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::FutureExt;
+#[doc(hidden)]
+pub use crate::future::FutureExt;
 
 pub mod try_future;
-#[doc(hidden)] pub use crate::try_future::TryFutureExt;
+#[doc(hidden)]
+pub use crate::try_future::TryFutureExt;
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::StreamExt;
+#[doc(hidden)]
+pub use crate::stream::StreamExt;
 
 pub mod try_stream;
-#[doc(hidden)] pub use crate::try_stream::TryStreamExt;
+#[doc(hidden)]
+pub use crate::try_stream::TryStreamExt;
 
 #[cfg(feature = "sink")]
 pub mod sink;
 #[cfg(feature = "sink")]
-#[doc(hidden)] pub use crate::sink::SinkExt;
+#[doc(hidden)]
+pub use crate::sink::SinkExt;
 
 pub mod task;
 
 pub mod never;
-#[doc(hidden)] pub use crate::never::Never;
+#[doc(hidden)]
+pub use crate::never::Never;
 
 #[cfg(feature = "compat")]
 pub mod compat;
@@ -119,7 +132,10 @@ pub mod compat;
 pub mod io;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
+#[doc(hidden)]
+pub use crate::io::{
+    AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt,
+};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]

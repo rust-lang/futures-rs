@@ -27,8 +27,9 @@ where
 }
 
 impl<St, F> Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+where
+    St: Stream,
+    F: FnMut(&St::Item),
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -71,8 +72,9 @@ impl<St, F> Inspect<St, F>
 }
 
 impl<St, F> FusedStream for Inspect<St, F>
-    where St: FusedStream,
-          F: FnMut(&St::Item),
+where
+    St: FusedStream,
+    F: FnMut(&St::Item),
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
@@ -87,8 +89,9 @@ pub(crate) fn inspect<T, F: FnMut(&T)>(x: T, mut f: F) -> T {
 }
 
 impl<St, F> Stream for Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+where
+    St: Stream,
+    F: FnMut(&St::Item),
 {
     type Item = St::Item;
 
@@ -110,8 +113,9 @@ impl<St, F> Stream for Inspect<St, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, F, Item> Sink<Item> for Inspect<S, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item),
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(&S::Item),
 {
     type Error = S::Error;
 

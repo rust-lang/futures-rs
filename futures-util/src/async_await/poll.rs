@@ -13,7 +13,7 @@ use futures_core::task::{Context, Poll};
 macro_rules! poll {
     ($x:expr $(,)?) => {
         $crate::async_await::poll($x).await
-    }
+    };
 }
 
 #[doc(hidden)]
@@ -29,7 +29,10 @@ pub struct PollOnce<F: Future + Unpin> {
 
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         Poll::Ready(self.future.poll_unpin(cx))
     }
 }

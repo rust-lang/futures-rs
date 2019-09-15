@@ -1,4 +1,4 @@
-use futures::channel::{oneshot, mpsc};
+use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
@@ -15,7 +15,7 @@ fn works() {
     let (tx2, rx2) = std_mpsc::channel();
     let (tx3, rx3) = std_mpsc::channel();
     let t1 = thread::spawn(move || {
-        for _ in 0..N+1 {
+        for _ in 0..N + 1 {
             let (mytx, myrx) = oneshot::channel();
             block_on(tx.send(myrx)).unwrap();
             tx3.send(mytx).unwrap();

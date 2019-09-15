@@ -11,7 +11,7 @@ use pin_utils::unsafe_pinned;
 #[must_use = "sinks do nothing unless polled"]
 pub struct Fanout<Si1, Si2> {
     sink1: Si1,
-    sink2: Si2
+    sink2: Si2,
 }
 
 impl<Si1, Si2> Fanout<Si1, Si2> {
@@ -59,9 +59,10 @@ impl<Si1: Debug, Si2: Debug> Debug for Fanout<Si1, Si2> {
 }
 
 impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
-    where Si1: Sink<Item>,
-          Item: Clone,
-          Si2: Sink<Item, Error=Si1::Error>
+where
+    Si1: Sink<Item>,
+    Item: Clone,
+    Si2: Sink<Item, Error = Si1::Error>,
 {
     type Error = Si1::Error;
 
@@ -72,7 +73,11 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
         let sink1_ready = self.as_mut().sink1().poll_ready(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_ready(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
+        if ready {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Pending
+        }
     }
 
     fn start_send(
@@ -91,7 +96,11 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
         let sink1_ready = self.as_mut().sink1().poll_flush(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_flush(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
+        if ready {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Pending
+        }
     }
 
     fn poll_close(
@@ -101,6 +110,10 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
         let sink1_ready = self.as_mut().sink1().poll_close(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_close(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
+        if ready {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Pending
+        }
     }
 }

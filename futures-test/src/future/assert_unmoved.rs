@@ -42,7 +42,10 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
             // First time being polled
             *self.as_mut().this_ptr() = cur_this;
         } else {
-            assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
+            assert_eq!(
+                self.this_ptr, cur_this,
+                "Future moved between poll calls"
+            );
         }
         self.as_mut().future().poll(cx)
     }

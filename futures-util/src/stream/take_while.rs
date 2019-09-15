@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -9,7 +9,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`take_while`](super::StreamExt::take_while) method.
 #[must_use = "streams do nothing unless polled"]
-pub struct TakeWhile<St: Stream , Fut, F> {
+pub struct TakeWhile<St: Stream, Fut, F> {
     stream: St,
     f: F,
     pending_fut: Option<Fut>,
@@ -44,9 +44,10 @@ impl<St: Stream, Fut, F> TakeWhile<St, Fut, F> {
 }
 
 impl<St, Fut, F> TakeWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     pub(super) fn new(stream: St, f: F) -> TakeWhile<St, Fut, F> {
         TakeWhile {
@@ -92,9 +93,10 @@ impl<St, Fut, F> TakeWhile<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     type Item = St::Item;
 
@@ -116,7 +118,8 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             *self.as_mut().pending_item() = Some(item);
         }
 
-        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(cx));
+        let take =
+            ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(cx));
         self.as_mut().pending_fut().set(None);
         let item = self.as_mut().pending_item().take().unwrap();
 
@@ -144,19 +147,22 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for TakeWhile<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: FusedStream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
-        self.done_taking || self.pending_item.is_none() && self.stream.is_terminated()
+        self.done_taking
+            || self.pending_item.is_none() && self.stream.is_terminated()
     }
 }
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for TakeWhile<S, Fut, F>
-    where S: Stream + Sink<Item>,
+where
+    S: Stream + Sink<Item>,
 {
     type Error = S::Error;
 

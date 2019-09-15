@@ -1,10 +1,10 @@
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_sink::Sink;
-use std::io;
-use std::pin::Pin;
-use std::marker::Unpin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use std::io;
+use std::marker::Unpin;
+use std::pin::Pin;
 
 #[derive(Debug)]
 struct Block<Item> {
@@ -29,10 +29,15 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
     unsafe_unpinned!(buffer: Option<Block<Item>>);
 
     pub(super) fn new(writer: W) -> Self {
-        IntoSink { writer, buffer: None }
+        IntoSink {
+            writer,
+            buffer: None,
+        }
     }
 
-    fn project(self: Pin<&mut Self>) -> (Pin<&mut W>, &mut Option<Block<Item>>) {
+    fn project(
+        self: Pin<&mut Self>,
+    ) -> (Pin<&mut W>, &mut Option<Block<Item>>) {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.writer), &mut this.buffer)
@@ -44,13 +49,14 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
     fn poll_flush_buffer(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), io::Error>>
-    {
+    ) -> Poll<Result<(), io::Error>> {
         let (mut writer, buffer) = self.project();
         if let Some(buffer) = buffer {
             loop {
                 let bytes = buffer.bytes.as_ref();
-                let written = ready!(writer.as_mut().poll_write(cx, &bytes[buffer.offset..]))?;
+                let written = ready!(writer
+                    .as_mut()
+                    .poll_write(cx, &bytes[buffer.offset..]))?;
                 buffer.offset += written;
                 if buffer.offset == bytes.len() {
                     break;
@@ -60,7 +66,6 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
         *buffer = None;
         Poll::Ready(Ok(()))
     }
-
 }
 
 impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
@@ -69,8 +74,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         Poll::Ready(Ok(()))
     }
@@ -78,18 +82,19 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
-    ) -> Result<(), Self::Error>
-    {
+    ) -> Result<(), Self::Error> {
         debug_assert!(self.as_mut().buffer().is_none());
-        *self.as_mut().buffer() = Some(Block { offset: 0, bytes: item });
+        *self.as_mut().buffer() = Some(Block {
+            offset: 0,
+            bytes: item,
+        });
         Ok(())
     }
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_flush(cx))?;
         Poll::Ready(Ok(()))
@@ -98,8 +103,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_close(cx))?;
         Poll::Ready(Ok(()))

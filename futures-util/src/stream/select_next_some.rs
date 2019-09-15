@@ -1,8 +1,8 @@
-use core::pin::Pin;
-use futures_core::stream::FusedStream;
-use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{Context, Poll};
 use crate::stream::StreamExt;
+use core::pin::Pin;
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::FusedStream;
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`select_next_some`](super::StreamExt::select_next_some)
 /// method.
@@ -27,8 +27,14 @@ impl<St: ?Sized + FusedStream + Unpin> FusedFuture for SelectNextSome<'_, St> {
 impl<St: ?Sized + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
     type Output = St::Item;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        assert!(!self.stream.is_terminated(), "SelectNextSome polled after terminated");
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        assert!(
+            !self.stream.is_terminated(),
+            "SelectNextSome polled after terminated"
+        );
 
         if let Some(item) = ready!(self.stream.poll_next_unpin(cx)) {
             Poll::Ready(item)

@@ -1,10 +1,10 @@
+use super::DEFAULT_BUF_SIZE;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
-use super::DEFAULT_BUF_SIZE;
 
 /// Wraps a writer and buffers its output.
 ///
@@ -52,8 +52,15 @@ impl<W: AsyncWrite> BufWriter<W> {
         }
     }
 
-    fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let Self { inner, buf, written } = unsafe { self.get_unchecked_mut() };
+    fn flush_buf(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        let Self {
+            inner,
+            buf,
+            written,
+        } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 
         let len = buf.len();
@@ -145,12 +152,18 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
         }
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
         ready!(self.as_mut().flush_buf(cx))?;
         self.inner().poll_flush(cx)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_close(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
         ready!(self.as_mut().flush_buf(cx))?;
         self.inner().poll_close(cx)
     }
@@ -160,7 +173,10 @@ impl<W: AsyncWrite + fmt::Debug> fmt::Debug for BufWriter<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BufWriter")
             .field("writer", &self.inner)
-            .field("buffer", &format_args!("{}/{}", self.buf.len(), self.buf.capacity()))
+            .field(
+                "buffer",
+                &format_args!("{}/{}", self.buf.len(), self.buf.capacity()),
+            )
             .field("written", &self.written)
             .finish()
     }

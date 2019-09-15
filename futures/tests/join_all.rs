@@ -1,7 +1,7 @@
-use futures_util::future::*;
-use std::future::Future;
 use futures::executor::block_on;
+use futures_util::future::*;
 use std::fmt::Debug;
+use std::future::Future;
 
 fn assert_done<T, F>(actual_fut: F, expected: T)
 where
@@ -26,18 +26,27 @@ fn collect_collects() {
 fn join_all_iter_lifetime() {
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `JoinAll`.
-    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<dyn Future<Output = Vec<usize>> + Unpin> {
+    fn sizes<'a>(
+        bufs: Vec<&'a [u8]>,
+    ) -> Box<dyn Future<Output = Vec<usize>> + Unpin> {
         let iter = bufs.into_iter().map(|b| ready::<usize>(b.len()));
         Box::new(join_all(iter))
     }
 
-    assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), vec![3 as usize, 0, 1]);
+    assert_done(
+        || sizes(vec![&[1, 2, 3], &[], &[0]]),
+        vec![3 as usize, 0, 1],
+    );
 }
 
 #[test]
 fn join_all_from_iter() {
     assert_done(
-        || Box::new(vec![ready(1), ready(2)].into_iter().collect::<JoinAll<_>>()),
+        || {
+            Box::new(
+                vec![ready(1), ready(2)].into_iter().collect::<JoinAll<_>>(),
+            )
+        },
         vec![1, 2],
     )
 }

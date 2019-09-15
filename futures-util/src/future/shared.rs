@@ -1,4 +1,4 @@
-use crate::task::{ArcWake, waker_ref};
+use crate::task::{waker_ref, ArcWake};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
@@ -54,13 +54,15 @@ unsafe impl<Fut> Send for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 unsafe impl<Fut> Sync for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
@@ -190,7 +192,10 @@ where
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         let this = &mut *self;
 
         this.set_waker(cx);
@@ -267,8 +272,7 @@ where
         };
 
         unsafe {
-            *inner.future_or_output.get() =
-                FutureOrOutput::Output(output);
+            *inner.future_or_output.get() = FutureOrOutput::Output(output);
         }
 
         inner.notifier.state.store(COMPLETE, SeqCst);

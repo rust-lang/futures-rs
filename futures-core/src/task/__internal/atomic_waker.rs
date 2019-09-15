@@ -1,8 +1,8 @@
-use core::fmt;
-use core::cell::UnsafeCell;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
 use crate::task::Waker;
+use core::cell::UnsafeCell;
+use core::fmt;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Release};
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -211,7 +211,11 @@ impl AtomicWaker {
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
                     let res = self.state.compare_exchange(
-                        REGISTERING, WAITING, AcqRel, Acquire);
+                        REGISTERING,
+                        WAITING,
+                        AcqRel,
+                        Acquire,
+                    );
 
                     match res {
                         Ok(_) => {}
@@ -251,8 +255,8 @@ impl AtomicWaker {
                 // We just want to maintain memory safety. It is ok to drop the
                 // call to `register`.
                 debug_assert!(
-                    state == REGISTERING ||
-                    state == REGISTERING | WAKING);
+                    state == REGISTERING || state == REGISTERING | WAKING
+                );
             }
         }
     }
@@ -297,9 +301,10 @@ impl AtomicWaker {
                 // not.
                 //
                 debug_assert!(
-                    state == REGISTERING ||
-                    state == REGISTERING | WAKING ||
-                    state == WAKING);
+                    state == REGISTERING
+                        || state == REGISTERING | WAKING
+                        || state == WAKING
+                );
                 None
             }
         }

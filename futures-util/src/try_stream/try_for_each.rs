@@ -29,9 +29,10 @@ where
 }
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -47,13 +48,17 @@ where St: TryStream,
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         loop {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.try_poll(cx))?;

@@ -15,9 +15,9 @@ pub struct Concat<St: Stream> {
 impl<St: Stream + Unpin> Unpin for Concat<St> {}
 
 impl<St> Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(accum: Option<St::Item>);
@@ -31,19 +31,22 @@ where St: Stream,
 }
 
 impl<St> Future for Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     type Output = St::Item;
 
     fn poll(
-        mut self: Pin<&mut Self>, cx: &mut Context<'_>
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         loop {
             match ready!(self.as_mut().stream().poll_next(cx)) {
                 None => {
-                    return Poll::Ready(self.as_mut().accum().take().unwrap_or_default())
+                    return Poll::Ready(
+                        self.as_mut().accum().take().unwrap_or_default(),
+                    )
                 }
                 Some(e) => {
                     let accum = self.as_mut().accum();

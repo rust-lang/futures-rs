@@ -1,7 +1,7 @@
-use futures::{future, select};
 use futures::future::{FusedFuture, FutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::task::{Context, Poll};
+use futures::{future, select};
 use futures_test::future::FutureTestExt;
 use futures_test::task::new_count_waker;
 

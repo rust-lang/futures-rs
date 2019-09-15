@@ -1,8 +1,8 @@
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
 use futures::io::{
-    AsyncSeek, AsyncSeekExt, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt,
-    AllowStdIo, BufReader, SeekFrom,
+    AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt,
+    AsyncSeek, AsyncSeekExt, BufReader, SeekFrom,
 };
 use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
@@ -29,7 +29,9 @@ macro_rules! run_fill_buf {
     ($reader:expr) => {{
         let mut cx = noop_context();
         loop {
-            if let Poll::Ready(x) = Pin::new(&mut $reader).poll_fill_buf(&mut cx) {
+            if let Poll::Ready(x) =
+                Pin::new(&mut $reader).poll_fill_buf(&mut cx)
+            {
                 break x;
             }
         }
@@ -40,7 +42,9 @@ macro_rules! run_seek_relative {
     ($reader:expr, $offset:expr) => {{
         let mut cx = noop_context();
         loop {
-            if let Poll::Ready(x) = Pin::new(&mut $reader).poll_seek_relative(&mut cx, $offset) {
+            if let Poll::Ready(x) =
+                Pin::new(&mut $reader).poll_seek_relative(&mut cx, $offset)
+            {
                 break x;
             }
         }
@@ -91,7 +95,10 @@ fn test_buffered_reader_seek() {
 
     assert_eq!(block_on(reader.seek(SeekFrom::Start(3))).ok(), Some(3));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert_eq!(run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), None);
+    assert_eq!(
+        run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
+        None
+    );
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
     assert_eq!(block_on(reader.seek(SeekFrom::Current(1))).ok(), Some(4));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[1, 2][..]));
@@ -154,7 +161,7 @@ fn test_buffered_reader_invalidated_after_seek() {
 fn test_buffered_reader_seek_underflow() {
     // gimmick reader that yields its position modulo 256 for each byte
     struct PositionReader {
-        pos: u64
+        pos: u64,
     }
     impl io::Read for PositionReader {
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -183,22 +190,34 @@ fn test_buffered_reader_seek_underflow() {
         }
     }
 
-    let mut reader = BufReader::with_capacity(5, AllowStdIo::new(PositionReader { pos: 0 }));
+    let mut reader =
+        BufReader::with_capacity(5, AllowStdIo::new(PositionReader { pos: 0 }));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1, 2, 3, 4][..]));
-    assert_eq!(block_on(reader.seek(SeekFrom::End(-5))).ok(), Some(u64::max_value()-5));
+    assert_eq!(
+        block_on(reader.seek(SeekFrom::End(-5))).ok(),
+        Some(u64::max_value() - 5)
+    );
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // the following seek will require two underlying seeks
     let expected = 9223372036854775802;
-    assert_eq!(block_on(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), Some(expected));
+    assert_eq!(
+        block_on(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
+        Some(expected)
+    );
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // seeking to 0 should empty the buffer.
-    assert_eq!(block_on(reader.seek(SeekFrom::Current(0))).ok(), Some(expected));
+    assert_eq!(
+        block_on(reader.seek(SeekFrom::Current(0))).ok(),
+        Some(expected)
+    );
     assert_eq!(reader.get_ref().get_ref().pos, expected);
 }
 
 #[test]
 fn test_short_reads() {
-    let inner = ShortReader { lengths: vec![0, 1, 2, 0, 1, 0] };
+    let inner = ShortReader {
+        lengths: vec![0, 1, 2, 0, 1, 0],
+    };
     let mut reader = BufReader::new(AllowStdIo::new(inner));
     let mut buf = [0, 0];
     assert_eq!(block_on(reader.read(&mut buf)).unwrap(), 0);
@@ -218,14 +237,20 @@ struct MaybePending<'a> {
 
 impl<'a> MaybePending<'a> {
     fn new(inner: &'a [u8]) -> Self {
-        Self { inner, ready_read: false, ready_fill_buf: false }
+        Self {
+            inner,
+            ready_read: false,
+            ready_fill_buf: false,
+        }
     }
 }
 
 impl AsyncRead for MaybePending<'_> {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
         if self.ready_read {
             self.ready_read = false;
             Pin::new(&mut self.inner).poll_read(cx, buf)
@@ -237,12 +262,15 @@ impl AsyncRead for MaybePending<'_> {
 }
 
 impl AsyncBufRead for MaybePending<'_> {
-    fn poll_fill_buf(mut self: Pin<&mut Self>, _: &mut Context<'_>)
-        -> Poll<io::Result<&[u8]>>
-    {
+    fn poll_fill_buf(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<io::Result<&[u8]>> {
         if self.ready_fill_buf {
             self.ready_fill_buf = false;
-            if self.inner.is_empty() { return Poll::Ready(Ok(&[])) }
+            if self.inner.is_empty() {
+                return Poll::Ready(Ok(&[]));
+            }
             let len = cmp::min(2, self.inner.len());
             Poll::Ready(Ok(&self.inner[0..len]))
         } else {
@@ -327,22 +355,28 @@ struct MaybePendingSeek<'a> {
 
 impl<'a> MaybePendingSeek<'a> {
     fn new(inner: &'a [u8]) -> Self {
-        Self { inner: Cursor::new(inner), ready: true }
+        Self {
+            inner: Cursor::new(inner),
+            ready: true,
+        }
     }
 }
 
 impl AsyncRead for MaybePendingSeek<'_> {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 }
 
 impl AsyncBufRead for MaybePendingSeek<'_> {
-    fn poll_fill_buf(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<io::Result<&[u8]>>
-    {
+    fn poll_fill_buf(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&[u8]>> {
         let this: *mut Self = &mut *self as *mut _;
         Pin::new(&mut unsafe { &mut *this }.inner).poll_fill_buf(cx)
     }
@@ -353,9 +387,11 @@ impl AsyncBufRead for MaybePendingSeek<'_> {
 }
 
 impl AsyncSeek for MaybePendingSeek<'_> {
-    fn poll_seek(mut self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom)
-        -> Poll<io::Result<u64>>
-    {
+    fn poll_seek(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        pos: SeekFrom,
+    ) -> Poll<io::Result<u64>> {
         if self.ready {
             self.ready = false;
             Pin::new(&mut self.inner).poll_seek(cx, pos)
@@ -374,7 +410,10 @@ fn maybe_pending_seek() {
 
     assert_eq!(run(reader.seek(SeekFrom::Current(3))).ok(), Some(3));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert_eq!(run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), None);
+    assert_eq!(
+        run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
+        None
+    );
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
     assert_eq!(run(reader.seek(SeekFrom::Current(1))).ok(), Some(4));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[1, 2][..]));

@@ -1,13 +1,13 @@
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{FutureExt, poll_fn};
-use futures::stream::{Stream, StreamExt};
-use futures::sink::{Sink, SinkExt};
-use futures::task::{Context, Poll};
+use futures::future::{poll_fn, FutureExt};
 use futures::pin_mut;
+use futures::sink::{Sink, SinkExt};
+use futures::stream::{Stream, StreamExt};
+use futures::task::{Context, Poll};
 use futures_test::task::{new_count_waker, noop_context};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 trait AssertSend: Send {}
@@ -77,7 +77,7 @@ fn send_shared_recv() {
 fn send_recv_threads() {
     let (mut tx, rx) = mpsc::channel::<i32>(16);
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         block_on(tx.send(1)).unwrap();
     });
 
@@ -206,7 +206,7 @@ fn stress_shared_unbounded() {
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::unbounded::<i32>();
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         let result: Vec<_> = block_on(rx.collect());
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
@@ -217,7 +217,7 @@ fn stress_shared_unbounded() {
     for _ in 0..NTHREADS {
         let tx = tx.clone();
 
-        thread::spawn(move|| {
+        thread::spawn(move || {
             for _ in 0..AMT {
                 tx.unbounded_send(1).unwrap();
             }
@@ -235,7 +235,7 @@ fn stress_shared_bounded_hard() {
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::channel::<i32>(0);
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         let result: Vec<_> = block_on(rx.collect());
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
@@ -298,9 +298,9 @@ fn stress_receiver_multi_task_bounded_hard() {
                             }
                             Poll::Ready(None) => {
                                 *rx_opt = None;
-                                break
-                            },
-                            Poll::Pending => {},
+                                break;
+                            }
+                            Poll::Pending => {}
                         }
                     }
                 } else {
@@ -311,7 +311,6 @@ fn stress_receiver_multi_task_bounded_hard() {
 
         th.push(t);
     }
-
 
     for i in 0..AMT {
         block_on(tx.send(i)).unwrap();
@@ -329,7 +328,7 @@ fn stress_receiver_multi_task_bounded_hard() {
 /// after sender dropped.
 #[test]
 fn stress_drop_sender() {
-    fn list() -> impl Stream<Item=i32> {
+    fn list() -> impl Stream<Item = i32> {
         let (tx, rx) = mpsc::channel(1);
         thread::spawn(move || {
             block_on(send_one_two_three(tx));
@@ -436,7 +435,7 @@ fn try_send_1() {
         for i in 0..N {
             loop {
                 if tx.try_send(i).is_ok() {
-                    break
+                    break;
                 }
             }
         }

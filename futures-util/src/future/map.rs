@@ -24,26 +24,28 @@ impl<Fut, F> Map<Fut, F> {
 impl<Fut: Unpin, F> Unpin for Map<Fut, F> {}
 
 impl<Fut, F, T> FusedFuture for Map<Fut, F>
-    where Fut: Future,
-          F: FnOnce(Fut::Output) -> T,
+where
+    Fut: Future,
+    F: FnOnce(Fut::Output) -> T,
 {
-    fn is_terminated(&self) -> bool { self.f.is_none() }
+    fn is_terminated(&self) -> bool {
+        self.f.is_none()
+    }
 }
 
 impl<Fut, F, T> Future for Map<Fut, F>
-    where Fut: Future,
-          F: FnOnce(Fut::Output) -> T,
+where
+    Fut: Future,
+    F: FnOnce(Fut::Output) -> T,
 {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        self.as_mut()
-            .future()
-            .poll(cx)
-            .map(|output| {
-                let f = self.f().take()
-                    .expect("Map must not be polled after it returned `Poll::Ready`");
-                f(output)
-            })
+        self.as_mut().future().poll(cx).map(|output| {
+            let f = self.f().take().expect(
+                "Map must not be polled after it returned `Poll::Ready`",
+            );
+            f(output)
+        })
     }
 }

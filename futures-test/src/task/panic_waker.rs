@@ -1,6 +1,6 @@
-use futures_core::task::{Waker, RawWaker, RawWakerVTable};
 use core::cell::UnsafeCell;
 use core::ptr::null;
+use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 
 unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
@@ -12,12 +12,8 @@ unsafe fn wake_panic(_data: *const ()) {
     panic!("should not be woken");
 }
 
-const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
-    clone_panic_waker,
-    wake_panic,
-    wake_panic,
-    noop,
-);
+const PANIC_WAKER_VTABLE: RawWakerVTable =
+    RawWakerVTable::new(clone_panic_waker, wake_panic, wake_panic, noop);
 
 fn raw_panic_waker() -> RawWaker {
     RawWaker::new(null(), &PANIC_WAKER_VTABLE)

@@ -26,7 +26,9 @@ pub struct Drain<T> {
 /// # Ok::<(), futures::never::Never>(()) }).unwrap();
 /// ```
 pub fn drain<T>() -> Drain<T> {
-    Drain { marker: PhantomData }
+    Drain {
+        marker: PhantomData,
+    }
 }
 
 impl<T> Unpin for Drain<T> {}
@@ -41,10 +43,7 @@ impl<T> Sink<T> for Drain<T> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(
-        self: Pin<&mut Self>,
-        _item: T,
-    ) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, _item: T) -> Result<(), Self::Error> {
         Ok(())
     }
 

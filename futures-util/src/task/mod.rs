@@ -25,6 +25,6 @@ pub use self::noop_waker::noop_waker;
 pub use self::noop_waker::noop_waker_ref;
 
 mod spawn;
-pub use self::spawn::{SpawnExt, LocalSpawnExt};
+pub use self::spawn::{LocalSpawnExt, SpawnExt};
 
-pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use futures_core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};

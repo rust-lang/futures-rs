@@ -16,7 +16,7 @@ use futures_core::task::{Context, Poll};
 macro_rules! pending {
     () => {
         $crate::async_await::pending_once().await
-    }
+    };
 }
 
 #[doc(hidden)]
@@ -32,7 +32,10 @@ pub struct PendingOnce {
 
 impl Future for PendingOnce {
     type Output = ();
-    fn poll(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         if self.is_ready {
             Poll::Ready(())
         } else {

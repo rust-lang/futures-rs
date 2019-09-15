@@ -9,14 +9,15 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-#[cfg(feature = "compat")] use crate::compat::Compat;
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
 
 pub use futures_core::future::TryFuture;
 
 mod try_join;
 pub use self::try_join::{
-    try_join, try_join3, try_join4, try_join5,
-    TryJoin, TryJoin3, TryJoin4, TryJoin5,
+    try_join, try_join3, try_join4, try_join5, TryJoin, TryJoin3, TryJoin4,
+    TryJoin5,
 };
 
 #[cfg(feature = "alloc")]
@@ -158,8 +159,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
-        where F: FnOnce(Self::Ok) -> T,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Ok) -> T,
+        Self: Sized,
     {
         MapOk::new(self, f)
     }
@@ -204,8 +206,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
-        where F: FnOnce(Self::Error) -> E,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Error) -> E,
+        Self: Sized,
     {
         MapErr::new(self, f)
     }
@@ -233,8 +236,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn err_into<E>(self) -> ErrInto<Self, E>
-        where Self: Sized,
-              Self::Error: Into<E>
+    where
+        Self: Sized,
+        Self::Error: Into<E>,
     {
         ErrInto::new(self)
     }
@@ -276,9 +280,10 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
-        where F: FnOnce(Self::Ok) -> Fut,
-              Fut: TryFuture<Error = Self::Error>,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Ok) -> Fut,
+        Fut: TryFuture<Error = Self::Error>,
+        Self: Sized,
     {
         AndThen::new(self, f)
     }
@@ -320,9 +325,10 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
-        where F: FnOnce(Self::Error) -> Fut,
-              Fut: TryFuture<Ok = Self::Ok>,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Error) -> Fut,
+        Fut: TryFuture<Ok = Self::Ok>,
+        Self: Sized,
     {
         OrElse::new(self, f)
     }
@@ -346,8 +352,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
-        where F: FnOnce(&Self::Ok),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Ok),
+        Self: Sized,
     {
         InspectOk::new(self, f)
     }
@@ -371,8 +378,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
-        where F: FnOnce(&Self::Error),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Error),
+        Self: Sized,
     {
         InspectErr::new(self, f)
     }
@@ -403,8 +411,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn try_flatten_stream(self) -> TryFlattenStream<Self>
-        where Self::Ok: TryStream<Error = Self::Error>,
-              Self: Sized
+    where
+        Self::Ok: TryStream<Error = Self::Error>,
+        Self: Sized,
     {
         TryFlattenStream::new(self)
     }
@@ -432,8 +441,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>
-        where Self: Sized,
-              F: FnOnce(Self::Error) -> Self::Ok
+    where
+        Self: Sized,
+        F: FnOnce(Self::Error) -> Self::Ok,
     {
         UnwrapOrElse::new(self, f)
     }
@@ -442,7 +452,8 @@ pub trait TryFutureExt: TryFuture {
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
     #[cfg(feature = "compat")]
     fn compat(self) -> Compat<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         Compat::new(self)
     }
@@ -469,7 +480,8 @@ pub trait TryFutureExt: TryFuture {
     /// take_future(make_try_future().into_future());
     /// ```
     fn into_future(self) -> IntoFuture<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         IntoFuture::new(self)
     }
@@ -480,7 +492,8 @@ pub trait TryFutureExt: TryFuture {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Ok, Self::Error>>
-    where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Pin::new(self).try_poll(cx)
     }

@@ -1,6 +1,6 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
-use futures::future::{self, FutureExt, TryFutureExt, LocalFutureObj};
+use futures::future::{self, FutureExt, LocalFutureObj, TryFutureExt};
 use futures::task::LocalSpawn;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -77,7 +77,8 @@ fn drop_in_poll() {
     let future1 = future::lazy(move |_| {
         slot2.replace(None); // Drop future
         1
-    }).shared();
+    })
+    .shared();
 
     let future2 = LocalFutureObj::new(Box::new(future1.clone()));
     slot1.replace(Some(future2));
@@ -108,7 +109,9 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
+    spawn
+        .spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ()))))
+        .unwrap();
     local_pool.run();
     for _ in 0..2 {
         assert_eq!(*f2.peek().unwrap(), Ok(42));

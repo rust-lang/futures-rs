@@ -1,6 +1,6 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_channel::oneshot::{self, Receiver, Sender},
     futures_core::{
         future::Future,
         task::{Context, Poll},
@@ -12,8 +12,8 @@ use {
         panic::{self, AssertUnwindSafe},
         pin::Pin,
         sync::{
-            Arc,
             atomic::{AtomicBool, Ordering},
+            Arc,
         },
         thread,
     },
@@ -50,7 +50,8 @@ impl<T: Send + 'static> Future for RemoteHandle<T> {
     }
 }
 
-type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
+type SendMsg<Fut> =
+    Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
 
 /// A future which sends its output to the corresponding `RemoteHandle`.
 /// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
@@ -63,9 +64,7 @@ pub struct Remote<Fut: Future> {
 
 impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Remote")
-            .field(&self.future)
-            .finish()
+        f.debug_tuple("Remote").field(&self.future).finish()
     }
 }
 
@@ -80,10 +79,12 @@ impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(cx) {
+        if let Poll::Ready(_) =
+            self.as_mut().tx().as_mut().unwrap().poll_cancel(cx)
+        {
             if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 
@@ -96,7 +97,9 @@ impl<Fut: Future> Future for Remote<Fut> {
     }
 }
 
-pub(super) fn remote_handle<Fut: Future>(future: Fut) -> (Remote<Fut>, RemoteHandle<Fut::Output>) {
+pub(super) fn remote_handle<Fut: Future>(
+    future: Fut,
+) -> (Remote<Fut>, RemoteHandle<Fut::Output>) {
     let (tx, rx) = oneshot::channel();
     let keep_running = Arc::new(AtomicBool::new(false));
 

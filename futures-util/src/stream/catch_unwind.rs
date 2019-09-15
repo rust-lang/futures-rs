@@ -1,9 +1,9 @@
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::any::Any;
+use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 use std::pin::Pin;
-use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
 /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
 #[derive(Debug)]
@@ -18,7 +18,10 @@ impl<St: Stream + UnwindSafe> CatchUnwind<St> {
     unsafe_unpinned!(caught_unwind: bool);
 
     pub(super) fn new(stream: St) -> CatchUnwind<St> {
-        CatchUnwind { stream, caught_unwind: false }
+        CatchUnwind {
+            stream,
+            caught_unwind: false,
+        }
     }
 }
 
@@ -41,7 +44,7 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St> {
                 Err(e) => {
                     *self.as_mut().caught_unwind() = true;
                     Poll::Ready(Some(Err(e)))
-                },
+                }
             }
         }
     }

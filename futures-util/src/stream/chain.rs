@@ -13,8 +13,9 @@ pub struct Chain<St1, St2> {
 
 // All interactions with `Pin<&mut Chain<..>>` happen through these methods
 impl<St1, St2> Chain<St1, St2>
-where St1: Stream,
-      St2: Stream<Item = St1::Item>,
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     unsafe_pinned!(first: Option<St1>);
     unsafe_pinned!(second: St2);
@@ -28,8 +29,9 @@ where St1: Stream,
 }
 
 impl<St1, St2> FusedStream for Chain<St1, St2>
-where St1: Stream,
-      St2: FusedStream<Item=St1::Item>,
+where
+    St1: Stream,
+    St2: FusedStream<Item = St1::Item>,
 {
     fn is_terminated(&self) -> bool {
         self.first.is_none() && self.second.is_terminated()
@@ -37,8 +39,9 @@ where St1: Stream,
 }
 
 impl<St1, St2> Stream for Chain<St1, St2>
-where St1: Stream,
-      St2: Stream<Item=St1::Item>,
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     type Item = St1::Item;
 
@@ -48,7 +51,7 @@ where St1: Stream,
     ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.as_mut().first().as_pin_mut() {
             if let Some(item) = ready!(first.poll_next(cx)) {
-                return Poll::Ready(Some(item))
+                return Poll::Ready(Some(item));
             }
         }
         self.as_mut().first().set(None);
@@ -64,7 +67,7 @@ where St1: Stream,
 
             let upper = match (first_upper, second_upper) {
                 (Some(x), Some(y)) => x.checked_add(y),
-                _ => None
+                _ => None,
             };
 
             (lower, upper)

@@ -1,22 +1,23 @@
-
 use super::{Compat, Future01CompatExt};
 use crate::{
     future::{FutureExt, UnitError},
-    try_future::TryFutureExt,
     task::SpawnExt,
+    try_future::TryFutureExt,
+};
+use futures_01::future::{
+    ExecuteError as ExecuteError01, Executor as Executor01,
 };
 use futures_01::Future as Future01;
-use futures_01::future::{Executor as Executor01, ExecuteError as ExecuteError01};
-use futures_core::task::{Spawn as Spawn03, SpawnError as SpawnError03};
 use futures_core::future::FutureObj;
+use futures_core::task::{Spawn as Spawn03, SpawnError as SpawnError03};
 
 /// A future that can run on a futures 0.1
 /// [`Executor`](futures_01::future::Executor).
 pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>>;
 
 /// Extension trait for futures 0.1 [`Executor`](futures_01::future::Executor).
-pub trait Executor01CompatExt: Executor01<Executor01Future> +
-                               Clone + Send + 'static
+pub trait Executor01CompatExt:
+    Executor01<Executor01Future> + Clone + Send + 'static
 {
     /// Converts a futures 0.1 [`Executor`](futures_01::future::Executor) into a
     /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
@@ -44,16 +45,16 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     /// # futures::executor::block_on(rx).unwrap();
     /// ```
     fn compat(self) -> Executor01As03<Self>
-        where Self: Sized;
+    where
+        Self: Sized;
 }
 
 impl<Ex> Executor01CompatExt for Ex
-where Ex: Executor01<Executor01Future> + Clone + Send + 'static
+where
+    Ex: Executor01<Executor01Future> + Clone + Send + 'static,
 {
     fn compat(self) -> Executor01As03<Self> {
-        Executor01As03 {
-            executor01: self,
-        }
+        Executor01As03 { executor01: self }
     }
 }
 
@@ -61,7 +62,7 @@ where Ex: Executor01<Executor01Future> + Clone + Send + 'static
 /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
 #[derive(Debug, Clone)]
 pub struct Executor01As03<Ex> {
-    executor01: Ex
+    executor01: Ex,
 }
 
 impl<Ex> Spawn03 for Executor01As03<Ex>
@@ -74,9 +75,9 @@ where
     ) -> Result<(), SpawnError03> {
         let future = future.unit_error().compat();
 
-        self.executor01.execute(future).map_err(|_|
-            SpawnError03::shutdown()
-        )
+        self.executor01
+            .execute(future)
+            .map_err(|_| SpawnError03::shutdown())
     }
 }
 
@@ -87,7 +88,8 @@ where
     Fut: Future01<Item = (), Error = ()> + Send + 'static,
 {
     fn execute(&self, future: Fut) -> Result<(), ExecuteError01<Fut>> {
-        (&self.inner).spawn(future.compat().map(|_| ()))
+        (&self.inner)
+            .spawn(future.compat().map(|_| ()))
             .expect("unable to spawn future from Compat executor");
         Ok(())
     }

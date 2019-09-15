@@ -95,10 +95,9 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.as_mut()
-            .stream()
-            .try_poll_next(cx)
-            .map(|opt| opt.map(|res| res.map(|e| inspect(e, self.as_mut().f()))))
+        self.as_mut().stream().try_poll_next(cx).map(|opt| {
+            opt.map(|res| res.map(|e| inspect(e, self.as_mut().f())))
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

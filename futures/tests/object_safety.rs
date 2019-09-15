@@ -7,7 +7,9 @@ fn future() {
 
     assert_is_object_safe::<&dyn Future<Output = ()>>();
     assert_is_object_safe::<&dyn FusedFuture<Output = ()>>();
-    assert_is_object_safe::<&dyn TryFuture<Ok = (), Error = (), Output = Result<(), ()>>>();
+    assert_is_object_safe::<
+        &dyn TryFuture<Ok = (), Error = (), Output = Result<(), ()>>,
+    >();
 }
 
 #[test]
@@ -17,7 +19,9 @@ fn stream() {
 
     assert_is_object_safe::<&dyn Stream<Item = ()>>();
     assert_is_object_safe::<&dyn FusedStream<Item = ()>>();
-    assert_is_object_safe::<&dyn TryStream<Ok = (), Error = (), Item = Result<(), ()>>>();
+    assert_is_object_safe::<
+        &dyn TryStream<Ok = (), Error = (), Item = Result<(), ()>>,
+    >();
 }
 
 #[test]

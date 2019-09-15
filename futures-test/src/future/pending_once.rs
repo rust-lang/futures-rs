@@ -1,7 +1,7 @@
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use std::pin::Pin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use std::pin::Pin;
 
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner
 /// future.

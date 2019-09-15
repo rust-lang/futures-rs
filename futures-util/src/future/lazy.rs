@@ -6,7 +6,7 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Lazy<F> {
-    f: Option<F>
+    f: Option<F>,
 }
 
 // safe because we never generate `Pin<&mut F>`
@@ -32,19 +32,24 @@ impl<F> Unpin for Lazy<F> {}
 /// # });
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
-    where F: FnOnce(&mut Context<'_>) -> R,
+where
+    F: FnOnce(&mut Context<'_>) -> R,
 {
     Lazy { f: Some(f) }
 }
 
 impl<F, R> FusedFuture for Lazy<F>
-    where F: FnOnce(&mut Context<'_>) -> R,
+where
+    F: FnOnce(&mut Context<'_>) -> R,
 {
-    fn is_terminated(&self) -> bool { self.f.is_none() }
+    fn is_terminated(&self) -> bool {
+        self.f.is_none()
+    }
 }
 
 impl<F, R> Future for Lazy<F>
-    where F: FnOnce(&mut Context<'_>) -> R,
+where
+    F: FnOnce(&mut Context<'_>) -> R,
 {
     type Output = R;
 

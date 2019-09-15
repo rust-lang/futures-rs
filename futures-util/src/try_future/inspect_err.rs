@@ -43,10 +43,16 @@ where
 {
     type Output = Result<Fut::Ok, Fut::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         let e = ready!(self.as_mut().future().try_poll(cx));
         if let Err(e) = &e {
-            self.as_mut().f().take().expect("cannot poll InspectErr twice")(e);
+            self.as_mut()
+                .f()
+                .take()
+                .expect("cannot poll InspectErr twice")(e);
         }
         Poll::Ready(e)
     }

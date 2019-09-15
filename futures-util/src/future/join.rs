@@ -1,12 +1,12 @@
 #![allow(non_snake_case)]
 
-use crate::future::{MaybeDone, maybe_done};
+use super::assert_future;
+use crate::future::{maybe_done, MaybeDone};
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
-use super::assert_future;
 
 macro_rules! generate {
     ($(

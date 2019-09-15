@@ -1,11 +1,11 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
-use futures::{Poll, pending, pin_mut, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
-use futures::stream::StreamExt;
 use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use futures::{join, pending, pin_mut, poll, select, try_join, Poll};
 
 #[test]
 fn poll_and_pending() {
@@ -195,17 +195,12 @@ fn try_join_size() {
 
 #[test]
 fn join_doesnt_require_unpin() {
-    let _ = async {
-        join!(async {}, async {})
-    };
+    let _ = async { join!(async {}, async {}) };
 }
 
 #[test]
 fn try_join_doesnt_require_unpin() {
     let _ = async {
-        try_join!(
-            async { Ok::<(), ()>(()) },
-            async { Ok::<(), ()>(()) },
-        )
+        try_join!(async { Ok::<(), ()>(()) }, async { Ok::<(), ()>(()) },)
     };
 }

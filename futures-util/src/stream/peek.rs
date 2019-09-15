@@ -1,4 +1,4 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{Fuse, StreamExt};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -27,7 +27,7 @@ impl<St: Stream> Peekable<St> {
     pub(super) fn new(stream: St) -> Peekable<St> {
         Peekable {
             stream: stream.fuse(),
-            peeked: None
+            peeked: None,
         }
     }
 
@@ -73,7 +73,7 @@ impl<St: Stream> Peekable<St> {
     ) -> Poll<Option<&St::Item>> {
         if self.peeked.is_some() {
             let this: &Self = self.into_ref().get_ref();
-            return Poll::Ready(this.peeked.as_ref())
+            return Poll::Ready(this.peeked.as_ref());
         }
         match ready!(self.as_mut().stream().poll_next(cx)) {
             None => Poll::Ready(None),
@@ -100,7 +100,7 @@ impl<S: Stream> Stream for Peekable<S> {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         if let Some(item) = self.as_mut().peeked().take() {
-            return Poll::Ready(Some(item))
+            return Poll::Ready(Some(item));
         }
         self.as_mut().stream().poll_next(cx)
     }
@@ -120,7 +120,8 @@ impl<S: Stream> Stream for Peekable<S> {
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Peekable<S>
-    where S: Sink<Item> + Stream
+where
+    S: Sink<Item> + Stream,
 {
     type Error = S::Error;
 

@@ -1,3 +1,4 @@
+use super::read_until::read_until_internal;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
@@ -5,7 +6,6 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 use std::str;
-use super::read_until::read_until_internal;
 
 /// Future for the [`read_line`](super::AsyncBufReadExt::read_line) method.
 #[derive(Debug)]
@@ -40,7 +40,10 @@ pub(super) fn read_line_internal<R: AsyncBufRead + ?Sized>(
     let ret = ready!(read_until_internal(reader, cx, b'\n', bytes, read));
     if str::from_utf8(&bytes).is_err() {
         Poll::Ready(ret.and_then(|_| {
-            Err(io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "stream did not contain valid UTF-8",
+            ))
         }))
     } else {
         debug_assert!(buf.is_empty());
@@ -54,8 +57,16 @@ pub(super) fn read_line_internal<R: AsyncBufRead + ?Sized>(
 impl<R: AsyncBufRead + ?Sized + Unpin> Future for ReadLine<'_, R> {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { reader, buf, bytes, read } = &mut *self;
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        let Self {
+            reader,
+            buf,
+            bytes,
+            read,
+        } = &mut *self;
         read_line_internal(Pin::new(reader), cx, buf, bytes, read)
     }
 }

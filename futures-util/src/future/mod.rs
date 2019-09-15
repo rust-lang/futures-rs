@@ -3,15 +3,15 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
 
-pub use futures_core::future::{FusedFuture, Future};
 #[cfg(feature = "alloc")]
 pub use futures_core::future::{BoxFuture, LocalBoxFuture};
+pub use futures_core::future::{FusedFuture, Future};
 
 // Primitive futures
 mod lazy;
@@ -24,13 +24,13 @@ mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};
 
 mod option;
-pub use self::option::{OptionFuture};
+pub use self::option::OptionFuture;
 
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod ready;
-pub use self::ready::{ready, ok, err, Ready};
+pub use self::ready::{err, ok, ready, Ready};
 
 mod join;
 pub use self::join::{join, join3, join4, join5, Join, Join3, Join4, Join5};
@@ -135,8 +135,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
-        where F: FnOnce(Self::Output) -> U,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Output) -> U,
+        Self: Sized,
     {
         assert_future::<U, _>(Map::new(self, f))
     }
@@ -166,9 +167,10 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
-        where F: FnOnce(Self::Output) -> Fut,
-              Fut: Future,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Output) -> Fut,
+        Fut: Future,
+        Self: Sized,
     {
         assert_future::<Fut::Output, _>(Then::new(self, f))
     }
@@ -196,8 +198,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
-        where B: Future<Output = Self::Output>,
-              Self: Sized
+    where
+        B: Future<Output = Self::Output>,
+        Self: Sized,
     {
         Either::Left(self)
     }
@@ -225,8 +228,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn right_future<A>(self) -> Either<A, Self>
-        where A: Future<Output = Self::Output>,
-              Self: Sized,
+    where
+        A: Future<Output = Self::Output>,
+        Self: Sized,
     {
         Either::Right(self)
     }
@@ -250,7 +254,8 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn into_stream(self) -> IntoStream<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         IntoStream::new(self)
     }
@@ -281,8 +286,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Output: Future,
-        Self: Sized
+    where
+        Self::Output: Future,
+        Self: Sized,
     {
         let f = Flatten::new(self);
         assert_future::<<<Self as Future>::Output as Future>::Output, _>(f)
@@ -314,8 +320,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn flatten_stream(self) -> FlattenStream<Self>
-        where Self::Output: Stream,
-              Self: Sized
+    where
+        Self::Output: Stream,
+        Self: Sized,
     {
         FlattenStream::new(self)
     }
@@ -337,7 +344,8 @@ pub trait FutureExt: Future {
     /// This combinator will drop the underlying future as soon as it has been
     /// completed to ensure resources are reclaimed as soon as possible.
     fn fuse(self) -> Fuse<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let f = Fuse::new(self);
         assert_future::<Self::Output, _>(f)
@@ -362,8 +370,9 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
-        where F: FnOnce(&Self::Output),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Output),
+        Self: Sized,
     {
         assert_future::<Self::Output, _>(Inspect::new(self, f))
     }
@@ -401,7 +410,8 @@ pub trait FutureExt: Future {
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
-        where Self: Sized + ::std::panic::UnwindSafe
+    where
+        Self: Sized + ::std::panic::UnwindSafe,
     {
         CatchUnwind::new(self)
     }
@@ -483,7 +493,8 @@ pub trait FutureExt: Future {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed<'a>(self) -> BoxFuture<'a, Self::Output>
-        where Self: Sized + Send + 'a
+    where
+        Self: Sized + Send + 'a,
     {
         Box::pin(self)
     }
@@ -496,7 +507,8 @@ pub trait FutureExt: Future {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed_local<'a>(self) -> LocalBoxFuture<'a, Self::Output>
-        where Self: Sized + 'a
+    where
+        Self: Sized + 'a,
     {
         Box::pin(self)
     }
@@ -504,7 +516,8 @@ pub trait FutureExt: Future {
     /// Turns a [`Future<Output = T>`](Future) into a
     /// [`TryFuture<Ok = T, Error = ()`>](futures_core::future::TryFuture).
     fn unit_error(self) -> UnitError<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         UnitError::new(self)
     }
@@ -512,14 +525,16 @@ pub trait FutureExt: Future {
     /// Turns a [`Future<Output = T>`](Future) into a
     /// [`TryFuture<Ok = T, Error = Never`>](futures_core::future::TryFuture).
     fn never_error(self) -> NeverError<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         NeverError::new(self)
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.
     fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output>
-        where Self: Unpin
+    where
+        Self: Unpin,
     {
         Pin::new(self).poll(cx)
     }
@@ -556,7 +571,8 @@ pub trait FutureExt: Future {
     /// assert_eq!(future_ready.now_or_never().expect("Future not ready"), "foobar");
     /// ```
     fn now_or_never(mut self) -> Option<Self::Output>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let noop_waker = crate::task::noop_waker();
         let mut cx = Context::from_waker(&noop_waker);
@@ -576,7 +592,8 @@ pub trait FutureExt: Future {
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 fn assert_future<T, F>(future: F) -> F
-    where F: Future<Output=T>,
+where
+    F: Future<Output = T>,
 {
     future
 }

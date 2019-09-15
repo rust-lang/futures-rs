@@ -13,15 +13,17 @@ pub(crate) enum TryChain<Fut1, Fut2, Data> {
 impl<Fut1: Unpin, Fut2: Unpin, Data> Unpin for TryChain<Fut1, Fut2, Data> {}
 
 pub(crate) enum TryChainAction<Fut2>
-    where Fut2: TryFuture,
+where
+    Fut2: TryFuture,
 {
     Future(Fut2),
     Output(Result<Fut2::Ok, Fut2::Error>),
 }
 
 impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
-    where Fut1: TryFuture,
-          Fut2: TryFuture,
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture,
 {
     pub(crate) fn new(fut1: Fut1, data: Data) -> TryChain<Fut1, Fut2, Data> {
         TryChain::First(fut1, Some(data))
@@ -39,7 +41,8 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
         cx: &mut Context<'_>,
         f: F,
     ) -> Poll<Result<Fut2::Ok, Fut2::Error>>
-        where F: FnOnce(Result<Fut1::Ok, Fut1::Error>, Data) -> TryChainAction<Fut2>,
+    where
+        F: FnOnce(Result<Fut1::Ok, Fut1::Error>, Data) -> TryChainAction<Fut2>,
     {
         let mut f = Some(f);
 
@@ -50,7 +53,9 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
             let (output, data) = match this {
                 TryChain::First(fut1, data) => {
                     // Poll the first future
-                    let output = ready!(unsafe { Pin::new_unchecked(fut1) }.try_poll(cx));
+                    let output = ready!(
+                        unsafe { Pin::new_unchecked(fut1) }.try_poll(cx)
+                    );
                     (output, data.take().unwrap())
                 }
                 TryChain::Second(fut2) => {

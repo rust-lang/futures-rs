@@ -13,8 +13,8 @@ use std::fmt;
 use std::mem;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 fn sassert_next<S>(s: &mut S, item: S::Item)
 where
@@ -130,7 +130,10 @@ where
 }
 
 // Sends a value on an i32 channel sink
-struct StartSendFut<S: Sink<Item> + Unpin, Item: Unpin>(Option<S>, Option<Item>);
+struct StartSendFut<S: Sink<Item> + Unpin, Item: Unpin>(
+    Option<S>,
+    Option<Item>,
+);
 
 impl<S: Sink<Item> + Unpin, Item: Unpin> StartSendFut<S, Item> {
     fn new(sink: S, item: Item) -> Self {
@@ -216,7 +219,8 @@ fn with_as_map() {
 // test simple use of with_flat_map
 #[test]
 fn with_flat_map() {
-    let mut sink = Vec::new().with_flat_map(|item| stream::iter(vec![item; item]).map(Ok));
+    let mut sink =
+        Vec::new().with_flat_map(|item| stream::iter(vec![item; item]).map(Ok));
     block_on(sink.send(0)).unwrap();
     block_on(sink.send(1)).unwrap();
     block_on(sink.send(2)).unwrap();
@@ -234,11 +238,17 @@ struct ManualFlush<T: Unpin> {
 impl<T: Unpin> Sink<Option<T>> for ManualFlush<T> {
     type Error = ();
 
-    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: Option<T>) -> Result<(), Self::Error> {
+    fn start_send(
+        mut self: Pin<&mut Self>,
+        item: Option<T>,
+    ) -> Result<(), Self::Error> {
         if let Some(item) = item {
             self.data.push(item);
         } else {
@@ -247,7 +257,10 @@ impl<T: Unpin> Sink<Option<T>> for ManualFlush<T> {
         Ok(())
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         if self.data.is_empty() {
             Poll::Ready(Ok(()))
         } else {
@@ -256,7 +269,10 @@ impl<T: Unpin> Sink<Option<T>> for ManualFlush<T> {
         }
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         self.poll_flush(cx)
     }
 }
@@ -281,7 +297,8 @@ impl<T: Unpin> ManualFlush<T> {
 // but doesn't claim to be flushed until the underlying sink is
 #[test]
 fn with_flush_propagate() {
-    let mut sink = ManualFlush::new().with(|x| future::ok::<Option<i32>, ()>(x));
+    let mut sink =
+        ManualFlush::new().with(|x| future::ok::<Option<i32>, ()>(x));
     flag_cx(|flag, cx| {
         unwrap(Pin::new(&mut sink).poll_ready(cx));
         Pin::new(&mut sink).start_send(Some(0)).unwrap();
@@ -352,7 +369,10 @@ impl Allow {
 impl<T: Unpin> Sink<T> for ManualAllow<T> {
     type Error = ();
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         if self.allow.check(cx) {
             Poll::Ready(Ok(()))
         } else {
@@ -360,16 +380,25 @@ impl<T: Unpin> Sink<T> for ManualAllow<T> {
         }
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: T) -> Result<(), Self::Error> {
+    fn start_send(
+        mut self: Pin<&mut Self>,
+        item: T,
+    ) -> Result<(), Self::Error> {
         self.data.push(item);
         Ok(())
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 }
@@ -478,7 +507,8 @@ fn err_into() {
     {
         let cx = &mut panic_context();
         let (tx, _rx) = mpsc::channel(1);
-        let mut tx: SinkErrInto<mpsc::Sender<()>, _, ErrIntoTest> = tx.sink_err_into();
+        let mut tx: SinkErrInto<mpsc::Sender<()>, _, ErrIntoTest> =
+            tx.sink_err_into();
         assert_eq!(Pin::new(&mut tx).start_send(()), Ok(()));
         assert_eq!(Pin::new(&mut tx).poll_flush(cx), Poll::Ready(Ok(())));
     }

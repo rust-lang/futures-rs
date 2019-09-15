@@ -19,7 +19,8 @@ impl<St, Fut, F> Unpin for FilterMap<St, Fut, F>
 where
     St: Unpin,
     Fut: Unpin,
-{}
+{
+}
 
 impl<St, Fut, F> fmt::Debug for FilterMap<St, Fut, F>
 where
@@ -35,16 +36,21 @@ where
 }
 
 impl<St, Fut, F> FilterMap<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending: Option<Fut>);
 
     pub(super) fn new(stream: St, f: F) -> FilterMap<St, Fut, F> {
-        FilterMap { stream, f, pending: None }
+        FilterMap {
+            stream,
+            f,
+            pending: None,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -81,9 +87,10 @@ impl<St, Fut, F> FilterMap<St, Fut, F>
 }
 
 impl<St, Fut, F, T> FusedStream for FilterMap<St, Fut, F>
-    where St: Stream + FusedStream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = Option<T>>,
+where
+    St: Stream + FusedStream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = Option<T>>,
 {
     fn is_terminated(&self) -> bool {
         self.pending.is_none() && self.stream.is_terminated()
@@ -91,9 +98,10 @@ impl<St, Fut, F, T> FusedStream for FilterMap<St, Fut, F>
 }
 
 impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = Option<T>>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = Option<T>>,
 {
     type Item = T;
 
@@ -111,7 +119,8 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
                 self.as_mut().pending().set(Some(fut));
             }
 
-            let item = ready!(self.as_mut().pending().as_pin_mut().unwrap().poll(cx));
+            let item =
+                ready!(self.as_mut().pending().as_pin_mut().unwrap().poll(cx));
             self.as_mut().pending().set(None);
             if item.is_some() {
                 return Poll::Ready(item);
@@ -133,9 +142,10 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for FilterMap<S, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(S::Item) -> Fut,
-          Fut: Future,
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(S::Item) -> Fut,
+    Fut: Future,
 {
     type Error = S::Error;
 

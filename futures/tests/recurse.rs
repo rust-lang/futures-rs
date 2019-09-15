@@ -1,5 +1,5 @@
 use futures::executor::block_on;
-use futures::future::{self, FutureExt, BoxFuture};
+use futures::future::{self, BoxFuture, FutureExt};
 use std::sync::mpsc;
 use std::thread;
 

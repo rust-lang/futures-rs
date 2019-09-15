@@ -1,12 +1,12 @@
 use crate::stream::Fuse;
-use futures_core::stream::{Stream, FusedStream};
+use alloc::vec::Vec;
+use core::mem;
+use core::pin::Pin;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use core::mem;
-use core::pin::Pin;
-use alloc::vec::Vec;
 
 /// Stream for the [`chunks`](super::StreamExt::chunks) method.
 #[derive(Debug)]
@@ -19,8 +19,11 @@ pub struct Chunks<St: Stream> {
 
 impl<St: Unpin + Stream> Unpin for Chunks<St> {}
 
-impl<St: Stream> Chunks<St> where St: Stream {
-    unsafe_unpinned!(items:  Vec<St::Item>);
+impl<St: Stream> Chunks<St>
+where
+    St: Stream,
+{
+    unsafe_unpinned!(items: Vec<St::Item>);
     unsafe_pinned!(stream: Fuse<St>);
 
     pub(super) fn new(stream: St, capacity: usize) -> Chunks<St> {
@@ -86,7 +89,7 @@ impl<St: Stream> Stream for Chunks<St> {
                 Some(item) => {
                     self.as_mut().items().push(item);
                     if self.items.len() >= self.cap {
-                        return Poll::Ready(Some(self.as_mut().take()))
+                        return Poll::Ready(Some(self.as_mut().take()));
                     }
                 }
 
@@ -96,7 +99,8 @@ impl<St: Stream> Stream for Chunks<St> {
                     let last = if self.items.is_empty() {
                         None
                     } else {
-                        let full_buf = mem::replace(self.as_mut().items(), Vec::new());
+                        let full_buf =
+                            mem::replace(self.as_mut().items(), Vec::new());
                         Some(full_buf)
                     };
 

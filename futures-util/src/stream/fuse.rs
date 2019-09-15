@@ -20,7 +20,10 @@ impl<St> Fuse<St> {
     unsafe_unpinned!(done: bool);
 
     pub(super) fn new(stream: St) -> Fuse<St> {
-        Fuse { stream, done: false }
+        Fuse {
+            stream,
+            done: false,
+        }
     }
 
     /// Returns whether the underlying stream has finished or not.

@@ -21,11 +21,14 @@ impl<Fut> UnitError<Fut> {
 impl<Fut: Unpin> Unpin for UnitError<Fut> {}
 
 impl<Fut: FusedFuture> FusedFuture for UnitError<Fut> {
-    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+    fn is_terminated(&self) -> bool {
+        self.future.is_terminated()
+    }
 }
 
 impl<Fut, T> Future for UnitError<Fut>
-    where Fut: Future<Output = T>,
+where
+    Fut: Future<Output = T>,
 {
     type Output = Result<T, ()>;
 

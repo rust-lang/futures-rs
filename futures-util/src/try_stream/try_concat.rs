@@ -37,7 +37,10 @@ where
 {
     type Output = Result<St::Ok, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         loop {
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => {
@@ -47,9 +50,13 @@ where
                     } else {
                         *accum = Some(x)
                     }
-                },
+                }
                 None => {
-                    return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default()))
+                    return Poll::Ready(Ok(self
+                        .as_mut()
+                        .accum()
+                        .take()
+                        .unwrap_or_default()))
                 }
             }
         }

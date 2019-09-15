@@ -18,7 +18,9 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     unsafe_pinned!(stream: Option<St>);
 
     pub(super) fn new(stream: St) -> StreamFuture<St> {
-        StreamFuture { stream: Some(stream) }
+        StreamFuture {
+            stream: Some(stream),
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is

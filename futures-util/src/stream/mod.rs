@@ -4,6 +4,8 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use crate::future::Either;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 use core::pin::Pin;
 use futures_core::future::Future;
 #[cfg(feature = "sink")]
@@ -11,12 +13,10 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
 
-pub use futures_core::stream::{FusedStream, Stream};
 #[cfg(feature = "alloc")]
 pub use futures_core::stream::{BoxStream, LocalBoxStream};
+pub use futures_core::stream::{FusedStream, Stream};
 
 mod iter;
 pub use self::iter::{iter, Iter};
@@ -193,7 +193,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn next(&mut self) -> Next<'_, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Next::new(self)
     }
@@ -227,7 +228,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn into_future(self) -> StreamFuture<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         StreamFuture::new(self)
     }
@@ -256,8 +258,9 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn map<T, F>(self, f: F) -> Map<Self, F>
-        where F: FnMut(Self::Item) -> T,
-              Self: Sized
+    where
+        F: FnMut(Self::Item) -> T,
+        Self: Sized,
     {
         Map::new(self, f)
     }
@@ -301,7 +304,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn enumerate(self) -> Enumerate<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         Enumerate::new(self)
     }
@@ -333,9 +337,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn filter<Fut, F>(self, f: F) -> Filter<Self, Fut, F>
-        where F: FnMut(&Self::Item) -> Fut,
-              Fut: Future<Output = bool>,
-              Self: Sized,
+    where
+        F: FnMut(&Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
     {
         Filter::new(self, f)
     }
@@ -366,9 +371,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn filter_map<Fut, T, F>(self, f: F) -> FilterMap<Self, Fut, F>
-        where F: FnMut(Self::Item) -> Fut,
-              Fut: Future<Output = Option<T>>,
-              Self: Sized,
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = Option<T>>,
+        Self: Sized,
     {
         FilterMap::new(self, f)
     }
@@ -396,9 +402,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
-        where F: FnMut(Self::Item) -> Fut,
-              Fut: Future,
-              Self: Sized
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future,
+        Self: Sized,
     {
         Then::new(self, f)
     }
@@ -429,7 +436,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn collect<C: Default + Extend<Self::Item>>(self) -> Collect<Self, C>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Collect::new(self)
     }
@@ -467,9 +475,11 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn concat(self) -> Concat<Self>
-    where Self: Sized,
-          Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> +
-                      IntoIterator + Default,
+    where
+        Self: Sized,
+        Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item>
+            + IntoIterator
+            + Default,
     {
         Concat::new(self)
     }
@@ -495,9 +505,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn fold<T, Fut, F>(self, init: T, f: F) -> Fold<Self, Fut, T, F>
-        where F: FnMut(T, Self::Item) -> Fut,
-              Fut: Future<Output = T>,
-              Self: Sized
+    where
+        F: FnMut(T, Self::Item) -> Fut,
+        Fut: Future<Output = T>,
+        Self: Sized,
     {
         Fold::new(self, f, init)
     }
@@ -534,8 +545,9 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Item: Stream,
-              Self: Sized
+    where
+        Self::Item: Stream,
+        Self: Sized,
     {
         Flatten::new(self)
     }
@@ -563,9 +575,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn skip_while<Fut, F>(self, f: F) -> SkipWhile<Self, Fut, F>
-        where F: FnMut(&Self::Item) -> Fut,
-              Fut: Future<Output = bool>,
-              Self: Sized
+    where
+        F: FnMut(&Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
     {
         SkipWhile::new(self, f)
     }
@@ -592,9 +605,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn take_while<Fut, F>(self, f: F) -> TakeWhile<Self, Fut, F>
-        where F: FnMut(&Self::Item) -> Fut,
-              Fut: Future<Output = bool>,
-              Self: Sized
+    where
+        F: FnMut(&Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
     {
         TakeWhile::new(self, f)
     }
@@ -633,9 +647,10 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn for_each<Fut, F>(self, f: F) -> ForEach<Self, Fut, F>
-        where F: FnMut(Self::Item) -> Fut,
-              Fut: Future<Output = ()>,
-              Self: Sized
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = ()>,
+        Self: Sized,
     {
         ForEach::new(self, f)
     }
@@ -695,9 +710,10 @@ pub trait StreamExt: Stream {
         limit: impl Into<Option<usize>>,
         f: F,
     ) -> ForEachConcurrent<Self, Fut, F>
-        where F: FnMut(Self::Item) -> Fut,
-              Fut: Future<Output = ()>,
-              Self: Sized,
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = ()>,
+        Self: Sized,
     {
         ForEachConcurrent::new(self, limit.into(), f)
     }
@@ -719,7 +735,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn take(self, n: u64) -> Take<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Take::new(self, n)
     }
@@ -741,7 +758,8 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn skip(self, n: u64) -> Skip<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Skip::new(self, n)
     }
@@ -786,7 +804,8 @@ pub trait StreamExt: Stream {
     /// // ...
     /// ```
     fn fuse(self) -> Fuse<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Fuse::new(self)
     }
@@ -863,7 +882,8 @@ pub trait StreamExt: Stream {
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
-        where Self: Sized + std::panic::UnwindSafe
+    where
+        Self: Sized + std::panic::UnwindSafe,
     {
         CatchUnwind::new(self)
     }
@@ -874,7 +894,8 @@ pub trait StreamExt: Stream {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed<'a>(self) -> BoxStream<'a, Self::Item>
-        where Self: Sized + Send + 'a
+    where
+        Self: Sized + Send + 'a,
     {
         Box::pin(self)
     }
@@ -887,7 +908,8 @@ pub trait StreamExt: Stream {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed_local<'a>(self) -> LocalBoxStream<'a, Self::Item>
-        where Self: Sized + 'a
+    where
+        Self: Sized + 'a,
     {
         Box::pin(self)
     }
@@ -910,8 +932,9 @@ pub trait StreamExt: Stream {
     )]
     #[cfg(feature = "alloc")]
     fn buffered(self, n: usize) -> Buffered<Self>
-        where Self::Item: Future,
-              Self: Sized
+    where
+        Self::Item: Future,
+        Self: Sized,
     {
         Buffered::new(self, n)
     }
@@ -957,8 +980,9 @@ pub trait StreamExt: Stream {
     )]
     #[cfg(feature = "alloc")]
     fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
-        where Self::Item: Future,
-              Self: Sized
+    where
+        Self::Item: Future,
+        Self: Sized,
     {
         BufferUnordered::new(self, n)
     }
@@ -986,8 +1010,9 @@ pub trait StreamExt: Stream {
     /// ```
     ///
     fn zip<St>(self, other: St) -> Zip<Self, St>
-        where St: Stream,
-              Self: Sized,
+    where
+        St: Stream,
+        Self: Sized,
     {
         Zip::new(self, other)
     }
@@ -1016,8 +1041,9 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn chain<St>(self, other: St) -> Chain<Self, St>
-        where St: Stream<Item = Self::Item>,
-              Self: Sized
+    where
+        St: Stream<Item = Self::Item>,
+        Self: Sized,
     {
         Chain::new(self, other)
     }
@@ -1026,7 +1052,8 @@ pub trait StreamExt: Stream {
     ///
     /// Calling `peek` returns a reference to the next item in the stream.
     fn peekable(self) -> Peekable<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Peekable::new(self)
     }
@@ -1051,7 +1078,8 @@ pub trait StreamExt: Stream {
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
     fn chunks(self, capacity: usize) -> Chunks<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Chunks::new(self, capacity)
     }
@@ -1091,7 +1119,8 @@ pub trait StreamExt: Stream {
     )]
     #[cfg(feature = "alloc")]
     fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)
-        where Self: Sink<Item> + Sized
+    where
+        Self: Sink<Item> + Sized,
     {
         split::split(self)
     }
@@ -1102,8 +1131,9 @@ pub trait StreamExt: Stream {
     /// library where it allows easily inspecting each value as it passes
     /// through the stream, for example to debug what's going on.
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
-        where F: FnMut(&Self::Item),
-              Self: Sized,
+    where
+        F: FnMut(&Self::Item),
+        Self: Sized,
     {
         Inspect::new(self, f)
     }
@@ -1114,8 +1144,9 @@ pub trait StreamExt: Stream {
     /// This can be used in combination with the `right_stream` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn left_stream<B>(self) -> Either<Self, B>
-        where B: Stream<Item = Self::Item>,
-              Self: Sized
+    where
+        B: Stream<Item = Self::Item>,
+        Self: Sized,
     {
         Either::Left(self)
     }
@@ -1126,8 +1157,9 @@ pub trait StreamExt: Stream {
     /// This can be used in combination with the `left_stream` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn right_stream<B>(self) -> Either<B, Self>
-        where B: Stream<Item = Self::Item>,
-              Self: Sized
+    where
+        B: Stream<Item = Self::Item>,
+        Self: Sized,
     {
         Either::Right(self)
     }
@@ -1138,7 +1170,8 @@ pub trait StreamExt: Stream {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>>
-    where Self: Unpin
+    where
+        Self: Unpin,
     {
         Pin::new(self).poll_next(cx)
     }
@@ -1191,7 +1224,10 @@ pub trait StreamExt: Stream {
     /// assert_eq!(total, 6);
     /// # });
     /// ```
-    fn select_next_some(&mut self) -> SelectNextSome<'_, Self> where Self: Unpin + FusedStream {
+    fn select_next_some(&mut self) -> SelectNextSome<'_, Self>
+    where
+        Self: Unpin + FusedStream,
+    {
         SelectNextSome::new(self)
     }
 }

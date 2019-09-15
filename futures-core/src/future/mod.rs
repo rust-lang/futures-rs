@@ -12,11 +12,13 @@ pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
 #[cfg(feature = "alloc")]
-pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
+pub type BoxFuture<'a, T> =
+    Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// `BoxFuture`, but without the `Send` requirement.
 #[cfg(feature = "alloc")]
-pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
+pub type LocalBoxFuture<'a, T> =
+    Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
 /// A future which tracks whether or not the underlying future
 /// should no longer be polled.
@@ -76,7 +78,8 @@ pub trait TryFuture: Future + private_try_future::Sealed {
 }
 
 impl<F, T, E> TryFuture for F
-    where F: ?Sized + Future<Output = Result<T, E>>
+where
+    F: ?Sized + Future<Output = Result<T, E>>,
 {
     type Ok = T;
     type Error = E;
@@ -89,8 +92,8 @@ impl<F, T, E> TryFuture for F
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use alloc::boxed::Box;
     use super::*;
+    use alloc::boxed::Box;
 
     impl<F: FusedFuture + ?Sized + Unpin> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {

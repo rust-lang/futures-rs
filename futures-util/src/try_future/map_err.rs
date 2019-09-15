@@ -24,15 +24,19 @@ impl<Fut, F> MapErr<Fut, F> {
 impl<Fut: Unpin, F> Unpin for MapErr<Fut, F> {}
 
 impl<Fut, F, E> FusedFuture for MapErr<Fut, F>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Error) -> E,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Error) -> E,
 {
-    fn is_terminated(&self) -> bool { self.f.is_none() }
+    fn is_terminated(&self) -> bool {
+        self.f.is_none()
+    }
 }
 
 impl<Fut, F, E> Future for MapErr<Fut, F>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Error) -> E,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Error) -> E,
 {
     type Output = Result<Fut::Ok, E>;
 
@@ -40,13 +44,11 @@ impl<Fut, F, E> Future for MapErr<Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.as_mut()
-            .future()
-            .try_poll(cx)
-            .map(|result| {
-                let f = self.as_mut().f().take()
-                    .expect("MapErr must not be polled after it returned `Poll::Ready`");
-                result.map_err(f)
-            })
+        self.as_mut().future().try_poll(cx).map(|result| {
+            let f = self.as_mut().f().take().expect(
+                "MapErr must not be polled after it returned `Poll::Ready`",
+            );
+            result.map_err(f)
+        })
     }
 }

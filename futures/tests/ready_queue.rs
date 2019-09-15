@@ -55,13 +55,19 @@ fn resolving_errors() {
 
         drop(tx2);
 
-        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
+        assert_eq!(
+            Poll::Ready(Some(Err(oneshot::Canceled))),
+            queue.poll_next_unpin(cx)
+        );
         assert!(!queue.poll_next_unpin(cx).is_ready());
 
         drop(tx1);
         tx3.send("world2").unwrap();
 
-        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
+        assert_eq!(
+            Poll::Ready(Some(Err(oneshot::Canceled))),
+            queue.poll_next_unpin(cx)
+        );
         assert_eq!(Poll::Ready(Some(Ok("world2"))), queue.poll_next_unpin(cx));
         assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
     }));
@@ -122,7 +128,8 @@ fn stress() {
 
             let mut sync = block_on_stream(queue);
 
-            let mut rx: Vec<_> = (&mut sync).take(n).map(|res| res.unwrap()).collect();
+            let mut rx: Vec<_> =
+                (&mut sync).take(n).map(|res| res.unwrap()).collect();
 
             assert_eq!(rx.len(), n);
 
@@ -143,7 +150,8 @@ fn panicking_future_dropped() {
         let mut queue = FuturesUnordered::new();
         queue.push(future::poll_fn(|_| -> Poll<Result<i32, i32>> { panic!() }));
 
-        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next_unpin(cx)));
+        let r =
+            panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next_unpin(cx)));
         assert!(r.is_err());
         assert!(queue.is_empty());
         assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));

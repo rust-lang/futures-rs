@@ -86,7 +86,8 @@ pub fn join(input: TokenStream) -> TokenStream {
     // should be def_site, but that's unstable
     let span = Span::call_site();
 
-    let (future_let_bindings, future_names) = bind_futures(&futures_crate, parsed.fut_exprs, span);
+    let (future_let_bindings, future_names) =
+        bind_futures(&futures_crate, parsed.fut_exprs, span);
 
     let poll_futures = future_names.iter().map(|fut| {
         quote! {
@@ -129,7 +130,8 @@ pub fn try_join(input: TokenStream) -> TokenStream {
     // should be def_site, but that's unstable
     let span = Span::call_site();
 
-    let (future_let_bindings, future_names) = bind_futures(&futures_crate, parsed.fut_exprs, span);
+    let (future_let_bindings, future_names) =
+        bind_futures(&futures_crate, parsed.fut_exprs, span);
 
     let poll_futures = future_names.iter().map(|fut| {
         quote! {

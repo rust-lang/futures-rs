@@ -90,7 +90,10 @@ where
 {
     type Item = <St::Item as Stream>::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next.is_none() {
                 match ready!(self.as_mut().stream().poll_next(cx)) {
@@ -99,7 +102,9 @@ where
                 }
             }
 
-            if let Some(item) = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx)) {
+            if let Some(item) =
+                ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx))
+            {
                 return Poll::Ready(Some(item));
             } else {
                 self.as_mut().next().set(None);

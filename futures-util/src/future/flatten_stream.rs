@@ -16,14 +16,15 @@ impl<Fut: Future> FlattenStream<Fut> {
 
     pub(super) fn new(future: Fut) -> FlattenStream<Fut> {
         FlattenStream {
-            state: State::Future(future)
+            state: State::Future(future),
         }
     }
 }
 
 impl<Fut> fmt::Debug for FlattenStream<Fut>
-    where Fut: Future + fmt::Debug,
-          Fut::Output: fmt::Debug,
+where
+    Fut: Future + fmt::Debug,
+    Fut::Output: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlattenStream")
@@ -55,8 +56,9 @@ impl<Fut, St> State<Fut, St> {
 }
 
 impl<Fut> FusedStream for FlattenStream<Fut>
-    where Fut: Future,
-          Fut::Output: Stream + FusedStream,
+where
+    Fut: Future,
+    Fut::Output: Stream + FusedStream,
 {
     fn is_terminated(&self) -> bool {
         match &self.state {
@@ -67,12 +69,16 @@ impl<Fut> FusedStream for FlattenStream<Fut>
 }
 
 impl<Fut> Stream for FlattenStream<Fut>
-    where Fut: Future,
-          Fut::Output: Stream,
+where
+    Fut: Future,
+    Fut::Output: Stream,
 {
     type Item = <Fut::Output as Stream>::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         loop {
             match self.as_mut().state().get_pin_mut() {
                 State::Future(f) => {

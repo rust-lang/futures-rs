@@ -49,8 +49,9 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// # });
 /// ```
 pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     Unfold {
         f,
@@ -89,8 +90,9 @@ impl<T, F, Fut> Unfold<T, F, Fut> {
 }
 
 impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     fn is_terminated(&self) -> bool {
         self.state.is_none() && self.fut.is_none()
@@ -98,8 +100,9 @@ impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
 }
 
 impl<T, F, Fut, Item> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     type Item = Item;
 

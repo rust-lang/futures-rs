@@ -109,7 +109,8 @@ where
         bufs: &mut [IoSliceMut<'_>],
     ) -> Poll<io::Result<usize>> {
         if !self.done_first {
-            let n = ready!(self.as_mut().first().poll_read_vectored(cx, bufs)?);
+            let n =
+                ready!(self.as_mut().first().poll_read_vectored(cx, bufs)?);
             if n == 0 && bufs.iter().any(|b| !b.is_empty()) {
                 *self.as_mut().done_first() = true
             } else {
@@ -135,7 +136,10 @@ where
     T: AsyncBufRead,
     U: AsyncBufRead,
 {
-    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&[u8]>> {
         let Self {
             first,
             second,

@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -23,7 +23,8 @@ impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
 where
     Si: Sink<Item> + Unpin,
     St: Unpin,
-{}
+{
+}
 
 impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>
 where
@@ -87,8 +88,12 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Si::Error>> {
-        let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { self.get_unchecked_mut() };
+        let WithFlatMap {
+            sink,
+            stream,
+            buffer,
+            ..
+        } = unsafe { self.get_unchecked_mut() };
         let mut sink = unsafe { Pin::new_unchecked(sink) };
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 

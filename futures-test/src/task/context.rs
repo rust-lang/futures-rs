@@ -1,4 +1,4 @@
-use crate::task::{panic_waker_ref, noop_waker_ref};
+use crate::task::{noop_waker_ref, panic_waker_ref};
 use futures_core::task::Context;
 
 /// Create a new [`Context`](core::task::Context) where the

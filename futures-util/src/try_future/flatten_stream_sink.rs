@@ -66,7 +66,9 @@ impl<Fut, S> State<Fut, S> {
             State::Future(f) => State::Future(unsafe { Pin::new_unchecked(f) }),
             // safety: the stream we're repinning here will never be moved;
             // it will just be polled, then dropped in place
-            State::StreamOrSink(s) => State::StreamOrSink(unsafe { Pin::new_unchecked(s) }),
+            State::StreamOrSink(s) => {
+                State::StreamOrSink(unsafe { Pin::new_unchecked(s) })
+            }
             State::Done => State::Done,
         }
     }
@@ -76,7 +78,10 @@ impl<Fut> State<Fut, Fut::Ok>
 where
     Fut: TryFuture,
 {
-    fn poll_future(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Fut::Error>> {
+    fn poll_future(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Fut::Error>> {
         if let State::Future(f) = self.as_mut().get_pin_mut() {
             match ready!(f.try_poll(cx)) {
                 Ok(s) => {
@@ -118,7 +123,10 @@ where
 {
     type Item = Result<<Fut::Ok as TryStream>::Ok, Fut::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         ready!(self.as_mut().state().poll_future(cx)?);
         match self.as_mut().state().get_pin_mut() {
             State::StreamOrSink(s) => s.try_poll_next(cx),
@@ -156,7 +164,10 @@ where
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         match self.state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_flush(cx),
             // if sink not yet resolved, nothing written ==> everything flushed

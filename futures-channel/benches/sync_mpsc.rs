@@ -7,8 +7,8 @@ use {
     futures::{
         channel::mpsc::{self, Sender, UnboundedSender},
         ready,
-        stream::{Stream, StreamExt},
         sink::Sink,
+        stream::{Stream, StreamExt},
         task::{Context, Poll},
     },
     futures_test::task::noop_context,
@@ -25,7 +25,6 @@ fn unbounded_1_tx(b: &mut Bencher) {
         // 1000 iterations to avoid measuring overhead of initialization
         // Result should be divided by 1000
         for i in 0..1000 {
-
             // Poll, not ready, park
             assert_eq!(Poll::Pending, rx.poll_next_unpin(&mut cx));
 
@@ -73,7 +72,6 @@ fn unbounded_uncontended(b: &mut Bencher) {
     })
 }
 
-
 /// A Stream that continuously sends incrementing number of the queue
 struct TestSender {
     tx: Sender<u32>,
@@ -84,9 +82,10 @@ struct TestSender {
 impl Stream for TestSender {
     type Item = u32;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<Self::Item>>
-    {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
         let mut tx = Pin::new(&mut this.tx);
 
@@ -123,21 +122,27 @@ fn bounded_100_tx(b: &mut Bencher) {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = mpsc::channel(0);
 
-        let mut tx: Vec<_> = (0..100).map(|_| {
-            TestSender {
+        let mut tx: Vec<_> = (0..100)
+            .map(|_| TestSender {
                 tx: tx.clone(),
-                last: 0
-            }
-        }).collect();
+                last: 0,
+            })
+            .collect();
 
         for i in 0..10 {
             for j in 0..tx.len() {
                 // Send an item
-                assert_eq!(Poll::Ready(Some(i + 1)), tx[j].poll_next_unpin(&mut cx));
+                assert_eq!(
+                    Poll::Ready(Some(i + 1)),
+                    tx[j].poll_next_unpin(&mut cx)
+                );
                 // Then block
                 assert_eq!(Poll::Pending, tx[j].poll_next_unpin(&mut cx));
                 // Recv the item
-                assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(&mut cx));
+                assert_eq!(
+                    Poll::Ready(Some(i + 1)),
+                    rx.poll_next_unpin(&mut cx)
+                );
             }
         }
     })

@@ -13,7 +13,8 @@ fn run<F: Future + Send + 'static>(future: F) {
 #[test]
 fn join1() {
     let (tx, rx) = mpsc::channel();
-    run(future::try_join(ok::<i32, i32>(1), ok(2)).map_ok(move |v| tx.send(v).unwrap()));
+    run(future::try_join(ok::<i32, i32>(1), ok(2))
+        .map_ok(move |v| tx.send(v).unwrap()));
     assert_eq!(rx.recv(), Ok((1, 2)));
     assert!(rx.recv().is_err());
 }
@@ -64,7 +65,8 @@ fn join5() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (c3, p3) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    run(future::try_join(future::try_join(p1, p2), p3).map_ok(move |v| tx.send(v).unwrap()));
+    run(future::try_join(future::try_join(p1, p2), p3)
+        .map_ok(move |v| tx.send(v).unwrap()));
     assert!(rx.try_recv().is_err());
     c1.send(1).unwrap();
     assert!(rx.try_recv().is_err());
@@ -99,7 +101,8 @@ fn select2() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
+    run(future::try_select(p1, p2)
+        .map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
@@ -118,7 +121,8 @@ fn select3() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
+    run(future::try_select(p1, p2)
+        .map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();

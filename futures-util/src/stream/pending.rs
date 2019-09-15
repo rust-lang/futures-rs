@@ -14,7 +14,9 @@ pub struct Pending<T> {
 ///
 /// The returned stream will always return `Pending` when polled.
 pub fn pending<T>() -> Pending<T> {
-    Pending { _data: marker::PhantomData }
+    Pending {
+        _data: marker::PhantomData,
+    }
 }
 
 impl<T> Unpin for Pending<T> {}
@@ -28,7 +30,10 @@ impl<T> FusedStream for Pending<T> {
 impl<T> Stream for Pending<T> {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         Poll::Pending
     }
 

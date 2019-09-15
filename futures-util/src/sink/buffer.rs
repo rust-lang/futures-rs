@@ -1,9 +1,9 @@
-use futures_core::stream::{Stream, FusedStream};
+use alloc::collections::VecDeque;
+use core::pin::Pin;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use core::pin::Pin;
-use alloc::collections::VecDeque;
 
 /// Sink for the [`buffer`](super::SinkExt::buffer) method.
 #[derive(Debug)]
@@ -70,10 +70,16 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
 }
 
 // Forwarding impl of Stream from the underlying sink
-impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
+impl<S, Item> Stream for Buffer<S, Item>
+where
+    S: Sink<Item> + Stream,
+{
     type Item = S::Item;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 
@@ -82,7 +88,10 @@ impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
     }
 }
 
-impl<S, Item> FusedStream for Buffer<S, Item> where S: Sink<Item> + FusedStream {
+impl<S, Item> FusedStream for Buffer<S, Item>
+where
+    S: Sink<Item> + FusedStream,
+{
     fn is_terminated(&self) -> bool {
         self.sink.is_terminated()
     }

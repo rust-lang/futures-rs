@@ -29,14 +29,19 @@ impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
     fn project(self: Pin<&mut Self>) -> (Pin<&mut R>, Pin<&mut W>, &mut u64) {
         unsafe {
             let this = self.get_unchecked_mut();
-            (Pin::new_unchecked(&mut this.reader), Pin::new(&mut *this.writer), &mut this.amt)
+            (
+                Pin::new_unchecked(&mut this.reader),
+                Pin::new(&mut *this.writer),
+                &mut this.amt,
+            )
         }
     }
 }
 
 impl<R, W> Future for CopyBufInto<'_, R, W>
-    where R: AsyncBufRead,
-          W: AsyncWrite + Unpin + ?Sized,
+where
+    R: AsyncBufRead,
+    W: AsyncWrite + Unpin + ?Sized,
 {
     type Output = io::Result<u64>;
 
@@ -51,7 +56,7 @@ impl<R, W> Future for CopyBufInto<'_, R, W>
 
             let i = ready!(writer.as_mut().poll_write(cx, buffer))?;
             if i == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
             *amt += i as u64;
             reader.as_mut().consume(i);

@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures::executor::block_on_stream;
-use futures::future::{ok, err, TryFutureExt};
+use futures::future::{err, ok, TryFutureExt};
 use futures::sink::Sink;
 use futures::stream::{self, Stream, StreamExt};
 use futures::task::{Context, Poll};
@@ -20,13 +20,16 @@ fn successful_future() {
 }
 
 struct PanickingStream<T, E> {
-    _marker: PhantomData<(T, E)>
+    _marker: PhantomData<(T, E)>,
 }
 
 impl<T, E> Stream for PanickingStream<T, E> {
     type Item = Result<T, E>;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         panic!()
     }
 }
@@ -44,23 +47,35 @@ struct StreamSink<T, E, Item>(PhantomData<(T, E, Item)>);
 
 impl<T, E, Item> Stream for StreamSink<T, E, Item> {
     type Item = Result<T, E>;
-    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         panic!()
     }
 }
 
 impl<T, E, Item> Sink<Item> for StreamSink<T, E, Item> {
     type Error = E;
-    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
     fn start_send(self: Pin<&mut Self>, _: Item) -> Result<(), Self::Error> {
         panic!()
     }
-    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
-    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         panic!()
     }
 }

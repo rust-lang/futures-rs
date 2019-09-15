@@ -1,8 +1,8 @@
 use crate::future::FutureExt;
+use alloc::vec::Vec;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
-use alloc::vec::Vec;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
@@ -31,11 +31,12 @@ impl<Fut: Unpin> Unpin for SelectAll<Fut> {}
 ///
 /// This function will panic if the iterator specified contains no items.
 pub fn select_all<I>(iter: I) -> SelectAll<I::Item>
-    where I: IntoIterator,
-          I::Item: Future + Unpin,
+where
+    I: IntoIterator,
+    I::Item: Future + Unpin,
 {
     let ret = SelectAll {
-        inner: iter.into_iter().collect()
+        inner: iter.into_iter().collect(),
     };
     assert!(!ret.inner.is_empty());
     ret
@@ -44,12 +45,15 @@ pub fn select_all<I>(iter: I) -> SelectAll<I::Item>
 impl<Fut: Future + Unpin> Future for SelectAll<Fut> {
     type Output = (Fut::Output, usize, Vec<Fut>);
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let item = self.inner.iter_mut().enumerate().find_map(|(i, f)| {
-            match f.poll_unpin(cx) {
-                Poll::Pending => None,
-                Poll::Ready(e) => Some((i, e)),
-            }
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        let item = self.inner.iter_mut().enumerate().find_map(|(i, f)| match f
+            .poll_unpin(cx)
+        {
+            Poll::Pending => None,
+            Poll::Ready(e) => Some((i, e)),
         });
         match item {
             Some((idx, res)) => {

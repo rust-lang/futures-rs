@@ -1,8 +1,8 @@
+use crate::future::Either;
+use crate::try_future::TryFutureExt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use crate::future::Either;
-use crate::try_future::TryFutureExt;
 
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -49,13 +49,19 @@ impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
 /// }
 /// ```
 pub fn try_select<A, B>(future1: A, future2: B) -> TrySelect<A, B>
-    where A: TryFuture + Unpin, B: TryFuture + Unpin
+where
+    A: TryFuture + Unpin,
+    B: TryFuture + Unpin,
 {
-    TrySelect { inner: Some((future1, future2)) }
+    TrySelect {
+        inner: Some((future1, future2)),
+    }
 }
 
 impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
-    where A: TryFuture, B: TryFuture
+where
+    A: TryFuture,
+    B: TryFuture,
 {
     #[allow(clippy::type_complexity)]
     type Output = Result<
@@ -63,8 +69,12 @@ impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
         Either<(A::Error, B), (B::Error, A)>,
     >;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        let (mut a, mut b) =
+            self.inner.take().expect("cannot poll Select twice");
         match a.try_poll_unpin(cx) {
             Poll::Ready(Err(x)) => Poll::Ready(Err(Either::Left((x, b)))),
             Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Left((x, b)))),
@@ -75,7 +85,7 @@ impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
                     self.inner = Some((a, b));
                     Poll::Pending
                 }
-            }
+            },
         }
     }
 }

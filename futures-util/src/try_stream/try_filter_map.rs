@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::{TryFuture};
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::future::TryFuture;
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -17,8 +17,11 @@ pub struct TryFilterMap<St, Fut, F> {
 }
 
 impl<St, Fut, F> Unpin for TryFilterMap<St, Fut, F>
-    where St: Unpin, Fut: Unpin,
-{}
+where
+    St: Unpin,
+    Fut: Unpin,
+{
+}
 
 impl<St, Fut, F> fmt::Debug for TryFilterMap<St, Fut, F>
 where
@@ -39,7 +42,11 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
     unsafe_pinned!(pending: Option<Fut>);
 
     pub(super) fn new(stream: St, f: F) -> Self {
-        TryFilterMap { stream, f, pending: None }
+        TryFilterMap {
+            stream,
+            f,
+            pending: None,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -76,9 +83,10 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
 }
 
 impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
-    where St: TryStream + FusedStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream + FusedStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut(St::Ok) -> Fut,
 {
     fn is_terminated(&self) -> bool {
         self.pending.is_none() && self.stream.is_terminated()
@@ -86,9 +94,10 @@ impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
 }
 
 impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
-    where St: TryStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut(St::Ok) -> Fut,
 {
     type Item = Result<T, St::Error>;
 
@@ -98,15 +107,21 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
-                    Some(x) => x,
-                    None => return Poll::Ready(None),
-                };
+                let item =
+                    match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                        Some(x) => x,
+                        None => return Poll::Ready(None),
+                    };
                 let fut = (self.as_mut().f())(item);
                 self.as_mut().pending().set(Some(fut));
             }
 
-            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(cx));
+            let result = ready!(self
+                .as_mut()
+                .pending()
+                .as_pin_mut()
+                .unwrap()
+                .try_poll(cx));
             self.as_mut().pending().set(None);
             if let Some(x) = result? {
                 return Poll::Ready(Some(Ok(x)));
@@ -128,7 +143,8 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for TryFilterMap<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

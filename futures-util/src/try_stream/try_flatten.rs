@@ -93,7 +93,10 @@ where
 {
     type Item = Result<<St::Ok as TryStream>::Ok, <St::Ok as TryStream>::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next.is_none() {
                 match ready!(self.as_mut().stream().try_poll_next(cx)?) {

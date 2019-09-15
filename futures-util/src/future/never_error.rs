@@ -22,15 +22,21 @@ impl<Fut> NeverError<Fut> {
 impl<Fut: Unpin> Unpin for NeverError<Fut> {}
 
 impl<Fut: FusedFuture> FusedFuture for NeverError<Fut> {
-    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+    fn is_terminated(&self) -> bool {
+        self.future.is_terminated()
+    }
 }
 
 impl<Fut, T> Future for NeverError<Fut>
-    where Fut: Future<Output = T>,
+where
+    Fut: Future<Output = T>,
 {
     type Output = Result<T, Never>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Self::Output> {
         self.future().poll(cx).map(Ok)
     }
 }

@@ -1,7 +1,7 @@
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use futures_sink::{Sink};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the [`sink_map_err`](super::SinkExt::sink_map_err) method.
@@ -51,8 +51,9 @@ impl<Si, F> SinkMapErr<Si, F> {
 }
 
 impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
-    where Si: Sink<Item>,
-          F: FnOnce(Si::Error) -> E,
+where
+    Si: Sink<Item>,
+    F: FnOnce(Si::Error) -> E,
 {
     type Error = E;
 
@@ -60,28 +61,40 @@ impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        self.as_mut().sink().poll_ready(cx).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut()
+            .sink()
+            .poll_ready(cx)
+            .map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
     ) -> Result<(), Self::Error> {
-        self.as_mut().sink().start_send(item).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut()
+            .sink()
+            .start_send(item)
+            .map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        self.as_mut().sink().poll_flush(cx).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut()
+            .sink()
+            .poll_flush(cx)
+            .map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        self.as_mut().sink().poll_close(cx).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut()
+            .sink()
+            .poll_close(cx)
+            .map_err(|e| self.as_mut().take_f()(e))
     }
 }
 

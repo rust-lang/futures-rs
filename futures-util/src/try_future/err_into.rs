@@ -26,23 +26,25 @@ impl<Fut, E> ErrInto<Fut, E> {
 }
 
 impl<Fut, E> FusedFuture for ErrInto<Fut, E>
-    where Fut: TryFuture + FusedFuture,
-          Fut::Error: Into<E>,
+where
+    Fut: TryFuture + FusedFuture,
+    Fut::Error: Into<E>,
 {
-    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+    fn is_terminated(&self) -> bool {
+        self.future.is_terminated()
+    }
 }
 
 impl<Fut, E> Future for ErrInto<Fut, E>
-    where Fut: TryFuture,
-          Fut::Error: Into<E>,
+where
+    Fut: TryFuture,
+    Fut::Error: Into<E>,
 {
     type Output = Result<Fut::Ok, E>;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.future()
+            .try_poll(cx)
             .map(|res| res.map_err(Into::into))
     }
 }

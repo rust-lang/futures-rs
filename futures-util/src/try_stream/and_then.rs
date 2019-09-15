@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -37,12 +37,17 @@ impl<St, Fut, F> AndThen<St, Fut, F> {
 }
 
 impl<St, Fut, F> AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
-        Self { stream, future: None, f }
+        Self {
+            stream,
+            future: None,
+            f,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -79,9 +84,10 @@ impl<St, Fut, F> AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     type Item = Result<Fut::Ok, St::Error>;
 
@@ -98,7 +104,8 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
             self.as_mut().future().set(Some(fut));
         }
 
-        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
+        let e =
+            ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }
@@ -116,9 +123,10 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -128,7 +136,8 @@ impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for AndThen<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

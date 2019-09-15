@@ -46,5 +46,4 @@ impl<T> Future for Pending<T> {
     }
 }
 
-impl<T> Unpin for Pending<T> {
-}
+impl<T> Unpin for Pending<T> {}

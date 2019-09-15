@@ -106,7 +106,7 @@ pub trait TryStreamExt: TryStream {
     fn err_into<E>(self) -> ErrInto<Self, E>
     where
         Self: Sized,
-        Self::Error: Into<E>
+        Self::Error: Into<E>,
     {
         ErrInto::new(self)
     }
@@ -200,9 +200,10 @@ pub trait TryStreamExt: TryStream {
     /// });
     /// ```
     fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
-        where F: FnMut(Self::Ok) -> Fut,
-              Fut: TryFuture<Error = Self::Error>,
-              Self: Sized,
+    where
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: TryFuture<Error = Self::Error>,
+        Self: Sized,
     {
         AndThen::new(self, f)
     }
@@ -225,9 +226,10 @@ pub trait TryStreamExt: TryStream {
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
-        where F: FnMut(Self::Error) -> Fut,
-              Fut: TryFuture<Ok = Self::Ok>,
-              Self: Sized,
+    where
+        F: FnMut(Self::Error) -> Fut,
+        Fut: TryFuture<Ok = Self::Ok>,
+        Self: Sized,
     {
         OrElse::new(self, f)
     }
@@ -239,8 +241,9 @@ pub trait TryStreamExt: TryStream {
     /// easily inspecting the success value as it passes through the stream, for
     /// example to debug what's going on.
     fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
-        where F: FnMut(&Self::Ok),
-              Self: Sized,
+    where
+        F: FnMut(&Self::Ok),
+        Self: Sized,
     {
         InspectOk::new(self, f)
     }
@@ -251,8 +254,9 @@ pub trait TryStreamExt: TryStream {
     /// easily inspecting the error value as it passes through the stream, for
     /// example to debug what's going on.
     fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
-        where F: FnMut(&Self::Error),
-              Self: Sized,
+    where
+        F: FnMut(&Self::Error),
+        Self: Sized,
     {
         InspectErr::new(self, f)
     }
@@ -279,7 +283,8 @@ pub trait TryStreamExt: TryStream {
     /// take_stream(make_try_stream().into_stream());
     /// ```
     fn into_stream(self) -> IntoStream<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         IntoStream::new(self)
     }
@@ -305,7 +310,8 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_next(&mut self) -> TryNext<'_, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         TryNext::new(self)
     }
@@ -344,9 +350,10 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_for_each<Fut, F>(self, f: F) -> TryForEach<Self, Fut, F>
-        where F: FnMut(Self::Ok) -> Fut,
-              Fut: TryFuture<Ok = (), Error=Self::Error>,
-              Self: Sized
+    where
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: TryFuture<Ok = (), Error = Self::Error>,
+        Self: Sized,
     {
         TryForEach::new(self, f)
     }
@@ -372,9 +379,10 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_skip_while<Fut, F>(self, f: F) -> TrySkipWhile<Self, Fut, F>
-        where F: FnMut(&Self::Ok) -> Fut,
-              Fut: TryFuture<Ok = bool, Error = Self::Error>,
-              Self: Sized
+    where
+        F: FnMut(&Self::Ok) -> Fut,
+        Fut: TryFuture<Ok = bool, Error = Self::Error>,
+        Self: Sized,
     {
         TrySkipWhile::new(self, f)
     }
@@ -430,9 +438,10 @@ pub trait TryStreamExt: TryStream {
         limit: impl Into<Option<usize>>,
         f: F,
     ) -> TryForEachConcurrent<Self, Fut, F>
-        where F: FnMut(Self::Ok) -> Fut,
-              Fut: Future<Output = Result<(), Self::Error>>,
-              Self: Sized,
+    where
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: Future<Output = Result<(), Self::Error>>,
+        Self: Sized,
     {
         TryForEachConcurrent::new(self, limit.into(), f)
     }
@@ -468,7 +477,8 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_collect<C: Default + Extend<Self::Ok>>(self) -> TryCollect<Self, C>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         TryCollect::new(self)
     }
@@ -504,9 +514,10 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_filter<Fut, F>(self, f: F) -> TryFilter<Self, Fut, F>
-        where Fut: Future<Output = bool>,
-              F: FnMut(&Self::Ok) -> Fut,
-              Self: Sized
+    where
+        Fut: Future<Output = bool>,
+        F: FnMut(&Self::Ok) -> Fut,
+        Self: Sized,
     {
         TryFilter::new(self, f)
     }
@@ -544,9 +555,10 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_filter_map<Fut, F, T>(self, f: F) -> TryFilterMap<Self, Fut, F>
-        where Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
-              F: FnMut(Self::Ok) -> Fut,
-              Self: Sized
+    where
+        Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
+        F: FnMut(Self::Ok) -> Fut,
+        Self: Sized,
     {
         TryFilterMap::new(self, f)
     }
@@ -590,9 +602,10 @@ pub trait TryStreamExt: TryStream {
     /// # });
     /// ```
     fn try_flatten(self) -> TryFlatten<Self>
-        where Self::Ok: TryStream,
-              <Self::Ok as TryStream>::Error: From<Self::Error>,
-              Self: Sized,
+    where
+        Self::Ok: TryStream,
+        <Self::Ok as TryStream>::Error: From<Self::Error>,
+        Self: Sized,
     {
         TryFlatten::new(self)
     }
@@ -626,9 +639,10 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_fold<T, Fut, F>(self, init: T, f: F) -> TryFold<Self, Fut, T, F>
-        where F: FnMut(T, Self::Ok) -> Fut,
-              Fut: TryFuture<Ok = T, Error = Self::Error>,
-              Self: Sized,
+    where
+        F: FnMut(T, Self::Ok) -> Fut,
+        Fut: TryFuture<Ok = T, Error = Self::Error>,
+        Self: Sized,
     {
         TryFold::new(self, f, init)
     }
@@ -668,9 +682,11 @@ pub trait TryStreamExt: TryStream {
     /// # });
     /// ```
     fn try_concat(self) -> TryConcat<Self>
-    where Self: Sized,
-          Self::Ok: Extend<<<Self as TryStream>::Ok as IntoIterator>::Item> +
-                    IntoIterator + Default,
+    where
+        Self: Sized,
+        Self::Ok: Extend<<<Self as TryStream>::Ok as IntoIterator>::Item>
+            + IntoIterator
+            + Default,
     {
         TryConcat::new(self)
     }
@@ -738,8 +754,9 @@ pub trait TryStreamExt: TryStream {
     )]
     #[cfg(feature = "alloc")]
     fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
-        where Self::Ok: TryFuture<Error = Self::Error>,
-              Self: Sized
+    where
+        Self::Ok: TryFuture<Error = Self::Error>,
+        Self: Sized,
     {
         TryBufferUnordered::new(self, n)
     }
@@ -752,7 +769,8 @@ pub trait TryStreamExt: TryStream {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Self::Ok, Self::Error>>>
-    where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Pin::new(self).try_poll_next(cx)
     }
@@ -783,7 +801,6 @@ pub trait TryStreamExt: TryStream {
     {
         Compat::new(self)
     }
-
 
     /// Adapter that converts this stream into an [`AsyncRead`](crate::io::AsyncRead).
     ///

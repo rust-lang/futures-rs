@@ -18,8 +18,17 @@ pub struct ReadUntil<'a, R: ?Sized + Unpin> {
 impl<R: ?Sized + Unpin> Unpin for ReadUntil<'_, R> {}
 
 impl<'a, R: AsyncBufRead + ?Sized + Unpin> ReadUntil<'a, R> {
-    pub(super) fn new(reader: &'a mut R, byte: u8, buf: &'a mut Vec<u8>) -> Self {
-        Self { reader, byte, buf, read: 0 }
+    pub(super) fn new(
+        reader: &'a mut R,
+        byte: u8,
+        buf: &'a mut Vec<u8>,
+    ) -> Self {
+        Self {
+            reader,
+            byte,
+            buf,
+            read: 0,
+        }
     }
 }
 
@@ -52,8 +61,16 @@ pub(super) fn read_until_internal<R: AsyncBufRead + ?Sized>(
 impl<R: AsyncBufRead + ?Sized + Unpin> Future for ReadUntil<'_, R> {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { reader, byte, buf, read } = &mut *self;
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        let Self {
+            reader,
+            byte,
+            buf,
+            read,
+        } = &mut *self;
         read_until_internal(Pin::new(reader), cx, *byte, buf, read)
     }
 }

@@ -1,3 +1,4 @@
+use super::DEFAULT_BUF_SIZE;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read_initializer")]
 use futures_io::Initializer;
@@ -6,7 +7,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::{cmp, fmt};
-use super::DEFAULT_BUF_SIZE;
 
 /// The `BufReader` struct adds buffering to any reader.
 ///
@@ -126,7 +126,8 @@ impl<R: AsyncRead + AsyncSeek> BufReader<R> {
                 return Poll::Ready(Ok(()));
             }
         }
-        self.poll_seek(cx, SeekFrom::Current(offset)).map(|res| res.map(|_| ()))
+        self.poll_seek(cx, SeekFrom::Current(offset))
+            .map(|res| res.map(|_| ()))
     }
 }
 
@@ -157,7 +158,8 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
     ) -> Poll<io::Result<usize>> {
         let total_len = bufs.iter().map(|b| b.len()).sum::<usize>();
         if self.pos == self.cap && total_len >= self.buf.len() {
-            let res = ready!(self.as_mut().inner().poll_read_vectored(cx, bufs));
+            let res =
+                ready!(self.as_mut().inner().poll_read_vectored(cx, bufs));
             self.discard_buffer();
             return Poll::Ready(res);
         }
@@ -179,7 +181,12 @@ impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<&[u8]>> {
-        let Self { inner, buf, cap, pos } = unsafe { self.get_unchecked_mut() };
+        let Self {
+            inner,
+            buf,
+            cap,
+            pos,
+        } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 
         // If we've reached the end of our internal buffer then we need to fetch
@@ -203,7 +210,10 @@ impl<R: AsyncRead + fmt::Debug> fmt::Debug for BufReader<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BufReader")
             .field("reader", &self.inner)
-            .field("buffer", &format_args!("{}/{}", self.cap - self.pos, self.buf.len()))
+            .field(
+                "buffer",
+                &format_args!("{}/{}", self.cap - self.pos, self.buf.len()),
+            )
             .finish()
     }
 }
@@ -244,12 +254,21 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
             // support seeking by i64::min_value() so we need to handle underflow when subtracting
             // remainder.
             if let Some(offset) = n.checked_sub(remainder) {
-                result = ready!(self.as_mut().inner().poll_seek(cx, SeekFrom::Current(offset)))?;
+                result = ready!(self
+                    .as_mut()
+                    .inner()
+                    .poll_seek(cx, SeekFrom::Current(offset)))?;
             } else {
                 // seek backwards by our remainder, and then by the offset
-                ready!(self.as_mut().inner().poll_seek(cx, SeekFrom::Current(-remainder)))?;
+                ready!(self
+                    .as_mut()
+                    .inner()
+                    .poll_seek(cx, SeekFrom::Current(-remainder)))?;
                 self.as_mut().discard_buffer();
-                result = ready!(self.as_mut().inner().poll_seek(cx, SeekFrom::Current(n)))?;
+                result = ready!(self
+                    .as_mut()
+                    .inner()
+                    .poll_seek(cx, SeekFrom::Current(n)))?;
             }
         } else {
             // Seeking with Start/End doesn't care about our buffer length.

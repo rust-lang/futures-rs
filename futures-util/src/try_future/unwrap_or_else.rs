@@ -25,8 +25,9 @@ impl<Fut, F> UnwrapOrElse<Fut, F> {
 impl<Fut: Unpin, F> Unpin for UnwrapOrElse<Fut, F> {}
 
 impl<Fut, F> FusedFuture for UnwrapOrElse<Fut, F>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Error) -> Fut::Ok,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Error) -> Fut::Ok,
 {
     fn is_terminated(&self) -> bool {
         self.f.is_none()
@@ -34,8 +35,9 @@ impl<Fut, F> FusedFuture for UnwrapOrElse<Fut, F>
 }
 
 impl<Fut, F> Future for UnwrapOrElse<Fut, F>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Error) -> Fut::Ok,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Error) -> Fut::Ok,
 {
     type Output = Fut::Ok;
 
@@ -43,13 +45,12 @@ impl<Fut, F> Future for UnwrapOrElse<Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.as_mut()
-            .future()
-            .try_poll(cx)
-            .map(|result| {
-                let op = self.as_mut().f().take()
-                    .expect("UnwrapOrElse already returned `Poll::Ready` before");
-                result.unwrap_or_else(op)
-            })
+        self.as_mut().future().try_poll(cx).map(|result| {
+            let op =
+                self.as_mut().f().take().expect(
+                    "UnwrapOrElse already returned `Poll::Ready` before",
+                );
+            result.unwrap_or_else(op)
+        })
     }
 }

@@ -20,7 +20,10 @@ impl<St, E> ErrInto<St, E> {
     unsafe_pinned!(stream: St);
 
     pub(super) fn new(stream: St) -> Self {
-        ErrInto { stream, _marker: PhantomData }
+        ErrInto {
+            stream,
+            _marker: PhantomData,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -77,7 +80,8 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(cx)
+        self.stream()
+            .try_poll_next(cx)
             .map(|res| res.map(|some| some.map_err(Into::into)))
     }
 

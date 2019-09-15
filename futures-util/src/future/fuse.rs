@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -14,9 +14,7 @@ impl<Fut: Future> Fuse<Fut> {
     unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(f: Fut) -> Fuse<Fut> {
-        Fuse {
-            future: Some(f),
-        }
+        Fuse { future: Some(f) }
     }
 
     /// Creates a new `Fuse`-wrapped future which is already terminated.
@@ -78,7 +76,10 @@ impl<Fut: Future> FusedFuture for Fuse<Fut> {
 impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Fut::Output> {
         let v = match self.as_mut().future().as_pin_mut() {
             Some(fut) => ready!(fut.poll(cx)),
             None => return Poll::Pending,

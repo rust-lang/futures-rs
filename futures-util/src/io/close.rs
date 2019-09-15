@@ -22,7 +22,10 @@ impl<'a, W: AsyncWrite + ?Sized + Unpin> Close<'a, W> {
 impl<W: AsyncWrite + ?Sized + Unpin> Future for Close<'_, W> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         Pin::new(&mut *self.writer).poll_close(cx)
     }
 }

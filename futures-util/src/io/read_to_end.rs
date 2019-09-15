@@ -27,11 +27,16 @@ impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToEnd<'a, R> {
     }
 }
 
-struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
+struct Guard<'a> {
+    buf: &'a mut Vec<u8>,
+    len: usize,
+}
 
 impl Drop for Guard<'_> {
     fn drop(&mut self) {
-        unsafe { self.buf.set_len(self.len); }
+        unsafe {
+            self.buf.set_len(self.len);
+        }
     }
 }
 
@@ -50,7 +55,10 @@ pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
     buf: &mut Vec<u8>,
     start_len: usize,
 ) -> Poll<io::Result<usize>> {
-    let mut g = Guard { len: buf.len(), buf };
+    let mut g = Guard {
+        len: buf.len(),
+        buf,
+    };
     let ret;
     loop {
         if g.len == g.buf.len() {
@@ -79,12 +87,21 @@ pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
 }
 
 impl<A> Future for ReadToEnd<'_, A>
-    where A: AsyncRead + ?Sized + Unpin,
+where
+    A: AsyncRead + ?Sized + Unpin,
 {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         let this = &mut *self;
-        read_to_end_internal(Pin::new(&mut this.reader), cx, this.buf, this.start_len)
+        read_to_end_internal(
+            Pin::new(&mut this.reader),
+            cx,
+            this.buf,
+            this.start_len,
+        )
     }
 }

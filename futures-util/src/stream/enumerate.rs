@@ -20,10 +20,7 @@ impl<St: Stream> Enumerate<St> {
     unsafe_unpinned!(count: usize);
 
     pub(super) fn new(stream: St) -> Enumerate<St> {
-        Enumerate {
-            stream,
-            count: 0,
-        }
+        Enumerate { stream, count: 0 }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is

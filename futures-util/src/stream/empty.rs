@@ -7,7 +7,7 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Empty<T> {
-    _phantom: PhantomData<T>
+    _phantom: PhantomData<T>,
 }
 
 /// Creates a stream which contains no elements.
@@ -15,7 +15,7 @@ pub struct Empty<T> {
 /// The returned stream will always return `Ready(None)` when polled.
 pub fn empty<T>() -> Empty<T> {
     Empty {
-        _phantom: PhantomData
+        _phantom: PhantomData,
     }
 }
 
@@ -30,7 +30,10 @@ impl<T> FusedStream for Empty<T> {
 impl<T> Stream for Empty<T> {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         Poll::Ready(None)
     }
 

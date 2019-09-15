@@ -1,4 +1,4 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{Fuse, StreamExt};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -23,7 +23,8 @@ impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
     Si: Sink<St::Item> + Unpin + ?Sized,
     St: Stream + Unpin + ?Sized,
-{}
+{
+}
 
 impl<'a, Si, St> SendAll<'a, Si, St>
 where
@@ -84,11 +85,11 @@ where
                 }
                 Poll::Ready(None) => {
                     ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
-                    return Poll::Ready(Ok(()))
+                    return Poll::Ready(Ok(()));
                 }
                 Poll::Pending => {
                     ready!(Pin::new(&mut this.sink).poll_ready(cx))?;
-                    return Poll::Pending
+                    return Poll::Pending;
                 }
             }
         }

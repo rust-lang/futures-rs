@@ -9,7 +9,7 @@ use pin_utils::unsafe_pinned;
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<Fut: Future> {
-    inner: Once<Fut>
+    inner: Once<Fut>,
 }
 
 impl<Fut: Future> IntoStream<Fut> {
@@ -17,7 +17,7 @@ impl<Fut: Future> IntoStream<Fut> {
 
     pub(super) fn new(future: Fut) -> IntoStream<Fut> {
         IntoStream {
-            inner: stream::once(future)
+            inner: stream::once(future),
         }
     }
 }
@@ -26,7 +26,10 @@ impl<Fut: Future> Stream for IntoStream<Fut> {
     type Item = Fut::Output;
 
     #[inline]
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         self.inner().poll_next(cx)
     }
 

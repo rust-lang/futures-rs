@@ -20,17 +20,16 @@ impl<Fut> IntoFuture<Fut> {
 }
 
 impl<Fut: TryFuture + FusedFuture> FusedFuture for IntoFuture<Fut> {
-    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+    fn is_terminated(&self) -> bool {
+        self.future.is_terminated()
+    }
 }
 
 impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     type Output = Result<Fut::Ok, Fut::Error>;
 
     #[inline]
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.future().try_poll(cx)
     }
 }

@@ -1,14 +1,14 @@
 //! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::fmt;
 use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 #[derive(Debug)]
 enum ElemState<F>
@@ -41,11 +41,7 @@ where
     }
 }
 
-impl<F> Unpin for ElemState<F>
-where
-    F: Future + Unpin,
-{
-}
+impl<F> Unpin for ElemState<F> where F: Future + Unpin {}
 
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
@@ -118,7 +114,9 @@ where
     I::Item: Future,
 {
     let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
-    JoinAll { elems: elems.into() }
+    JoinAll {
+        elems: elems.into(),
+    }
 }
 
 impl<F> Future for JoinAll<F>
@@ -127,7 +125,10 @@ where
 {
     type Output = Vec<F::Output>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
         let mut all_done = true;
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {

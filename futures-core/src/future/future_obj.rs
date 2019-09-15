@@ -1,8 +1,8 @@
 use core::{
-    mem,
     fmt,
     future::Future,
     marker::PhantomData,
+    mem,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -23,16 +23,16 @@ impl<T> Unpin for LocalFutureObj<'_, T> {}
 
 #[allow(single_use_lifetimes)]
 #[allow(clippy::transmute_ptr_to_ptr)]
-unsafe fn remove_future_lifetime<'a, T>(ptr: *mut (dyn Future<Output = T> + 'a))
-    -> *mut (dyn Future<Output = T> + 'static)
-{
+unsafe fn remove_future_lifetime<'a, T>(
+    ptr: *mut (dyn Future<Output = T> + 'a),
+) -> *mut (dyn Future<Output = T> + 'static) {
     mem::transmute(ptr)
 }
 
 #[allow(single_use_lifetimes)]
-unsafe fn remove_drop_lifetime<'a, T>(ptr: unsafe fn (*mut (dyn Future<Output = T> + 'a)))
-    -> unsafe fn(*mut (dyn Future<Output = T> + 'static))
-{
+unsafe fn remove_drop_lifetime<'a, T>(
+    ptr: unsafe fn(*mut (dyn Future<Output = T> + 'a)),
+) -> unsafe fn(*mut (dyn Future<Output = T> + 'static)) {
     mem::transmute(ptr)
 }
 
@@ -59,8 +59,7 @@ impl<'a, T> LocalFutureObj<'a, T> {
 
 impl<T> fmt::Debug for LocalFutureObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LocalFutureObj")
-            .finish()
+        f.debug_struct("LocalFutureObj").finish()
     }
 }
 
@@ -76,17 +75,13 @@ impl<T> Future for LocalFutureObj<'_, T> {
 
     #[inline]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        unsafe {
-            Pin::new_unchecked(&mut *self.future).poll(cx)
-        }
+        unsafe { Pin::new_unchecked(&mut *self.future).poll(cx) }
     }
 }
 
 impl<T> Drop for LocalFutureObj<'_, T> {
     fn drop(&mut self) {
-        unsafe {
-            (self.drop_fn)(self.future)
-        }
+        unsafe { (self.drop_fn)(self.future) }
     }
 }
 
@@ -115,8 +110,7 @@ impl<'a, T> FutureObj<'a, T> {
 
 impl<T> fmt::Debug for FutureObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FutureObj")
-            .finish()
+        f.debug_struct("FutureObj").finish()
     }
 }
 
@@ -125,9 +119,8 @@ impl<T> Future for FutureObj<'_, T> {
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        let pinned_field: Pin<&mut LocalFutureObj<'_, T>> = unsafe {
-            self.map_unchecked_mut(|x| &mut x.0)
-        };
+        let pinned_field: Pin<&mut LocalFutureObj<'_, T>> =
+            unsafe { self.map_unchecked_mut(|x| &mut x.0) };
         LocalFutureObj::poll(pinned_field, cx)
     }
 }
@@ -178,7 +171,7 @@ pub unsafe trait UnsafeFutureObj<'a, T>: 'a {
 
 unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for &'a mut F
 where
-    F: Future<Output = T> + Unpin + 'a
+    F: Future<Output = T> + Unpin + 'a,
 {
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
         self as *mut dyn Future<Output = T>
@@ -187,7 +180,8 @@ where
     unsafe fn drop(_ptr: *mut (dyn Future<Output = T> + 'a)) {}
 }
 
-unsafe impl<'a, T> UnsafeFutureObj<'a, T> for &'a mut (dyn Future<Output = T> + Unpin + 'a)
+unsafe impl<'a, T> UnsafeFutureObj<'a, T>
+    for &'a mut (dyn Future<Output = T> + Unpin + 'a)
 {
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
         self as *mut dyn Future<Output = T>
@@ -198,7 +192,7 @@ unsafe impl<'a, T> UnsafeFutureObj<'a, T> for &'a mut (dyn Future<Output = T> + 
 
 unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Pin<&'a mut F>
 where
-    F: Future<Output = T> + 'a
+    F: Future<Output = T> + 'a,
 {
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
         unsafe { self.get_unchecked_mut() as *mut dyn Future<Output = T> }
@@ -207,7 +201,8 @@ where
     unsafe fn drop(_ptr: *mut (dyn Future<Output = T> + 'a)) {}
 }
 
-unsafe impl<'a, T> UnsafeFutureObj<'a, T> for Pin<&'a mut (dyn Future<Output = T> + 'a)>
+unsafe impl<'a, T> UnsafeFutureObj<'a, T>
+    for Pin<&'a mut (dyn Future<Output = T> + 'a)>
 {
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
         unsafe { self.get_unchecked_mut() as *mut dyn Future<Output = T> }
@@ -222,7 +217,8 @@ mod if_alloc {
     use alloc::boxed::Box;
 
     unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
-        where F: Future<Output = T> + 'a
+    where
+        F: Future<Output = T> + 'a,
     {
         fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
             Box::into_raw(self)
@@ -233,7 +229,9 @@ mod if_alloc {
         }
     }
 
-    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + 'a> {
+    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T>
+        for Box<dyn Future<Output = T> + 'a>
+    {
         fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
             Box::into_raw(self)
         }
@@ -243,7 +241,9 @@ mod if_alloc {
         }
     }
 
-    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + Send + 'a> {
+    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T>
+        for Box<dyn Future<Output = T> + Send + 'a>
+    {
         fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
             Box::into_raw(self)
         }
@@ -255,7 +255,7 @@ mod if_alloc {
 
     unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Pin<Box<F>>
     where
-        F: Future<Output = T> + 'a
+        F: Future<Output = T> + 'a,
     {
         fn into_raw(mut self) -> *mut (dyn Future<Output = T> + 'a) {
             let ptr = unsafe { self.as_mut().get_unchecked_mut() as *mut _ };
@@ -268,7 +268,9 @@ mod if_alloc {
         }
     }
 
-    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Pin<Box<dyn Future<Output = T> + 'a>> {
+    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T>
+        for Pin<Box<dyn Future<Output = T> + 'a>>
+    {
         fn into_raw(mut self) -> *mut (dyn Future<Output = T> + 'a) {
             let ptr = unsafe { self.as_mut().get_unchecked_mut() as *mut _ };
             mem::forget(self);
@@ -280,7 +282,9 @@ mod if_alloc {
         }
     }
 
-    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Pin<Box<dyn Future<Output = T> + Send + 'a>> {
+    unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T>
+        for Pin<Box<dyn Future<Output = T> + Send + 'a>>
+    {
         fn into_raw(mut self) -> *mut (dyn Future<Output = T> + 'a) {
             let ptr = unsafe { self.as_mut().get_unchecked_mut() as *mut _ };
             mem::forget(self);
@@ -292,7 +296,9 @@ mod if_alloc {
         }
     }
 
-    impl<'a, F: Future<Output = ()> + Send + 'a> From<Box<F>> for FutureObj<'a, ()> {
+    impl<'a, F: Future<Output = ()> + Send + 'a> From<Box<F>>
+        for FutureObj<'a, ()>
+    {
         fn from(boxed: Box<F>) -> Self {
             FutureObj::new(boxed)
         }
@@ -304,13 +310,17 @@ mod if_alloc {
         }
     }
 
-    impl<'a, F: Future<Output = ()> + Send + 'a> From<Pin<Box<F>>> for FutureObj<'a, ()> {
+    impl<'a, F: Future<Output = ()> + Send + 'a> From<Pin<Box<F>>>
+        for FutureObj<'a, ()>
+    {
         fn from(boxed: Pin<Box<F>>) -> Self {
             FutureObj::new(boxed)
         }
     }
 
-    impl<'a> From<Pin<Box<dyn Future<Output = ()> + Send + 'a>>> for FutureObj<'a, ()> {
+    impl<'a> From<Pin<Box<dyn Future<Output = ()> + Send + 'a>>>
+        for FutureObj<'a, ()>
+    {
         fn from(boxed: Pin<Box<dyn Future<Output = ()> + Send + 'a>>) -> Self {
             FutureObj::new(boxed)
         }
@@ -328,13 +338,17 @@ mod if_alloc {
         }
     }
 
-    impl<'a, F: Future<Output = ()> + 'a> From<Pin<Box<F>>> for LocalFutureObj<'a, ()> {
+    impl<'a, F: Future<Output = ()> + 'a> From<Pin<Box<F>>>
+        for LocalFutureObj<'a, ()>
+    {
         fn from(boxed: Pin<Box<F>>) -> Self {
             LocalFutureObj::new(boxed)
         }
     }
 
-    impl<'a> From<Pin<Box<dyn Future<Output = ()> + 'a>>> for LocalFutureObj<'a, ()> {
+    impl<'a> From<Pin<Box<dyn Future<Output = ()> + 'a>>>
+        for LocalFutureObj<'a, ()>
+    {
         fn from(boxed: Pin<Box<dyn Future<Output = ()> + 'a>>) -> Self {
             LocalFutureObj::new(boxed)
         }

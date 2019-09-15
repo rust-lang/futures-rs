@@ -21,7 +21,8 @@ impl<Si, Item, U, Fut, F> Unpin for With<Si, Item, U, Fut, F>
 where
     Si: Unpin,
     Fut: Unpin,
-{}
+{
+}
 
 impl<Si, Item, U, Fut, F> fmt::Debug for With<Si, Item, U, Fut, F>
 where
@@ -38,18 +39,19 @@ where
 }
 
 impl<Si, Item, U, Fut, F> With<Si, Item, U, Fut, F>
-where Si: Sink<Item>,
-      F: FnMut(U) -> Fut,
-      Fut: Future,
+where
+    Si: Sink<Item>,
+    F: FnMut(U) -> Fut,
+    Fut: Future,
 {
     unsafe_pinned!(sink: Si);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(state: State<Fut, Item>);
 
     pub(super) fn new<E>(sink: Si, f: F) -> Self
-        where
-            Fut: Future<Output = Result<Item, E>>,
-            E: From<Si::Error>,
+    where
+        Fut: Future<Output = Result<Item, E>>,
+        E: From<Si::Error>,
     {
         With {
             state: State::Empty,
@@ -72,12 +74,11 @@ impl<Fut, T> State<Fut, T> {
     fn as_pin_mut(self: Pin<&mut Self>) -> State<Pin<&mut Fut>, Pin<&mut T>> {
         unsafe {
             match self.get_unchecked_mut() {
-                State::Empty =>
-                    State::Empty,
-                State::Process(fut) =>
-                    State::Process(Pin::new_unchecked(fut)),
-                State::Buffered(item) =>
-                    State::Buffered(Pin::new_unchecked(item)),
+                State::Empty => State::Empty,
+                State::Process(fut) => State::Process(Pin::new_unchecked(fut)),
+                State::Buffered(item) => {
+                    State::Buffered(Pin::new_unchecked(item))
+                }
             }
         }
     }
@@ -85,9 +86,10 @@ impl<Fut, T> State<Fut, T> {
 
 // Forwarding impl of Stream from the underlying sink
 impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(U) -> Fut,
+    Fut: Future,
 {
     type Item = S::Item;
 
@@ -104,10 +106,11 @@ impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
 }
 
 impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
-    where Si: Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<Item, E>>,
-          E: From<Si::Error>,
+where
+    Si: Sink<Item>,
+    F: FnMut(U) -> Fut,
+    Fut: Future<Output = Result<Item, E>>,
+    E: From<Si::Error>,
 {
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &Si {
@@ -144,8 +147,15 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
         if let Some(buffered) = buffered {
             self.as_mut().state().set(State::Buffered(buffered));
         }
-        if let State::Buffered(item) = unsafe { mem::replace(self.as_mut().state().get_unchecked_mut(), State::Empty) } {
-            Poll::Ready(self.as_mut().sink().start_send(item).map_err(Into::into))
+        if let State::Buffered(item) = unsafe {
+            mem::replace(
+                self.as_mut().state().get_unchecked_mut(),
+                State::Empty,
+            )
+        } {
+            Poll::Ready(
+                self.as_mut().sink().start_send(item).map_err(Into::into),
+            )
         } else {
             unreachable!()
         }
@@ -153,10 +163,11 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
 }
 
 impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
-    where Si: Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<Item, E>>,
-          E: From<Si::Error>,
+where
+    Si: Sink<Item>,
+    F: FnMut(U) -> Fut,
+    Fut: Future<Output = Result<Item, E>>,
+    E: From<Si::Error>,
 {
     type Error = E;
 

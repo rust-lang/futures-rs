@@ -1,10 +1,10 @@
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read_initializer")]
 use futures_io::Initializer;
-use futures_io::{AsyncRead, AsyncBufRead};
+use futures_io::{AsyncBufRead, AsyncRead};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::{cmp, io};
 use std::pin::Pin;
+use std::{cmp, io};
 
 /// Reader for the [`take`](super::AsyncReadExt::take) method.
 #[derive(Debug)]
@@ -15,14 +15,17 @@ pub struct Take<R> {
     limit_: u64,
 }
 
-impl<R: Unpin> Unpin for Take<R> { }
+impl<R: Unpin> Unpin for Take<R> {}
 
 impl<R: AsyncRead> Take<R> {
     unsafe_pinned!(inner: R);
     unsafe_unpinned!(limit_: u64);
 
     pub(super) fn new(inner: R, limit: u64) -> Self {
-        Self { inner, limit_: limit }
+        Self {
+            inner,
+            limit_: limit,
+        }
     }
 
     /// Returns the remaining number of bytes that can be
@@ -192,7 +195,10 @@ impl<R: AsyncRead> AsyncRead for Take<R> {
 }
 
 impl<R: AsyncBufRead> AsyncBufRead for Take<R> {
-    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&[u8]>> {
         let Self { inner, limit_ } = unsafe { self.get_unchecked_mut() };
         let inner = unsafe { Pin::new_unchecked(inner) };
 

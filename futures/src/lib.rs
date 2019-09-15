@@ -23,17 +23,23 @@
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read_initializer", feature(read_initializer))]
-
 #![cfg_attr(not(feature = "std"), no_std)]
-
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    unreachable_pub
+)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures")]
+#![doc(test(attr(
+    deny(warnings),
+    allow(dead_code, unused_assignments, unused_variables)
+)))]
+#![doc(
+    html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures"
+)]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -44,29 +50,46 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 #[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
 compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[doc(hidden)] pub use futures_core::core_reexport;
+#[doc(hidden)]
+pub use futures_core::core_reexport;
 
-#[doc(hidden)] pub use futures_core::future::Future;
-#[doc(hidden)] pub use futures_core::future::TryFuture;
-#[doc(hidden)] pub use futures_util::future::FutureExt;
-#[doc(hidden)] pub use futures_util::try_future::TryFutureExt;
+#[doc(hidden)]
+pub use futures_core::future::Future;
+#[doc(hidden)]
+pub use futures_core::future::TryFuture;
+#[doc(hidden)]
+pub use futures_util::future::FutureExt;
+#[doc(hidden)]
+pub use futures_util::try_future::TryFutureExt;
 
-#[doc(hidden)] pub use futures_core::stream::Stream;
-#[doc(hidden)] pub use futures_core::stream::TryStream;
-#[doc(hidden)] pub use futures_util::stream::StreamExt;
-#[doc(hidden)] pub use futures_util::try_stream::TryStreamExt;
+#[doc(hidden)]
+pub use futures_core::stream::Stream;
+#[doc(hidden)]
+pub use futures_core::stream::TryStream;
+#[doc(hidden)]
+pub use futures_util::stream::StreamExt;
+#[doc(hidden)]
+pub use futures_util::try_stream::TryStreamExt;
 
-#[doc(hidden)] pub use futures_sink::Sink;
-#[doc(hidden)] pub use futures_util::sink::SinkExt;
+#[doc(hidden)]
+pub use futures_sink::Sink;
+#[doc(hidden)]
+pub use futures_util::sink::SinkExt;
 
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
+#[doc(hidden)]
+pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
+#[doc(hidden)]
+pub use futures_util::{
+    AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt,
+};
 
-#[doc(hidden)] pub use futures_core::task::Poll;
+#[doc(hidden)]
+pub use futures_core::task::Poll;
 
-#[doc(hidden)] pub use futures_util::never::Never;
+#[doc(hidden)]
+pub use futures_util::never::Never;
 
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
@@ -109,22 +132,14 @@ pub mod compat {
     //! library is activated.
 
     pub use futures_util::compat::{
-        Compat,
-        CompatSink,
-        Compat01As03,
-        Compat01As03Sink,
-        Executor01Future,
-        Executor01As03,
-        Executor01CompatExt,
-        Future01CompatExt,
-        Stream01CompatExt,
-        Sink01CompatExt,
+        Compat, Compat01As03, Compat01As03Sink, CompatSink, Executor01As03,
+        Executor01CompatExt, Executor01Future, Future01CompatExt,
+        Sink01CompatExt, Stream01CompatExt,
     };
 
     #[cfg(feature = "io-compat")]
     pub use futures_util::compat::{
-        AsyncRead01CompatExt,
-        AsyncWrite01CompatExt,
+        AsyncRead01CompatExt, AsyncWrite01CompatExt,
     };
 }
 
@@ -188,11 +203,8 @@ pub mod executor {
     //! to a global thread pool.
 
     pub use futures_executor::{
-        BlockingStream,
-        Enter, EnterError,
-        LocalSpawner, LocalPool,
-        ThreadPool, ThreadPoolBuilder,
-        block_on, block_on_stream, enter,
+        block_on, block_on_stream, enter, BlockingStream, Enter, EnterError,
+        LocalPool, LocalSpawner, ThreadPool, ThreadPoolBuilder,
     };
 }
 
@@ -210,36 +222,23 @@ pub mod future {
     //!   immediate defined value.
 
     pub use futures_core::future::{
-        Future, TryFuture, FusedFuture,
-        FutureObj, LocalFutureObj, UnsafeFutureObj,
+        FusedFuture, Future, FutureObj, LocalFutureObj, TryFuture,
+        UnsafeFutureObj,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_core::future::{BoxFuture, LocalBoxFuture};
 
     pub use futures_util::future::{
-        lazy, Lazy,
-        maybe_done, MaybeDone,
-        pending, Pending,
-        poll_fn, PollFn,
-        ready, ok, err, Ready,
-        select, Select,
-        join, join3, join4, join5,
-        Join, Join3, Join4, Join5,
-        Either,
-
-        OptionFuture,
-
-        FutureExt,
-        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then, UnitError,
-        NeverError,
+        err, join, join3, join4, join5, lazy, maybe_done, ok, pending, poll_fn,
+        ready, select, Either, Flatten, FlattenStream, Fuse, FutureExt,
+        Inspect, IntoStream, Join, Join3, Join4, Join5, Lazy, Map, MaybeDone,
+        NeverError, OptionFuture, Pending, PollFn, Ready, Select, Then,
+        UnitError,
     };
 
     #[cfg(feature = "alloc")]
-    pub use futures_util::future::{
-        join_all, JoinAll,
-        select_all, SelectAll,
-    };
+    pub use futures_util::future::{join_all, select_all, JoinAll, SelectAll};
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -247,30 +246,28 @@ pub mod future {
     )]
     #[cfg(feature = "alloc")]
     pub use futures_util::future::{
-        abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
+        abortable, AbortHandle, AbortRegistration, Abortable, Aborted,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
-        Remote, RemoteHandle,
         // For FutureExt:
-        CatchUnwind, Shared,
+        CatchUnwind,
+        Remote,
+        RemoteHandle,
+        Shared,
     };
 
     pub use futures_util::try_future::{
-        try_join, try_join3, try_join4, try_join5,
-        TryJoin, TryJoin3, TryJoin4, TryJoin5,
-        try_select, TrySelect,
-
-        TryFutureExt,
-        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
-        InspectOk, InspectErr, TryFlattenStream, UnwrapOrElse,
+        try_join, try_join3, try_join4, try_join5, try_select, AndThen,
+        ErrInto, FlattenSink, InspectErr, InspectOk, IntoFuture, MapErr, MapOk,
+        OrElse, TryFlattenStream, TryFutureExt, TryJoin, TryJoin3, TryJoin4,
+        TryJoin5, TrySelect, UnwrapOrElse,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_util::try_future::{
-        try_join_all, TryJoinAll,
-        select_ok, SelectOk,
+        select_ok, try_join_all, SelectOk, TryJoinAll,
     };
 }
 
@@ -301,7 +298,7 @@ pub mod io {
     //! library is activated, and it is activated by default.
 
     pub use futures_io::{
-        AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
+        AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, Error, ErrorKind,
         IoSlice, IoSliceMut, Result, SeekFrom,
     };
 
@@ -309,11 +306,12 @@ pub mod io {
     pub use futures_io::Initializer;
 
     pub use futures_util::io::{
-        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
-        BufReader, BufWriter, Chain, Close, CopyInto, CopyBufInto, empty, Empty,
-        Flush, IntoSink, Lines, Read, ReadExact, ReadHalf, ReadLine, ReadToEnd,
-        ReadToString, ReadUntil, ReadVectored, repeat, Repeat, Seek, sink, Sink,
-        Take, Window, Write, WriteAll, WriteHalf, WriteVectored,
+        empty, repeat, sink, AllowStdIo, AsyncBufReadExt, AsyncReadExt,
+        AsyncSeekExt, AsyncWriteExt, BufReader, BufWriter, Chain, Close,
+        CopyBufInto, CopyInto, Empty, Flush, IntoSink, Lines, Read, ReadExact,
+        ReadHalf, ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored,
+        Repeat, Seek, Sink, Take, Window, Write, WriteAll, WriteHalf,
+        WriteVectored,
     };
 }
 
@@ -329,10 +327,12 @@ pub mod lock {
     //! library is activated, and it is activated by default.
 
     #[cfg(feature = "bilock")]
-    pub use futures_util::lock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
+    pub use futures_util::lock::{
+        BiLock, BiLockAcquire, BiLockGuard, ReuniteError,
+    };
 
     #[cfg(feature = "std")]
-    pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
+    pub use futures_util::lock::{Mutex, MutexGuard, MutexLockFuture};
 }
 
 pub mod prelude {
@@ -350,25 +350,24 @@ pub mod prelude {
     //! The prelude may grow over time as additional items see ubiquitous use.
 
     pub use crate::future::{self, Future, TryFuture};
-    pub use crate::stream::{self, Stream, TryStream};
     pub use crate::sink::{self, Sink};
+    pub use crate::stream::{self, Stream, TryStream};
 
     #[doc(no_inline)]
     pub use crate::future::{FutureExt as _, TryFutureExt as _};
     #[doc(no_inline)]
-    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
-    #[doc(no_inline)]
     pub use crate::sink::SinkExt as _;
+    #[doc(no_inline)]
+    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
 
     #[cfg(feature = "std")]
-    pub use crate::io::{
-        AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead,
-    };
+    pub use crate::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 
     #[cfg(feature = "std")]
     #[doc(no_inline)]
     pub use crate::io::{
-        AsyncReadExt as _, AsyncWriteExt as _, AsyncSeekExt as _, AsyncBufReadExt as _,
+        AsyncBufReadExt as _, AsyncReadExt as _, AsyncSeekExt as _,
+        AsyncWriteExt as _,
     };
 }
 
@@ -385,9 +384,8 @@ pub mod sink {
     pub use futures_sink::Sink;
 
     pub use futures_util::sink::{
-        Close, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        SinkExt, Fanout, Drain, drain,
-        WithFlatMap,
+        drain, Close, Drain, Fanout, Flush, Send, SendAll, SinkErrInto,
+        SinkExt, SinkMapErr, With, WithFlatMap,
     };
 
     #[cfg(feature = "alloc")]
@@ -406,35 +404,21 @@ pub mod stream {
     //! - Top-level stream contructors like [`iter`](crate::stream::iter)
     //!   which creates a stream from an iterator.
 
-    pub use futures_core::stream::{
-        Stream, TryStream, FusedStream,
-    };
+    pub use futures_core::stream::{FusedStream, Stream, TryStream};
 
     #[cfg(feature = "alloc")]
     pub use futures_core::stream::{BoxStream, LocalBoxStream};
 
     pub use futures_util::stream::{
-        iter, Iter,
-        repeat, Repeat,
-        empty, Empty,
-        pending, Pending,
-        once, Once,
-        poll_fn, PollFn,
-        select, Select,
-        unfold, Unfold,
-
-        StreamExt,
-        Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
-        Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
-        SelectNextSome, Peekable, Skip, SkipWhile, Take, TakeWhile,
-        Then, Zip
+        empty, iter, once, pending, poll_fn, repeat, select, unfold, Chain,
+        Collect, Concat, Empty, Enumerate, Filter, FilterMap, Flatten, Fold,
+        ForEach, Forward, Fuse, Inspect, Iter, Map, Next, Once, Peekable,
+        Pending, PollFn, Repeat, Select, SelectNextSome, Skip, SkipWhile,
+        StreamExt, StreamFuture, Take, TakeWhile, Then, Unfold, Zip,
     };
 
     #[cfg(feature = "alloc")]
-    pub use futures_util::stream::{
-        // For StreamExt:
-        Chunks,
-    };
+    pub use futures_util::stream::Chunks;
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -442,29 +426,29 @@ pub mod stream {
     )]
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
-        FuturesOrdered,
-        futures_unordered, FuturesUnordered,
-
+        futures_unordered,
+        select_all,
         // For StreamExt:
-        BufferUnordered, Buffered, ForEachConcurrent, SplitStream, SplitSink,
+        BufferUnordered,
+        Buffered,
+        ForEachConcurrent,
+        FuturesOrdered,
+        FuturesUnordered,
+
         ReuniteError,
 
-        select_all, SelectAll,
+        SelectAll,
+        SplitSink,
+        SplitStream,
     };
 
     #[cfg(feature = "std")]
-    pub use futures_util::stream::{
-        // For StreamExt:
-        CatchUnwind,
-    };
+    pub use futures_util::stream::CatchUnwind;
 
     pub use futures_util::try_stream::{
-        TryStreamExt,
-        AndThen, ErrInto, MapOk, MapErr, OrElse,
-        InspectOk, InspectErr,
-        TryNext, TryForEach, TryFilter, TryFilterMap, TryFlatten,
-        TryCollect, TryConcat, TryFold, TrySkipWhile,
-        IntoStream,
+        AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk,
+        OrElse, TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten,
+        TryFold, TryForEach, TryNext, TrySkipWhile, TryStreamExt,
     };
 
     #[cfg_attr(
@@ -474,7 +458,8 @@ pub mod stream {
     #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
-        TryBufferUnordered, TryForEachConcurrent,
+        TryBufferUnordered,
+        TryForEachConcurrent,
     };
 
     #[cfg(feature = "std")]
@@ -495,8 +480,8 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Poll, Spawn, LocalSpawn, SpawnError,
-        Waker, RawWaker, RawWakerVTable
+        Context, LocalSpawn, Poll, RawWaker, RawWakerVTable, Spawn, SpawnError,
+        Waker,
     };
 
     pub use futures_util::task::noop_waker;
@@ -505,14 +490,14 @@ pub mod task {
     pub use futures_util::task::noop_waker_ref;
 
     #[cfg(feature = "alloc")]
-    pub use futures_util::task::{SpawnExt, LocalSpawnExt};
+    pub use futures_util::task::{LocalSpawnExt, SpawnExt};
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     #[cfg(feature = "alloc")]
-    pub use futures_util::task::{waker, waker_ref, WakerRef, ArcWake};
+    pub use futures_util::task::{waker, waker_ref, ArcWake, WakerRef};
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -541,8 +526,8 @@ pub use futures_util::async_await;
 #[doc(hidden)]
 pub mod inner_macro {
     pub use futures_util::join;
-    pub use futures_util::try_join;
     pub use futures_util::select;
+    pub use futures_util::try_join;
 }
 
 #[cfg(feature = "std")]
