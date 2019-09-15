@@ -8,8 +8,15 @@ macro_rules! document_select_macro {
     ($item:item) => {
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. If multiple futures are ready,
-        /// one will be pseudo-randomly selected at runtime. Futures passed to
-        /// `select!` must be `Unpin` and implement `FusedFuture`.
+        /// one will be pseudo-randomly selected at runtime. Futures directly
+        /// passed to `select!` must be `Unpin` and implement `FusedFuture`.
+        ///
+        /// If an expression which yields a `Future` is passed to `select!`
+        /// (e.g. an `async fn` call) instead of a `Future` directly the `Unpin`
+        /// requirement is relaxed, since the macro will pin the resulting `Future`
+        /// on the stack. However the `Future` returned by the expression must
+        /// still implement `FusedFuture`.
+        ///
         /// Futures and streams which are not already fused can be fused using the
         /// `.fuse()` method. Note, though, that fusing a future or stream directly
         /// in the call to `select!` will not be enough to prevent it from being

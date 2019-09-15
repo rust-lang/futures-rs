@@ -172,13 +172,25 @@ pub fn select(input: TokenStream) -> TokenStream {
         .zip(variant_names.iter())
         .map(|(expr, variant_name)| {
             match expr {
-                // Don't bind futures that are already a path.
-                // This prevents creating redundant stack space
-                // for them.
-                syn::Expr::Path(path) => path,
+                syn::Expr::Path(path) => {
+                    // Don't bind futures that are already a path.
+                    // This prevents creating redundant stack space
+                    // for them.
+                    path
+                },
                 _ => {
+                    // Bind and pin the resulting Future on the stack. This is
+                    // necessary to support direct select! calls on !Unpin
+                    // Futures.
+                    // Safety: This is safe since the lifetime of the Future
+                    // is totally constraint to the lifetime of the select!
+                    // expression, and the Future can't get moved inside it
+                    // (it is shadowed).
                     future_let_bindings.push(quote! {
                         let mut #variant_name = #expr;
+                        let mut #variant_name = unsafe {
+                            ::core::pin::Pin::new_unchecked(&mut #variant_name)
+                        };
                     });
                     parse_quote! { #variant_name }
                 }
