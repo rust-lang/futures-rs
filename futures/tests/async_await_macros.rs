@@ -162,6 +162,25 @@ fn select_size() {
 }
 
 #[test]
+fn select_on_non_unpin_expressions() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let res = block_on(async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+            default => { select_res = 7 },
+        };
+        select_res
+    });
+    assert_eq!(res, 5);
+}
+
+#[test]
 fn join_size() {
     let fut = async {
         let ready = future::ready(0i32);
