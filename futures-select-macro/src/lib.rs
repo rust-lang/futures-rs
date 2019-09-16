@@ -250,21 +250,32 @@ pub fn select(input: TokenStream) -> TokenStream {
         #complete_branch
     };
 
-    let await_and_select = if let Some(default_expr) = parsed.default {
+    let await_select_fut = if parsed.default.is_some() {
+        // For select! with default this returns the Poll result
         quote! {
-            if let #futures_crate::task::Poll::Ready(x) =
-                __poll_fn(&mut #futures_crate::task::Context::from_waker(
-                    #futures_crate::task::noop_waker_ref()
-                ))
-            {
-                match x { #branches }
-            } else {
-                #default_expr
-            };
+            __poll_fn(&mut #futures_crate::task::Context::from_waker(
+                #futures_crate::task::noop_waker_ref()
+            ))
         }
     } else {
         quote! {
-            match #futures_crate::future::poll_fn(__poll_fn).await {
+            #futures_crate::future::poll_fn(__poll_fn).await
+        }
+    };
+
+    let execute_result_expr = if let Some(default_expr) = &parsed.default {
+        // For select! with default __select_result is a Poll, otherwise not
+        quote! {
+            match __select_result {
+                #futures_crate::task::Poll::Ready(result) => match result {
+                    #branches
+                },
+                _ => #default_expr
+            }
+        }
+    } else {
+        quote! {
+            match __select_result {
                 #branches
             }
         }
@@ -272,36 +283,41 @@ pub fn select(input: TokenStream) -> TokenStream {
 
     TokenStream::from(quote! { {
         #enum_item
-        #( #future_let_bindings )*
 
-        let mut __poll_fn = |__cx: &mut #futures_crate::task::Context<'_>| {
-            let mut __any_polled = false;
+        let __select_result = {
+            #( #future_let_bindings )*
 
-            #( #poll_functions )*
+            let mut __poll_fn = |__cx: &mut #futures_crate::task::Context<'_>| {
+                let mut __any_polled = false;
 
-            let mut __select_arr = [#( #variant_names ),*];
-            #futures_crate::async_await::shuffle(&mut __select_arr);
-            for poller in &mut __select_arr {
-                let poller: &mut &mut dyn FnMut(
-                    &mut #futures_crate::task::Context<'_>
-                ) -> Option<#futures_crate::task::Poll<_>> = poller;
-                match poller(__cx) {
-                    Some(x @ #futures_crate::task::Poll::Ready(_)) =>
-                        return x,
-                    Some(#futures_crate::task::Poll::Pending) => {
-                        __any_polled = true;
+                #( #poll_functions )*
+
+                let mut __select_arr = [#( #variant_names ),*];
+                #futures_crate::async_await::shuffle(&mut __select_arr);
+                for poller in &mut __select_arr {
+                    let poller: &mut &mut dyn FnMut(
+                        &mut #futures_crate::task::Context<'_>
+                    ) -> Option<#futures_crate::task::Poll<_>> = poller;
+                    match poller(__cx) {
+                        Some(x @ #futures_crate::task::Poll::Ready(_)) =>
+                            return x,
+                        Some(#futures_crate::task::Poll::Pending) => {
+                            __any_polled = true;
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
-            }
 
-            if !__any_polled {
-                #none_polled
-            } else {
-                #futures_crate::task::Poll::Pending
-            }
+                if !__any_polled {
+                    #none_polled
+                } else {
+                    #futures_crate::task::Poll::Pending
+                }
+            };
+
+            #await_select_fut
         };
 
-        #await_and_select
+        #execute_result_expr
     } })
 }
