@@ -278,7 +278,7 @@ pub mod future {
 pub mod io {
     //! Asynchronous I/O.
     //!
-    //! This module is the asynchronous version of `std::io`. It defines two
+    //! This module is the asynchronous version of `std::io`. It defines four
     //! traits, [`AsyncRead`](crate::io::AsyncRead),
     //! [`AsyncWrite`](crate::io::AsyncWrite),
     //! [`AsyncSeek`](crate::io::AsyncSeek), and
