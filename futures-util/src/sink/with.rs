@@ -1,6 +1,5 @@
 use core::fmt;
 use core::marker::PhantomData;
-use core::mem;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -13,8 +12,8 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct With<Si, Item, U, Fut, F> {
     sink: Si,
     f: F,
-    state: State<Fut, Item>,
-    _phantom: PhantomData<fn(U)>,
+    state: Option<Fut>,
+    _phantom: PhantomData<fn(U) -> Item>,
 }
 
 impl<Si, Item, U, Fut, F> Unpin for With<Si, Item, U, Fut, F>
@@ -27,7 +26,6 @@ impl<Si, Item, U, Fut, F> fmt::Debug for With<Si, Item, U, Fut, F>
 where
     Si: fmt::Debug,
     Fut: fmt::Debug,
-    Item: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("With")
@@ -44,7 +42,7 @@ where Si: Sink<Item>,
 {
     unsafe_pinned!(sink: Si);
     unsafe_unpinned!(f: F);
-    unsafe_pinned!(state: State<Fut, Item>);
+    unsafe_pinned!(state: Option<Fut>);
 
     pub(super) fn new<E>(sink: Si, f: F) -> Self
         where
@@ -52,33 +50,10 @@ where Si: Sink<Item>,
             E: From<Si::Error>,
     {
         With {
-            state: State::Empty,
+            state: None,
             sink,
             f,
             _phantom: PhantomData,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum State<Fut, T> {
-    Empty,
-    Process(Fut),
-    Buffered(T),
-}
-
-impl<Fut, T> State<Fut, T> {
-    #[allow(clippy::wrong_self_convention)]
-    fn as_pin_mut(self: Pin<&mut Self>) -> State<Pin<&mut Fut>, Pin<&mut T>> {
-        unsafe {
-            match self.get_unchecked_mut() {
-                State::Empty =>
-                    State::Empty,
-                State::Process(fut) =>
-                    State::Process(Pin::new_unchecked(fut)),
-                State::Buffered(item) =>
-                    State::Buffered(Pin::new_unchecked(item)),
-            }
         }
     }
 }
@@ -132,23 +107,18 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
         self.sink
     }
 
+    /// Completes the processing of previous item if any.
     fn poll(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), E>> {
-        let buffered = match self.as_mut().state().as_pin_mut() {
-            State::Empty => return Poll::Ready(Ok(())),
-            State::Process(fut) => Some(ready!(fut.poll(cx))?),
-            State::Buffered(_) => None,
+        let item = match self.as_mut().state().as_pin_mut() {
+            None => return Poll::Ready(Ok(())),
+            Some(fut) => ready!(fut.poll(cx))?,
         };
-        if let Some(buffered) = buffered {
-            self.as_mut().state().set(State::Buffered(buffered));
-        }
-        if let State::Buffered(item) = unsafe { mem::replace(self.as_mut().state().get_unchecked_mut(), State::Empty) } {
-            Poll::Ready(self.as_mut().sink().start_send(item).map_err(Into::into))
-        } else {
-            unreachable!()
-        }
+        self.as_mut().state().set(None);
+        self.as_mut().sink().start_send(item)?;
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -161,18 +131,20 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
     type Error = E;
 
     fn poll_ready(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        self.poll(cx)
+        ready!(self.as_mut().poll(cx))?;
+        ready!(self.as_mut().sink().poll_ready(cx)?);
+        Poll::Ready(Ok(()))
     }
 
     fn start_send(
         mut self: Pin<&mut Self>,
         item: U,
     ) -> Result<(), Self::Error> {
-        let item = (self.as_mut().f())(item);
-        self.as_mut().state().set(State::Process(item));
+        let future = (self.as_mut().f())(item);
+        self.as_mut().state().set(Some(future));
         Ok(())
     }
 
