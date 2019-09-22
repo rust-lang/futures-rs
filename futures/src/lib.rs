@@ -420,7 +420,7 @@ pub mod stream {
         pending, Pending,
         once, Once,
         poll_fn, PollFn,
-        select, Select,
+        select, select_unbonded, Select,
         unfold, Unfold,
 
         StreamExt,
