@@ -115,16 +115,16 @@ impl<St1, St2> Stream for Select<St1, St2>
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if !*flag {
-            poll_inner(flag, bonded, stream1, stream2, cx)
+            poll_inner(flag, *bonded, stream1, stream2, cx)
         } else {
-            poll_inner(flag, bonded, stream2, stream1, cx)
+            poll_inner(flag, *bonded, stream2, stream1, cx)
         }
     }
 }
 
 fn poll_inner<St1, St2>(
     flag: &mut bool,
-    bonded: &bool,
+    bonded: bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
     cx: &mut Context<'_>
@@ -137,7 +137,7 @@ fn poll_inner<St1, St2>(
             *flag = !*flag;
             return Poll::Ready(Some(item))
         },
-        Poll::Ready(None) if *bonded => true,
+        Poll::Ready(None) if bonded => true,
         Poll::Ready(None) => return Poll::Ready(None),
         Poll::Pending => false,
     };
@@ -146,8 +146,8 @@ fn poll_inner<St1, St2>(
         Poll::Ready(Some(item)) => {
             Poll::Ready(Some(item))
         }
-        Poll::Ready(None) if a_done && *bonded => Poll::Ready(None),
-        Poll::Ready(None) if !*bonded => Poll::Ready(None),
+        Poll::Ready(None) if a_done && bonded => Poll::Ready(None),
+        Poll::Ready(None) if !bonded => Poll::Ready(None),
         Poll::Ready(None) | Poll::Pending => Poll::Pending,
     }
 }
