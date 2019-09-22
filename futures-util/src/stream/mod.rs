@@ -91,7 +91,7 @@ mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{select, select_unbonded, Select};
 
 mod skip;
 pub use self::skip::Skip;
