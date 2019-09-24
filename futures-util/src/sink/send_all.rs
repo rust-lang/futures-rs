@@ -87,7 +87,7 @@ where
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    ready!(Pin::new(&mut this.sink).poll_ready(cx))?;
+                    ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
                     return Poll::Pending
                 }
             }

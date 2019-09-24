@@ -21,9 +21,71 @@ use crate::task::Waker;
 /// A single `AtomicWaker` may be reused for any number of calls to `register` or
 /// `wake`.
 ///
-/// `AtomicWaker` does not provide any memory ordering guarantees, as such the
-/// user should use caution and use other synchronization primitives to guard
-/// the result of the underlying computation.
+/// # Memory ordering
+///
+/// Calling `register` "acquires" all memory "released" by calls to `wake`
+/// before the call to `register`.  Later calls to `wake` will wake the
+/// registered waker (on contention this wake might be triggered in `register`).
+///
+/// For concurrent calls to `register` (should be avoided) the ordering is only
+/// guaranteed for the winning call.
+///
+/// # Examples
+///
+/// Here is a simple example providing a `Flag` that can be signalled manually
+/// when it is ready.
+///
+/// ```
+/// use futures::future::Future;
+/// use futures::task::{Context, Poll, AtomicWaker};
+/// use std::sync::Arc;
+/// use std::sync::atomic::AtomicBool;
+/// use std::sync::atomic::Ordering::Relaxed;
+/// use std::pin::Pin;
+///
+/// struct Inner {
+///     waker: AtomicWaker,
+///     set: AtomicBool,
+/// }
+///
+/// #[derive(Clone)]
+/// struct Flag(Arc<Inner>);
+///
+/// impl Flag {
+///     pub fn new() -> Self {
+///         Flag(Arc::new(Inner {
+///             waker: AtomicWaker::new(),
+///             set: AtomicBool::new(false),
+///         }))
+///     }
+///
+///     pub fn signal(&self) {
+///         self.0.set.store(true, Relaxed);
+///         self.0.waker.wake();
+///     }
+/// }
+///
+/// impl Future for Flag {
+///     type Output = ();
+///
+///     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+///         // quick check to avoid registration if already done.
+///         if self.0.set.load(Relaxed) {
+///             return Poll::Ready(());
+///         }
+///
+///         self.0.waker.register(cx.waker());
+///
+///         // Need to check condition **after** `register` to avoid a race
+///         // condition that would result in lost notifications.
+///         if self.0.set.load(Relaxed) {
+///             Poll::Ready(())
+///         } else {
+///             Poll::Pending
+///         }
+///     }
+/// }
+/// ```
 pub struct AtomicWaker {
     state: AtomicUsize,
     waker: UnsafeCell<Option<Waker>>,
@@ -204,9 +266,8 @@ impl AtomicWaker {
                     *self.waker.get() = Some(waker.clone());
 
                     // Release the lock. If the state transitioned to include
-                    // the `WAKING` bit, this means that a wake has been
-                    // called concurrently, so we have to remove the waker and
-                    // wake it.`
+                    // the `WAKING` bit, this means that at least one wake has
+                    // been called concurrently.
                     //
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
@@ -214,9 +275,15 @@ impl AtomicWaker {
                         REGISTERING, WAITING, AcqRel, Acquire);
 
                     match res {
-                        Ok(_) => {}
+                        Ok(_) => {
+                            // memory ordering: acquired self.state
+                            // - if previous wakes went through it syncs with
+                            //   their final release (`fetch_and`)
+                            // - if there was no previous wake the next wake
+                            //   will wake us, no sync needed.
+                        }
                         Err(actual) => {
-                            // This branch can only be reached if a
+                            // This branch can only be reached if at least one
                             // concurrent thread called `wake`. In this
                             // case, `actual` **must** be `REGISTERING |
                             // `WAKING`.
@@ -229,8 +296,13 @@ impl AtomicWaker {
                             // Just swap, because no one could change state while state == `REGISTERING` | `WAKING`.
                             self.state.swap(WAITING, AcqRel);
 
-                            // The atomic swap was complete, now
-                            // wake the task and return.
+                            // memory ordering: we acquired the state for all
+                            // concurrent wakes, but future wakes might still
+                            // need to wake us in case we can't make progress
+                            // from the pending wakes.
+                            //
+                            // So we simply schedule to come back later (we could
+                            // also simply leave the registration in place above).
                             waker.wake();
                         }
                     }
@@ -239,7 +311,15 @@ impl AtomicWaker {
             WAKING => {
                 // Currently in the process of waking the task, i.e.,
                 // `wake` is currently being called on the old task handle.
-                // So, we call wake on the new waker
+                //
+                // memory ordering: we acquired the state for all
+                // concurrent wakes, but future wakes might still
+                // need to wake us in case we can't make progress
+                // from the pending wakes.
+                //
+                // So we simply schedule to come back later (we
+                // could also spin here trying to acquire the lock
+                // to register).
                 waker.wake_by_ref();
             }
             state => {
@@ -247,6 +327,9 @@ impl AtomicWaker {
                 // "registering" lock. This probably indicates a bug in the
                 // caller's code as racing to call `register` doesn't make much
                 // sense.
+                //
+                // memory ordering: don't care. a concurrent register() is going
+                // to succeed and provide proper memory ordering.
                 //
                 // We just want to maintain memory safety. It is ok to drop the
                 // call to `register`.
