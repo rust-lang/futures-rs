@@ -45,7 +45,7 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
     }
 }
 
-impl<Fut: Future + FusedFuture> FusedFuture for PendingOnce<Fut> {
+impl<Fut: FusedFuture> FusedFuture for PendingOnce<Fut> {
     fn is_terminated(&self) -> bool {
         self.polled_before && self.future.is_terminated()
     }

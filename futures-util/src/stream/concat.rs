@@ -1,6 +1,6 @@
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::future::{Future, FusedFuture};
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -55,5 +55,15 @@ where St: Stream,
                 }
             }
         }
+    }
+}
+
+impl<St> FusedFuture for Concat<St>
+where St: FusedStream,
+      St::Item: Extend<<St::Item as IntoIterator>::Item> +
+                IntoIterator + Default,
+{
+    fn is_terminated(&self) -> bool {
+        self.accum.is_none() && self.stream.is_terminated()
     }
 }

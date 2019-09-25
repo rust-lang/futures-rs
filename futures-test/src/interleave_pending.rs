@@ -1,5 +1,5 @@
-use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::future::{Future, FusedFuture};
+use futures_core::stream::{Stream, FusedStream};
 use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{
@@ -85,6 +85,12 @@ impl<Fut: Future> Future for InterleavePending<Fut> {
     }
 }
 
+impl<Fut: FusedFuture> FusedFuture for InterleavePending<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_terminated()
+    }
+}
+
 impl<St: Stream> Stream for InterleavePending<St> {
     type Item = St::Item;
 
@@ -107,6 +113,12 @@ impl<St: Stream> Stream for InterleavePending<St> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<Fut: FusedStream> FusedStream for InterleavePending<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_terminated()
     }
 }
 
