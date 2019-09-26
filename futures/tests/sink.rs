@@ -104,8 +104,8 @@ impl Flag {
         Arc::new(Self(AtomicBool::new(false)))
     }
 
-    fn get(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
+    fn take(&self) -> bool {
+        self.0.swap(false, Ordering::SeqCst)
     }
 
     fn set(&self, v: bool) {
@@ -165,12 +165,11 @@ fn mpsc_blocking_start_send() {
             let mut task = StartSendFut::new(tx, 1);
 
             assert!(task.poll_unpin(cx).is_pending());
-            assert!(!flag.get());
+            assert!(!flag.take());
             sassert_next(&mut rx, 0);
-            assert!(flag.get());
-            flag.set(false);
+            assert!(flag.take());
             unwrap(task.poll_unpin(cx));
-            assert!(!flag.get());
+            assert!(!flag.take());
             sassert_next(&mut rx, 1);
         })
     }));
@@ -194,7 +193,7 @@ fn with_flush() {
         let mut task = sink.flush();
         assert!(task.poll_unpin(cx).is_pending());
         tx.send(()).unwrap();
-        assert!(flag.get());
+        assert!(flag.take());
 
         unwrap(task.poll_unpin(cx));
 
@@ -241,9 +240,9 @@ fn with_propagates_poll_ready() {
 
             // Should be ready for the second item only after the first one is received.
             assert_eq!(tx.as_mut().poll_ready(cx), Poll::Pending);
-            assert!(!flag.get());
+            assert!(!flag.take());
             sassert_next(&mut rx, 10);
-            assert!(flag.get());
+            assert!(flag.take());
             assert_eq!(tx.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
             assert_eq!(tx.as_mut().start_send(1), Ok(()));
         })
@@ -317,10 +316,10 @@ fn with_flush_propagate() {
         {
             let mut task = sink.flush();
             assert!(task.poll_unpin(cx).is_pending());
-            assert!(!flag.get());
+            assert!(!flag.take());
         }
         assert_eq!(sink.get_mut().force_flush(), vec![0, 1]);
-        assert!(flag.get());
+        assert!(flag.take());
         unwrap(sink.flush().poll_unpin(cx));
     })
 }
@@ -422,9 +421,9 @@ fn buffer() {
     flag_cx(|flag, cx| {
         let mut task = sink.send(2);
         assert!(task.poll_unpin(cx).is_pending());
-        assert!(!flag.get());
+        assert!(!flag.take());
         allow.start();
-        assert!(flag.get());
+        assert!(flag.take());
         unwrap(task.poll_unpin(cx));
         assert_eq!(sink.get_ref().data, vec![0, 1, 2]);
     })
@@ -451,20 +450,20 @@ fn fanout_backpressure() {
 
     flag_cx(|flag, cx| {
         let mut task = sink.send(2);
-        assert!(!flag.get());
+        assert!(!flag.take());
         assert!(task.poll_unpin(cx).is_pending());
         assert_eq!(block_on(left_recv.next()), Some(0));
-        assert!(flag.get());
+        assert!(flag.take());
         assert!(task.poll_unpin(cx).is_pending());
         assert_eq!(block_on(right_recv.next()), Some(0));
-        assert!(flag.get());
+        assert!(flag.take());
 
         assert!(task.poll_unpin(cx).is_pending());
         assert_eq!(block_on(left_recv.next()), Some(2));
-        assert!(flag.get());
+        assert!(flag.take());
         assert!(task.poll_unpin(cx).is_pending());
         assert_eq!(block_on(right_recv.next()), Some(2));
-        assert!(flag.get());
+        assert!(flag.take());
 
         unwrap(task.poll_unpin(cx));
         // make sure receivers live until end of test to prevent send errors
