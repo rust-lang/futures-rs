@@ -1,12 +1,12 @@
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll};
 use crate::future::{Either, FutureExt};
 
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
-pub struct Select<A: Unpin, B: Unpin> {
+pub struct Select<A, B> {
     inner: Option<(A, B)>,
 }
 
@@ -50,7 +50,11 @@ pub fn select<A, B>(future1: A, future2: B) -> Select<A, B>
     Select { inner: Some((future1, future2)) }
 }
 
-impl<A: Unpin, B: Unpin> Future for Select<A, B> where A: Future, B: Future {
+impl<A, B> Future for Select<A, B>
+where
+    A: Future + Unpin,
+    B: Future + Unpin,
+{
     type Output = Either<(A::Output, B), (B::Output, A)>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -65,5 +69,15 @@ impl<A: Unpin, B: Unpin> Future for Select<A, B> where A: Future, B: Future {
                 }
             }
         }
+    }
+}
+
+impl<A, B> FusedFuture for Select<A, B>
+where
+    A: Future + Unpin,
+    B: Future + Unpin,
+{
+    fn is_terminated(&self) -> bool {
+        self.inner.is_none()
     }
 }

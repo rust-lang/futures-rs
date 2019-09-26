@@ -163,15 +163,15 @@ impl<T> Inner<T> {
         }
 
         // If our other half is not gone then we need to park our current task
-        // and move it into the `notify_cancel` slot to get notified when it's
+        // and move it into the `tx_task` slot to get notified when it's
         // actually gone.
         //
         // If `try_lock` fails, then the `Receiver` is in the process of using
         // it, so we can deduce that it's now in the process of going away and
         // hence we're canceled. If it succeeds then we just store our handle.
         //
-        // Crucially we then check `oneshot_gone` *again* before we return.
-        // While we were storing our handle inside `notify_cancel` the
+        // Crucially we then check `complete` *again* before we return.
+        // While we were storing our handle inside `tx_task` the
         // `Receiver` may have been dropped. The first thing it does is set the
         // flag, and if it fails to acquire the lock it assumes that we'll see
         // the flag later on. So... we then try to see the flag later on!
@@ -347,10 +347,10 @@ impl<T> Sender<T> {
     ///
     /// # Return values
     ///
-    /// If `Ok(Ready)` is returned then the associated `Receiver` has been
+    /// If `Ready(())` is returned then the associated `Receiver` has been
     /// dropped, which means any work required for sending should be canceled.
     ///
-    /// If `Ok(Pending)` is returned then the associated `Receiver` is still
+    /// If `Pending` is returned then the associated `Receiver` is still
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
