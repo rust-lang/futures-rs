@@ -1,12 +1,12 @@
 [package]
 name = "futures-util-preview"
 edition = "2018"
-version = "0.3.0-alpha.18"
+version = "0.3.0-alpha.19"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_util"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.19/futures_util"
 description = """
 Common utilities and extension traits for the futures-rs library.
 """
@@ -36,12 +36,12 @@ bilock = []
 read_initializer = ["io", "futures-io-preview/read_initializer", "futures-io-preview/unstable"]
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.18", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.18", default-features = false, features = ["std"], optional = true }
-futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.18", default-features = false, features = ["std"], optional = true }
-futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.18", default-features = false, optional = true }
-futures-join-macro-preview = { path = "../futures-join-macro", version = "=0.3.0-alpha.18", default-features = false, optional = true }
-futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.18", default-features = false, optional = true }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
+futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
+futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.19", default-features = false, optional = true }
+futures-join-macro-preview = { path = "../futures-join-macro", version = "=0.3.0-alpha.19", default-features = false, optional = true }
+futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.19", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
 slab = { version = "0.4", optional = true }
@@ -51,8 +51,8 @@ tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.18", features = ["async-await"] }
-futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.18" }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.19", features = ["async-await"] }
+futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.19" }
 tokio = "0.1.11"
 
 [package.metadata.docs.rs]
