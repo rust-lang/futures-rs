@@ -224,6 +224,32 @@ fn with_flat_map() {
     assert_eq!(sink.get_ref(), &[1, 2, 2, 3, 3, 3]);
 }
 
+// Check that `with` propagates `poll_ready` to the inner sink.
+// Regression test for the issue #1834.
+#[test]
+fn with_propagates_poll_ready() {
+    let (tx, mut rx) = mpsc::channel::<i32>(0);
+    let mut tx = tx.with(|item: i32| future::ok::<i32, mpsc::SendError>(item + 10));
+
+    block_on(future::lazy(|_| {
+        flag_cx(|flag, cx| {
+            let mut tx = Pin::new(&mut tx);
+
+            // Should be ready for the first item.
+            assert_eq!(tx.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
+            assert_eq!(tx.as_mut().start_send(0), Ok(()));
+
+            // Should be ready for the second item only after the first one is received.
+            assert_eq!(tx.as_mut().poll_ready(cx), Poll::Pending);
+            assert!(!flag.get());
+            sassert_next(&mut rx, 10);
+            assert!(flag.get());
+            assert_eq!(tx.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
+            assert_eq!(tx.as_mut().start_send(1), Ok(()));
+        })
+    }));
+}
+
 // Immediately accepts all requests to start pushing, but completion is managed
 // by manually flushing
 struct ManualFlush<T: Unpin> {
