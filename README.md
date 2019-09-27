@@ -65,7 +65,7 @@ The `async-await` feature provides several convenient features using async/await
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
 ```
 
-The current `async-await` feature requires Rust nightly 2019-08-21 or later.
+The current `async-await` feature requires Rust 1.39 or later.
 
 # License
 
