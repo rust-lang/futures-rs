@@ -172,6 +172,7 @@ pub fn select(input: TokenStream) -> TokenStream {
                     // Don't bind futures that are already a path.
                     // This prevents creating redundant stack space
                     // for them.
+                    // Passing Futures by path requires those Futures to implement Unpin.
                     path
                 },
                 _ => {
