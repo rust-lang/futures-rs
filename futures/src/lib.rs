@@ -542,23 +542,21 @@ pub mod never {
 pub use futures_core::core_reexport;
 
 // Not public API.
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use futures_util::async_await;
 
 // Not public API.
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod inner_macro {
     pub use futures_util::join;
     pub use futures_util::try_join;
+    #[cfg(feature = "std")]
     pub use futures_util::select;
     pub use futures_util::select_biased;
 }
 
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 futures_util::document_join_macro! {
     #[macro_export]
@@ -582,9 +580,9 @@ futures_util::document_join_macro! {
     }
 }
 
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 futures_util::document_select_macro! {
+    #[cfg(feature = "std")]
     #[macro_export]
     macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
         ($($tokens:tt)*) => {
