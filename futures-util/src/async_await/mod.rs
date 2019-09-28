@@ -31,10 +31,8 @@ mod select_mod;
 #[cfg(feature = "async-await-macro")]
 pub use self::select_mod::*;
 
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await-macro")]
 mod random;
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await-macro")]
 pub use self::random::*;
 
