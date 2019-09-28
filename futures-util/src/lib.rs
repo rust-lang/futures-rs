@@ -39,12 +39,10 @@ pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
 // Not public API.
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[macro_use]
 #[doc(hidden)]
 pub mod async_await;
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use self::async_await::*;

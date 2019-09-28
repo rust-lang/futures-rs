@@ -306,6 +306,7 @@ macro_rules! document_select_macro {
 }
 
 document_select_macro! {
+    #[cfg(feature = "std")]
     #[proc_macro_hack(support_nested)]
     pub use futures_macro::select;
 
