@@ -8,7 +8,7 @@ use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 /// Future for the [`catch_unwind`](super::FutureExt::catch_unwind) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CatchUnwind<Fut> where Fut: Future {
+pub struct CatchUnwind<Fut> {
     future: Fut,
 }
 

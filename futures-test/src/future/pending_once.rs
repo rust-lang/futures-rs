@@ -11,7 +11,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// method.
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct PendingOnce<Fut: Future> {
+pub struct PendingOnce<Fut> {
     future: Fut,
     polled_before: bool,
 }

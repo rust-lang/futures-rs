@@ -9,7 +9,6 @@ use pin_utils::unsafe_pinned;
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Flatten<Fut>
     where Fut: Future,
-          Fut::Output: Future,
 {
     state: Chain<Fut, Fut::Output, ()>,
 }
@@ -29,7 +28,7 @@ impl<Fut> Flatten<Fut>
 
 impl<Fut> fmt::Debug for Flatten<Fut>
     where Fut: Future + fmt::Debug,
-          Fut::Output: Future + fmt::Debug,
+          Fut::Output: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Flatten")

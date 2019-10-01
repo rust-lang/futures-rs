@@ -7,7 +7,7 @@ use std::pin::Pin;
 /// Future for the [`write_vectored`](super::AsyncWriteExt::write_vectored) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct WriteVectored<'a, W: ?Sized + Unpin> {
+pub struct WriteVectored<'a, W: ?Sized> {
     writer: &'a mut W,
     bufs: &'a [IoSlice<'a>],
 }

@@ -6,7 +6,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Future for the [`inspect`](super::FutureExt::inspect) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Inspect<Fut, F> where Fut: Future {
+pub struct Inspect<Fut, F> {
     future: Fut,
     f: Option<F>,
 }

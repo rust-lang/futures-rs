@@ -10,7 +10,7 @@ use core::pin::Pin;
 
 /// Stream for the [`buffered`](super::StreamExt::buffered) method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Buffered<St: Stream>
+pub struct Buffered<St>
 where
     St: Stream,
     St::Item: Future,

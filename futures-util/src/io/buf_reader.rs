@@ -199,7 +199,7 @@ impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
     }
 }
 
-impl<R: AsyncRead + fmt::Debug> fmt::Debug for BufReader<R> {
+impl<R: fmt::Debug> fmt::Debug for BufReader<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BufReader")
             .field("reader", &self.inner)

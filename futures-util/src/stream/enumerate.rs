@@ -8,12 +8,12 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Enumerate<St: Stream> {
+pub struct Enumerate<St> {
     stream: St,
     count: usize,
 }
 
-impl<St: Stream + Unpin> Unpin for Enumerate<St> {}
+impl<St: Unpin> Unpin for Enumerate<St> {}
 
 impl<St: Stream> Enumerate<St> {
     unsafe_pinned!(stream: St);

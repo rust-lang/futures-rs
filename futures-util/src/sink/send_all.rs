@@ -6,12 +6,13 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 /// Future for the [`send_all`](super::SinkExt::send_all) method.
+#[allow(explicit_outlives_requirements)] // https://github.com/rust-lang/rust/issues/60993
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SendAll<'a, Si, St>
 where
-    Si: Sink<St::Item> + Unpin + ?Sized,
-    St: Stream + Unpin + ?Sized,
+    Si: ?Sized,
+    St: Stream + ?Sized,
 {
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
@@ -21,7 +22,7 @@ where
 // Pinning is never projected to any fields
 impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
-    Si: Sink<St::Item> + Unpin + ?Sized,
+    Si: Unpin + ?Sized,
     St: Stream + Unpin + ?Sized,
 {}
 

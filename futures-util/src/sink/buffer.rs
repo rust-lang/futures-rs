@@ -8,7 +8,7 @@ use alloc::collections::VecDeque;
 /// Sink for the [`buffer`](super::SinkExt::buffer) method.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct Buffer<Si: Sink<Item>, Item> {
+pub struct Buffer<Si, Item> {
     sink: Si,
     buf: VecDeque<Item>,
 
@@ -16,7 +16,7 @@ pub struct Buffer<Si: Sink<Item>, Item> {
     capacity: usize,
 }
 
-impl<Si: Sink<Item> + Unpin, Item> Unpin for Buffer<Si, Item> {}
+impl<Si: Unpin, Item> Unpin for Buffer<Si, Item> {}
 
 impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     unsafe_pinned!(sink: Si);
