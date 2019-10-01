@@ -174,11 +174,48 @@ fn select_on_non_unpin_expressions() {
         select! {
             value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
             value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+        };
+        select_res
+    });
+    assert_eq!(res, 5);
+}
+
+#[test]
+fn select_on_non_unpin_expressions_with_default() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let res = block_on(async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
             default => { select_res = 7 },
         };
         select_res
     });
     assert_eq!(res, 5);
+}
+
+#[test]
+fn select_on_non_unpin_size() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let fut = async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+        };
+        select_res
+    };
+
+    assert_eq!(48, std::mem::size_of_val(&fut));
 }
 
 #[test]
