@@ -9,7 +9,7 @@ use pin_utils::unsafe_pinned;
 /// Future for the [`copy_into`](super::AsyncReadExt::copy_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyInto<'a, R: AsyncRead, W: ?Sized> {
+pub struct CopyInto<'a, R, W: ?Sized> {
     inner: CopyBufInto<'a, BufReader<R>, W>,
 }
 

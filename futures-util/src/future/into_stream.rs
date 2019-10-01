@@ -8,7 +8,7 @@ use pin_utils::unsafe_pinned;
 /// Stream for the [`into_stream`](super::FutureExt::into_stream) method.
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
-pub struct IntoStream<Fut: Future> {
+pub struct IntoStream<Fut> {
     inner: Once<Fut>
 }
 

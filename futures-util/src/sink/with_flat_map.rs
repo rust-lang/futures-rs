@@ -8,10 +8,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
 #[must_use = "sinks do nothing unless polled"]
-pub struct WithFlatMap<Si, Item, U, St, F>
-where
-    Si: Sink<Item>,
-{
+pub struct WithFlatMap<Si, Item, U, St, F> {
     sink: Si,
     f: F,
     stream: Option<St>,
@@ -21,13 +18,13 @@ where
 
 impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink<Item> + Unpin,
+    Si: Unpin,
     St: Unpin,
 {}
 
 impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink<Item> + fmt::Debug,
+    Si: fmt::Debug,
     St: fmt::Debug,
     Item: fmt::Debug,
 {

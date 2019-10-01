@@ -7,13 +7,13 @@ use futures_sink::Sink;
 /// Future for the [`flush`](super::SinkExt::flush) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Flush<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
+pub struct Flush<'a, Si: ?Sized, Item> {
     sink: &'a mut Si,
     _phantom: PhantomData<fn(Item)>,
 }
 
 // Pin is never projected to a field.
-impl<Si: Sink<Item> + Unpin + ?Sized, Item> Unpin for Flush<'_, Si, Item> {}
+impl<Si: Unpin + ?Sized, Item> Unpin for Flush<'_, Si, Item> {}
 
 /// A future that completes when the sink has finished processing all
 /// pending requests.

@@ -11,7 +11,7 @@ pub struct Next<'a, St: ?Sized> {
     stream: &'a mut St,
 }
 
-impl<St: ?Sized + Stream + Unpin> Unpin for Next<'_, St> {}
+impl<St: ?Sized + Unpin> Unpin for Next<'_, St> {}
 
 impl<'a, St: ?Sized + Stream + Unpin> Next<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {

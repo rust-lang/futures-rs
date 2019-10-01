@@ -156,7 +156,7 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
     }
 }
 
-impl<W: AsyncWrite + fmt::Debug> fmt::Debug for BufWriter<W> {
+impl<W: fmt::Debug> fmt::Debug for BufWriter<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BufWriter")
             .field("writer", &self.inner)

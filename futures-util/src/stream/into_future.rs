@@ -12,7 +12,7 @@ pub struct StreamFuture<St> {
     stream: Option<St>,
 }
 
-impl<St: Stream + Unpin> Unpin for StreamFuture<St> {}
+impl<St: Unpin> Unpin for StreamFuture<St> {}
 
 impl<St: Stream + Unpin> StreamFuture<St> {
     unsafe_pinned!(stream: Option<St>);
