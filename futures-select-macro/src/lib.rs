@@ -6,6 +6,10 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
+#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
+
+#![doc(html_root_url = "https://docs.rs/futures-select-macro-preview/0.3.0-alpha.19")]
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
