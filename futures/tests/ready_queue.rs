@@ -81,15 +81,15 @@ fn dropping_ready_queue() {
 
         {
             let cx = &mut noop_context();
-            assert!(!tx1.poll_cancel(cx).is_ready());
-            assert!(!tx2.poll_cancel(cx).is_ready());
-            assert!(!tx3.poll_cancel(cx).is_ready());
+            assert!(!tx1.poll_canceled(cx).is_ready());
+            assert!(!tx2.poll_canceled(cx).is_ready());
+            assert!(!tx3.poll_canceled(cx).is_ready());
 
             drop(queue);
 
-            assert!(tx1.poll_cancel(cx).is_ready());
-            assert!(tx2.poll_cancel(cx).is_ready());
-            assert!(tx3.poll_cancel(cx).is_ready());
+            assert!(tx1.poll_canceled(cx).is_ready());
+            assert!(tx2.poll_canceled(cx).is_ready());
+            assert!(tx3.poll_canceled(cx).is_ready());
         }
     }));
 }
