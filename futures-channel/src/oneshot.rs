@@ -43,7 +43,7 @@ struct Inner<T> {
     /// unlocked and ready to be inspected.
     ///
     /// For `Sender` if this is `true` then the oneshot has gone away and it
-    /// can return ready from `poll_cancel`.
+    /// can return ready from `poll_canceled`.
     complete: AtomicBool,
 
     /// The actual data being transferred as part of this `Receiver`. This is
@@ -64,7 +64,7 @@ struct Inner<T> {
     rx_task: Lock<Option<Waker>>,
 
     /// Like `rx_task` above, except for the task blocked in
-    /// `Sender::poll_cancel`. Additionally, `Lock` cannot be `UnsafeCell`.
+    /// `Sender::poll_canceled`. Additionally, `Lock` cannot be `UnsafeCell`.
     tx_task: Lock<Option<Waker>>,
 }
 
@@ -153,7 +153,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut Context<'_>) -> Poll<()> {
+    fn poll_canceled(&self, cx: &mut Context<'_>) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -298,7 +298,7 @@ impl<T> Inner<T> {
 
     fn drop_rx(&self) {
         // Indicate to the `Sender` that we're done, so any future calls to
-        // `poll_cancel` are weeded out.
+        // `poll_canceled` are weeded out.
         self.complete.store(true, SeqCst);
 
         // If we've blocked a task then there's no need for it to stick around,
@@ -354,14 +354,14 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, cx: &mut Context<'_>) -> Poll<()> {
-        self.inner.poll_cancel(cx)
+    pub fn poll_canceled(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.inner.poll_canceled(cx)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
     /// has been dropped.
     ///
-    /// Unlike [`poll_cancel`](Sender::poll_cancel), this function does not
+    /// Unlike [`poll_canceled`](Sender::poll_canceled), this function does not
     /// enqueue a task for wakeup upon cancellation, but merely reports the
     /// current state, which may be subject to concurrent modification.
     pub fn is_canceled(&self) -> bool {

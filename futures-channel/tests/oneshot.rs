@@ -12,11 +12,11 @@ fn smoke_poll() {
     let (mut tx, rx) = oneshot::channel::<u32>();
     let mut rx = Some(rx);
     let f = poll_fn(|cx| {
-        assert!(tx.poll_cancel(cx).is_pending());
-        assert!(tx.poll_cancel(cx).is_pending());
+        assert!(tx.poll_canceled(cx).is_pending());
+        assert!(tx.poll_canceled(cx).is_pending());
         drop(rx.take());
-        assert!(tx.poll_cancel(cx).is_ready());
-        assert!(tx.poll_cancel(cx).is_ready());
+        assert!(tx.poll_canceled(cx).is_ready());
+        assert!(tx.poll_canceled(cx).is_ready());
         Poll::Ready(())
     });
 
@@ -42,7 +42,7 @@ impl Future for WaitForCancel {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.tx.poll_cancel(cx)
+        self.tx.poll_canceled(cx)
     }
 }
 
@@ -72,7 +72,7 @@ fn cancel_lots() {
 fn cancel_after_sender_drop_doesnt_notify() {
     let (mut tx, rx) = oneshot::channel::<u32>();
     let mut cx = Context::from_waker(panic_waker_ref());
-    assert_eq!(tx.poll_cancel(&mut cx), Poll::Pending);
+    assert_eq!(tx.poll_canceled(&mut cx), Poll::Pending);
     drop(tx);
     drop(rx);
 }
@@ -86,7 +86,7 @@ fn close() {
             Poll::Ready(Err(_)) => {},
             _ => panic!(),
         };
-        assert!(tx.poll_cancel(cx).is_ready());
+        assert!(tx.poll_canceled(cx).is_ready());
         Poll::Ready(())
     }));
 }

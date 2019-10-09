@@ -80,7 +80,7 @@ impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(cx) {
+        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_canceled(cx) {
             if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Poll::Ready(())
