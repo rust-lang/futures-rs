@@ -47,7 +47,10 @@ impl<'a, T> LocalFutureObj<'a, T> {
         }
     }
 
-    /// Converts the `LocalFutureObj` into a `FutureObj`
+    /// Converts the `LocalFutureObj` into a `FutureObj`.
+    ///
+    /// # Safety
+    ///
     /// To make this operation safe one has to ensure that the `UnsafeFutureObj`
     /// instance from which this `LocalFutureObj` was created actually
     /// implements `Send`.
