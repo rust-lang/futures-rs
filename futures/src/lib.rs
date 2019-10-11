@@ -191,9 +191,11 @@ pub mod executor {
         BlockingStream,
         Enter, EnterError,
         LocalSpawner, LocalPool,
-        ThreadPool, ThreadPoolBuilder,
         block_on, block_on_stream, enter,
     };
+
+    #[cfg(feature = "threadpool")]
+    pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
 pub mod future {
