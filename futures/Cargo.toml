@@ -42,6 +42,7 @@ alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-ch
 async-await = ["futures-util-preview/async-await", "futures-util-preview/join-macro", "futures-util-preview/select-macro"]
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
+threadpool = ["futures-executor-preview/threadpool"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the

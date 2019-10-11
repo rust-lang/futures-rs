@@ -16,7 +16,8 @@ name = "futures_executor"
 
 [features]
 default = ["std"]
-std = ["futures-core-preview/std", "futures-util-preview/std", "num_cpus"]
+std = ["futures-core-preview/std", "futures-util-preview/std"]
+threadpool = ["num_cpus"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }
