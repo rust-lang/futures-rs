@@ -15,10 +15,12 @@ matrix:
     - name: cargo build (minimum required version)
       rust: 1.36.0
       script:
-        # default features & compat feature
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        # Check default-features
         - cargo build --all
+        # Check compat & threadpool features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
+        - cargo build --manifest-path futures/Cargo.toml --features threadpool
 
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
@@ -31,18 +33,22 @@ matrix:
     - name: cargo +stable build
       rust: stable
       script:
-        # default features & compat feature
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        # Check default-features
         - cargo build --all
+        # Check compat & threadpool features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
+        - cargo build --manifest-path futures/Cargo.toml --features threadpool
 
     - name: cargo +beta build
       rust: beta
       script:
-        # default features & compat feature & async-await feature
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        # Check default-features
         - cargo build --all
+        # Check compat & threadpool & async-await features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
+        - cargo build --manifest-path futures/Cargo.toml --features threadpool
         - cargo build --manifest-path futures/Cargo.toml --features async-await
 
     - name: cargo test
@@ -169,7 +175,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features io,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,io
         - cargo check --manifest-path futures-util/Cargo.toml --features read_initializer,unstable
-
+        # Check each features with --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
@@ -178,31 +184,17 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features io,bilock,unstable
 
+        # futures-executor
+        # Check default-features, all-features
+        - cargo check --manifest-path futures-executor/Cargo.toml
+        - cargo check --manifest-path futures-executor/Cargo.toml --all-features
+        # Check each features
+        - cargo check --manifest-path futures-executor/Cargo.toml --features threadpool
+
     - name: cargo doc
       rust: nightly
       script:
         - RUSTDOCFLAGS=-Dwarnings cargo doc --all --no-deps --all-features
-
-    - name: publish docs
-      stage: release
-      rust: nightly
-      before_script:
-        - echo "machine github.com login $GH_TOKEN password x-oauth-basic" >> ~/.netrc
-        - chmod 0600 ~/.netrc
-        - git clone https://github.com/rust-lang-nursery/futures-api-docs
-      script:
-        - cargo doc --all --no-deps --all-features
-        - mv target/doc "futures-api-docs/$TRAVIS_TAG"
-        - cd futures-api-docs
-        - |
-          sed -i'' -e '/<main id="doc-links">/a\
-          \        <a href="https://rust-lang-nursery.github.io/futures-api-docs/'"$TRAVIS_TAG"'/futures/">\
-          \          <span>'"$TRAVIS_TAG"'</span>\
-          \        </a>\
-          ' index.html
-        - git add "$TRAVIS_TAG" index.html
-        - git commit -m "Add API docs for $TRAVIS_TAG"
-        - git push origin master
 
 script:
   - cargo test --all --all-features
@@ -210,7 +202,6 @@ script:
 
 env:
   global:
-    - secure: "iwVcMVIF7ZSY82fK5UyyUvVvJxMSYrbZawh1+4Oi8pvOdYq1gptcDoOC8jxWwCwrNF1b+/85n+jlEUngEqqSmV5PjAbWPjoc+u4Zn7CRi1AlxoUlvHPiQm4vM4Mkkd6GsqoIZttCeedU9m/w0nQ18uUtK8uD6vr2FVdcMnUnkYQAxuGOowGLrwidukzfBXMCu/JrwKMIbt61knAFiI/KJknu0h1mRrhpeF/sQ3tJFzRRcQeFJkbfwDzltMpPo1hq5D3HI4ONjYi/qO2pwUhDk4umfp9cLW9MS8rQvptxJTQmWemHi+f2/U4ld6a0URL6kEuMkt/EbH0A74eFtlicfRs44dX9MlWoqbLypnC3ymqmHcpwcwNA3HmZyg800MTuU+BPK41HIPdO9tPpxjHEiqvNDknH7qs+YBnis0eH7DHJgEjXq651PjW7pm+rnHPwsj+OzKE1YBNxBQZZDkS3VnZJz+O4tVsOzc3IOz0e+lf7VVuI17C9haj117nKp3umC4MVBA0S8RfreFgqpyDeY2zwcqOr0YOlEGGRl0vyWP8Qcxx12kQ7+doLolt6Kxda4uO0hKRmIF6+qki1T+L7v8BOGOtCncz4f7IX48eQ7+Wu0OtglRn45qAa3CxjUuW6xX3KSNH66PCXV0Jtp8Ga2SSevX2wtbbFu9f+9R+PQY4="
     - RUSTFLAGS=-Dwarnings
 
 notifications:

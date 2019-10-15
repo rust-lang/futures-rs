@@ -6,7 +6,7 @@ authors = ["Taiki Endo <te316e89@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.19/futures_join_macro"
+documentation = "https://docs.rs/futures-join-macro-preview/0.3.0-alpha.19"
 description = """
 Definition of the `join!` macro and the `try_join!` macro.
 """

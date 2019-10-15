@@ -13,7 +13,7 @@ pub struct Collect<St, C> {
     collection: C,
 }
 
-impl<St: Unpin + Stream, C> Unpin for Collect<St, C> {}
+impl<St: Unpin, C> Unpin for Collect<St, C> {}
 
 impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_pinned!(stream: St);

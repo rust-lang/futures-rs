@@ -7,12 +7,12 @@ use futures_sink::Sink;
 /// Future for the [`close`](super::SinkExt::close) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Close<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
+pub struct Close<'a, Si: ?Sized, Item> {
     sink: &'a mut Si,
     _phantom: PhantomData<fn(Item)>,
 }
 
-impl<Si: Sink<Item> + Unpin + ?Sized, Item> Unpin for Close<'_, Si, Item> {}
+impl<Si: Unpin + ?Sized, Item> Unpin for Close<'_, Si, Item> {}
 
 /// A future that completes when the sink has finished closing.
 ///

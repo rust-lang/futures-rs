@@ -12,17 +12,20 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.19/futures_executor")]
+#![doc(html_root_url = "https://docs.rs/futures-executor-preview/0.3.0-alpha.19")]
 
 #[cfg(feature = "std")]
 mod local_pool;
 #[cfg(feature = "std")]
 pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
 
+#[cfg(feature = "threadpool")]
 #[cfg(feature = "std")]
 mod unpark_mutex;
+#[cfg(feature = "threadpool")]
 #[cfg(feature = "std")]
 mod thread_pool;
+#[cfg(feature = "threadpool")]
 #[cfg(feature = "std")]
 pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 

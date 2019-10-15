@@ -35,7 +35,7 @@ pub fn select_ok<I>(iter: I) -> SelectOk<I::Item>
     let ret = SelectOk {
         inner: iter.into_iter().collect()
     };
-    assert!(!ret.inner.is_empty());
+    assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
     ret
 }
 

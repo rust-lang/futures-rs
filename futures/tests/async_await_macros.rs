@@ -3,9 +3,10 @@
 use futures::{Poll, pending, pin_mut, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
-use futures::future::{self, FutureExt};
+use futures::future::{self, FutureExt, poll_fn};
 use futures::stream::StreamExt;
 use futures::sink::SinkExt;
+use futures::task::Context;
 
 #[test]
 fn poll_and_pending() {
@@ -159,6 +160,134 @@ fn select_size() {
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 40);
+}
+
+#[test]
+fn select_on_non_unpin_expressions() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let res = block_on(async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+        };
+        select_res
+    });
+    assert_eq!(res, 5);
+}
+
+#[test]
+fn select_on_non_unpin_expressions_with_default() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let res = block_on(async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+            default => { select_res = 7 },
+        };
+        select_res
+    });
+    assert_eq!(res, 5);
+}
+
+#[test]
+fn select_on_non_unpin_size() {
+    // The returned Future is !Unpin
+    let make_non_unpin_fut = || { async {
+        5
+    }};
+
+    let fut = async {
+        let select_res;
+        select! {
+            value_1 = make_non_unpin_fut().fuse() => { select_res = value_1 },
+            value_2 = make_non_unpin_fut().fuse() => { select_res = value_2 },
+        };
+        select_res
+    };
+
+    assert_eq!(48, std::mem::size_of_val(&fut));
+}
+
+#[test]
+fn select_can_be_used_as_expression() {
+    block_on(async {
+        let res = select! {
+            x = future::ready(7) => { x },
+            y = future::ready(3) => { y + 1 },
+        };
+        assert!(res == 7 || res == 4);
+    });
+}
+
+#[test]
+fn select_with_default_can_be_used_as_expression() {
+    fn poll_always_pending<T>(_cx: &mut Context<'_>) -> Poll<T> {
+        Poll::Pending
+    }
+
+    block_on(async {
+        let res = select! {
+            x = poll_fn(poll_always_pending::<i32>).fuse() => x,
+            y = poll_fn(poll_always_pending::<i32>).fuse() => { y + 1 },
+            default => 99,
+        };
+        assert_eq!(res, 99);
+    });
+}
+
+#[test]
+fn select_with_complete_can_be_used_as_expression() {
+    block_on(async {
+        let res = select! {
+            x = future::pending::<i32>() => { x },
+            y = future::pending::<i32>() => { y + 1 },
+            default => 99,
+            complete => 237,
+        };
+        assert_eq!(res, 237);
+    });
+}
+
+async fn require_mutable(_: &mut i32) {}
+async fn async_noop() {}
+
+#[test]
+fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
+    block_on(async {
+        let mut foo = 234;
+        select! {
+            x = require_mutable(&mut foo).fuse() => { },
+            y = async_noop().fuse() => {
+                foo += 5;
+            },
+        }
+    });
+}
+
+#[test]
+fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
+    block_on(async {
+        let mut foo = 234;
+        select! {
+            x = require_mutable(&mut foo).fuse() => { },
+            y = async_noop().fuse() => {
+                foo += 5;
+            },
+            default => {
+                foo += 27;
+            },
+        }
+    });
 }
 
 #[test]

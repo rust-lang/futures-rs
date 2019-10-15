@@ -246,7 +246,7 @@ pub struct MutexGuard<'a, T: ?Sized> {
 impl<T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MutexGuard")
-            .field("value", &*self)
+            .field("value", &&**self)
             .field("mutex", &self.mutex)
             .finish()
     }
@@ -292,3 +292,10 @@ unsafe impl<T: ?Sized> Sync for MutexLockFuture<'_, T> {}
 // lock is essentially spinlock-equivalent (attempt to flip an atomic bool)
 unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
+
+#[test]
+fn test_mutex_guard_debug_not_recurse() {
+    let mutex = Mutex::new(42);
+    let guard = mutex.try_lock().unwrap();
+    let _ = format!("{:?}", guard);
+}

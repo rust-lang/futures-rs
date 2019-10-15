@@ -7,7 +7,7 @@ use std::pin::Pin;
 /// Future for the [`read_vectored`](super::AsyncReadExt::read_vectored) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct ReadVectored<'a, R: ?Sized + Unpin> {
+pub struct ReadVectored<'a, R: ?Sized> {
     reader: &'a mut R,
     bufs: &'a mut [IoSliceMut<'a>],
 }

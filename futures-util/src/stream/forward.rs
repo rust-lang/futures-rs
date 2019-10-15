@@ -11,13 +11,13 @@ const INVALID_POLL: &str = "polled `Forward` after completion";
 /// Future for the [`forward`](super::StreamExt::forward) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Forward<St: TryStream, Si: Sink<St::Ok>> {
+pub struct Forward<St: TryStream, Si> {
     sink: Option<Si>,
     stream: Fuse<St>,
     buffered_item: Option<St::Ok>,
 }
 
-impl<St: TryStream + Unpin, Si: Sink<St::Ok> + Unpin> Unpin for Forward<St, Si> {}
+impl<St: TryStream + Unpin, Si: Unpin> Unpin for Forward<St, Si> {}
 
 impl<St, Si, E> Forward<St, Si>
 where

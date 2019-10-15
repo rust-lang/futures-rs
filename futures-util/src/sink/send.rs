@@ -6,13 +6,13 @@ use futures_sink::Sink;
 /// Future for the [`send`](super::SinkExt::send) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Send<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
+pub struct Send<'a, Si: ?Sized, Item> {
     sink: &'a mut Si,
     item: Option<Item>,
 }
 
 // Pinning is never projected to children
-impl<Si: Sink<Item> + Unpin + ?Sized, Item> Unpin for Send<'_, Si, Item> {}
+impl<Si: Unpin + ?Sized, Item> Unpin for Send<'_, Si, Item> {}
 
 impl<'a, Si: Sink<Item> + Unpin + ?Sized, Item> Send<'a, Si, Item> {
     pub(super) fn new(sink: &'a mut Si, item: Item) -> Self {

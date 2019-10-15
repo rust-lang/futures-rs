@@ -7,7 +7,7 @@ use std::pin::Pin;
 /// Future for the [`read`](super::AsyncReadExt::read) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Read<'a, R: ?Sized + Unpin> {
+pub struct Read<'a, R: ?Sized> {
     reader: &'a mut R,
     buf: &'a mut [u8],
 }
