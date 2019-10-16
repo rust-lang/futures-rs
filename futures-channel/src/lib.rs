@@ -24,10 +24,7 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
-        #[cfg_attr(
-            feature = "cfg-target-has-atomic",
-            cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-        )]
+        #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
         $item
     )*};
 }

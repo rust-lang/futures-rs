@@ -75,10 +75,7 @@ pub use futures_util::pin_mut;
 #[cfg(feature = "async-await")]
 pub use futures_util::{pending, poll}; // Async-await
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
+#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod channel {
     //! Cross-task communication.
@@ -243,10 +240,7 @@ pub mod future {
         select_all, SelectAll,
     };
 
-    #[cfg_attr(
-        feature = "cfg-target-has-atomic",
-        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-    )]
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     pub use futures_util::future::{
         abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
@@ -319,10 +313,7 @@ pub mod io {
     };
 }
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
+#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod lock {
     //! Futures-powered synchronization primitives.
@@ -438,10 +429,7 @@ pub mod stream {
         Chunks,
     };
 
-    #[cfg_attr(
-        feature = "cfg-target-has-atomic",
-        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-    )]
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         FuturesOrdered,
@@ -469,10 +457,7 @@ pub mod stream {
         IntoStream,
     };
 
-    #[cfg_attr(
-        feature = "cfg-target-has-atomic",
-        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-    )]
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
@@ -509,17 +494,11 @@ pub mod task {
     #[cfg(feature = "alloc")]
     pub use futures_util::task::{SpawnExt, LocalSpawnExt};
 
-    #[cfg_attr(
-        feature = "cfg-target-has-atomic",
-        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-    )]
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     pub use futures_util::task::{waker, waker_ref, WakerRef, ArcWake};
 
-    #[cfg_attr(
-        feature = "cfg-target-has-atomic",
-        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-    )]
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     pub use futures_util::task::AtomicWaker;
 }
 
