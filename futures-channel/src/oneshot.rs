@@ -104,9 +104,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let receiver = Receiver {
         inner: inner.clone(),
     };
-    let sender = Sender {
-        inner,
-    };
+    let sender = Sender { inner };
     (sender, receiver)
 }
 
@@ -122,7 +120,7 @@ impl<T> Inner<T> {
 
     fn send(&self, t: T) -> Result<(), T> {
         if self.complete.load(SeqCst) {
-            return Err(t)
+            return Err(t);
         }
 
         // Note that this lock acquisition may fail if the receiver
@@ -159,7 +157,7 @@ impl<T> Inner<T> {
         // destructor, but our destructor hasn't run yet so if it's set then the
         // oneshot is gone.
         if self.complete.load(SeqCst) {
-            return Poll::Ready(())
+            return Poll::Ready(());
         }
 
         // If our other half is not gone then we need to park our current task
@@ -268,7 +266,10 @@ impl<T> Inner<T> {
         } else {
             let task = cx.waker().clone();
             match self.rx_task.try_lock() {
-                Some(mut slot) => { *slot = Some(task); false },
+                Some(mut slot) => {
+                    *slot = Some(task);
+                    false
+                }
                 None => true,
             }
         };
@@ -412,15 +413,22 @@ impl<T> Receiver<T> {
     pub fn try_recv(&mut self) -> Result<Option<T>, Canceled> {
         self.inner.try_recv()
     }
+
+    /// Resets this oneshot to it's initial state allowing it to be used again. Requires that the
+    /// `Sender` has already been used or been dropped.
+    pub fn reset(&mut self) -> Sender<T> {
+        *Arc::get_mut(&mut self.inner).expect("The sender has not been dropped yet") = Inner::new();
+
+        Sender {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl<T> Future for Receiver<T> {
     type Output = Result<T, Canceled>;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<T, Canceled>> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
     }
 }
