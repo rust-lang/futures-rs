@@ -5,7 +5,7 @@ use futures_sink::{Sink};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the [`sink_map_err`](super::SinkExt::sink_map_err) method.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct SinkMapErr<Si, F> {
     sink: Si,
