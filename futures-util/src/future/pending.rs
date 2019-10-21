@@ -4,7 +4,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 
 /// Future for the [`pending()`] function.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Pending<T> {
     _data: marker::PhantomData<T>,
@@ -47,4 +47,10 @@ impl<T> Future for Pending<T> {
 }
 
 impl<T> Unpin for Pending<T> {
+}
+
+impl<T> Clone for Pending<T> {
+    fn clone(&self) -> Self {
+        pending()
+    }
 }
