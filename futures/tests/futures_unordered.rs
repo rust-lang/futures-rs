@@ -1,8 +1,12 @@
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, join, Future, FutureExt};
 use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
-use futures::task::Poll;
+use futures::task::{Context, Poll};
 use futures_test::future::FutureTestExt;
 use futures_test::task::noop_context;
 use futures_test::{assert_stream_done, assert_stream_next};
@@ -162,6 +166,72 @@ fn iter_mut_len() {
     assert!(iter_mut.next().is_some());
     assert_eq!(iter_mut.len(), 0);
     assert!(iter_mut.next().is_none());
+}
+
+#[test]
+fn iter_cancel() {
+    struct AtomicCancel<F> {
+        future: F,
+        cancel: AtomicBool,
+    }
+
+    impl<F: Future + Unpin> Future for AtomicCancel<F> {
+        type Output = Option<<F as Future>::Output>;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            if self.cancel.load(Ordering::Relaxed) {
+                Poll::Ready(None)
+            } else {
+                self.future.poll_unpin(cx).map(Some)
+            }
+        }
+    }
+
+    impl<F: Future + Unpin> AtomicCancel<F> {
+        fn new(future: F) -> Self {
+            Self { future, cancel: AtomicBool::new(false) }
+        }
+    }
+
+    let stream = vec![
+        AtomicCancel::new(future::pending::<()>()),
+        AtomicCancel::new(future::pending::<()>()),
+        AtomicCancel::new(future::pending::<()>()),
+    ]
+    .into_iter()
+    .collect::<FuturesUnordered<_>>();
+
+    for f in stream.iter() {
+        f.cancel.store(true, Ordering::Relaxed);
+    }
+
+    let mut iter = block_on_stream(stream);
+
+    assert_eq!(iter.next(), Some(None));
+    assert_eq!(iter.next(), Some(None));
+    assert_eq!(iter.next(), Some(None));
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn iter_len() {
+    let stream = vec![
+        future::pending::<()>(),
+        future::pending::<()>(),
+        future::pending::<()>(),
+    ]
+    .into_iter()
+    .collect::<FuturesUnordered<_>>();
+
+    let mut iter = stream.iter();
+    assert_eq!(iter.len(), 3);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
 }
 
 #[test]
