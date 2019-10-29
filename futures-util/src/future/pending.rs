@@ -48,3 +48,9 @@ impl<T> Future for Pending<T> {
 
 impl<T> Unpin for Pending<T> {
 }
+
+impl<T> Clone for Pending<T> {
+    fn clone(&self) -> Self {
+        pending()
+    }
+}
