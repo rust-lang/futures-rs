@@ -1,6 +1,6 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_channel::oneshot::{self, Canceled, Sender, Receiver},
     futures_core::{
         future::Future,
         task::{Context, Poll},
@@ -28,6 +28,14 @@ pub struct RemoteHandle<T> {
     keep_running: Arc<AtomicBool>,
 }
 
+fn unwrap_result<T>(result: Result<thread::Result<T>, Canceled>) -> T {
+    match result {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => panic::resume_unwind(e),
+        Err(e) => panic::resume_unwind(Box::new(e)),
+    }
+}
+
 impl<T> RemoteHandle<T> {
     /// Drops this handle *without* canceling the underlying future.
     ///
@@ -36,17 +44,87 @@ impl<T> RemoteHandle<T> {
     pub fn forget(self) {
         self.keep_running.store(true, Ordering::SeqCst);
     }
+
+    /// Poll whether result is available, but do not extract result.
+    pub fn poll_complete(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.rx.poll_complete(cx)
+    }
+
+    /// Create a future only polling for completion without returning the result
+    ///
+    /// Use [`recv`] to extract final result after completion is ready.
+    ///
+    /// [`recv`]: struct.RemoteHandle.html#method.recv
+    pub fn completion_handle(&mut self) -> RemoteCompletionHandle<'_> {
+        RemoteCompletionHandle {
+            remote_handle: self,
+        }
+    }
+
+    /// Try to extract final result
+    ///
+    /// Returns `None` if underlying future is still running.
+    ///
+    /// # Panics
+    ///
+    /// Panics in the same way as polling `RemoteHandle`.
+    pub fn try_recv(&mut self) -> Option<T> {
+        Some(unwrap_result(self.rx.try_recv().transpose()?))
+    }
+
+    /// Extract final result
+    ///
+    /// # Panics
+    ///
+    /// Panics if underlying future is still running in addition to the
+    /// ways it would panic when polling `RemoteHandle`.
+    pub fn recv(mut self) -> T {
+        unwrap_result(
+            self.rx.try_recv().transpose().expect("underlying future still running")
+        )
+    }
 }
 
 impl<T: Send + 'static> Future for RemoteHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        match ready!(self.rx.poll_unpin(cx)) {
-            Ok(Ok(output)) => Poll::Ready(output),
-            Ok(Err(e)) => panic::resume_unwind(e),
-            Err(e) => panic::resume_unwind(Box::new(e)),
-        }
+        Poll::Ready(unwrap_result(
+            ready!(self.rx.poll_unpin(cx))
+        ))
+    }
+}
+
+trait Completion {
+    fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<()>;
+}
+
+impl<T> Completion for RemoteHandle<T> {
+    fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        Pin::new(self).poll_complete(cx)
+    }
+}
+
+/// A completion handle for a `RemoteHandle`
+///
+/// Only waits for completion, but doesn't return the actual result.
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+pub struct RemoteCompletionHandle<'a> {
+    remote_handle: &'a mut dyn Completion,
+}
+
+impl fmt::Debug for RemoteCompletionHandle<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("RemoteCompletionHandle")
+            .finish()
+    }
+}
+
+impl Future for RemoteCompletionHandle<'_> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        self.remote_handle.poll_unpin(cx)
     }
 }
 
