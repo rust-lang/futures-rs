@@ -407,6 +407,7 @@ impl<T> SenderInner<T> {
 
     // Do the send without failing.
     // Can be called only by bounded sender.
+    #[allow(clippy::debug_assert_with_mut_call)]
     fn do_send_b(&mut self, msg: T)
         -> Result<(), TrySendError<T>>
     {
