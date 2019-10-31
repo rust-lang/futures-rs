@@ -151,6 +151,9 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        ///
+        /// `poll_write` must try to make progress by flushing the underlying object if
+        /// that is the only way the underlying object can become writable again.
         fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>;
 
