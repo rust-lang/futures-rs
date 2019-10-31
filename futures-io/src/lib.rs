@@ -133,7 +133,7 @@ mod if_std {
     /// This trait is analogous to the `std::io::Write` trait, but integrates
     /// with the asynchronous task system. In particular, the `poll_write`
     /// method, unlike `Write::write`, will automatically queue the current task
-    /// for wakeup and return if data is not yet available, rather than blocking
+    /// for wakeup and return if the writer cannot take more data, rather than blocking
     /// the calling thread.
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
