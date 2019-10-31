@@ -1,6 +1,6 @@
 use futures_task::{Spawn, SpawnError, FutureObj};
 
-/// An implementation of [`Spawn`](futures_core::task::Spawn) that records
+/// An implementation of [`Spawn`](futures_task::Spawn) that records
 /// any [`Future`](futures_core::future::Future)s spawned on it.
 ///
 /// # Examples

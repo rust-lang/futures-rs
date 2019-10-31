@@ -9,12 +9,12 @@ use alloc::sync::Arc;
 ///
 /// Currently, there are two ways to convert `ArcWake` into [`Waker`]:
 ///
-/// * [`waker`](crate::task::waker()) converts `Arc<impl ArcWake>` into [`Waker`].
-/// * [`waker_ref`](crate::task::waker_ref()) converts `&Arc<impl ArcWake>` into [`WakerRef`] that
+/// * [`waker`](super::waker()) converts `Arc<impl ArcWake>` into [`Waker`].
+/// * [`waker_ref`](super::waker_ref()) converts `&Arc<impl ArcWake>` into [`WakerRef`] that
 ///   provides access to a [`&Waker`][`Waker`].
 ///
 /// [`Waker`]: std::task::Waker
-/// [`WakerRef`]: crate::task::WakerRef
+/// [`WakerRef`]: super::WakerRef
 // Note: Send + Sync required because `Arc<T>` doesn't automatically imply
 // those bounds, but `Waker` implements them.
 pub trait ArcWake: Send + Sync {

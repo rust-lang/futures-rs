@@ -1,6 +1,6 @@
 use futures_task::{Spawn, SpawnError, FutureObj};
 
-/// An implementation of [`Spawn`](futures_core::task::Spawn) that panics
+/// An implementation of [`Spawn`](futures_task::Spawn) that panics
 /// when used.
 ///
 /// # Examples
