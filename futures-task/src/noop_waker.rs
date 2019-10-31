@@ -1,4 +1,5 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
+
 use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 use core::ptr::null;
 #[cfg(feature = "std")]
