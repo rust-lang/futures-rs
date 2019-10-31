@@ -19,5 +19,11 @@ default = ["std"]
 std = ["alloc"]
 alloc = []
 
+# Unstable features
+# These features are outside of the normal semver guarantees and require the
+# `unstable` feature as an explicit opt-in to unstable API.
+unstable = []
+cfg-target-has-atomic = []
+
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19" }
