@@ -127,11 +127,8 @@ impl<T> Future for FutureObj<'_, T> {
     type Output = T;
 
     #[inline]
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        let pinned_field: Pin<&mut LocalFutureObj<'_, T>> = unsafe {
-            self.map_unchecked_mut(|x| &mut x.0)
-        };
-        LocalFutureObj::poll(pinned_field, cx)
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+        Pin::new( &mut self.0 ).poll(cx)
     }
 }
 
