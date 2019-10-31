@@ -1,5 +1,5 @@
 use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnError};
+use futures_task::{Spawn, SpawnError};
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that records
 /// any [`Future`](futures_core::future::Future)s spawned on it.

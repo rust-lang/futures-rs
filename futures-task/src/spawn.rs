@@ -1,5 +1,5 @@
-use crate::future::{FutureObj, LocalFutureObj};
 use core::fmt;
+use futures_core::future::{FutureObj, LocalFutureObj};
 
 /// The `Spawn` trait allows for pushing futures onto an executor that will
 /// run them to completion.
@@ -12,8 +12,7 @@ pub trait Spawn {
     /// represent relatively rare scenarios, such as the executor
     /// having been shut down so that it is no longer able to accept
     /// tasks.
-    fn spawn_obj(&mut self, future: FutureObj<'static, ()>)
-        -> Result<(), SpawnError>;
+    fn spawn_obj(&mut self, future: FutureObj<'static, ()>) -> Result<(), SpawnError>;
 
     /// Determines whether the executor is able to spawn new tasks.
     ///
@@ -38,8 +37,7 @@ pub trait LocalSpawn {
     /// represent relatively rare scenarios, such as the executor
     /// having been shut down so that it is no longer able to accept
     /// tasks.
-    fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>)
-        -> Result<(), SpawnError>;
+    fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError>;
 
     /// Determines whether the executor is able to spawn new tasks.
     ///
@@ -60,9 +58,7 @@ pub struct SpawnError {
 
 impl fmt::Debug for SpawnError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SpawnError")
-            .field(&"shutdown")
-            .finish()
+        f.debug_tuple("SpawnError").field(&"shutdown").finish()
     }
 }
 
@@ -88,8 +84,7 @@ impl SpawnError {
 }
 
 impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
-    fn spawn_obj(&mut self, future: FutureObj<'static, ()>)
-    -> Result<(), SpawnError> {
+    fn spawn_obj(&mut self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_obj(self, future)
     }
 
@@ -99,8 +94,7 @@ impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
 }
 
 impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
-    fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>)
-    -> Result<(), SpawnError> {
+    fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_local_obj(self, future)
     }
 
@@ -111,12 +105,11 @@ impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use alloc::boxed::Box;
     use super::*;
+    use alloc::boxed::Box;
 
     impl<Sp: ?Sized + Spawn> Spawn for Box<Sp> {
-        fn spawn_obj(&mut self, future: FutureObj<'static, ()>)
-        -> Result<(), SpawnError> {
+        fn spawn_obj(&mut self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_obj(future)
         }
 
@@ -126,8 +119,7 @@ mod if_alloc {
     }
 
     impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Box<Sp> {
-        fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>)
-        -> Result<(), SpawnError> {
+        fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_local_obj(future)
         }
 

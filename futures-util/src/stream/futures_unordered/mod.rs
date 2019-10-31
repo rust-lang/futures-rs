@@ -6,7 +6,8 @@
 use crate::task::{AtomicWaker};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll, Spawn, LocalSpawn, SpawnError};
+use futures_core::task::{Context, Poll};
+use futures_task::{Spawn, LocalSpawn, SpawnError};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;

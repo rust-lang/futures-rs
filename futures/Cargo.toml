@@ -23,6 +23,7 @@ travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }
+futures-task-preview = { path = "../futures-task", version = "=0.3.0-alpha.19", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.19", default-features = false, features = ["sink"] }
 futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.19", default-features = false, optional = true }
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.19", default-features = false }
@@ -37,8 +38,8 @@ assert_matches = "1.3.0"
 
 [features]
 default = ["std", "executor"]
-std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std", "futures-util-preview/io", "futures-util-preview/channel"]
-alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-channel-preview/alloc", "futures-util-preview/alloc"]
+std = ["alloc", "futures-core-preview/std", "futures-task-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std", "futures-util-preview/io", "futures-util-preview/channel"]
+alloc = ["futures-core-preview/alloc", "futures-task-preview/alloc", "futures-sink-preview/alloc", "futures-channel-preview/alloc", "futures-util-preview/alloc"]
 async-await = ["futures-util-preview/async-await", "futures-util-preview/async-await-macro"]
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
