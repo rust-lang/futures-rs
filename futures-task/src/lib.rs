@@ -59,4 +59,4 @@ pub use crate::noop_waker::noop_waker;
 #[cfg(feature = "std")]
 pub use crate::noop_waker::noop_waker_ref;
 
-pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};

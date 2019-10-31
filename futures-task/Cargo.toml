@@ -26,4 +26,3 @@ unstable = []
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19" }
