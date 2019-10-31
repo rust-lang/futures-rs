@@ -75,8 +75,8 @@ macro_rules! document_join_macro {
 
 document_join_macro! {
     #[proc_macro_hack(support_nested)]
-    pub use futures_join_macro::join;
+    pub use futures_macro::join;
 
     #[proc_macro_hack(support_nested)]
-    pub use futures_join_macro::try_join;
+    pub use futures_macro::try_join;
 }
