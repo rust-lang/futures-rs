@@ -19,12 +19,42 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+macro_rules! cfg_target_has_atomic {
+    ($($item:item)*) => {$(
+        #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+        $item
+    )*};
+}
+
 mod spawn;
 pub use crate::spawn::{Spawn, SpawnError, LocalSpawn};
 
-#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
-mod atomic_waker;
-#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
-pub use crate::atomic_waker::AtomicWaker;
+cfg_target_has_atomic! {
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    mod atomic_waker;
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    pub use crate::atomic_waker::AtomicWaker;
+
+    #[cfg(feature = "alloc")]
+    mod arc_wake;
+    #[cfg(feature = "alloc")]
+    pub use crate::arc_wake::ArcWake;
+
+    #[cfg(feature = "alloc")]
+    mod waker;
+    #[cfg(feature = "alloc")]
+    pub use crate::waker::waker;
+
+    #[cfg(feature = "alloc")]
+    mod waker_ref;
+    #[cfg(feature = "alloc")]
+    pub use crate::waker_ref::{waker_ref, WakerRef};
+}
+
+mod noop_waker;
+pub use crate::noop_waker::noop_waker;
+#[cfg(feature = "std")]
+pub use crate::noop_waker::noop_waker_ref;
 
 pub use futures_core::future::{FutureObj, LocalFutureObj};
+pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
