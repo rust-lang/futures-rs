@@ -1,4 +1,4 @@
-use crate::try_future::TryFutureExt;
+use crate::future::TryFutureExt;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
