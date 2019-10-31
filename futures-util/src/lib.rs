@@ -33,6 +33,7 @@ extern crate futures_core;
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
+// Not public API.
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[macro_use]
@@ -43,6 +44,7 @@ pub mod async_await;
 #[doc(hidden)]
 pub use self::async_await::*;
 
+// Not public API.
 #[doc(hidden)]
 pub use futures_core::core_reexport;
 
@@ -87,16 +89,10 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::FutureExt;
-
-pub mod try_future;
-#[doc(hidden)] pub use crate::try_future::TryFutureExt;
+#[doc(hidden)] pub use crate::future::{FutureExt, TryFutureExt};
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::StreamExt;
-
-pub mod try_stream;
-#[doc(hidden)] pub use crate::try_stream::TryStreamExt;
+#[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
 
 #[cfg(feature = "sink")]
 pub mod sink;
@@ -106,7 +102,6 @@ pub mod sink;
 pub mod task;
 
 pub mod never;
-#[doc(hidden)] pub use crate::never::Never;
 
 #[cfg(feature = "compat")]
 pub mod compat;

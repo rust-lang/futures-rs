@@ -120,6 +120,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
         }
     }
 
+    #[allow(clippy::debug_assert_with_mut_call)]
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -129,6 +130,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
         self.as_mut().sink().poll_flush(cx)
     }
 
+    #[allow(clippy::debug_assert_with_mut_call)]
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

@@ -1,4 +1,4 @@
-//! Utilities to make testing [`Future`s](futures_core::Future) easier
+//! Utilities to make testing [`Future`s](futures_core::future::Future) easier
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.

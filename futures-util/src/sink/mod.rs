@@ -93,13 +93,12 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::sink::SinkExt;
-    /// use futures::stream::StreamExt;
-    /// use std::collections::VecDeque;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let (tx, rx) = mpsc::channel(5);
     ///
     /// let mut tx = tx.with_flat_map(|x| {
-    ///     VecDeque::from(vec![Ok(42); x])
+    ///     stream::iter(vec![Ok(42); x])
     /// });
     ///
     /// tx.send(5).await.unwrap();

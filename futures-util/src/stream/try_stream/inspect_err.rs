@@ -1,4 +1,4 @@
-use crate::stream::inspect;
+use crate::stream::stream::inspect;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
@@ -7,35 +7,35 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`inspect_ok`](super::TryStreamExt::inspect_ok) method.
+/// Stream for the [`inspect_err`](super::TryStreamExt::inspect_err) method.
 #[must_use = "streams do nothing unless polled"]
-pub struct InspectOk<St, F> {
+pub struct InspectErr<St, F> {
     stream: St,
     f: F,
 }
 
-impl<St: Unpin, F> Unpin for InspectOk<St, F> {}
+impl<St: Unpin, F> Unpin for InspectErr<St, F> {}
 
-impl<St, F> fmt::Debug for InspectOk<St, F>
+impl<St, F> fmt::Debug for InspectErr<St, F>
 where
     St: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InspectOk")
+        f.debug_struct("InspectErr")
             .field("stream", &self.stream)
             .finish()
     }
 }
 
-impl<St, F> InspectOk<St, F> {
+impl<St, F> InspectErr<St, F> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
 }
 
-impl<St, F> InspectOk<St, F>
+impl<St, F> InspectErr<St, F>
 where
     St: TryStream,
-    F: FnMut(&St::Ok),
+    F: FnMut(&St::Error),
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, f }
@@ -74,20 +74,20 @@ where
     }
 }
 
-impl<St, F> FusedStream for InspectOk<St, F>
+impl<St, F> FusedStream for InspectErr<St, F>
 where
     St: TryStream + FusedStream,
-    F: FnMut(&St::Ok),
+    F: FnMut(&St::Error),
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-impl<St, F> Stream for InspectOk<St, F>
+impl<St, F> Stream for InspectErr<St, F>
 where
     St: TryStream,
-    F: FnMut(&St::Ok),
+    F: FnMut(&St::Error),
 {
     type Item = Result<St::Ok, St::Error>;
 
@@ -98,7 +98,7 @@ where
         self.as_mut()
             .stream()
             .try_poll_next(cx)
-            .map(|opt| opt.map(|res| res.map(|e| inspect(e, self.as_mut().f()))))
+            .map(|opt| opt.map(|res| res.map_err(|e| inspect(e, self.as_mut().f()))))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -108,7 +108,7 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, F, Item> Sink<Item> for InspectOk<S, F>
+impl<S, F, Item> Sink<Item> for InspectErr<S, F>
 where
     S: Sink<Item>,
 {

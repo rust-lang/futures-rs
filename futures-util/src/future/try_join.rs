@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::future::{MaybeDone, maybe_done};
-use crate::try_future::{TryFutureExt, IntoFuture};
+use crate::future::{MaybeDone, maybe_done, TryFutureExt, IntoFuture};
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};

@@ -21,7 +21,7 @@ use alloc::sync::{Arc, Weak};
 mod abort;
 
 mod iter;
-pub use self::iter::{IterMut, IterPinMut};
+pub use self::iter::{Iter, IterMut, IterPinMut, IterPinRef};
 
 mod task;
 use self::task::Task;
@@ -192,6 +192,20 @@ impl<Fut> FuturesUnordered<Fut> {
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.ready_to_run_queue.enqueue(ptr);
+    }
+
+    /// Returns an iterator that allows inspecting each future in the set.
+    pub fn iter(&self) -> Iter<'_, Fut> where Fut: Unpin {
+        Iter(Pin::new(self).iter_pin_ref())
+    }
+
+    /// Returns an iterator that allows inspecting each future in the set.
+    fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
+        IterPinRef {
+            task: self.head_all,
+            len: self.len(),
+            _marker: PhantomData,
+        }
     }
 
     /// Returns an iterator that allows modifying each future in the set.

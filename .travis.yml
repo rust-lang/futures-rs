@@ -164,8 +164,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features io
         - cargo check --manifest-path futures-util/Cargo.toml --features channel
         - cargo check --manifest-path futures-util/Cargo.toml --features async-await
-        - cargo check --manifest-path futures-util/Cargo.toml --features join-macro
-        - cargo check --manifest-path futures-util/Cargo.toml --features select-macro
+        - cargo check --manifest-path futures-util/Cargo.toml --features async-await-macro
         - cargo check --manifest-path futures-util/Cargo.toml --features compat
         - cargo check --manifest-path futures-util/Cargo.toml --features io-compat
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,compat
