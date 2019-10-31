@@ -44,15 +44,11 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 #[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
 compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[doc(hidden)] pub use futures_core::future::Future;
-#[doc(hidden)] pub use futures_core::future::TryFuture;
-#[doc(hidden)] pub use futures_util::future::FutureExt;
-#[doc(hidden)] pub use futures_util::try_future::TryFutureExt;
+#[doc(hidden)] pub use futures_core::future::{Future, TryFuture};
+#[doc(hidden)] pub use futures_util::future::{FutureExt, TryFutureExt};
 
-#[doc(hidden)] pub use futures_core::stream::Stream;
-#[doc(hidden)] pub use futures_core::stream::TryStream;
-#[doc(hidden)] pub use futures_util::stream::StreamExt;
-#[doc(hidden)] pub use futures_util::try_stream::TryStreamExt;
+#[doc(hidden)] pub use futures_core::stream::{Stream, TryStream};
+#[doc(hidden)] pub use futures_util::stream::{StreamExt, TryStreamExt};
 
 #[doc(hidden)] pub use futures_sink::Sink;
 #[doc(hidden)] pub use futures_util::sink::SinkExt;
@@ -216,22 +212,30 @@ pub mod future {
         pending, Pending,
         poll_fn, PollFn,
         ready, ok, err, Ready,
-        select, Select,
         join, join3, join4, join5,
         Join, Join3, Join4, Join5,
+        select, Select,
+        try_join, try_join3, try_join4, try_join5,
+        TryJoin, TryJoin3, TryJoin4, TryJoin5,
+        try_select, TrySelect,
         Either,
-
         OptionFuture,
 
         FutureExt,
         FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then, UnitError,
         NeverError,
+
+        TryFutureExt,
+        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
+        InspectOk, InspectErr, TryFlattenStream, UnwrapOrElse,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_util::future::{
         join_all, JoinAll,
         select_all, SelectAll,
+        try_join_all, TryJoinAll,
+        select_ok, SelectOk,
     };
 
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
@@ -243,24 +247,7 @@ pub mod future {
     #[cfg(feature = "std")]
     pub use futures_util::future::{
         Remote, RemoteHandle,
-        // For FutureExt:
         CatchUnwind, Shared,
-    };
-
-    pub use futures_util::try_future::{
-        try_join, try_join3, try_join4, try_join5,
-        TryJoin, TryJoin3, TryJoin4, TryJoin5,
-        try_select, TrySelect,
-
-        TryFutureExt,
-        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
-        InspectOk, InspectErr, TryFlattenStream, UnwrapOrElse,
-    };
-
-    #[cfg(feature = "alloc")]
-    pub use futures_util::try_future::{
-        try_join_all, TryJoinAll,
-        select_ok, SelectOk,
     };
 }
 
@@ -414,7 +401,14 @@ pub mod stream {
         Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
         Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
         SelectNextSome, Peekable, Skip, SkipWhile, Take, TakeWhile,
-        Then, Zip
+        Then, Zip,
+
+        TryStreamExt,
+        AndThen, ErrInto, MapOk, MapErr, OrElse,
+        InspectOk, InspectErr,
+        TryNext, TryForEach, TryFilter, TryFilterMap, TryFlatten,
+        TryCollect, TryConcat, TryFold, TrySkipWhile,
+        IntoStream,
     };
 
     #[cfg(feature = "alloc")]
@@ -442,24 +436,15 @@ pub mod stream {
         CatchUnwind,
     };
 
-    pub use futures_util::try_stream::{
-        TryStreamExt,
-        AndThen, ErrInto, MapOk, MapErr, OrElse,
-        InspectOk, InspectErr,
-        TryNext, TryForEach, TryFilter, TryFilterMap, TryFlatten,
-        TryCollect, TryConcat, TryFold, TrySkipWhile,
-        IntoStream,
-    };
-
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
-    pub use futures_util::try_stream::{
+    pub use futures_util::stream::{
         // For TryStreamExt:
         TryBufferUnordered, TryForEachConcurrent,
     };
 
     #[cfg(feature = "std")]
-    pub use futures_util::try_stream::IntoAsyncRead;
+    pub use futures_util::stream::IntoAsyncRead;
 }
 
 pub mod task {

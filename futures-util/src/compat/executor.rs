@@ -1,8 +1,7 @@
 
 use super::{Compat, Future01CompatExt};
 use crate::{
-    future::{FutureExt, UnitError},
-    try_future::TryFutureExt,
+    future::{FutureExt, TryFutureExt, UnitError},
     task::SpawnExt,
 };
 use futures_01::Future as Future01;

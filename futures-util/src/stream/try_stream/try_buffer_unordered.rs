@@ -1,6 +1,5 @@
-use crate::stream::{Fuse, FuturesUnordered, StreamExt};
-use crate::try_future::{IntoFuture, TryFutureExt};
-use crate::try_stream::IntoStream;
+use crate::stream::{Fuse, FuturesUnordered, StreamExt, IntoStream};
+use crate::future::{IntoFuture, TryFutureExt};
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};

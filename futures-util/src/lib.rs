@@ -89,16 +89,10 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::FutureExt;
-
-pub mod try_future;
-#[doc(hidden)] pub use crate::try_future::TryFutureExt;
+#[doc(hidden)] pub use crate::future::{FutureExt, TryFutureExt};
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::StreamExt;
-
-pub mod try_stream;
-#[doc(hidden)] pub use crate::try_stream::TryStreamExt;
+#[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
 
 #[cfg(feature = "sink")]
 pub mod sink;

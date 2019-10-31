@@ -3,72 +3,67 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
 use core::pin::Pin;
-use futures_core::stream::TryStream;
-use futures_core::task::{Context, Poll};
+use futures_core::{
+    future::TryFuture,
+    stream::TryStream,
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-#[cfg(feature = "compat")] use crate::compat::Compat;
-
-pub use futures_core::future::TryFuture;
-
-mod try_join;
-pub use self::try_join::{
-    try_join, try_join3, try_join4, try_join5,
-    TryJoin, TryJoin3, TryJoin4, TryJoin5,
-};
-
-#[cfg(feature = "alloc")]
-mod try_join_all;
-#[cfg(feature = "alloc")]
-pub use self::try_join_all::{try_join_all, TryJoinAll};
-
-mod try_select;
-pub use self::try_select::{try_select, TrySelect};
-
-#[cfg(feature = "alloc")]
-mod select_ok;
-#[cfg(feature = "alloc")]
-pub use self::select_ok::{select_ok, SelectOk};
-
 // Combinators
+
 mod and_then;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::and_then::AndThen;
 
 mod err_into;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::err_into::ErrInto;
 
 #[cfg(feature = "sink")]
 mod flatten_sink;
 #[cfg(feature = "sink")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::flatten_sink::FlattenSink;
 
 mod inspect_ok;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::inspect_ok::InspectOk;
 
 mod inspect_err;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::inspect_err::InspectErr;
 
 mod into_future;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::IntoFuture;
 
 mod map_err;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map_err::MapErr;
 
 mod map_ok;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map_ok::MapOk;
 
 mod or_else;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::or_else::OrElse;
 
 mod try_flatten_stream;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten_stream::TryFlattenStream;
 
 mod unwrap_or_else;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::unwrap_or_else::UnwrapOrElse;
 
 // Implementation details
+
 mod flatten_stream_sink;
 pub(crate) use self::flatten_stream_sink::FlattenStreamSink;
 
@@ -158,8 +153,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
-        where F: FnOnce(Self::Ok) -> T,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Ok) -> T,
+        Self: Sized,
     {
         MapOk::new(self, f)
     }
@@ -204,8 +200,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
-        where F: FnOnce(Self::Error) -> E,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Error) -> E,
+        Self: Sized,
     {
         MapErr::new(self, f)
     }
@@ -233,8 +230,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn err_into<E>(self) -> ErrInto<Self, E>
-        where Self: Sized,
-              Self::Error: Into<E>
+    where
+        Self: Sized,
+        Self::Error: Into<E>,
     {
         ErrInto::new(self)
     }
@@ -276,9 +274,10 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
-        where F: FnOnce(Self::Ok) -> Fut,
-              Fut: TryFuture<Error = Self::Error>,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Ok) -> Fut,
+        Fut: TryFuture<Error = Self::Error>,
+        Self: Sized,
     {
         AndThen::new(self, f)
     }
@@ -320,9 +319,10 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
-        where F: FnOnce(Self::Error) -> Fut,
-              Fut: TryFuture<Ok = Self::Ok>,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Error) -> Fut,
+        Fut: TryFuture<Ok = Self::Ok>,
+        Self: Sized,
     {
         OrElse::new(self, f)
     }
@@ -346,8 +346,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
-        where F: FnOnce(&Self::Ok),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Ok),
+        Self: Sized,
     {
         InspectOk::new(self, f)
     }
@@ -371,8 +372,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
-        where F: FnOnce(&Self::Error),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Error),
+        Self: Sized,
     {
         InspectErr::new(self, f)
     }
@@ -403,8 +405,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn try_flatten_stream(self) -> TryFlattenStream<Self>
-        where Self::Ok: TryStream<Error = Self::Error>,
-              Self: Sized
+    where
+        Self::Ok: TryStream<Error = Self::Error>,
+        Self: Sized,
     {
         TryFlattenStream::new(self)
     }
@@ -432,8 +435,9 @@ pub trait TryFutureExt: TryFuture {
     /// # });
     /// ```
     fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>
-        where Self: Sized,
-              F: FnOnce(Self::Error) -> Self::Ok
+    where
+        Self: Sized,
+        F: FnOnce(Self::Error) -> Self::Ok,
     {
         UnwrapOrElse::new(self, f)
     }
@@ -442,7 +446,8 @@ pub trait TryFutureExt: TryFuture {
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
     #[cfg(feature = "compat")]
     fn compat(self) -> Compat<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         Compat::new(self)
     }
@@ -469,18 +474,17 @@ pub trait TryFutureExt: TryFuture {
     /// take_future(make_try_future().into_future());
     /// ```
     fn into_future(self) -> IntoFuture<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         IntoFuture::new(self)
     }
 
     /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]
     /// future types.
-    fn try_poll_unpin(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Error>>
-    where Self: Unpin,
+    fn try_poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<Self::Ok, Self::Error>>
+    where
+        Self: Unpin,
     {
         Pin::new(self).try_poll(cx)
     }

@@ -1,4 +1,4 @@
-use crate::try_stream::TryStreamExt;
+use crate::stream::TryStreamExt;
 use core::pin::Pin;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
