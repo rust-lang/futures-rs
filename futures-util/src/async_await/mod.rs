@@ -20,20 +20,20 @@ mod pending;
 pub use self::pending::*;
 
 // Primary export is a macro
-#[cfg(feature = "join-macro")]
+#[cfg(feature = "async-await-macro")]
 mod join_mod;
-#[cfg(feature = "join-macro")]
+#[cfg(feature = "async-await-macro")]
 pub use self::join_mod::*;
 
 // Primary export is a macro
-#[cfg(feature = "select-macro")]
+#[cfg(feature = "async-await-macro")]
 mod select_mod;
-#[cfg(feature = "select-macro")]
+#[cfg(feature = "async-await-macro")]
 pub use self::select_mod::*;
 
-#[cfg(feature = "select-macro")]
+#[cfg(feature = "async-await-macro")]
 mod random;
-#[cfg(feature = "select-macro")]
+#[cfg(feature = "async-await-macro")]
 pub use self::random::*;
 
 #[doc(hidden)]

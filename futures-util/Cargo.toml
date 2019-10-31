@@ -19,13 +19,12 @@ default = ["std"]
 std = ["alloc", "futures-core-preview/std", "slab"]
 alloc = ["futures-core-preview/alloc"]
 async-await = []
+async-await-macro = ["async-await", "futures-macro-preview", "proc-macro-hack", "proc-macro-nested"]
 compat = ["std", "futures_01"]
 io-compat = ["io", "compat", "tokio-io"]
 sink = ["futures-sink-preview"]
 io = ["std", "futures-io-preview", "memchr"]
 channel = ["std", "futures-channel-preview"]
-join-macro = ["async-await", "futures-join-macro-preview", "proc-macro-hack", "proc-macro-nested"]
-select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
@@ -40,8 +39,7 @@ futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", 
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.19", default-features = false, optional = true }
-futures-join-macro-preview = { path = "../futures-join-macro", version = "=0.3.0-alpha.19", default-features = false, optional = true }
-futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.19", default-features = false, optional = true }
+futures-macro-preview = { path = "../futures-macro", version = "=0.3.0-alpha.19", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
 slab = { version = "0.4", optional = true }

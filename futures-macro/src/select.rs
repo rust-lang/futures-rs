@@ -1,20 +1,7 @@
 //! The futures-rs `select! macro implementation.
 
-#![recursion_limit="128"]
-#![warn(rust_2018_idioms, unreachable_pub)]
-// It cannot be included in the published code because this lints have false positives in the minimum required version.
-#![cfg_attr(test, warn(single_use_lifetimes))]
-#![warn(clippy::all)]
-
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
-#![doc(html_root_url = "https://docs.rs/futures-select-macro-preview/0.3.0-alpha.19")]
-
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_hack::proc_macro_hack;
 use quote::{format_ident, quote};
 use syn::{parenthesized, parse_quote, Expr, Ident, Pat, Token};
 use syn::parse::{Parse, ParseStream};
@@ -148,8 +135,7 @@ fn declare_result_enum(
 }
 
 /// The `select!` macro.
-#[proc_macro_hack]
-pub fn select(input: TokenStream) -> TokenStream {
+pub(crate) fn select(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Select);
 
     let futures_crate: syn::Path = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));

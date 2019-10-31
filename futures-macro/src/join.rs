@@ -1,20 +1,7 @@
 //! The futures-rs `join! macro implementation.
 
-#![recursion_limit = "128"]
-#![warn(rust_2018_idioms, unreachable_pub)]
-// It cannot be included in the published code because this lints have false positives in the minimum required version.
-#![cfg_attr(test, warn(single_use_lifetimes))]
-#![warn(clippy::all)]
-
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
-#![doc(html_root_url = "https://docs.rs/futures-join-macro-preview/0.3.0-alpha.19")]
-
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use proc_macro_hack::proc_macro_hack;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::{parenthesized, parse_quote, Expr, Ident, Token};
@@ -79,8 +66,7 @@ fn bind_futures(
 }
 
 /// The `join!` macro.
-#[proc_macro_hack]
-pub fn join(input: TokenStream) -> TokenStream {
+pub(crate) fn join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
     let futures_crate = parsed
@@ -122,8 +108,7 @@ pub fn join(input: TokenStream) -> TokenStream {
 }
 
 /// The `try_join!` macro.
-#[proc_macro_hack]
-pub fn try_join(input: TokenStream) -> TokenStream {
+pub(crate) fn try_join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
     let futures_crate = parsed
