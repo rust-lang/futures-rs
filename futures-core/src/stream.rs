@@ -214,22 +214,6 @@ mod if_alloc {
         }
     }
 
-    impl<T: Unpin> Stream for alloc::collections::VecDeque<T> {
-        type Item = T;
-
-        fn poll_next(
-            mut self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Option<Self::Item>> {
-            Poll::Ready(self.pop_front())
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let len = self.len();
-            (len, Some(len))
-        }
-    }
-
     #[cfg(feature = "std")]
     impl<S: Stream> Stream for std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
