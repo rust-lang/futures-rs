@@ -67,7 +67,7 @@ impl<St: Stream> Peekable<St> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn peek(
+    pub fn poll_peek(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<&St::Item>> {
