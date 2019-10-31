@@ -1,3 +1,7 @@
+//! Task notification.
+
+pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+
 /// Extracts the successful type of a `Poll<T>`.
 ///
 /// This macro bakes in propagation of `Pending` signals by returning early.
