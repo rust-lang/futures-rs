@@ -12,7 +12,7 @@
 //! This module provides utilities for creating test
 //! [`Context`](futures_core::task::Context)s,
 //! [`Waker`](futures_core::task::Waker)s and
-//! [`Spawn`](futures_core::task::Spawn) implementations.
+//! [`Spawn`](futures_task::Spawn) implementations.
 //!
 //! Test contexts:
 //! - [`noop_context`](crate::task::noop_context) creates a context that ignores calls to

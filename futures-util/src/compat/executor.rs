@@ -17,7 +17,7 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
                                Clone + Send + 'static
 {
     /// Converts a futures 0.1 [`Executor`](futures_01::future::Executor) into a
-    /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
+    /// futures 0.3 [`Spawn`](futures_task::Spawn).
     ///
     /// ```
     /// use futures::task::SpawnExt;
@@ -56,7 +56,7 @@ where Ex: Executor01<Executor01Future> + Clone + Send + 'static
 }
 
 /// Converts a futures 0.1 [`Executor`](futures_01::future::Executor) into a
-/// futures 0.3 [`Spawn`](futures_core::task::Spawn).
+/// futures 0.3 [`Spawn`](futures_task::Spawn).
 #[derive(Debug, Clone)]
 pub struct Executor01As03<Ex> {
     executor01: Ex

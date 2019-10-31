@@ -20,10 +20,10 @@ use std::thread::{self, Thread};
 /// little work in between I/O actions.
 ///
 /// To get a handle to the pool that implements
-/// [`Spawn`](futures_core::task::Spawn), use the
+/// [`Spawn`](futures_task::Spawn), use the
 /// [`spawner()`](LocalPool::spawner) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
-/// futures, via [`spawn_local_obj`](futures_core::task::LocalSpawn::spawn_local_obj).
+/// futures, via [`spawn_local_obj`](futures_task::LocalSpawn::spawn_local_obj).
 #[derive(Debug)]
 pub struct LocalPool {
     pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
@@ -31,7 +31,7 @@ pub struct LocalPool {
 }
 
 /// A handle to a [`LocalPool`](LocalPool) that implements
-/// [`Spawn`](futures_core::task::Spawn).
+/// [`Spawn`](futures_task::Spawn).
 #[derive(Clone, Debug)]
 pub struct LocalSpawner {
     incoming: Weak<Incoming>,
