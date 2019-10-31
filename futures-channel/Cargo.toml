@@ -23,8 +23,8 @@ sink = ["futures-sink-preview"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core-preview/unstable"]
-cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
+unstable = ["futures-core-preview/unstable", "futures-task-preview/unstable"]
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-task-preview/cfg-target-has-atomic"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }

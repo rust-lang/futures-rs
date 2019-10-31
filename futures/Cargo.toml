@@ -49,8 +49,8 @@ thread-pool = ["executor", "futures-executor-preview/thread-pool"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-io-preview/unstable", "futures-util-preview/unstable"]
-cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
+unstable = ["futures-core-preview/unstable", "futures-task-preview/unstable", "futures-channel-preview/unstable", "futures-io-preview/unstable", "futures-util-preview/unstable"]
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-task-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 bilock = ["futures-util-preview/bilock"]
 read-initializer = ["futures-io-preview/read-initializer", "futures-util-preview/read-initializer"]
 
