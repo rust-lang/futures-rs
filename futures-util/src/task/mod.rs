@@ -28,3 +28,4 @@ mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
 pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use futures_task::{Spawn, LocalSpawn, SpawnError};

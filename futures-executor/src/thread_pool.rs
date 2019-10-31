@@ -1,7 +1,8 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Context, Poll, Spawn, SpawnError};
+use futures_core::task::{Context, Poll};
+use futures_task::{Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::{ArcWake, waker_ref};
 use std::cmp;

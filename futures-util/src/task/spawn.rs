@@ -1,4 +1,4 @@
-use futures_core::task::{LocalSpawn, Spawn};
+use futures_task::{LocalSpawn, Spawn};
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
 
@@ -8,7 +8,7 @@ use crate::future::{FutureExt, RemoteHandle};
 #[cfg(feature = "alloc")]
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 #[cfg(feature = "alloc")]
-use futures_core::task::SpawnError;
+use futures_task::SpawnError;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 

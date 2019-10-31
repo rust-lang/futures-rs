@@ -16,8 +16,8 @@ name = "futures_util"
 
 [features]
 default = ["std"]
-std = ["alloc", "futures-core-preview/std", "slab"]
-alloc = ["futures-core-preview/alloc"]
+std = ["alloc", "futures-core-preview/std", "futures-task-preview/std", "slab"]
+alloc = ["futures-core-preview/alloc", "futures-task-preview/alloc"]
 async-await = []
 async-await-macro = ["async-await", "futures-macro-preview", "proc-macro-hack", "proc-macro-nested"]
 compat = ["std", "futures_01"]
@@ -36,6 +36,7 @@ read-initializer = ["io", "futures-io-preview/read-initializer", "futures-io-pre
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }
+futures-task-preview = { path = "../futures-task", version = "=0.3.0-alpha.19", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.19", default-features = false, features = ["std"], optional = true }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.19", default-features = false, optional = true }
