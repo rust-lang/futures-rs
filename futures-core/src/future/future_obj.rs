@@ -19,6 +19,9 @@ pub struct LocalFutureObj<'a, T> {
     _marker: PhantomData<&'a ()>,
 }
 
+// As LocalFutureObj only holds pointers, even if we move it, the pointed to values won't move,
+// so this is safe as long as we don't provide any way for a user to directly access the pointers
+// and move their values.
 impl<T> Unpin for LocalFutureObj<'_, T> {}
 
 #[allow(single_use_lifetimes)]
