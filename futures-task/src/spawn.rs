@@ -1,5 +1,5 @@
+use crate::{FutureObj, LocalFutureObj};
 use core::fmt;
-use futures_core::future::{FutureObj, LocalFutureObj};
 
 /// The `Spawn` trait allows for pushing futures onto an executor that will
 /// run them to completion.

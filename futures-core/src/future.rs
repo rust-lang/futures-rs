@@ -6,9 +6,6 @@ use core::task::{Context, Poll};
 
 pub use core::future::Future;
 
-mod future_obj;
-pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
-
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
 #[cfg(feature = "alloc")]

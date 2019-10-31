@@ -6,8 +6,7 @@ use crate::{
 };
 use futures_01::Future as Future01;
 use futures_01::future::{Executor as Executor01, ExecuteError as ExecuteError01};
-use futures_core::future::FutureObj;
-use futures_task::{Spawn as Spawn03, SpawnError as SpawnError03};
+use futures_task::{FutureObj, Spawn as Spawn03, SpawnError as SpawnError03};
 
 /// A future that can run on a futures 0.1
 /// [`Executor`](futures_01::future::Executor).

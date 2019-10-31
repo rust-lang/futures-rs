@@ -6,9 +6,9 @@ use futures_task::{LocalSpawn, Spawn};
 #[cfg(feature = "std")]
 use crate::future::{FutureExt, RemoteHandle};
 #[cfg(feature = "alloc")]
-use futures_core::future::{Future, FutureObj, LocalFutureObj};
+use futures_core::future::Future;
 #[cfg(feature = "alloc")]
-use futures_task::SpawnError;
+use futures_task::{SpawnError, FutureObj, LocalFutureObj};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 

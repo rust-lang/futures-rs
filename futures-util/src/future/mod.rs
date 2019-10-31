@@ -7,6 +7,7 @@
 #[cfg(feature = "alloc")]
 pub use futures_core::future::{BoxFuture, LocalBoxFuture};
 pub use futures_core::future::{FusedFuture, Future, TryFuture};
+pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 // Extension traits and combinators
 

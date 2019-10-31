@@ -184,11 +184,12 @@ pub mod future {
 
     pub use futures_core::future::{
         Future, TryFuture, FusedFuture,
-        FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_core::future::{BoxFuture, LocalBoxFuture};
+
+    pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
     pub use futures_util::future::{
         lazy, Lazy,
@@ -447,7 +448,10 @@ pub mod task {
 
     pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
 
-    pub use futures_task::{Spawn, LocalSpawn, SpawnError};
+    pub use futures_task::{
+        Spawn, LocalSpawn, SpawnError,
+        FutureObj, LocalFutureObj, UnsafeFutureObj,
+    };
 
     pub use futures_util::task::noop_waker;
 
