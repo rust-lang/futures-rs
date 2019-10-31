@@ -3,11 +3,10 @@
 //! This module is only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-use crate::task::{AtomicWaker};
-use futures_core::future::{Future, FutureObj, LocalFutureObj};
+use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use futures_task::{Spawn, LocalSpawn, SpawnError};
+use futures_task::{FutureObj, LocalFutureObj, AtomicWaker, Spawn, LocalSpawn, SpawnError};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;

@@ -51,10 +51,12 @@ cfg_target_has_atomic! {
     pub use crate::waker_ref::{waker_ref, WakerRef};
 }
 
+mod future_obj;
+pub use crate::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
+
 mod noop_waker;
 pub use crate::noop_waker::noop_waker;
 #[cfg(feature = "std")]
 pub use crate::noop_waker::noop_waker_ref;
 
-pub use futures_core::future::{FutureObj, LocalFutureObj};
 pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
