@@ -10,16 +10,16 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 #[must_use = "streams do nothing unless polled"]
 pub struct Skip<St> {
     stream: St,
-    remaining: u64,
+    remaining: usize,
 }
 
 impl<St: Unpin> Unpin for Skip<St> {}
 
 impl<St: Stream> Skip<St> {
     unsafe_pinned!(stream: St);
-    unsafe_unpinned!(remaining: u64);
+    unsafe_unpinned!(remaining: usize);
 
-    pub(super) fn new(stream: St, n: u64) -> Skip<St> {
+    pub(super) fn new(stream: St, n: usize) -> Skip<St> {
         Skip {
             stream,
             remaining: n,
