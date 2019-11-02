@@ -268,14 +268,15 @@ impl AtomicWaker {
                     // Release the lock. If the state transitioned to include
                     // the `WAKING` bit, this means that at least one wake has
                     // been called concurrently.
-                    // 
+                    //
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we just set it to. If this holds, we know that no
                     // other writes were performed in the meantime, so there is
-                    // nothing to acquire, but release the update. In case of
-                    // concurrent wakers, we need to acquire their releases.
+                    // nothing to acquire, only release. In case of concurrent
+                    // wakers, we need to acquire their releases, so success needs
+                    // to do both.
                     let res = self.state.compare_exchange(
-                        REGISTERING, WAITING, Release, Acquire);
+                        REGISTERING, WAITING, AcqRel, Acquire);
 
                     match res {
                         Ok(_) => {
