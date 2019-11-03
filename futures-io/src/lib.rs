@@ -26,7 +26,6 @@ compile_error!("The `read_initializer` feature requires the `unstable` feature a
 
 #[cfg(feature = "std")]
 mod if_std {
-    use std::cmp;
     use std::io;
     use std::ops::DerefMut;
     use std::pin::Pin;
@@ -472,37 +471,20 @@ mod if_std {
         }
     }
 
-    impl<T: AsMut<[u8]> + Unpin> AsyncWrite for io::Cursor<T> {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            _: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<Result<usize>> {
-            let position = self.position();
-            let result = {
-                let out = (&mut *self).get_mut().as_mut();
-                let pos = cmp::min(out.len() as u64, position) as usize;
-                io::Write::write(&mut &mut out[pos..], buf)
-            };
-            if let Ok(offset) = result {
-                self.get_mut().set_position(position + offset as u64);
-            }
-            Poll::Ready(result)
-        }
+    impl AsyncWrite for io::Cursor<&mut [u8]> {
+        delegate_async_write_to_stdio!();
+    }
 
-        fn poll_write_vectored(self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
-            -> Poll<Result<usize>>
-        {
-            Poll::Ready(io::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), bufs))
-        }
+    impl AsyncWrite for io::Cursor<&mut Vec<u8>> {
+        delegate_async_write_to_stdio!();
+    }
 
-        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
-            Poll::Ready(io::Write::flush(&mut self.get_mut().get_mut().as_mut()))
-        }
+    impl AsyncWrite for io::Cursor<Vec<u8>> {
+        delegate_async_write_to_stdio!();
+    }
 
-        fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            self.poll_flush(cx)
-        }
+    impl AsyncWrite for io::Cursor<Box<[u8]>> {
+        delegate_async_write_to_stdio!();
     }
 
     impl AsyncWrite for Vec<u8> {

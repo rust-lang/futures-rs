@@ -19,17 +19,17 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// use futures_test::io::AsyncWriteTestExt;
     /// use futures::pin_mut;
     ///
-    /// let writer = std::io::Cursor::new([0u8; 4]).interleave_pending_write();
+    /// let writer = std::io::Cursor::new(vec![0u8; 4].into_boxed_slice()).interleave_pending_write();
     /// pin_mut!(writer);
     ///
     /// let mut cx = noop_context();
     ///
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[1, 2])?, Poll::Pending);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[1, 2])?, Poll::Ready(2));
-    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 0, 0]);
+    /// assert_eq!(&writer.get_ref().get_ref()[..], [1, 2, 0, 0]);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[3, 4])?, Poll::Pending);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[3, 4])?, Poll::Ready(2));
-    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 3, 4]);
+    /// assert_eq!(&writer.get_ref().get_ref()[..], [1, 2, 3, 4]);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[5, 6])?, Poll::Pending);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[5, 6])?, Poll::Ready(0));
     ///
@@ -59,17 +59,17 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// use futures_test::io::AsyncWriteTestExt;
     /// use futures::pin_mut;
     ///
-    /// let writer = std::io::Cursor::new([0u8; 4]).limited_write(2);
+    /// let writer = std::io::Cursor::new(vec![0u8; 4].into_boxed_slice()).limited_write(2);
     /// pin_mut!(writer);
     ///
     /// let mut cx = noop_context();
     ///
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[1, 2])?, Poll::Ready(2));
-    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 0, 0]);
+    /// assert_eq!(&writer.get_ref().get_ref()[..], [1, 2, 0, 0]);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[3])?, Poll::Ready(1));
-    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 3, 0]);
+    /// assert_eq!(&writer.get_ref().get_ref()[..], [1, 2, 3, 0]);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[4, 5])?, Poll::Ready(1));
-    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 3, 4]);
+    /// assert_eq!(&writer.get_ref().get_ref()[..], [1, 2, 3, 4]);
     /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[5])?, Poll::Ready(0));
     ///
     /// # Ok::<(), std::io::Error>(())
