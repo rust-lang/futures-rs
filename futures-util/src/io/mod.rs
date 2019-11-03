@@ -172,7 +172,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// use std::io::Cursor;
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut writer = Cursor::new([0u8; 5]);
+    /// let mut writer = Cursor::new(vec![0u8; 5]);
     ///
     /// let bytes = reader.copy_into(&mut writer).await?;
     /// writer.close().await?;
@@ -354,8 +354,8 @@ pub trait AsyncReadExt: AsyncRead {
     /// // implement both `AsyncRead` and `AsyncWrite`.
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut buffer = Cursor::new([0, 0, 0, 0, 5, 6, 7, 8]);
-    /// let mut writer = Cursor::new([0u8; 5]);
+    /// let mut buffer = Cursor::new(vec![0, 0, 0, 0, 5, 6, 7, 8]);
+    /// let mut writer = Cursor::new(vec![0u8; 5]);
     ///
     /// {
     ///     let (buffer_reader, mut buffer_writer) = (&mut buffer).split();
@@ -426,10 +426,10 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// use futures::io::{AllowStdIo, AsyncWriteExt};
     /// use std::io::{BufWriter, Cursor};
     ///
-    /// let mut output = [0u8; 5];
+    /// let mut output = vec![0u8; 5];
     ///
     /// {
-    ///     let writer = Cursor::new(&mut output[..]);
+    ///     let writer = Cursor::new(&mut output);
     ///     let mut buffered = AllowStdIo::new(BufWriter::new(writer));
     ///     buffered.write_all(&[1, 2]).await?;
     ///     buffered.write_all(&[3, 4]).await?;
@@ -487,7 +487,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// use futures::io::AsyncWriteExt;
     /// use std::io::Cursor;
     ///
-    /// let mut writer = Cursor::new([0u8; 5]);
+    /// let mut writer = Cursor::new(vec![0u8; 5]);
     ///
     /// writer.write_all(&[1, 2, 3, 4]).await?;
     ///
@@ -582,7 +582,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// use std::io::Cursor;
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut writer = Cursor::new([0u8; 5]);
+    /// let mut writer = Cursor::new(vec![0u8; 5]);
     ///
     /// let bytes = reader.copy_buf_into(&mut writer).await?;
     /// writer.close().await?;
