@@ -103,33 +103,6 @@ impl<R: AsyncRead> BufReader<R> {
     }
 }
 
-impl<R: AsyncRead + AsyncSeek> BufReader<R> {
-    // https://github.com/rust-lang/rust/issues/31100
-    /// Seeks relative to the current position. If the new position lies within the buffer,
-    /// the buffer will not be flushed, allowing for more efficient seeks.
-    /// This method does not return the location of the underlying reader, so the caller
-    /// must track this information themselves if it is required.
-    pub fn poll_seek_relative(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        offset: i64,
-    ) -> Poll<io::Result<()>> {
-        let pos = self.pos as u64;
-        if offset < 0 {
-            if let Some(new_pos) = pos.checked_sub((-offset) as u64) {
-                *self.as_mut().pos() = new_pos as usize;
-                return Poll::Ready(Ok(()));
-            }
-        } else if let Some(new_pos) = pos.checked_add(offset as u64) {
-            if new_pos <= self.cap as u64 {
-                *self.as_mut().pos() = new_pos as usize;
-                return Poll::Ready(Ok(()));
-            }
-        }
-        self.poll_seek(cx, SeekFrom::Current(offset)).map(|res| res.map(|_| ()))
-    }
-}
-
 impl<R: AsyncRead> AsyncRead for BufReader<R> {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -219,9 +192,6 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
     /// would otherwise fall within it. This guarantees that calling
     /// `.into_inner()` immediately after a seek yields the underlying reader
     /// at the same position.
-    ///
-    /// To seek without discarding the internal buffer, use
-    /// [`BufReader::poll_seek_relative`](BufReader::poll_seek_relative).
     ///
     /// See [`AsyncSeek`](futures_io::AsyncSeek) for more details.
     ///
