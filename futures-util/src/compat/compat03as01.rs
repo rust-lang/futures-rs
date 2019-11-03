@@ -262,7 +262,7 @@ mod io {
     }
 
     impl<R: AsyncRead03 + Unpin> AsyncRead01 for Compat<R> {
-        #[cfg(feature = "read_initializer")]
+        #[cfg(feature = "read-initializer")]
         unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
             let initializer = self.inner.initializer();
             let does_init = initializer.should_initialize();

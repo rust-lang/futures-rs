@@ -32,7 +32,7 @@ channel = ["std", "futures-channel-preview"]
 unstable = ["futures-core-preview/unstable"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
 bilock = []
-read_initializer = ["io", "futures-io-preview/read_initializer", "futures-io-preview/unstable"]
+read-initializer = ["io", "futures-io-preview/read-initializer", "futures-io-preview/unstable"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }

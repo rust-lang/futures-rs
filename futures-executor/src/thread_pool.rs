@@ -21,7 +21,7 @@ use std::thread;
 /// This type is a clonable handle to the threadpool itself.
 /// Cloning it will only create a new reference, not a new threadpool.
 ///
-/// This type is only available when the `threadpool` feature of this
+/// This type is only available when the `thread-pool` feature of this
 /// library is activated.
 pub struct ThreadPool {
     state: Arc<PoolState>,
@@ -29,7 +29,7 @@ pub struct ThreadPool {
 
 /// Thread pool configuration object.
 ///
-/// This type is only available when the `threadpool` feature of this
+/// This type is only available when the `thread-pool` feature of this
 /// library is activated.
 pub struct ThreadPoolBuilder {
     pool_size: usize,
