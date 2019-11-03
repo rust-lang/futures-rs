@@ -36,17 +36,6 @@ macro_rules! run_fill_buf {
     }};
 }
 
-macro_rules! run_seek_relative {
-    ($reader:expr, $offset:expr) => {{
-        let mut cx = noop_context();
-        loop {
-            if let Poll::Ready(x) = Pin::new(&mut $reader).poll_seek_relative(&mut cx, $offset) {
-                break x;
-            }
-        }
-    }};
-}
-
 #[test]
 fn test_buffered_reader() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
@@ -97,57 +86,6 @@ fn test_buffered_reader_seek() {
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[1, 2][..]));
     Pin::new(&mut reader).consume(1);
     assert_eq!(block_on(reader.seek(SeekFrom::Current(-2))).ok(), Some(3));
-}
-
-#[test]
-fn test_buffered_reader_seek_relative() {
-    let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, Cursor::new(inner));
-
-    assert!(run_seek_relative!(reader, 3).is_ok());
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert!(run_seek_relative!(reader, 0).is_ok());
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert!(run_seek_relative!(reader, 1).is_ok());
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[1][..]));
-    assert!(run_seek_relative!(reader, -1).is_ok());
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert!(run_seek_relative!(reader, 2).is_ok());
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[2, 3][..]));
-}
-
-#[test]
-fn test_buffered_reader_invalidated_after_read() {
-    let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(3, Cursor::new(inner));
-
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[5, 6, 7][..]));
-    Pin::new(&mut reader).consume(3);
-
-    let mut buffer = [0, 0, 0, 0, 0];
-    assert_eq!(block_on(reader.read(&mut buffer)).ok(), Some(5));
-    assert_eq!(buffer, [0, 1, 2, 3, 4]);
-
-    assert!(run_seek_relative!(reader, -2).is_ok());
-    let mut buffer = [0, 0];
-    assert_eq!(block_on(reader.read(&mut buffer)).ok(), Some(2));
-    assert_eq!(buffer, [3, 4]);
-}
-
-#[test]
-fn test_buffered_reader_invalidated_after_seek() {
-    let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(3, Cursor::new(inner));
-
-    assert_eq!(run_fill_buf!(reader).ok(), Some(&[5, 6, 7][..]));
-    Pin::new(&mut reader).consume(3);
-
-    assert!(block_on(reader.seek(SeekFrom::Current(5))).is_ok());
-
-    assert!(run_seek_relative!(reader, -2).is_ok());
-    let mut buffer = [0, 0];
-    assert_eq!(block_on(reader.read(&mut buffer)).ok(), Some(2));
-    assert_eq!(buffer, [3, 4]);
 }
 
 #[test]
