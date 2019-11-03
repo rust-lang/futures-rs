@@ -22,6 +22,6 @@ std = []
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
 unstable = []
-read_initializer = []
+read-initializer = []
 
 [dependencies]

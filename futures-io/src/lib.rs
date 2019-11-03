@@ -8,7 +8,7 @@
 //! All items of this library are only available when the `std` feature of this
 //! library is activated, and it is activated by default.
 
-#![cfg_attr(feature = "read_initializer", feature(read_initializer))]
+#![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -21,8 +21,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-io-preview/0.3.0-alpha.19")]
 
-#[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
-compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+#[cfg(all(feature = "read-initializer", not(feature = "unstable")))]
+compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[cfg(feature = "std")]
 mod if_std {
@@ -43,7 +43,7 @@ mod if_std {
         SeekFrom as SeekFrom,
     };
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use io::Initializer as Initializer;
 
@@ -66,7 +66,7 @@ mod if_std {
         /// This method is `unsafe` because and `AsyncRead`er could otherwise
         /// return a non-zeroing `Initializer` from another `AsyncRead` type
         /// without an `unsafe` block.
-        #[cfg(feature = "read_initializer")]
+        #[cfg(feature = "read-initializer")]
         #[inline]
         unsafe fn initializer(&self) -> Initializer {
             Initializer::zeroing()
@@ -310,7 +310,7 @@ mod if_std {
 
     macro_rules! deref_async_read {
         () => {
-            #[cfg(feature = "read_initializer")]
+            #[cfg(feature = "read-initializer")]
             unsafe fn initializer(&self) -> Initializer {
                 (**self).initializer()
             }
@@ -342,7 +342,7 @@ mod if_std {
         P: DerefMut + Unpin,
         P::Target: AsyncRead,
     {
-        #[cfg(feature = "read_initializer")]
+        #[cfg(feature = "read-initializer")]
         unsafe fn initializer(&self) -> Initializer {
             (**self).initializer()
         }
@@ -362,7 +362,7 @@ mod if_std {
 
     macro_rules! delegate_async_read_to_stdio {
         () => {
-            #[cfg(feature = "read_initializer")]
+            #[cfg(feature = "read-initializer")]
             unsafe fn initializer(&self) -> Initializer {
                 io::Read::initializer(self)
             }

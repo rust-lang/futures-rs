@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-#[cfg(feature = "read_initializer")]
+#[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, IoSliceMut, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -168,7 +168,7 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
     }
 
     // we can't skip unconditionally because of the large buffer case in read.
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }

@@ -22,7 +22,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "read_initializer", feature(read_initializer))]
+#![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -41,8 +41,8 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
-compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+#[cfg(all(feature = "read-initializer", not(feature = "unstable")))]
+compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_core::future::{Future, TryFuture};
 #[doc(hidden)] pub use futures_util::future::{FutureExt, TryFutureExt};
@@ -181,7 +181,7 @@ pub mod executor {
         block_on, block_on_stream, enter,
     };
 
-    #[cfg(feature = "threadpool")]
+    #[cfg(feature = "thread-pool")]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
@@ -282,7 +282,7 @@ pub mod io {
         IoSlice, IoSliceMut, Result, SeekFrom,
     };
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     pub use futures_io::Initializer;
 
     pub use futures_util::io::{

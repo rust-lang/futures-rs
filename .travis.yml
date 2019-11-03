@@ -18,9 +18,9 @@ matrix:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # Check default-features
         - cargo build --all
-        # Check compat & threadpool features
+        # Check compat & thread-pool features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features threadpool
+        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
 
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
@@ -36,9 +36,9 @@ matrix:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # Check default-features
         - cargo build --all
-        # Check compat & threadpool features
+        # Check compat & thread-pool features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features threadpool
+        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
 
     - name: cargo +beta build
       rust: beta
@@ -46,9 +46,9 @@ matrix:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # Check default-features
         - cargo build --all
-        # Check compat & threadpool & async-await features
+        # Check compat & thread-pool & async-await features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features threadpool
+        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
         - cargo build --manifest-path futures/Cargo.toml --features async-await
 
     - name: cargo test
@@ -153,7 +153,7 @@ matrix:
         - cargo check --manifest-path futures-io/Cargo.toml
         - cargo check --manifest-path futures-io/Cargo.toml --all-features
         # Check each features
-        - cargo check --manifest-path futures-io/Cargo.toml --features read_initializer,unstable
+        - cargo check --manifest-path futures-io/Cargo.toml --features read-initializer,unstable
 
         # futures-util
         # Check default-features, all-features
@@ -173,7 +173,7 @@ matrix:
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --features io,bilock,unstable
         - cargo check --manifest-path futures-util/Cargo.toml --features sink,io
-        - cargo check --manifest-path futures-util/Cargo.toml --features read_initializer,unstable
+        - cargo check --manifest-path futures-util/Cargo.toml --features read-initializer,unstable
         # Check each features with --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
         - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
@@ -188,7 +188,7 @@ matrix:
         - cargo check --manifest-path futures-executor/Cargo.toml
         - cargo check --manifest-path futures-executor/Cargo.toml --all-features
         # Check each features
-        - cargo check --manifest-path futures-executor/Cargo.toml --features threadpool
+        - cargo check --manifest-path futures-executor/Cargo.toml --features thread-pool
 
     - name: cargo doc
       rust: nightly

@@ -17,7 +17,7 @@ pub use futures_io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
     IoSlice, IoSliceMut, Result, SeekFrom,
 };
-#[cfg(feature = "read_initializer")]
+#[cfg(feature = "read-initializer")]
 pub use futures_io::Initializer;
 
 // used by `BufReader` and `BufWriter`
@@ -26,10 +26,10 @@ const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 
 /// Initializes a buffer if necessary.
 ///
-/// A buffer is always initialized if `read_initializer` feature is disabled.
+/// A buffer is always initialized if `read-initializer` feature is disabled.
 #[inline]
 unsafe fn initialize<R: AsyncRead>(_reader: &R, buf: &mut [u8]) {
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     {
         if !_reader.initializer().should_initialize() {
             return;
