@@ -11,16 +11,16 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 #[must_use = "streams do nothing unless polled"]
 pub struct Take<St> {
     stream: St,
-    remaining: u64,
+    remaining: usize,
 }
 
 impl<St: Unpin> Unpin for Take<St> {}
 
 impl<St: Stream> Take<St> {
     unsafe_pinned!(stream: St);
-    unsafe_unpinned!(remaining: u64);
+    unsafe_unpinned!(remaining: usize);
 
-    pub(super) fn new(stream: St, n: u64) -> Take<St> {
+    pub(super) fn new(stream: St, n: usize) -> Take<St> {
         Take {
             stream,
             remaining: n,

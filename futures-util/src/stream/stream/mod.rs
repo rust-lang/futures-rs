@@ -719,7 +719,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
     /// # });
     /// ```
-    fn take(self, n: u64) -> Take<Self>
+    fn take(self, n: usize) -> Take<Self>
     where
         Self: Sized,
     {
@@ -742,7 +742,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(vec![6, 7, 8, 9, 10], stream.collect::<Vec<_>>().await);
     /// # });
     /// ```
-    fn skip(self, n: u64) -> Skip<Self>
+    fn skip(self, n: usize) -> Skip<Self>
     where
         Self: Sized,
     {
