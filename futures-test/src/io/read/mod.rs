@@ -14,12 +14,12 @@ pub trait AsyncReadTestExt: AsyncRead {
     ///
     /// ```
     /// use futures::task::Poll;
-    /// use futures::io::AsyncRead;
+    /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
     /// use futures::pin_mut;
     ///
-    /// let reader = std::io::Cursor::new(&[1, 2, 3]).interleave_pending();
+    /// let reader = Cursor::new(&[1, 2, 3]).interleave_pending();
     /// pin_mut!(reader);
     ///
     /// let mut cx = noop_context();
@@ -44,12 +44,12 @@ pub trait AsyncReadTestExt: AsyncRead {
     ///
     /// ```
     /// use futures::task::Poll;
-    /// use futures::io::AsyncBufRead;
+    /// use futures::io::{AsyncBufRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
     /// use futures::pin_mut;
     ///
-    /// let reader = std::io::Cursor::new(&[1, 2, 3]).interleave_pending();
+    /// let reader = Cursor::new(&[1, 2, 3]).interleave_pending();
     /// pin_mut!(reader);
     ///
     /// let mut cx = noop_context();
@@ -78,12 +78,12 @@ pub trait AsyncReadTestExt: AsyncRead {
     ///
     /// ```
     /// use futures::task::Poll;
-    /// use futures::io::AsyncRead;
+    /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
     /// use futures::pin_mut;
     ///
-    /// let reader = std::io::Cursor::new(&[1, 2, 3, 4, 5]).limited(2);
+    /// let reader = Cursor::new(&[1, 2, 3, 4, 5]).limited(2);
     /// pin_mut!(reader);
     ///
     /// let mut cx = noop_context();

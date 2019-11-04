@@ -2,12 +2,12 @@ use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
 use futures::io::{
     AsyncSeek, AsyncSeekExt, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt,
-    AllowStdIo, BufReader, SeekFrom,
+    AllowStdIo, BufReader, Cursor, SeekFrom,
 };
 use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
 use std::cmp;
-use std::io::{self, Cursor};
+use std::io;
 use std::pin::Pin;
 
 /// A dummy reader intended at testing short-reads propagation.

@@ -59,6 +59,9 @@ pub use self::copy_into::CopyInto;
 mod copy_buf_into;
 pub use self::copy_buf_into::CopyBufInto;
 
+mod cursor;
+pub use self::cursor::Cursor;
+
 mod empty;
 pub use self::empty::{empty, Empty};
 
@@ -133,8 +136,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader1 = Cursor::new([1, 2, 3, 4]);
     /// let reader2 = Cursor::new([5, 6, 7, 8]);
@@ -168,8 +170,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::{AsyncReadExt, AsyncWriteExt};
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, AsyncWriteExt, Cursor};
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
     /// let mut writer = Cursor::new(vec![0u8; 5]);
@@ -199,8 +200,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 5];
@@ -243,8 +243,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 4];
@@ -259,8 +258,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::{self, Cursor};
+    /// use futures::io::{self, AsyncReadExt, Cursor};
     ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 5];
@@ -287,8 +285,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = Vec::with_capacity(4);
@@ -316,8 +313,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let mut reader = Cursor::new(&b"1234"[..]);
     /// let mut buffer = String::with_capacity(4);
@@ -346,8 +342,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// // Note that for `Cursor` the read and write halves share a single
     /// // seek position. This may or may not be true for other types that
@@ -380,8 +375,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 5];
@@ -484,8 +478,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncWriteExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncWriteExt, Cursor};
     ///
     /// let mut writer = Cursor::new(vec![0u8; 5]);
     ///
@@ -578,8 +571,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::{AsyncBufReadExt, AsyncWriteExt};
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncBufReadExt, AsyncWriteExt, Cursor};
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
     /// let mut writer = Cursor::new(vec![0u8; 5]);
@@ -617,8 +609,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncBufReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncBufReadExt, Cursor};
     ///
     /// let mut cursor = Cursor::new(b"lorem-ipsum");
     /// let mut buf = vec![];
@@ -679,8 +670,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncBufReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncBufReadExt, Cursor};
     ///
     /// let mut cursor = Cursor::new(b"foo\nbar");
     /// let mut buf = String::new();
@@ -729,9 +719,8 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncBufReadExt;
+    /// use futures::io::{AsyncBufReadExt, Cursor};
     /// use futures::stream::StreamExt;
-    /// use std::io::Cursor;
     ///
     /// let cursor = Cursor::new(b"lorem\nipsum\r\ndolor");
     ///
