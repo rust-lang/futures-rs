@@ -1,9 +1,9 @@
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
-use futures::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, SeekFrom};
+use futures::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom};
 use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
-use std::io::{self, Cursor};
+use std::io;
 use std::pin::Pin;
 
 #[test]

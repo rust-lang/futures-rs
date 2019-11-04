@@ -385,10 +385,6 @@ mod if_std {
         delegate_async_read_to_stdio!();
     }
 
-    impl<T: AsRef<[u8]> + Unpin> AsyncRead for io::Cursor<T> {
-        delegate_async_read_to_stdio!();
-    }
-
     macro_rules! deref_async_write {
         () => {
             fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
@@ -471,22 +467,6 @@ mod if_std {
         }
     }
 
-    impl AsyncWrite for io::Cursor<&mut [u8]> {
-        delegate_async_write_to_stdio!();
-    }
-
-    impl AsyncWrite for io::Cursor<&mut Vec<u8>> {
-        delegate_async_write_to_stdio!();
-    }
-
-    impl AsyncWrite for io::Cursor<Vec<u8>> {
-        delegate_async_write_to_stdio!();
-    }
-
-    impl AsyncWrite for io::Cursor<Box<[u8]>> {
-        delegate_async_write_to_stdio!();
-    }
-
     impl AsyncWrite for Vec<u8> {
         delegate_async_write_to_stdio!();
     }
@@ -519,20 +499,6 @@ mod if_std {
         {
             self.get_mut().as_mut().poll_seek(cx, pos)
         }
-    }
-
-    macro_rules! delegate_async_seek_to_stdio {
-        () => {
-            fn poll_seek(mut self: Pin<&mut Self>, _: &mut Context<'_>, pos: SeekFrom)
-            -> Poll<Result<u64>>
-            {
-                Poll::Ready(io::Seek::seek(&mut *self, pos))
-            }
-        }
-    }
-
-    impl<T: AsRef<[u8]> + Unpin> AsyncSeek for io::Cursor<T> {
-        delegate_async_seek_to_stdio!();
     }
 
     macro_rules! deref_async_buf_read {
@@ -588,10 +554,6 @@ mod if_std {
     }
 
     impl AsyncBufRead for &[u8] {
-        delegate_async_buf_read_to_stdio!();
-    }
-
-    impl<T: AsRef<[u8]> + Unpin> AsyncBufRead for io::Cursor<T> {
         delegate_async_buf_read_to_stdio!();
     }
 }

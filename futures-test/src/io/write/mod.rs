@@ -14,12 +14,12 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     ///
     /// ```
     /// use futures::task::Poll;
-    /// use futures::io::AsyncWrite;
+    /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
     /// use futures::pin_mut;
     ///
-    /// let writer = std::io::Cursor::new(vec![0u8; 4].into_boxed_slice()).interleave_pending_write();
+    /// let writer = Cursor::new(vec![0u8; 4].into_boxed_slice()).interleave_pending_write();
     /// pin_mut!(writer);
     ///
     /// let mut cx = noop_context();
@@ -54,12 +54,12 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     ///
     /// ```
     /// use futures::task::Poll;
-    /// use futures::io::AsyncWrite;
+    /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
     /// use futures::pin_mut;
     ///
-    /// let writer = std::io::Cursor::new(vec![0u8; 4].into_boxed_slice()).limited_write(2);
+    /// let writer = Cursor::new(vec![0u8; 4].into_boxed_slice()).limited_write(2);
     /// pin_mut!(writer);
     ///
     /// let mut cx = noop_context();

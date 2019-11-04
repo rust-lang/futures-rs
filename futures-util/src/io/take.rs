@@ -37,8 +37,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 2];
@@ -62,8 +61,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -90,8 +88,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -118,8 +115,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -150,8 +146,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
