@@ -216,10 +216,10 @@ pub mod executor {
     //! completion on the current thread.
 
     pub use futures_executor::{
-        BlockingStream,
+        BlockingStream, BlockingSink,
         Enter, EnterError,
         LocalSpawner, LocalPool,
-        block_on, block_on_stream, enter,
+        block_on, block_on_stream, block_on_sink, enter,
     };
 
     #[cfg(feature = "thread-pool")]

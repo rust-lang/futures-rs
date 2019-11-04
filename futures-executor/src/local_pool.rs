@@ -4,10 +4,16 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
+#[cfg(feature = "sink")]
+use futures_sink::Sink;
 use futures_util::pin_mut;
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
+#[cfg(feature = "sink")]
+use futures_util::sink::SinkExt;
 use std::cell::RefCell;
+#[cfg(feature = "sink")]
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
@@ -360,6 +366,84 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.stream.size_hint()
+    }
+}
+
+/// Turn a sink into a blocking sink.
+#[cfg(feature = "sink")]
+pub fn block_on_sink<S: Sink<Item> + Unpin, Item>(sink: S) -> BlockingSink<S, Item> {
+    BlockingSink { sink, _phantom: PhantomData }
+}
+
+/// A sink which blocks on values from a sink until they become available.
+#[cfg(feature = "sink")]
+#[derive(Debug)]
+pub struct BlockingSink<S: Sink<Item> + Unpin, Item> {
+    sink: S,
+    _phantom: PhantomData<fn(Item)>,
+}
+
+#[cfg(feature = "sink")]
+impl<S: Sink<Item> + Unpin, Item> Unpin for BlockingSink<S, Item> {}
+
+#[cfg(feature = "sink")]
+impl<S: Sink<Item> + Unpin, Item> Deref for BlockingSink<S, Item> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.sink
+    }
+}
+
+#[cfg(feature = "sink")]
+impl<S: Sink<Item> + Unpin, Item> DerefMut for BlockingSink<S, Item> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sink
+    }
+}
+
+#[cfg(feature = "sink")]
+impl<S: Sink<Item> + Unpin, Item> BlockingSink<S, Item> {
+    /// Convert this `BlockingSink` into the inner `Sink` type.
+    pub fn into_inner(self) -> S {
+        self.sink
+    }
+
+    /// Sends a value to this sink, blocking the current thread until it's able
+    /// to do so.
+    ///
+    /// This function will take the `value` provided and call the underlying
+    /// sink's `start_send` function until it's ready to accept the value. If
+    /// the function returns `Pending` then the current thread is blocked
+    /// until it is otherwise ready to accept the value.
+    ///
+    /// # Return value
+    ///
+    /// If `Ok(())` is returned then the `value` provided was successfully sent
+    /// along the sink, and if `Err(e)` is returned then an error occurred
+    /// which prevented the value from being sent.
+    pub fn send(&mut self, item: Item) -> Result<(), S::Error> {
+        LocalPool::new().run_until(self.sink.send(item))
+    }
+
+    /// Flushes any buffered data in this sink, blocking the current thread
+    /// until it's entirely flushed.
+    ///
+    /// This function will call the underlying sink's `flush` method
+    /// until it returns that it's ready to proceed. If the method returns
+    /// `Pending` the current thread will be blocked until it's otherwise
+    /// ready to proceed.
+    pub fn flush(&mut self) -> Result<(), S::Error> {
+        LocalPool::new().run_until(self.sink.flush())
+    }
+
+    /// Close this sink, blocking the current thread until it's entirely closed.
+    ///
+    /// This function will call the underlying sink's `close` method
+    /// until it returns that it's closed. If the method returns
+    /// `Pending` the current thread will be blocked until it's otherwise
+    /// closed.
+    pub fn close(&mut self) -> Result<(), S::Error> {
+        LocalPool::new().run_until(self.sink.close())
     }
 }
 

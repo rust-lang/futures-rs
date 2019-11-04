@@ -18,6 +18,9 @@
 mod local_pool;
 #[cfg(feature = "std")]
 pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
+#[cfg(feature = "std")]
+#[cfg(feature = "sink")]
+pub use crate::local_pool::{block_on_sink, BlockingSink};
 
 #[cfg(feature = "thread-pool")]
 #[cfg(feature = "std")]

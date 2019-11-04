@@ -22,7 +22,7 @@ travis-ci = { repository = "rust-lang/futures-rs" }
 futures-core = { path = "../futures-core", version = "0.3.1", default-features = false }
 futures-task = { path = "../futures-task", version = "0.3.1", default-features = false }
 futures-channel = { path = "../futures-channel", version = "0.3.1", default-features = false, features = ["sink"] }
-futures-executor = { path = "../futures-executor", version = "0.3.1", default-features = false, optional = true }
+futures-executor = { path = "../futures-executor", version = "0.3.1", default-features = false, optional = true, features = ["sink"] }
 futures-io = { path = "../futures-io", version = "0.3.1", default-features = false }
 futures-sink = { path = "../futures-sink", version = "0.3.1", default-features = false }
 futures-util = { path = "../futures-util", version = "0.3.1", default-features = false, features = ["sink"] }
