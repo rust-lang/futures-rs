@@ -115,7 +115,7 @@ pub mod compat {
     };
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "executor")]
 pub mod executor {
     //! Task execution.
     //!
@@ -123,7 +123,7 @@ pub mod executor {
     //! capable of spawning futures as tasks. This module provides several
     //! built-in executors, as well as tools for building your own.
     //!
-    //! This module is only available when the `std` feature of this
+    //! This module is only available when the `executor` feature of this
     //! library is activated, and it is activated by default.
     //!
     //! # Using a thread pool (M:N task scheduling)
@@ -134,7 +134,7 @@ pub mod executor {
     //! than threads). Tasks spawned onto the pool with the
     //! [`spawn_ok()`](crate::executor::ThreadPool::spawn_ok)
     //! function will run on ambiently on the created threads.
-    //! 
+    //!
     //! # Spawning additional tasks
     //!
     //! Tasks can be spawned onto a spawner by calling its
