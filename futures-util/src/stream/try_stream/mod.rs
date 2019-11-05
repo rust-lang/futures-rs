@@ -463,11 +463,11 @@ pub trait TryStreamExt: TryStream {
         TryForEachConcurrent::new(self, limit.into(), f)
     }
 
-    /// Attempt to Collect all of the values of this stream into a vector,
+    /// Attempt to transform a stream into a collection,
     /// returning a future representing the result of that computation.
     ///
     /// This combinator will collect all successful results of this stream and
-    /// collect them into a `Vec<Self::Item>`. If an error happens then all
+    /// collect them into the specified collection type. If an error happens then all
     /// collected elements will be dropped and the error will be returned.
     ///
     /// The returned future will be resolved when the stream terminates.
