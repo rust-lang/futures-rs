@@ -8,7 +8,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-join-macro-preview/0.3.0-alpha.19")]
+#![doc(html_root_url = "https://docs.rs/futures-join-macro/0.3.0")]
 
 extern crate proc_macro;
 
