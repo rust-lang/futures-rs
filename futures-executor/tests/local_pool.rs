@@ -39,7 +39,7 @@ fn run_until_single_future() {
 #[test]
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
     assert_eq!(pool.run_until(lazy(|_| ())), ());
 }
@@ -48,7 +48,7 @@ fn run_until_ignores_spawned() {
 fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pin(lazy(move |_| {
         tx.send(()).unwrap();
         ()
@@ -69,8 +69,8 @@ fn run_executes_spawned() {
     let cnt2 = cnt.clone();
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
-    let mut spawn2 = pool.spawner();
+    let spawn = pool.spawner();
+    let spawn2 = pool.spawner();
 
     spawn.spawn_local_obj(Box::pin(lazy(move |_| {
         spawn2.spawn_local_obj(Box::pin(lazy(move |_| {
@@ -93,7 +93,7 @@ fn run_spawn_many() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
@@ -121,7 +121,7 @@ fn try_run_one_executes_one_ready() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     for _ in 0..ITER {
         spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
@@ -150,7 +150,7 @@ fn try_run_one_returns_on_no_progress() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     let waker: Rc<Cell<Option<Waker>>> = Rc::new(Cell::new(None));
     {
@@ -182,10 +182,10 @@ fn try_run_one_returns_on_no_progress() {
 #[test]
 fn try_run_one_runs_sub_futures() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
-    let mut inner_spawner = spawn.clone();
+    let inner_spawner = spawn.clone();
     let cnt1 = cnt.clone();
     spawn.spawn_local_obj(Box::pin(poll_fn(move |_| {
         cnt1.set(cnt1.get() + 1);
@@ -212,7 +212,7 @@ fn run_until_stalled_returns_if_empty() {
 #[test]
 fn run_until_stalled_returns_multiple_times() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
     let cnt1 = cnt.clone();
@@ -229,10 +229,10 @@ fn run_until_stalled_returns_multiple_times() {
 #[test]
 fn run_until_stalled_runs_spawned_sub_futures() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
-    let mut inner_spawner = spawn.clone();
+    let inner_spawner = spawn.clone();
     let cnt1 = cnt.clone();
     spawn.spawn_local_obj(Box::pin(poll_fn(move |_| {
         cnt1.set(cnt1.get() + 1);
@@ -257,7 +257,7 @@ fn run_until_stalled_executes_all_ready() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     for i in 0..ITER {
         for _ in 0..PER_ITER {
@@ -282,7 +282,7 @@ fn run_until_stalled_executes_all_ready() {
 #[should_panic]
 fn nesting_run() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     spawn.spawn_obj(Box::pin(lazy(|_| {
         let mut pool = LocalPool::new();
@@ -296,7 +296,7 @@ fn nesting_run() {
 #[should_panic]
 fn nesting_run_run_until_stalled() {
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     spawn.spawn_obj(Box::pin(lazy(|_| {
         let mut pool = LocalPool::new();
@@ -343,7 +343,7 @@ fn tasks_are_scheduled_fairly() {
     }
 
     let mut pool = LocalPool::new();
-    let mut spawn = pool.spawner();
+    let spawn = pool.spawner();
 
     spawn.spawn_local_obj(Box::pin(Spin {
         state: state.clone(),

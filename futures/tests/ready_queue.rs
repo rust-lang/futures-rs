@@ -70,7 +70,7 @@ fn resolving_errors() {
 #[test]
 fn dropping_ready_queue() {
     block_on(future::lazy(move |_| {
-        let mut queue = FuturesUnordered::new();
+        let queue = FuturesUnordered::new();
         let (mut tx1, rx1) = oneshot::channel::<()>();
         let (mut tx2, rx2) = oneshot::channel::<()>();
         let (mut tx3, rx3) = oneshot::channel::<()>();

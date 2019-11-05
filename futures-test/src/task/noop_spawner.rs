@@ -26,7 +26,7 @@ impl NoopSpawner {
 
 impl Spawn for NoopSpawner {
     fn spawn_obj(
-        &mut self,
+        &self,
         _future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         Ok(())

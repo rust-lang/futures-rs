@@ -27,7 +27,7 @@ impl PanicSpawner {
 
 impl Spawn for PanicSpawner {
     fn spawn_obj(
-        &mut self,
+        &self,
         _future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         panic!("should not spawn")

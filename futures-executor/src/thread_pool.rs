@@ -131,17 +131,7 @@ impl ThreadPool {
 
 impl Spawn for ThreadPool {
     fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
-        self.spawn_obj_ok(future);
-        Ok(())
-    }
-}
-
-impl Spawn for &ThreadPool {
-    fn spawn_obj(
-        &mut self,
+        &self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         self.spawn_obj_ok(future);

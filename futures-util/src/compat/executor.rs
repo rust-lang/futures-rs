@@ -67,7 +67,7 @@ where
     Ex: Executor01<Executor01Future> + Clone + Send + 'static,
 {
     fn spawn_obj(
-        &mut self,
+        &self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError03> {
         let future = future.unit_error().compat();
