@@ -400,7 +400,7 @@ pub trait StreamExt: Stream {
         Then::new(self, f)
     }
 
-    /// Collect all of the values of this stream into a vector, returning a
+    /// Transforms a stream into a collection, returning a
     /// future representing the result of that computation.
     ///
     /// The returned future will be resolved when the stream terminates.
