@@ -134,7 +134,7 @@ pub mod executor {
     //! than threads). Tasks spawned onto the pool with the
     //! [`spawn_ok()`](crate::executor::ThreadPool::spawn_ok)
     //! function will run on ambiently on the created threads.
-    //! 
+    //!
     //! # Spawning additional tasks
     //!
     //! Tasks can be spawned onto a spawner by calling its
@@ -271,7 +271,7 @@ pub mod io {
 
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
-        BufReader, BufWriter, Cursor, Chain, Close, CopyInto, CopyBufInto,
+        BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
         empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
         Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,

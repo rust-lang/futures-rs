@@ -4,28 +4,55 @@ use futures_io::{AsyncBufRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 
-/// Future for the [`copy_buf_into`](super::AsyncBufReadExt::copy_buf_into) method.
+/// Creates a future which copies all the bytes from one object to another.
+///
+/// The returned future will copy all the bytes read from this `AsyncBufRead` into the
+/// `writer` specified. This future will only complete once the `reader` has hit
+/// EOF and all bytes have been written to and flushed from the `writer`
+/// provided.
+///
+/// On success the number of bytes is returned.
+///
+/// # Examples
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures::io::{self, AsyncWriteExt, Cursor};
+///
+/// let reader = Cursor::new([1, 2, 3, 4]);
+/// let mut writer = Cursor::new(vec![0u8; 5]);
+///
+/// let bytes = io::copy_buf(reader, &mut writer).await?;
+/// writer.close().await?;
+///
+/// assert_eq!(bytes, 4);
+/// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
+/// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+/// ```
+pub fn copy_buf<R, W>(reader: R, writer: &mut W) -> CopyBuf<'_, R, W>
+where
+    R: AsyncBufRead,
+    W: AsyncWrite + Unpin + ?Sized,
+{
+    CopyBuf {
+        reader,
+        writer,
+        amt: 0,
+    }
+}
+
+/// Future for the [`copy_buf()`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyBufInto<'a, R, W: ?Sized> {
+pub struct CopyBuf<'a, R, W: ?Sized> {
     reader: R,
     writer: &'a mut W,
     amt: u64,
 }
 
-impl<R: Unpin, W: ?Sized> Unpin for CopyBufInto<'_, R, W> {}
+impl<R: Unpin, W: ?Sized> Unpin for CopyBuf<'_, R, W> {}
 
-impl<R, W: ?Sized> CopyBufInto<'_, R, W> {
-    pub(super) fn new(reader: R, writer: &mut W) -> CopyBufInto<'_, R, W> {
-        CopyBufInto {
-            reader,
-            writer,
-            amt: 0,
-        }
-    }
-}
-
-impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
+impl<R, W: Unpin + ?Sized> CopyBuf<'_, R, W> {
     fn project(self: Pin<&mut Self>) -> (Pin<&mut R>, Pin<&mut W>, &mut u64) {
         unsafe {
             let this = self.get_unchecked_mut();
@@ -34,7 +61,7 @@ impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
     }
 }
 
-impl<R, W> Future for CopyBufInto<'_, R, W>
+impl<R, W> Future for CopyBuf<'_, R, W>
     where R: AsyncBufRead,
           W: AsyncWrite + Unpin + ?Sized,
 {
