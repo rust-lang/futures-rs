@@ -180,6 +180,29 @@ fn try_run_one_returns_on_no_progress() {
 }
 
 #[test]
+fn try_run_one_runs_sub_futures() {
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut inner_spawner = spawn.clone();
+    let cnt1 = cnt.clone();
+    spawn.spawn_local_obj(Box::pin(poll_fn(move |_| {
+        cnt1.set(cnt1.get() + 1);
+        
+        let cnt2 = cnt1.clone();
+        inner_spawner.spawn_local_obj(Box::pin(lazy(move |_|{
+            cnt2.set(cnt2.get() + 1)
+        })).into()).unwrap();
+
+        Poll::Pending
+    })).into()).unwrap();
+
+    pool.try_run_one();
+    assert_eq!(cnt.get(), 2);
+}
+
+#[test]
 fn run_until_stalled_returns_if_empty() {
     let mut pool = LocalPool::new();
     pool.run_until_stalled();
@@ -199,6 +222,29 @@ fn run_until_stalled_returns_multiple_times() {
 
     let cnt2 = cnt.clone();
     spawn.spawn_local_obj(Box::pin(lazy(move |_|{ cnt2.set(cnt2.get() + 1) })).into()).unwrap();
+    pool.run_until_stalled();
+    assert_eq!(cnt.get(), 2);
+}
+
+#[test]
+fn run_until_stalled_runs_spawned_sub_futures() {
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut inner_spawner = spawn.clone();
+    let cnt1 = cnt.clone();
+    spawn.spawn_local_obj(Box::pin(poll_fn(move |_| {
+        cnt1.set(cnt1.get() + 1);
+        
+        let cnt2 = cnt1.clone();
+        inner_spawner.spawn_local_obj(Box::pin(lazy(move |_|{
+            cnt2.set(cnt2.get() + 1)
+        })).into()).unwrap();
+
+        Poll::Pending
+    })).into()).unwrap();
+
     pool.run_until_stalled();
     assert_eq!(cnt.get(), 2);
 }

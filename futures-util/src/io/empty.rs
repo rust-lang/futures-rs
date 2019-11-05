@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-#[cfg(feature = "read_initializer")]
+#[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncBufRead, AsyncRead};
 use std::fmt;
@@ -44,7 +44,7 @@ impl AsyncRead for Empty {
         Poll::Ready(Ok(0))
     }
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()

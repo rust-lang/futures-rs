@@ -22,7 +22,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "read_initializer", feature(read_initializer))]
+#![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -41,8 +41,8 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[cfg(all(feature = "read_initializer", not(feature = "unstable")))]
-compile_error!("The `read_initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+#[cfg(all(feature = "read-initializer", not(feature = "unstable")))]
+compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_core::future::{Future, TryFuture};
 #[doc(hidden)] pub use futures_util::future::{FutureExt, TryFutureExt};
@@ -131,25 +131,10 @@ pub mod executor {
     //! Most of the time tasks should be executed on a [thread
     //! pool](crate::executor::ThreadPool). A small set of worker threads can
     //! handle a very large set of spawned tasks (which are much lighter weight
-    //! than threads).
-    //!
-    //! The simplest way to use a thread pool is to
-    //! [`run`](crate::executor::ThreadPool::run) an initial task on it, which
-    //! can then spawn further tasks back onto the pool to complete its work:
-    //!
-    //! ```
-    //! use futures::executor::ThreadPool;
-    //! # use futures::future::lazy;
-    //! # let my_app = lazy(|_| 42);
-    //!
-    //! // assuming `my_app: Future`
-    //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
-    //! ```
-    //!
-    //! The call to [`run`](crate::executor::ThreadPool::run) will block the
-    //! current thread until the future defined by `my_app` completes, and will
-    //! return the result of that future.
-    //!
+    //! than threads). Tasks spawned onto the pool with the
+    //! [`spawn_ok()`](crate::executor::ThreadPool::spawn_ok)
+    //! function will run on ambiently on the created threads.
+    //! 
     //! # Spawning additional tasks
     //!
     //! Tasks can be spawned onto a spawner by calling its
@@ -169,10 +154,9 @@ pub mod executor {
     //! The `LocalPool` is best suited for running I/O-bound tasks that do
     //! relatively little work between I/O operations.
     //!
-    //! There is also a convenience function,
-    //! [`block_on`](crate::executor::block_on), for simply running a future to
-    //! completion on the current thread, while routing any spawned tasks
-    //! to a global thread pool.
+    //! There is also a convenience function
+    //! [`block_on`](crate::executor::block_on) for simply running a future to
+    //! completion on the current thread.
 
     pub use futures_executor::{
         BlockingStream,
@@ -181,7 +165,7 @@ pub mod executor {
         block_on, block_on_stream, enter,
     };
 
-    #[cfg(feature = "threadpool")]
+    #[cfg(feature = "thread-pool")]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
@@ -282,15 +266,16 @@ pub mod io {
         IoSlice, IoSliceMut, Result, SeekFrom,
     };
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     pub use futures_io::Initializer;
 
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
-        BufReader, BufWriter, Chain, Close, CopyInto, CopyBufInto, empty, Empty,
-        Flush, IntoSink, Lines, Read, ReadExact, ReadHalf, ReadLine, ReadToEnd,
-        ReadToString, ReadUntil, ReadVectored, repeat, Repeat, Seek, sink, Sink,
-        Take, Window, Write, WriteAll, WriteHalf, WriteVectored,
+        BufReader, BufWriter, Cursor, Chain, Close, CopyInto, CopyBufInto,
+        empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
+        ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
+        Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
+        WriteVectored,
     };
 }
 

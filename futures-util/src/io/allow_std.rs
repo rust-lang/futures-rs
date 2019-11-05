@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-#[cfg(feature = "read_initializer")]
+#[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom};
 use std::{fmt, io};
@@ -108,7 +108,7 @@ impl<T> io::Read for AllowStdIo<T> where T: io::Read {
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.0.read_vectored(bufs)
     }
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.0.initializer()
     }
@@ -136,7 +136,7 @@ impl<T> AsyncRead for AllowStdIo<T> where T: io::Read {
         Poll::Ready(Ok(try_with_interrupt!(self.0.read_vectored(bufs))))
     }
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.0.initializer()
     }

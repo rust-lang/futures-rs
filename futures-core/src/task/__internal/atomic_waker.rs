@@ -270,13 +270,17 @@ impl AtomicWaker {
                     // been called concurrently.
                     //
                     // Start by assuming that the state is `REGISTERING` as this
-                    // is what we jut set it to.
+                    // is what we just set it to. If this holds, we know that no
+                    // other writes were performed in the meantime, so there is
+                    // nothing to acquire, only release. In case of concurrent
+                    // wakers, we need to acquire their releases, so success needs
+                    // to do both.
                     let res = self.state.compare_exchange(
                         REGISTERING, WAITING, AcqRel, Acquire);
 
                     match res {
                         Ok(_) => {
-                            // memory ordering: acquired self.state
+                            // memory ordering: acquired self.state during CAS
                             // - if previous wakes went through it syncs with
                             //   their final release (`fetch_and`)
                             // - if there was no previous wake the next wake
@@ -293,7 +297,10 @@ impl AtomicWaker {
                             // completed.
                             let waker = (*self.waker.get()).take().unwrap();
 
-                            // Just swap, because no one could change state while state == `REGISTERING` | `WAKING`.
+                            // We need to return to WAITING state (clear our lock and
+                            // concurrent WAKING flag). This needs to acquire all
+                            // WAKING fetch_or releases and it needs to release our
+                            // update to self.waker, so we need a `swap` operation.
                             self.state.swap(WAITING, AcqRel);
 
                             // memory ordering: we acquired the state for all

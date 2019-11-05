@@ -240,7 +240,7 @@ pub trait FutureExt: Future {
     /// `IntoFuture` trait and the error can be created from this future's error
     /// type.
     ///
-    /// This method is roughly equivalent to `self.and_then(|x| x)`.
+    /// This method is roughly equivalent to `self.then(|x| x)`.
     ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.

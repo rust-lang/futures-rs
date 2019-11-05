@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-#[cfg(feature = "read_initializer")]
+#[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncRead, AsyncBufRead};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -37,8 +37,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 2];
@@ -62,8 +61,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -90,8 +88,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -118,8 +115,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -150,8 +146,7 @@ impl<R: AsyncRead> Take<R> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
-    /// use std::io::Cursor;
+    /// use futures::io::{AsyncReadExt, Cursor};
     ///
     /// let reader = Cursor::new(&b"12345678"[..]);
     /// let mut buffer = [0; 4];
@@ -185,7 +180,7 @@ impl<R: AsyncRead> AsyncRead for Take<R> {
         Poll::Ready(Ok(n))
     }
 
-    #[cfg(feature = "read_initializer")]
+    #[cfg(feature = "read-initializer")]
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }

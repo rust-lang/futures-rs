@@ -21,7 +21,7 @@ use std::thread;
 /// This type is a clonable handle to the threadpool itself.
 /// Cloning it will only create a new reference, not a new threadpool.
 ///
-/// This type is only available when the `threadpool` feature of this
+/// This type is only available when the `thread-pool` feature of this
 /// library is activated.
 pub struct ThreadPool {
     state: Arc<PoolState>,
@@ -29,7 +29,7 @@ pub struct ThreadPool {
 
 /// Thread pool configuration object.
 ///
-/// This type is only available when the `threadpool` feature of this
+/// This type is only available when the `thread-pool` feature of this
 /// library is activated.
 pub struct ThreadPoolBuilder {
     pool_size: usize,
@@ -88,19 +88,6 @@ impl ThreadPool {
     /// configuration.
     pub fn builder() -> ThreadPoolBuilder {
         ThreadPoolBuilder::new()
-    }
-
-    /// Runs the given future with this thread pool as the default spawner for
-    /// spawning tasks.
-    ///
-    /// **This function will block the calling thread** until the given future
-    /// is complete. While executing that future, any tasks spawned onto the
-    /// default spawner will be routed to this thread pool.
-    ///
-    /// Note that the function will return when the provided future completes,
-    /// even if some of the tasks it spawned are still running.
-    pub fn run<F: Future>(&mut self, f: F) -> F::Output {
-        crate::LocalPool::new().run_until(f)
     }
 
     /// Spawns a future that will be run to completion.
