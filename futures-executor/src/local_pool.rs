@@ -333,7 +333,7 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 
 impl Spawn for LocalSpawner {
     fn spawn_obj(
-        &mut self,
+        &self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {
@@ -355,7 +355,7 @@ impl Spawn for LocalSpawner {
 
 impl LocalSpawn for LocalSpawner {
     fn spawn_local_obj(
-        &mut self,
+        &self,
         future: LocalFutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {

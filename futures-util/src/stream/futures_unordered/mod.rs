@@ -8,7 +8,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_task::{FutureObj, LocalFutureObj, Spawn, LocalSpawn, SpawnError};
 use crate::task::AtomicWaker;
-use core::cell::UnsafeCell;
+use core::cell::{Cell, UnsafeCell};
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::marker::PhantomData;
@@ -62,8 +62,8 @@ const TERMINATED_SENTINEL_LENGTH: usize = usize::max_value();
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
-    len: usize,
-    head_all: *const Task<Fut>,
+    len: Cell<usize>,
+    head_all: Cell<*const Task<Fut>>,
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
@@ -71,7 +71,7 @@ unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
 
 impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
-    fn spawn_obj(&mut self, future_obj: FutureObj<'static, ()>)
+    fn spawn_obj(&self, future_obj: FutureObj<'static, ()>)
         -> Result<(), SpawnError>
     {
         self.push(future_obj);
@@ -80,7 +80,7 @@ impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
 }
 
 impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
-    fn spawn_local_obj(&mut self, future_obj: LocalFutureObj<'static, ()>)
+    fn spawn_local_obj(&self, future_obj: LocalFutureObj<'static, ()>)
         -> Result<(), SpawnError>
     {
         self.push(future_obj);
@@ -135,8 +135,8 @@ impl<Fut: Future> FuturesUnordered<Fut> {
         });
 
         FuturesUnordered {
-            len: 0,
-            head_all: ptr::null_mut(),
+            len: 0.into(),
+            head_all: Cell::from(ptr::null()),
             ready_to_run_queue,
         }
     }
@@ -153,12 +153,14 @@ impl<Fut> FuturesUnordered<Fut> {
     ///
     /// This represents the total number of in-flight futures.
     pub fn len(&self) -> usize {
-        if self.len == TERMINATED_SENTINEL_LENGTH { 0 } else { self.len }
+        let len = self.len.get();
+        if len == TERMINATED_SENTINEL_LENGTH { 0 } else { len }
     }
 
     /// Returns `true` if the set contains no futures.
     pub fn is_empty(&self) -> bool {
-        self.len == 0 || self.len == TERMINATED_SENTINEL_LENGTH
+        let len = self.len.get();
+        len == 0 || len == TERMINATED_SENTINEL_LENGTH
     }
 
     /// Push a future into the set.
@@ -167,7 +169,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// call [`poll`](core::future::Future::poll) on the submitted future. The caller must
     /// ensure that [`FuturesUnordered::poll_next`](Stream::poll_next) is called
     /// in order to receive wake-up notifications for the given future.
-    pub fn push(&mut self, future: Fut) {
+    pub fn push(&self, future: Fut) {
         let task = Arc::new(Task {
             future: UnsafeCell::new(Some(future)),
             next_all: UnsafeCell::new(ptr::null_mut()),
@@ -179,8 +181,8 @@ impl<Fut> FuturesUnordered<Fut> {
 
         // If we've previously marked ourselves as terminated we need to reset
         // len to 0 to track it correctly
-        if self.len == TERMINATED_SENTINEL_LENGTH {
-            self.len = 0;
+        if self.len.get() == TERMINATED_SENTINEL_LENGTH {
+            self.len.set(0);
         }
 
         // Right now our task has a strong reference count of 1. We transfer
@@ -203,7 +205,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// Returns an iterator that allows inspecting each future in the set.
     fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
         IterPinRef {
-            task: self.head_all,
+            task: self.head_all.get(),
             len: self.len(),
             _marker: PhantomData,
         }
@@ -217,7 +219,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// Returns an iterator that allows modifying each future in the set.
     pub fn iter_pin_mut(self: Pin<&mut Self>) -> IterPinMut<'_, Fut> {
         IterPinMut {
-            task: self.head_all,
+            task: self.head_all.get(),
             len: self.len(),
             _marker: PhantomData
         }
@@ -264,17 +266,18 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Insert a new task into the internal linked list.
-    fn link(&mut self, task: Arc<Task<Fut>>) -> *const Task<Fut> {
+    fn link(&self, task: Arc<Task<Fut>>) -> *const Task<Fut> {
         let ptr = Arc::into_raw(task);
         unsafe {
-            *(*ptr).next_all.get() = self.head_all;
-            if !self.head_all.is_null() {
-                *(*self.head_all).prev_all.get() = ptr;
+            *(*ptr).next_all.get() = self.head_all.get();
+            if !self.head_all.get().is_null() {
+                *(*self.head_all.get()).prev_all.get() = ptr;
             }
         }
 
-        self.head_all = ptr;
-        self.len += 1;
+        self.head_all.set(ptr);
+        let old_len = self.len.get();
+        self.len.set(old_len + 1);
         ptr
     }
 
@@ -296,9 +299,10 @@ impl<Fut> FuturesUnordered<Fut> {
         if !prev.is_null() {
             *(*prev).next_all.get() = next;
         } else {
-            self.head_all = next;
+            self.head_all.set(next);
         }
-        self.len -= 1;
+        let old_len = self.len.get();
+        self.len.set(old_len - 1);
         task
     }
 }
@@ -320,7 +324,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     if self.is_empty() {
                         // We can only consider ourselves terminated once we
                         // have yielded a `None`
-                        self.len = TERMINATED_SENTINEL_LENGTH;
+                        self.len.set(TERMINATED_SENTINEL_LENGTH);
                         return Poll::Ready(None);
                     } else {
                         return Poll::Pending;
@@ -462,8 +466,8 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // wakers flying around which contain `Task<Fut>` references
         // inside them. We'll let those naturally get deallocated.
         unsafe {
-            while !self.head_all.is_null() {
-                let head = self.head_all;
+            while !self.head_all.get().is_null() {
+                let head = self.head_all.get();
                 let task = self.unlink(head);
                 self.release_task(task);
             }
@@ -490,12 +494,12 @@ impl<Fut: Future> FromIterator<Fut> for FuturesUnordered<Fut> {
         I: IntoIterator<Item = Fut>,
     {
         let acc = FuturesUnordered::new();
-        iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
+        iter.into_iter().fold(acc, |acc, item| { acc.push(item); acc })
     }
 }
 
 impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
     fn is_terminated(&self) -> bool {
-        self.len == TERMINATED_SENTINEL_LENGTH
+        self.len.get() == TERMINATED_SENTINEL_LENGTH
     }
 }
