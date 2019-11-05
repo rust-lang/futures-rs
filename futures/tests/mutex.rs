@@ -1,4 +1,5 @@
 use futures::channel::mpsc;
+use futures::executor::block_on;
 use futures::future::{ready, FutureExt};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
@@ -57,7 +58,7 @@ fn mutex_contested() {
         }).unwrap();
     }
 
-    pool.run(async {
+    block_on(async {
         for _ in 0..num_tasks {
             let () = rx.next().await.unwrap();
         }
