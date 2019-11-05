@@ -7,7 +7,7 @@
 //! library is activated, and it is activated by default.
 
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, TryStream};
 use crate::future::Either;
 
 #[cfg(feature = "compat")]
@@ -223,7 +223,7 @@ pub trait SinkExt<Item>: Sink<Item> {
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>
-        where St: Stream<Item = Item> + Unpin,
+        where &'a mut St: TryStream<Ok = Item, Error = Self::Error> + Unpin,
               Self: Unpin,
     {
         SendAll::new(self, stream)
