@@ -57,7 +57,7 @@ pub trait SpawnExt: Spawn {
     /// resolves to the output of the spawned future.
     ///
     /// ```
-    /// use futures::executor::ThreadPool;
+    /// use futures::executor::{block_on, ThreadPool};
     /// use futures::future;
     /// use futures::task::SpawnExt;
     ///
@@ -65,7 +65,7 @@ pub trait SpawnExt: Spawn {
     ///
     /// let future = future::ready(1);
     /// let join_handle_fut = executor.spawn_with_handle(future).unwrap();
-    /// assert_eq!(executor.run(join_handle_fut), 1);
+    /// assert_eq!(block_on(join_handle_fut), 1);
     /// ```
     #[cfg(feature = "channel")]
     #[cfg(feature = "std")]

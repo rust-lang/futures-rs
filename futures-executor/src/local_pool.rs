@@ -103,10 +103,6 @@ impl LocalPool {
 
     /// Run all tasks in the pool to completion.
     ///
-    /// The given spawner, `spawn`, is used as the default spawner for any
-    /// *newly*-spawned tasks. You can route these additional tasks back into
-    /// the `LocalPool` by using its spawner handle:
-    ///
     /// ```
     /// use futures::executor::LocalPool;
     ///
@@ -126,18 +122,13 @@ impl LocalPool {
 
     /// Runs all the tasks in the pool until the given future completes.
     ///
-    /// The given spawner, `spawn`, is used as the default spawner for any
-    /// *newly*-spawned tasks. You can route these additional tasks back into
-    /// the `LocalPool` by using its spawner handle:
-    ///
     /// ```
     /// use futures::executor::LocalPool;
     ///
     /// let mut pool = LocalPool::new();
     /// # let my_app  = async {};
     ///
-    /// // run tasks in the pool until `my_app` completes, by default spawning
-    /// // further tasks back onto the pool
+    /// // run tasks in the pool until `my_app` completes
     /// pool.run_until(my_app);
     /// ```
     ///
