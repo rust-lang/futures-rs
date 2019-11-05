@@ -1,3 +1,24 @@
+# 0.3.0 - 2019-11-5
+* Stable release along with stable async/await!
+* Added async/await to default features (#1953)
+* Changed `Spawn` trait and `FuturesUnordered::push` to take `&self` (#1950)
+* Moved `Spawn` and `FutureObj` out of `futures-core` and into `futures-task (#1925)
+* Changed case convention for feature names (#1937)
+* Added `executor` feature (#1949)
+* Moved `copy_into`/`copy_buf_into` (#1948)
+* Changed `SinkExt::send_all` to accept a `TryStream` (#1946)
+* Removed `ThreadPool::run` (#1944)
+* Changed to use our own definition of `io::Cursor` (#1943)
+* Removed `BufReader::poll_seek_relative` (#1938)
+* Changed `skip` to take a `usize` rather than `u64` (#1931)
+* Removed `Stream` impl for `VecDeque` (#1930)
+* Renamed `Peekable::peek` to `poll_peek` (#1928)
+* Added immutable iterators for `FuturesUnordered` (#1922)
+* Made `ThreadPool` optional (#1910)
+* Renamed `oneshot::Sender::poll_cancel` to `poll_canceled` (#1908)
+* Added some missing `Clone` implementations
+* Documentation fixes
+
 # 0.3.0-alpha.19 - 2019-9-25
 * Stabilized the `async-await` feature (#1816)
 * Made `async-await` feature no longer require `std` feature (#1815)
@@ -216,7 +237,7 @@
 * `FuturesUnordered` optimization: Since the context stores a `&LocalWaker` reference, it was possible to avoid cloning the `Arc` of the waker
 * Futures-rs now uses Clippy
 * We now use in-band lifetimes
-* The `join!` and `select!` macros are now exposed by the `futures-preview` crate
+* The `join!` and `select!` macros are now exposed by the `futures` crate
 * The project logo was added to the `README.md`
 * `sink::MapErr::get_pinned_mut` is now called `get_pin_mut`
 * We now use the unstable `use_extern_macros` feature for macro reexports

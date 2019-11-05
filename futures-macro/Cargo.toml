@@ -1,12 +1,12 @@
 [package]
-name = "futures-macro-preview"
+name = "futures-macro"
 edition = "2018"
-version = "0.3.0-alpha.19"
+version = "0.3.0"
 authors = ["Taylor Cramer <cramertj@google.com>", "Taiki Endo <te316e89@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://docs.rs/futures-macro-preview/0.3.0-alpha.19"
+documentation = "https://docs.rs/futures-macro/0.3.0"
 description = """
 The futures-rs procedural macro implementations.
 """

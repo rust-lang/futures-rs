@@ -7,7 +7,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-test-preview/0.3.0-alpha.19")]
+#![doc(html_root_url = "https://docs.rs/futures-test/0.3.0")]
 
 #[cfg(not(feature = "std"))]
 compile_error!("`futures-test` must have the `std` feature activated, this is a default-active feature");
