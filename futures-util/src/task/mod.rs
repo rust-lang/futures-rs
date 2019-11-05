@@ -10,7 +10,7 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     pub use futures_task::{waker_ref, WakerRef};
 
-    pub use futures_task::AtomicWaker;
+    pub use futures_core::task::__internal::AtomicWaker;
 }
 
 mod spawn;

@@ -30,11 +30,6 @@ mod spawn;
 pub use crate::spawn::{Spawn, SpawnError, LocalSpawn};
 
 cfg_target_has_atomic! {
-    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
-    mod atomic_waker;
-    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
-    pub use crate::atomic_waker::AtomicWaker;
-
     #[cfg(feature = "alloc")]
     mod arc_wake;
     #[cfg(feature = "alloc")]
