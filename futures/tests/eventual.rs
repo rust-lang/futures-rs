@@ -6,7 +6,7 @@ use std::sync::mpsc;
 use std::thread;
 
 fn run<F: Future + Send + 'static>(future: F) {
-    let mut tp = ThreadPool::new().unwrap();
+    let tp = ThreadPool::new().unwrap();
     tp.spawn(future.map(drop)).unwrap();
 }
 
