@@ -1,4 +1,4 @@
-use futures_task::{Spawn, SpawnError, FutureObj};
+use futures_task::{FutureObj, Spawn, SpawnError};
 use std::cell::{Ref, RefCell};
 
 /// An implementation of [`Spawn`](futures_task::Spawn) that records
@@ -10,7 +10,7 @@ use std::cell::{Ref, RefCell};
 /// use futures::task::SpawnExt;
 /// use futures_test::task::RecordSpawner;
 ///
-/// let mut recorder = RecordSpawner::new();
+/// let recorder = RecordSpawner::new();
 /// recorder.spawn(async { }).unwrap();
 /// assert_eq!(recorder.spawned().len(), 1);
 /// ```
@@ -32,10 +32,7 @@ impl RecordSpawner {
 }
 
 impl Spawn for RecordSpawner {
-    fn spawn_obj(
-        &self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawned.borrow_mut().push(future);
         Ok(())
     }

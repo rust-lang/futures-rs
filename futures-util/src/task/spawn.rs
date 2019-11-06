@@ -1,16 +1,17 @@
 use futures_task::{LocalSpawn, Spawn};
 
-#[cfg(feature = "compat")] use crate::compat::Compat;
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
 
 #[cfg(feature = "channel")]
 #[cfg(feature = "std")]
 use crate::future::{FutureExt, RemoteHandle};
 #[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
 use futures_core::future::Future;
 #[cfg(feature = "alloc")]
-use futures_task::{SpawnError, FutureObj, LocalFutureObj};
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
+use futures_task::{FutureObj, LocalFutureObj, SpawnError};
 
 impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 impl<Sp: ?Sized> LocalSpawnExt for Sp where Sp: LocalSpawn {}
@@ -36,13 +37,13 @@ pub trait SpawnExt: Spawn {
     /// use futures::executor::ThreadPool;
     /// use futures::task::SpawnExt;
     ///
-    /// let mut executor = ThreadPool::new().unwrap();
+    /// let executor = ThreadPool::new().unwrap();
     ///
     /// let future = async { /* ... */ };
     /// executor.spawn(future).unwrap();
     /// ```
     #[cfg(feature = "alloc")]
-    fn spawn<Fut>(&mut self, future: Fut) -> Result<(), SpawnError>
+    fn spawn<Fut>(&self, future: Fut) -> Result<(), SpawnError>
     where
         Fut: Future<Output = ()> + Send + 'static,
     {
@@ -61,7 +62,7 @@ pub trait SpawnExt: Spawn {
     /// use futures::future;
     /// use futures::task::SpawnExt;
     ///
-    /// let mut executor = ThreadPool::new().unwrap();
+    /// let executor = ThreadPool::new().unwrap();
     ///
     /// let future = future::ready(1);
     /// let join_handle_fut = executor.spawn_with_handle(future).unwrap();
@@ -69,10 +70,7 @@ pub trait SpawnExt: Spawn {
     /// ```
     #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
-    fn spawn_with_handle<Fut>(
-        &mut self,
-        future: Fut
-    ) -> Result<RemoteHandle<Fut::Output>, SpawnError>
+    fn spawn_with_handle<Fut>(&self, future: Fut) -> Result<RemoteHandle<Fut::Output>, SpawnError>
     where
         Fut: Future + Send + 'static,
         Fut::Output: Send,
@@ -86,7 +84,8 @@ pub trait SpawnExt: Spawn {
     /// Requires the `compat` feature to enable.
     #[cfg(feature = "compat")]
     fn compat(self) -> Compat<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         Compat::new(self)
     }
@@ -114,13 +113,13 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// use futures::task::LocalSpawnExt;
     ///
     /// let executor = LocalPool::new();
-    /// let mut spawner = executor.spawner();
+    /// let spawner = executor.spawner();
     ///
     /// let future = async { /* ... */ };
     /// spawner.spawn_local(future).unwrap();
     /// ```
     #[cfg(feature = "alloc")]
-    fn spawn_local<Fut>(&mut self, future: Fut) -> Result<(), SpawnError>
+    fn spawn_local<Fut>(&self, future: Fut) -> Result<(), SpawnError>
     where
         Fut: Future<Output = ()> + 'static,
     {
@@ -139,7 +138,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// use futures::task::LocalSpawnExt;
     ///
     /// let mut executor = LocalPool::new();
-    /// let mut spawner = executor.spawner();
+    /// let spawner = executor.spawner();
     ///
     /// let future = async { 1 };
     /// let join_handle_fut = spawner.spawn_local_with_handle(future).unwrap();
@@ -148,8 +147,8 @@ pub trait LocalSpawnExt: LocalSpawn {
     #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
     fn spawn_local_with_handle<Fut>(
-        &mut self,
-        future: Fut
+        &self,
+        future: Fut,
     ) -> Result<RemoteHandle<Fut::Output>, SpawnError>
     where
         Fut: Future + 'static,

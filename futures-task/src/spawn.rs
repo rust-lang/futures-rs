@@ -83,6 +83,16 @@ impl SpawnError {
     }
 }
 
+impl<Sp: ?Sized + Spawn> Spawn for &Sp {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+        Sp::spawn_obj(self, future)
+    }
+
+    fn status(&self) -> Result<(), SpawnError> {
+        Sp::status(self)
+    }
+}
+
 impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_obj(self, future)
@@ -94,6 +104,16 @@ impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
 }
 
 impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &Sp {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+        Sp::spawn_local_obj(self, future)
+    }
+
+    fn status_local(&self) -> Result<(), SpawnError> {
+        Sp::status_local(self)
+    }
+}
+
+impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_local_obj(self, future)
     }
