@@ -223,7 +223,7 @@ pub trait SinkExt<Item>: Sink<Item> {
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>
-        where &'a mut St: TryStream<Ok = Item, Error = Self::Error> + Unpin,
+        where St: TryStream<Ok = Item, Error = Self::Error> + Stream + Unpin + ?Sized,
               Self: Unpin,
     {
         SendAll::new(self, stream)

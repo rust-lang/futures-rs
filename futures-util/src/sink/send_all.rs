@@ -1,8 +1,8 @@
-use crate::stream::{StreamExt, TryStreamExt, Fuse, IntoStream};
+use crate::stream::{StreamExt, TryStreamExt, Fuse};
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::TryStream;
+use futures_core::stream::{TryStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
@@ -12,20 +12,18 @@ use futures_sink::Sink;
 pub struct SendAll<'a, Si, St>
 where
     Si: ?Sized,
-    St: ?Sized,
-    &'a mut St: TryStream,
+    St: ?Sized + TryStream,
 {
     sink: &'a mut Si,
-    stream: Fuse<IntoStream<&'a mut St>>,
-    buffered: Option<<&'a mut St as TryStream>::Ok>,
+    stream: Fuse<&'a mut St>,
+    buffered: Option<St::Ok>,
 }
 
-impl<'a, Si, St> fmt::Debug for SendAll<'a, Si, St>
+impl<Si, St> fmt::Debug for SendAll<'_, Si, St>
 where
     Si: fmt::Debug + ?Sized,
-    St: fmt::Debug + ?Sized,
-    &'a mut St: TryStream,
-    <&'a mut St as TryStream>::Ok: fmt::Debug,
+    St: fmt::Debug + ?Sized + TryStream,
+    St::Ok: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SendAll")
@@ -37,18 +35,16 @@ where
 }
 
 // Pinning is never projected to any fields
-impl<'a, Si, St> Unpin for SendAll<'a, Si, St>
+impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
     Si: Unpin + ?Sized,
-    St: ?Sized,
-    &'a mut St: TryStream + Unpin,
+    St: TryStream + Unpin + ?Sized,
 {}
 
 impl<'a, Si, St, Ok, Error> SendAll<'a, Si, St>
 where
     Si: Sink<Ok, Error = Error> + Unpin + ?Sized,
-    St: ?Sized,
-    &'a mut St: TryStream<Ok = Ok, Error = Error> + Unpin,
+    St: TryStream<Ok = Ok, Error = Error> + Stream + Unpin + ?Sized,
 {
     pub(super) fn new(
         sink: &'a mut Si,
@@ -56,7 +52,7 @@ where
     ) -> SendAll<'a, Si, St> {
         SendAll {
             sink,
-            stream: stream.into_stream().fuse(),
+            stream: stream.fuse(),
             buffered: None,
         }
     }
@@ -64,7 +60,7 @@ where
     fn try_start_send(
         &mut self,
         cx: &mut Context<'_>,
-        item: <&'a mut St as TryStream>::Ok,
+        item: St::Ok,
     ) -> Poll<Result<(), Si::Error>> {
         debug_assert!(self.buffered.is_none());
         match Pin::new(&mut self.sink).poll_ready(cx)? {
@@ -79,11 +75,10 @@ where
     }
 }
 
-impl<'a, Si, St, Ok, Error> Future for SendAll<'a, Si, St>
+impl<Si, St, Ok, Error> Future for SendAll<'_, Si, St>
 where
     Si: Sink<Ok, Error = Error> + Unpin + ?Sized,
-    St: ?Sized,
-    &'a mut St: TryStream<Ok = Ok, Error = Error> + Unpin,
+    St: Stream<Item = Result<Ok, Error>> + Unpin + ?Sized,
 {
     type Output = Result<(), Error>;
 
