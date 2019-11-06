@@ -128,6 +128,16 @@ cfg_target_has_atomic! {
     pub use self::buffer_unordered::BufferUnordered;
 
     #[cfg(feature = "alloc")]
+    mod buffer_unordered_adaptable;
+    #[cfg(feature = "alloc")]
+    use core::sync::atomic::AtomicUsize;
+    #[cfg(feature = "alloc")]
+    use alloc::sync::Arc;
+    #[cfg(feature = "alloc")]
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use self::buffer_unordered_adaptable::BufferUnorderedAdaptable;
+
+    #[cfg(feature = "alloc")]
     mod buffered;
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -964,6 +974,58 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         BufferUnordered::new(self, n)
+    }
+
+    /// An adaptor for creating a dynamically adaptable buffered list of pending
+    /// futures (unordered).
+    ///
+    /// If this stream's item can be converted into a future, then this adaptor
+    /// will buffer up to `n` futures and then return the outputs in the order
+    /// in which they complete. No more than `n` futures will be buffered at
+    /// any point in time, and less than `n` may also be buffered depending on
+    /// the state of each future. `n` can be mutated to alter buffering
+    /// behavior.
+    ///
+    /// The returned stream will be a stream of each future's output.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
+    /// use std::sync::Arc;
+    ///
+    /// let (send_one, recv_one) = oneshot::channel();
+    /// let (send_two, recv_two) = oneshot::channel();
+    ///
+    /// let stream_of_futures = stream::iter(vec![recv_one, recv_two]);
+    /// let atomic_n = Arc::new(AtomicUsize::new(10));
+    /// let mut buffered = stream_of_futures.buffer_unordered_adaptable(atomic_n.clone());
+    ///
+    /// send_two.send(2i32)?;
+    /// assert_eq!(buffered.next().await, Some(Ok(2i32)));
+    ///
+    /// atomic_n.store(20, Ordering::Relaxed);
+    /// 
+    /// send_one.send(1i32)?;
+    /// assert_eq!(buffered.next().await, Some(Ok(1i32)));
+    ///
+    /// assert_eq!(buffered.next().await, None);
+    /// # Ok::<(), i32>(()) }).unwrap();
+    /// ```
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
+    fn buffer_unordered_adaptable(self, n: Arc<AtomicUsize>) -> BufferUnorderedAdaptable<Self>
+    where
+        Self::Item: Future,
+        Self: Sized,
+    {
+        BufferUnorderedAdaptable::new(self, n)
     }
 
     /// An adapter for zipping two streams together.
