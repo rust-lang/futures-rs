@@ -552,6 +552,13 @@ impl<T> SenderInner<T> {
         Arc::ptr_eq(&self.inner, &other.inner)
     }
 
+    /// Returns pointer to the Arc containing sender
+    ///
+    /// The returned pointer is not referenced and should be only used for hashing!
+    fn ptr(&self) -> *const Inner<T> {
+        &*self.inner
+    }
+
     /// Returns whether this channel is closed without needing a context.
     fn is_closed(&self) -> bool {
         !decode_state(self.inner.state.load(SeqCst)).is_open
@@ -666,6 +673,14 @@ impl<T> Sender<T> {
             _ => false,
         }
     }
+
+    /// Hashes the receiver into the provided hasher
+    pub fn hash_receiver<H>(&self, hasher: &mut H) where H: std::hash::Hasher {
+        use std::hash::Hash;
+
+        let ptr = self.0.as_ref().map(|inner| inner.ptr());
+        ptr.hash(hasher);
+    }
 }
 
 impl<T> UnboundedSender<T> {
@@ -738,6 +753,14 @@ impl<T> UnboundedSender<T> {
             (Some(inner), Some(other)) => inner.same_receiver(other),
             _ => false,
         }
+    }
+
+    /// Hashes the receiver into the provided hasher
+    pub fn hash_receiver<H>(&self, hasher: &mut H) where H: std::hash::Hasher {
+        use std::hash::Hash;
+
+        let ptr = self.0.as_ref().map(|inner| inner.ptr());
+        ptr.hash(hasher);
     }
 }
 

@@ -530,6 +530,55 @@ fn same_receiver() {
 }
 
 #[test]
+fn hash_receiver() {
+    use std::hash::Hasher;
+    use std::collections::hash_map::DefaultHasher;
+
+    let mut hasher_a1 = DefaultHasher::new();
+    let mut hasher_a2 = DefaultHasher::new();
+    let mut hasher_b1 = DefaultHasher::new();
+    let mut hasher_b2 = DefaultHasher::new();
+    let (mut txa1, _) = mpsc::channel::<i32>(1);
+    let txa2 = txa1.clone();
+
+    let (mut txb1, _) = mpsc::channel::<i32>(1);
+    let txb2 = txb1.clone();
+
+    txa1.hash_receiver(&mut hasher_a1);
+    let hash_a1 = hasher_a1.finish();
+    txa2.hash_receiver(&mut hasher_a2);
+    let hash_a2 = hasher_a2.finish();
+    txb1.hash_receiver(&mut hasher_b1);
+    let hash_b1 = hasher_b1.finish();
+    txb2.hash_receiver(&mut hasher_b2);
+    let hash_b2 = hasher_b2.finish();
+
+    assert_eq!(hash_a1, hash_a2);
+    assert_eq!(hash_b1, hash_b2);
+    assert!(hash_a1 != hash_b1);
+
+    txa1.disconnect();
+    txb1.close_channel();
+
+    let mut hasher_a1 = DefaultHasher::new();
+    let mut hasher_a2 = DefaultHasher::new();
+    let mut hasher_b1 = DefaultHasher::new();
+    let mut hasher_b2 = DefaultHasher::new();
+
+    txa1.hash_receiver(&mut hasher_a1);
+    let hash_a1 = hasher_a1.finish();
+    txa2.hash_receiver(&mut hasher_a2);
+    let hash_a2 = hasher_a2.finish();
+    txb1.hash_receiver(&mut hasher_b1);
+    let hash_b1 = hasher_b1.finish();
+    txb2.hash_receiver(&mut hasher_b2);
+    let hash_b2 = hasher_b2.finish();
+
+    assert!(hash_a1 != hash_a2);
+    assert_eq!(hash_b1, hash_b2);
+}
+
+#[test]
 fn send_backpressure() {
     let (waker, counter) = new_count_waker();
     let mut cx = Context::from_waker(&waker);
