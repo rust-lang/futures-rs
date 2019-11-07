@@ -26,7 +26,7 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[macro_use(ready)]
+#[macro_use(ready, poll_loop)]
 extern crate futures_core;
 
 // Macro re-exports
@@ -47,6 +47,10 @@ pub use self::async_await::*;
 // Not public API.
 #[doc(hidden)]
 pub use futures_core::core_reexport;
+
+// Default for repetition limits on eager polling loops, to prevent
+// stream-consuming combinators like ForEach from starving other tasks.
+const DEFAULT_YIELD_AFTER_LIMIT: u32 = 100;
 
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
