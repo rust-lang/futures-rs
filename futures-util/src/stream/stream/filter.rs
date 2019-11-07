@@ -16,6 +16,7 @@ pub struct Filter<St, Fut, F>
     f: F,
     pending_fut: Option<Fut>,
     pending_item: Option<St::Item>,
+    yield_after: u32,
 }
 
 impl<St, Fut, F> Unpin for Filter<St, Fut, F>
@@ -35,6 +36,7 @@ where
             .field("stream", &self.stream)
             .field("pending_fut", &self.pending_fut)
             .field("pending_item", &self.pending_item)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -48,6 +50,7 @@ where St: Stream,
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Item>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> Filter<St, Fut, F> {
         Filter {
@@ -55,6 +58,7 @@ where St: Stream,
             f,
             pending_fut: None,
             pending_item: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -112,7 +116,7 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if self.pending_fut.is_none() {
                 let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                     Some(e) => e,
@@ -130,7 +134,7 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
             if yield_item {
                 return Poll::Ready(Some(item));
             }
-        }
+        }}
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
