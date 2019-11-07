@@ -31,14 +31,17 @@ macro_rules! ready {
 macro_rules! poll_loop {
     {$yield_after:expr, $cx:expr, $body:expr} => {
         {
-            let range = 0..$yield_after;
+            let mut range = 0..$yield_after;
             debug_assert!(
                 range.end != 0,
                 "0 used as the repetition limit in a poll loop",
             );
-            for _ in range {
+            let _ = loop {
+                if range.next().is_none() {
+                    break $crate::task::ToYield;
+                }
                 $body
-            }
+            };
 
             #[cold]
             $crate::core_reexport::task::Context::waker($cx).wake_by_ref();
@@ -46,3 +49,11 @@ macro_rules! poll_loop {
         }
     }
 }
+
+/// A token type used inside the [`poll_loop!`] macro.
+///
+/// `ToYield` can be used as a value of a `break` expression within an
+/// iteration body given to the `poll_loop!` macro to break out of the loop.
+/// The effect is to yield to the polling task, hence `break ToYield`.
+#[derive(Debug)]
+pub struct ToYield;
