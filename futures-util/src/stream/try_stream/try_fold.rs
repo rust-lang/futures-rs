@@ -12,6 +12,7 @@ pub struct TryFold<St, Fut, T, F> {
     f: F,
     accum: Option<T>,
     future: Option<Fut>,
+    yield_after: u32,
 }
 
 impl<St: Unpin, Fut: Unpin, T, F> Unpin for TryFold<St, Fut, T, F> {}
@@ -27,6 +28,7 @@ where
             .field("stream", &self.stream)
             .field("accum", &self.accum)
             .field("future", &self.future)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -40,6 +42,7 @@ where St: TryStream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(accum: Option<T>);
     unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F, t: T) -> TryFold<St, Fut, T, F> {
         TryFold {
@@ -47,6 +50,7 @@ where St: TryStream,
             f,
             accum: Some(t),
             future: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 }
@@ -69,7 +73,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
     type Output = Result<T, St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             // we're currently processing a future to produce a new accum value
             if self.accum.is_none() {
                 let accum = match ready!(
@@ -105,6 +109,6 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
             } else {
                 return Poll::Ready(Ok(accum))
             }
-        }
+        }}
     }
 }
