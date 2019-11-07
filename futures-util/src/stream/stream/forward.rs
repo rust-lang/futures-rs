@@ -15,6 +15,7 @@ pub struct Forward<St: TryStream, Si> {
     sink: Option<Si>,
     stream: Fuse<St>,
     buffered_item: Option<St::Ok>,
+    yield_after: u32,
 }
 
 impl<St: TryStream + Unpin, Si: Unpin> Unpin for Forward<St, Si> {}
@@ -27,12 +28,14 @@ where
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, sink: Si) -> Self {
         Forward {
             sink: Some(sink),
             stream: stream.fuse(),
-                buffered_item: None,
+            buffered_item: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -80,7 +83,7 @@ where
             ready!(self.as_mut().try_start_send(cx, item))?;
         }
 
-        loop {
+        poll_loop! { self.yield_after, cx,
             match self.as_mut().stream().poll_next(cx)? {
                 Poll::Ready(Some(item)) =>
                    ready!(self.as_mut().try_start_send(cx, item))?,
