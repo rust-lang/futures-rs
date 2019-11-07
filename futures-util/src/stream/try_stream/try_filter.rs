@@ -17,6 +17,7 @@ pub struct TryFilter<St, Fut, F>
     f: F,
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
+    yield_after: u32,
 }
 
 impl<St, Fut, F> Unpin for TryFilter<St, Fut, F>
@@ -34,6 +35,7 @@ where
             .field("stream", &self.stream)
             .field("pending_fut", &self.pending_fut)
             .field("pending_item", &self.pending_item)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -45,6 +47,7 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> Self {
         TryFilter {
@@ -52,6 +55,7 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
             f,
             pending_fut: None,
             pending_item: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -109,7 +113,7 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<St::Ok, St::Error>>> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if self.pending_fut.is_none() {
                 let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(x) => x,
@@ -127,7 +131,7 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
             if yield_item {
                 return Poll::Ready(Some(Ok(item)));
             }
-        }
+        }}
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
