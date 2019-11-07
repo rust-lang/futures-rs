@@ -82,6 +82,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
     type Error = S::Error;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::Error>> {
+        // No busy looping: this loop ends in at most two iterations.
         loop {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
