@@ -17,6 +17,7 @@ pub struct TryForEachConcurrent<St, Fut, F> {
     f: F,
     futures: FuturesUnordered<Fut>,
     limit: Option<NonZeroUsize>,
+    yield_after: u32,
 }
 
 impl<St, Fut, F> Unpin for TryForEachConcurrent<St, Fut, F>
@@ -34,6 +35,7 @@ where
             .field("stream", &self.stream)
             .field("futures", &self.futures)
             .field("limit", &self.limit)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -57,6 +59,7 @@ where St: TryStream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(futures: FuturesUnordered<Fut>);
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> TryForEachConcurrent<St, Fut, F> {
         TryForEachConcurrent {
@@ -65,6 +68,7 @@ where St: TryStream,
             limit: limit.and_then(NonZeroUsize::new),
             f,
             futures: FuturesUnordered::new(),
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 }
@@ -77,7 +81,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
     type Output = Result<(), St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             let mut made_progress_this_iter = false;
 
             // Try and pull an item from the stream
@@ -134,6 +138,6 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
             if !made_progress_this_iter {
                 return Poll::Pending;
             }
-        }
+        }}
     }
 }
