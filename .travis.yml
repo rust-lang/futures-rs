@@ -25,10 +25,10 @@ matrix:
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
     - name: cargo build --features async-await (minimum required version)
-      rust: beta # 1.39.0
+      rust: 1.39.0
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --all --features async-await
+        - cargo build --manifest-path futures/Cargo.toml --features async-await
 
     - name: cargo +stable build
       rust: stable
@@ -36,9 +36,10 @@ matrix:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # Check default-features
         - cargo build --all
-        # Check compat & thread-pool features
+        # Check compat & thread-pool & async-await features
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
         - cargo build --manifest-path futures/Cargo.toml --features thread-pool
+        - cargo build --manifest-path futures/Cargo.toml --features async-await
 
     - name: cargo +beta build
       rust: beta
