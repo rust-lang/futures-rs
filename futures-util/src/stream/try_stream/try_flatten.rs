@@ -3,7 +3,7 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::unsafe_pinned;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`try_flatten`](super::TryStreamExt::try_flatten) method.
 #[derive(Debug)]
@@ -14,6 +14,7 @@ where
 {
     stream: St,
     next: Option<St::Ok>,
+    yield_after: u32,
 }
 
 impl<St> Unpin for TryFlatten<St>
@@ -29,6 +30,7 @@ where
 {
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Ok>);
+    unsafe_unpinned!(yield_after: u32);
 }
 
 impl<St> TryFlatten<St>
@@ -38,7 +40,11 @@ where
     <St::Ok as TryStream>::Error: From<St::Error>,
 {
     pub(super) fn new(stream: St) -> Self {
-        Self { stream, next: None }
+        Self {
+            stream,
+            next: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -94,7 +100,7 @@ where
     type Item = Result<<St::Ok as TryStream>::Ok, <St::Ok as TryStream>::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if self.next.is_none() {
                 match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(e) => self.as_mut().next().set(Some(e)),
@@ -113,7 +119,7 @@ where
             } else {
                 self.as_mut().next().set(None);
             }
-        }
+        }}
     }
 }
 
