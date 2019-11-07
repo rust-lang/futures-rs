@@ -116,7 +116,8 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 #[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
 
 // Macro reexports
-pub use futures_core::ready; // Readiness propagation
+pub use futures_core::poll_loop; // Cooperative looping
+pub use futures_core::ready;     // Readiness propagation
 pub use futures_util::pin_mut;
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
