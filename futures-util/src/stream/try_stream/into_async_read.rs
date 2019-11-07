@@ -55,6 +55,9 @@ where
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize>> {
+        // This will only busy-loop if the stream keeps producing empty chunks.
+        // It probably does not make sense for any stream that needs to be
+        // consumed as AsyncRead to do so.
         loop {
             match &mut self.state {
                 ReadState::Ready { chunk, chunk_start } => {
