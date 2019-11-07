@@ -11,6 +11,7 @@ pub struct ForEach<St, Fut, F> {
     stream: St,
     f: F,
     future: Option<Fut>,
+    yield_after: u32,
 }
 
 impl<St, Fut, F> Unpin for ForEach<St, Fut, F>
@@ -28,6 +29,7 @@ where
         f.debug_struct("ForEach")
             .field("stream", &self.stream)
             .field("future", &self.future)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -40,12 +42,14 @@ where St: Stream,
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
         ForEach {
             stream,
             f,
             future: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 }
@@ -68,7 +72,7 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.poll(cx));
             }
@@ -83,6 +87,6 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
                     return Poll::Ready(());
                 }
             }
-        }
+        }}
     }
 }
