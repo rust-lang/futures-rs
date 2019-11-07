@@ -11,6 +11,7 @@ pub struct TryForEach<St, Fut, F> {
     stream: St,
     f: F,
     future: Option<Fut>,
+    yield_after: u32,
 }
 
 impl<St: Unpin, Fut: Unpin, F> Unpin for TryForEach<St, Fut, F> {}
@@ -24,6 +25,7 @@ where
         f.debug_struct("TryForEach")
             .field("stream", &self.stream)
             .field("future", &self.future)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -36,12 +38,14 @@ where St: TryStream,
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> TryForEach<St, Fut, F> {
         TryForEach {
             stream,
             f,
             future: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 }
@@ -54,7 +58,7 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
     type Output = Result<(), St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.try_poll(cx))?;
             }
@@ -67,6 +71,6 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
                 }
                 None => return Poll::Ready(Ok(())),
             }
-        }
+        }}
     }
 }
