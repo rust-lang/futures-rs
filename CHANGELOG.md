@@ -1,3 +1,6 @@
+# 0.3.1 - 2019-11-7
+* Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
+
 # 0.3.0 - 2019-11-5
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
