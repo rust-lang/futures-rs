@@ -16,6 +16,7 @@ pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
     done_skipping: bool,
+    yield_after: u32,
 }
 
 impl<St: Unpin + TryStream, Fut: Unpin, F> Unpin for TrySkipWhile<St, Fut, F> {}
@@ -32,6 +33,7 @@ where
             .field("pending_fut", &self.pending_fut)
             .field("pending_item", &self.pending_item)
             .field("done_skipping", &self.done_skipping)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -51,6 +53,7 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(done_skipping: bool);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
         TrySkipWhile {
@@ -59,6 +62,7 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
             pending_fut: None,
             pending_item: None,
             done_skipping: false,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -110,7 +114,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
             return self.as_mut().stream().try_poll_next(cx);
         }
 
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if self.pending_item.is_none() {
                 let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(e) => e,
@@ -129,7 +133,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
                 *self.as_mut().done_skipping() = true;
                 return Poll::Ready(Some(Ok(item)))
             }
-        }
+        }}
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
