@@ -11,16 +11,19 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct TryCollect<St, C> {
     stream: St,
     items: C,
+    yield_after: u32,
 }
 
 impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(items: C);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(s: St) -> TryCollect<St, C> {
         TryCollect {
             stream: s,
             items: Default::default(),
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -52,7 +55,7 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        loop {
+        poll_loop! { self.yield_after, cx,
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => self.as_mut().items().extend(Some(x)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),
