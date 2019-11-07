@@ -10,6 +10,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct TryConcat<St: TryStream> {
     stream: St,
     accum: Option<St::Ok>,
+    yield_after: u32,
 }
 
 impl<St: TryStream + Unpin> Unpin for TryConcat<St> {}
@@ -21,11 +22,13 @@ where
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(accum: Option<St::Ok>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St) -> TryConcat<St> {
         TryConcat {
             stream,
             accum: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 }
@@ -38,7 +41,7 @@ where
     type Output = Result<St::Ok, St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
+        poll_loop! { self.yield_after, cx,
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => {
                     let accum = self.as_mut().accum();
