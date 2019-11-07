@@ -12,6 +12,7 @@ pub struct Fold<St, Fut, T, F> {
     f: F,
     accum: Option<T>,
     future: Option<Fut>,
+    yield_after: u32,
 }
 
 impl<St: Unpin, Fut: Unpin, T, F> Unpin for Fold<St, Fut, T, F> {}
@@ -27,6 +28,7 @@ where
             .field("stream", &self.stream)
             .field("accum", &self.accum)
             .field("future", &self.future)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -40,6 +42,7 @@ where St: Stream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(accum: Option<T>);
     unsafe_pinned!(future: Option<Fut>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F, t: T) -> Fold<St, Fut, T, F> {
         Fold {
@@ -47,7 +50,8 @@ where St: Stream,
             f,
             accum: Some(t),
             future: None,
-        }
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
+       }
     }
 }
 
@@ -69,7 +73,7 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             // we're currently processing a future to produce a new accum value
             if self.accum.is_none() {
                 let accum = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
@@ -87,6 +91,6 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
             } else {
                 return Poll::Ready(accum)
             }
-        }
+        }}
     }
 }
