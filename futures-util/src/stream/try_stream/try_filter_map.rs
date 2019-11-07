@@ -14,6 +14,7 @@ pub struct TryFilterMap<St, Fut, F> {
     stream: St,
     f: F,
     pending: Option<Fut>,
+    yield_after: u32,
 }
 
 impl<St, Fut, F> Unpin for TryFilterMap<St, Fut, F>
@@ -29,6 +30,7 @@ where
         f.debug_struct("TryFilterMap")
             .field("stream", &self.stream)
             .field("pending", &self.pending)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -37,9 +39,15 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending: Option<Fut>);
+    unsafe_unpinned!(yield_after: u32);
 
     pub(super) fn new(stream: St, f: F) -> Self {
-        TryFilterMap { stream, f, pending: None }
+        TryFilterMap {
+            stream,
+            f,
+            pending: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
+        }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -96,7 +104,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<T, St::Error>>> {
-        loop {
+        poll_loop! { self.yield_after, cx, {
             if self.pending.is_none() {
                 let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(x) => x,
@@ -111,7 +119,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
             if let Some(x) = result? {
                 return Poll::Ready(Some(Ok(x)));
             }
-        }
+        }}
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
