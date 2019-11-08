@@ -16,11 +16,36 @@ matrix:
       rust: 1.36.0
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        # Check default-features
-        - cargo build --all
+
+        # Check no-default-features
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
+
+        # Check alloc feature
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
+
+        # Check std feature
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features std
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features std
+
         # Check compat & thread-pool features
-        - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features std,io-compat
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features std,io-compat
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features std,thread-pool
 
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
@@ -28,7 +53,8 @@ matrix:
       rust: 1.39.0
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --features async-await
+        # async-await feature is activated by default.
+        - cargo build --all
 
     - name: cargo +stable build
       rust: stable
@@ -84,28 +110,6 @@ matrix:
       script:
         - cargo bench --all
         - cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
-
-    - name: cargo +stable build --no-default-features
-      rust: stable
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
-
-    - name: cargo +stable build (alloc)
-      rust: stable
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
