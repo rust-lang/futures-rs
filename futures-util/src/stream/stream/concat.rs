@@ -1,3 +1,4 @@
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::stream::{Stream, FusedStream};
@@ -10,7 +11,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct Concat<St: Stream> {
     stream: St,
     accum: Option<St::Item>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: Stream + Unpin> Unpin for Concat<St> {}
@@ -22,7 +23,7 @@ where St: Stream,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(accum: Option<St::Item>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St) -> Concat<St> {
         Concat {

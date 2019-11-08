@@ -1,4 +1,5 @@
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream, FusedStream};
@@ -16,7 +17,7 @@ pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
     done_skipping: bool,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: Unpin + TryStream, Fut: Unpin, F> Unpin for TrySkipWhile<St, Fut, F> {}
@@ -53,7 +54,7 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(done_skipping: bool);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
         TrySkipWhile {

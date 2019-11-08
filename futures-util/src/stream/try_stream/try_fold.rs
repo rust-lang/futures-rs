@@ -1,4 +1,5 @@
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::stream::TryStream;
@@ -12,7 +13,7 @@ pub struct TryFold<St, Fut, T, F> {
     f: F,
     accum: Option<T>,
     future: Option<Fut>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: Unpin, Fut: Unpin, T, F> Unpin for TryFold<St, Fut, T, F> {}
@@ -42,7 +43,7 @@ where St: TryStream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(accum: Option<T>);
     unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, f: F, t: T) -> TryFold<St, Fut, T, F> {
         TryFold {

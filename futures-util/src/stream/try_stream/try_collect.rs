@@ -1,4 +1,5 @@
 use core::mem;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, TryStream};
@@ -11,13 +12,13 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct TryCollect<St, C> {
     stream: St,
     items: C,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(items: C);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(s: St) -> TryCollect<St, C> {
         TryCollect {

@@ -48,10 +48,6 @@ pub use self::async_await::*;
 #[doc(hidden)]
 pub use futures_core::core_reexport;
 
-// Default for repetition limits on eager polling loops, to prevent
-// stream-consuming combinators like ForEach from starving other tasks.
-const DEFAULT_YIELD_AFTER_LIMIT: u32 = 100;
-
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
         #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
@@ -121,3 +117,9 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     pub mod lock;
 }
+
+use core::num::NonZeroU32;
+
+// Default for repetition limits on eager polling loops, to prevent
+// stream-consuming combinators like ForEach from starving other tasks.
+const DEFAULT_YIELD_AFTER_LIMIT: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(100) };

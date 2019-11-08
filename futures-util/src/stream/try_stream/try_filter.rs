@@ -1,4 +1,5 @@
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{Stream, TryStream, FusedStream};
@@ -17,7 +18,7 @@ pub struct TryFilter<St, Fut, F>
     f: F,
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St, Fut, F> Unpin for TryFilter<St, Fut, F>
@@ -47,7 +48,7 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, f: F) -> Self {
         TryFilter {

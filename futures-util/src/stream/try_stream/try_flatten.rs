@@ -1,3 +1,4 @@
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
@@ -14,7 +15,7 @@ where
 {
     stream: St,
     next: Option<St::Ok>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St> Unpin for TryFlatten<St>
@@ -30,7 +31,7 @@ where
 {
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 }
 
 impl<St> TryFlatten<St>

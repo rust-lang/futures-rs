@@ -1,4 +1,5 @@
 use core::mem;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
@@ -11,7 +12,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct Collect<St, C> {
     stream: St,
     collection: C,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: Unpin, C> Unpin for Collect<St, C> {}
@@ -19,7 +20,7 @@ impl<St: Unpin, C> Unpin for Collect<St, C> {}
 impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(collection: C);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     fn finish(mut self: Pin<&mut Self>) -> C {
         mem::replace(self.as_mut().collection(), Default::default())

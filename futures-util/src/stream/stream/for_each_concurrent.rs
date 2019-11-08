@@ -1,7 +1,7 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::fmt;
+use core::num::{NonZeroU32, NonZeroUsize};
 use core::pin::Pin;
-use core::num::NonZeroUsize;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
@@ -15,7 +15,7 @@ pub struct ForEachConcurrent<St, Fut, F> {
     f: F,
     futures: FuturesUnordered<Fut>,
     limit: Option<NonZeroUsize>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St, Fut, F> Unpin for ForEachConcurrent<St, Fut, F>
@@ -47,7 +47,7 @@ where St: Stream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(futures: FuturesUnordered<Fut>);
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> ForEachConcurrent<St, Fut, F> {
         ForEachConcurrent {

@@ -1,4 +1,5 @@
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
@@ -11,7 +12,7 @@ pub struct ForEach<St, Fut, F> {
     stream: St,
     f: F,
     future: Option<Fut>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St, Fut, F> Unpin for ForEach<St, Fut, F>
@@ -42,7 +43,7 @@ where St: Stream,
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
         ForEach {

@@ -1,4 +1,5 @@
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
@@ -15,7 +16,7 @@ pub struct SkipWhile<St, Fut, F> where St: Stream {
     pending_fut: Option<Fut>,
     pending_item: Option<St::Item>,
     done_skipping: bool,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
@@ -47,7 +48,7 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Item>);
     unsafe_unpinned!(done_skipping: bool);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, f: F) -> SkipWhile<St, Fut, F> {
         SkipWhile {

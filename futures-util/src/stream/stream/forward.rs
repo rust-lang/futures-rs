@@ -1,4 +1,5 @@
 use crate::stream::{StreamExt, Fuse};
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{Stream, TryStream};
@@ -15,7 +16,7 @@ pub struct Forward<St: TryStream, Si> {
     sink: Option<Si>,
     stream: Fuse<St>,
     buffered_item: Option<St::Ok>,
-    yield_after: u32,
+    yield_after: NonZeroU32,
 }
 
 impl<St: TryStream + Unpin, Si: Unpin> Unpin for Forward<St, Si> {}
@@ -28,7 +29,7 @@ where
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: u32);
+    unsafe_unpinned!(yield_after: NonZeroU32);
 
     pub(super) fn new(stream: St, sink: Si) -> Self {
         Forward {

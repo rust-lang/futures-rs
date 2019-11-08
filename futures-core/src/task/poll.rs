@@ -31,7 +31,7 @@ macro_rules! ready {
 macro_rules! poll_loop {
     {$yield_after:expr, $cx:expr, $body:expr} => {
         {
-            let mut range = 0..$yield_after;
+            let mut range = 0u32..(::core::convert::Into::into($yield_after));
             debug_assert!(
                 range.end != 0,
                 "0 used as the repetition limit in a poll loop",
