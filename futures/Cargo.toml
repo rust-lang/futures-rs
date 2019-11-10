@@ -56,3 +56,6 @@ read-initializer = ["futures-io/read-initializer", "futures-util/read-initialize
 
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.playground]
+features = ["std", "async-await", "compat", "io-compat", "executor", "thread-pool"]
