@@ -104,8 +104,7 @@ impl<T> Drop for LocalFutureObj<'_, T> {
 /// contexts.
 ///
 /// You should generally not need to use this type outside of `no_std` or when
-/// implementing `Spawn`, consider using [`BoxFuture`](crate::future::BoxFuture)
-/// instead.
+/// implementing `Spawn`, consider using `BoxFuture` instead.
 pub struct FutureObj<'a, T>(LocalFutureObj<'a, T>);
 
 impl<T> Unpin for FutureObj<'_, T> {}

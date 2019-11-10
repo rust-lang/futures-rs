@@ -1,7 +1,7 @@
-use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnError};
+use futures_task::{FutureObj, Spawn, SpawnError};
+use std::cell::{Ref, RefCell};
 
-/// An implementation of [`Spawn`](futures_core::task::Spawn) that records
+/// An implementation of [`Spawn`](futures_task::Spawn) that records
 /// any [`Future`](futures_core::future::Future)s spawned on it.
 ///
 /// # Examples
@@ -10,41 +10,30 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures::task::SpawnExt;
 /// use futures_test::task::RecordSpawner;
 ///
-/// let mut recorder = RecordSpawner::new();
+/// let recorder = RecordSpawner::new();
 /// recorder.spawn(async { }).unwrap();
 /// assert_eq!(recorder.spawned().len(), 1);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct RecordSpawner {
-    spawned: Vec<FutureObj<'static, ()>>,
+    spawned: RefCell<Vec<FutureObj<'static, ()>>>,
 }
 
 impl RecordSpawner {
     /// Create a new instance
     pub fn new() -> Self {
-        Self {
-            spawned: Vec::new(),
-        }
+        Default::default()
     }
 
     /// Inspect any futures that were spawned onto this [`Spawn`].
-    pub fn spawned(&self) -> &[FutureObj<'static, ()>] {
-        &self.spawned
+    pub fn spawned(&self) -> Ref<'_, Vec<FutureObj<'static, ()>>> {
+        self.spawned.borrow()
     }
 }
 
 impl Spawn for RecordSpawner {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
-        self.spawned.push(future);
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+        self.spawned.borrow_mut().push(future);
         Ok(())
-    }
-}
-
-impl Default for RecordSpawner {
-    fn default() -> Self {
-        Self::new()
     }
 }

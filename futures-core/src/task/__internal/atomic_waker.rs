@@ -1,8 +1,8 @@
-use core::fmt;
 use core::cell::UnsafeCell;
+use core::fmt;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
-use crate::task::Waker;
+use core::task::Waker;
 
 /// A synchronization primitive for task wakeup.
 ///

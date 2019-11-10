@@ -4,7 +4,7 @@
 // Also, there is cross crate links in here. They are not going to work anytime soon. Do we put https links
 // in here? to here: https://rust-lang-nursery.github.io/futures-api-docs? The problem is these have a
 // version hardcoded in the url: 0.3.0-alpha.16 We could link to docs.rs, but currently that says:
-// docs.rs failed to build futures-preview-0.3.0-alpha.16 -> ok the reason seems to be that they are on
+// docs.rs failed to build futures-0.3.0-alpha.16 -> ok the reason seems to be that they are on
 // 2019-04-17 which does still have futures-api unstable feature, so that should get solved.
 //
 //! Task related testing utilities.
@@ -12,7 +12,7 @@
 //! This module provides utilities for creating test
 //! [`Context`](futures_core::task::Context)s,
 //! [`Waker`](futures_core::task::Waker)s and
-//! [`Spawn`](futures_core::task::Spawn) implementations.
+//! [`Spawn`](futures_task::Spawn) implementations.
 //!
 //! Test contexts:
 //! - [`noop_context`](crate::task::noop_context) creates a context that ignores calls to

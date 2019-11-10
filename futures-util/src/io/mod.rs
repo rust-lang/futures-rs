@@ -53,11 +53,11 @@ pub use self::chain::Chain;
 mod close;
 pub use self::close::Close;
 
-mod copy_into;
-pub use self::copy_into::CopyInto;
+mod copy;
+pub use self::copy::{copy, Copy};
 
-mod copy_buf_into;
-pub use self::copy_buf_into::CopyBufInto;
+mod copy_buf;
+pub use self::copy_buf::{copy_buf, CopyBuf};
 
 mod cursor;
 pub use self::cursor::Cursor;
@@ -155,39 +155,6 @@ pub trait AsyncReadExt: AsyncRead {
         R: AsyncRead,
     {
         Chain::new(self, next)
-    }
-
-    /// Creates a future which copies all the bytes from one object to another.
-    ///
-    /// The returned future will copy all the bytes read from this `AsyncRead` into the
-    /// `writer` specified. This future will only complete once the `reader` has hit
-    /// EOF and all bytes have been written to and flushed from the `writer`
-    /// provided.
-    ///
-    /// On success the number of bytes is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # futures::executor::block_on(async {
-    /// use futures::io::{AsyncReadExt, AsyncWriteExt, Cursor};
-    ///
-    /// let reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut writer = Cursor::new(vec![0u8; 5]);
-    ///
-    /// let bytes = reader.copy_into(&mut writer).await?;
-    /// writer.close().await?;
-    ///
-    /// assert_eq!(bytes, 4);
-    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
-    /// ```
-    fn copy_into<W>(self, writer: &mut W) -> CopyInto<'_, Self, W>
-    where
-        Self: Sized,
-        W: AsyncWrite + Unpin + ?Sized,
-    {
-        CopyInto::new(self, writer)
     }
 
     /// Tries to read some bytes directly into the given `buf` in asynchronous
@@ -342,7 +309,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::io::{AsyncReadExt, Cursor};
+    /// use futures::io::{self, AsyncReadExt, Cursor};
     ///
     /// // Note that for `Cursor` the read and write halves share a single
     /// // seek position. This may or may not be true for other types that
@@ -354,8 +321,8 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// {
     ///     let (buffer_reader, mut buffer_writer) = (&mut buffer).split();
-    ///     reader.copy_into(&mut buffer_writer).await?;
-    ///     buffer_reader.copy_into(&mut writer).await?;
+    ///     io::copy(reader, &mut buffer_writer).await?;
+    ///     io::copy(buffer_reader, &mut writer).await?;
     /// }
     ///
     /// assert_eq!(buffer.into_inner(), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -558,39 +525,6 @@ impl<S: AsyncSeek + ?Sized> AsyncSeekExt for S {}
 
 /// An extension trait which adds utility methods to `AsyncBufRead` types.
 pub trait AsyncBufReadExt: AsyncBufRead {
-    /// Creates a future which copies all the bytes from one object to another.
-    ///
-    /// The returned future will copy all the bytes read from this `AsyncBufRead` into the
-    /// `writer` specified. This future will only complete once the `reader` has hit
-    /// EOF and all bytes have been written to and flushed from the `writer`
-    /// provided.
-    ///
-    /// On success the number of bytes is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # futures::executor::block_on(async {
-    /// use futures::io::{AsyncBufReadExt, AsyncWriteExt, Cursor};
-    ///
-    /// let reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut writer = Cursor::new(vec![0u8; 5]);
-    ///
-    /// let bytes = reader.copy_buf_into(&mut writer).await?;
-    /// writer.close().await?;
-    ///
-    /// assert_eq!(bytes, 4);
-    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
-    /// ```
-    fn copy_buf_into<W>(self, writer: &mut W) -> CopyBufInto<'_, Self, W>
-    where
-        Self: Sized,
-        W: AsyncWrite + Unpin + ?Sized,
-    {
-        CopyBufInto::new(self, writer)
-    }
-
     /// Creates a future which will read all the bytes associated with this I/O
     /// object into `buf` until the delimiter `byte` or EOF is reached.
     /// This method is the async equivalent to [`BufRead::read_until`](std::io::BufRead::read_until).

@@ -33,7 +33,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-preview/0.3.0-alpha.19")]
+#![doc(html_root_url = "https://docs.rs/futures/0.3.0")]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -115,7 +115,7 @@ pub mod compat {
     };
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "executor")]
 pub mod executor {
     //! Task execution.
     //!
@@ -123,7 +123,7 @@ pub mod executor {
     //! capable of spawning futures as tasks. This module provides several
     //! built-in executors, as well as tools for building your own.
     //!
-    //! This module is only available when the `std` feature of this
+    //! This module is only available when the `executor` feature of this
     //! library is activated, and it is activated by default.
     //!
     //! # Using a thread pool (M:N task scheduling)
@@ -134,7 +134,7 @@ pub mod executor {
     //! than threads). Tasks spawned onto the pool with the
     //! [`spawn_ok()`](crate::executor::ThreadPool::spawn_ok)
     //! function will run on ambiently on the created threads.
-    //! 
+    //!
     //! # Spawning additional tasks
     //!
     //! Tasks can be spawned onto a spawner by calling its
@@ -184,11 +184,12 @@ pub mod future {
 
     pub use futures_core::future::{
         Future, TryFuture, FusedFuture,
-        FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_core::future::{BoxFuture, LocalBoxFuture};
+
+    pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
     pub use futures_util::future::{
         lazy, Lazy,
@@ -271,7 +272,7 @@ pub mod io {
 
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
-        BufReader, BufWriter, Cursor, Chain, Close, CopyInto, CopyBufInto,
+        BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
         empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
         Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
@@ -445,9 +446,11 @@ pub mod task {
     //! The remaining types and traits in the module are used for implementing
     //! executors or dealing with synchronization issues around task wakeup.
 
-    pub use futures_core::task::{
-        Context, Poll, Spawn, LocalSpawn, SpawnError,
-        Waker, RawWaker, RawWakerVTable
+    pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+
+    pub use futures_task::{
+        Spawn, LocalSpawn, SpawnError,
+        FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
 
     pub use futures_util::task::noop_waker;

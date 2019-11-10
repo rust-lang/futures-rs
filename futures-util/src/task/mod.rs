@@ -2,29 +2,27 @@
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
-    mod arc_wake;
-    #[cfg(feature = "alloc")]
-    pub use self::arc_wake::ArcWake;
+    pub use futures_task::ArcWake;
 
     #[cfg(feature = "alloc")]
-    mod waker;
-    #[cfg(feature = "alloc")]
-    pub use self::waker::waker;
+    pub use futures_task::waker;
 
     #[cfg(feature = "alloc")]
-    mod waker_ref;
-    #[cfg(feature = "alloc")]
-    pub use self::waker_ref::{waker_ref, WakerRef};
+    pub use futures_task::{waker_ref, WakerRef};
 
     pub use futures_core::task::__internal::AtomicWaker;
 }
-
-mod noop_waker;
-pub use self::noop_waker::noop_waker;
-#[cfg(feature = "std")]
-pub use self::noop_waker::noop_waker_ref;
 
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
 pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+
+pub use futures_task::{
+    Spawn, LocalSpawn, SpawnError,
+    FutureObj, LocalFutureObj, UnsafeFutureObj,
+};
+
+pub use futures_task::noop_waker;
+#[cfg(feature = "std")]
+pub use futures_task::noop_waker_ref;

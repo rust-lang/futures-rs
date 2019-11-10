@@ -1,12 +1,13 @@
 use crate::enter;
-use futures_core::future::{Future, FutureObj, LocalFutureObj};
-use futures_core::stream::{Stream};
-use futures_core::task::{Context, Poll, Spawn, LocalSpawn, SpawnError};
-use futures_util::task::{waker_ref, ArcWake};
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
+use futures_task::{waker_ref, ArcWake};
+use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
+use futures_util::pin_mut;
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
-use futures_util::pin_mut;
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
@@ -19,10 +20,10 @@ use std::thread::{self, Thread};
 /// little work in between I/O actions.
 ///
 /// To get a handle to the pool that implements
-/// [`Spawn`](futures_core::task::Spawn), use the
+/// [`Spawn`](futures_task::Spawn), use the
 /// [`spawner()`](LocalPool::spawner) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
-/// futures, via [`spawn_local_obj`](futures_core::task::LocalSpawn::spawn_local_obj).
+/// futures, via [`spawn_local_obj`](futures_task::LocalSpawn::spawn_local_obj).
 #[derive(Debug)]
 pub struct LocalPool {
     pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
@@ -30,7 +31,7 @@ pub struct LocalPool {
 }
 
 /// A handle to a [`LocalPool`](LocalPool) that implements
-/// [`Spawn`](futures_core::task::Spawn).
+/// [`Spawn`](futures_task::Spawn).
 #[derive(Clone, Debug)]
 pub struct LocalSpawner {
     incoming: Weak<Incoming>,
@@ -39,7 +40,7 @@ pub struct LocalSpawner {
 type Incoming = RefCell<Vec<LocalFutureObj<'static, ()>>>;
 
 pub(crate) struct ThreadNotify {
-    thread: Thread
+    thread: Thread,
 }
 
 thread_local! {
@@ -57,9 +58,10 @@ impl ArcWake for ThreadNotify {
 // Set up and run a basic single-threaded spawner loop, invoking `f` on each
 // turn.
 fn run_executor<T, F: FnMut(&mut Context<'_>) -> Poll<T>>(mut f: F) -> T {
-    let _enter = enter()
-        .expect("cannot execute `LocalPool` executor from within \
-                 another executor");
+    let _enter = enter().expect(
+        "cannot execute `LocalPool` executor from within \
+         another executor",
+    );
 
     CURRENT_THREAD_NOTIFY.with(|thread_notify| {
         let waker = waker_ref(thread_notify);
@@ -74,9 +76,10 @@ fn run_executor<T, F: FnMut(&mut Context<'_>) -> Poll<T>>(mut f: F) -> T {
 }
 
 fn poll_executor<T, F: FnMut(&mut Context<'_>) -> T>(mut f: F) -> T {
-    let _enter = enter()
-        .expect("cannot execute `LocalPool` executor from within \
-                 another executor");
+    let _enter = enter().expect(
+        "cannot execute `LocalPool` executor from within \
+         another executor",
+    );
 
     CURRENT_THREAD_NOTIFY.with(|thread_notify| {
         let waker = waker_ref(thread_notify);
@@ -97,7 +100,7 @@ impl LocalPool {
     /// Get a clonable handle to the pool as a [`Spawn`].
     pub fn spawner(&self) -> LocalSpawner {
         LocalSpawner {
-            incoming: Rc::downgrade(&self.incoming)
+            incoming: Rc::downgrade(&self.incoming),
         }
     }
 
@@ -163,7 +166,7 @@ impl LocalPool {
     /// use futures::future::{ready, pending};
     ///
     /// let mut pool = LocalPool::new();
-    /// let mut spawner = pool.spawner();
+    /// let spawner = pool.spawner();
     ///
     /// spawner.spawn_local(ready(())).unwrap();
     /// spawner.spawn_local(ready(())).unwrap();
@@ -211,7 +214,7 @@ impl LocalPool {
     /// use futures::future::{ready, pending};
     ///
     /// let mut pool = LocalPool::new();
-    /// let mut spawner = pool.spawner();
+    /// let spawner = pool.spawner();
     ///
     /// spawner.spawn_local(ready(())).unwrap();
     /// spawner.spawn_local(ready(())).unwrap();
@@ -228,7 +231,7 @@ impl LocalPool {
     /// of the pool's run or poll methods. While the function is running, all tasks
     /// in the pool will try to make progress.
     pub fn run_until_stalled(&mut self) {
-        poll_executor(|ctx| { 
+        poll_executor(|ctx| {
             let _ = self.poll_pool(ctx);
         });
     }
@@ -296,7 +299,9 @@ pub fn block_on_stream<S: Stream + Unpin>(stream: S) -> BlockingStream<S> {
 
 /// An iterator which blocks on values from a stream until they become available.
 #[derive(Debug)]
-pub struct BlockingStream<S: Stream + Unpin> { stream: S }
+pub struct BlockingStream<S: Stream + Unpin> {
+    stream: S,
+}
 
 impl<S: Stream + Unpin> Deref for BlockingStream<S> {
     type Target = S;
@@ -331,10 +336,7 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 }
 
 impl Spawn for LocalSpawner {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(future.into());
             Ok(())
@@ -353,10 +355,7 @@ impl Spawn for LocalSpawner {
 }
 
 impl LocalSpawn for LocalSpawner {
-    fn spawn_local_obj(
-        &mut self,
-        future: LocalFutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(future);
             Ok(())

@@ -1,35 +1,50 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{StreamExt, TryStreamExt, Fuse};
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{TryStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 /// Future for the [`send_all`](super::SinkExt::send_all) method.
 #[allow(explicit_outlives_requirements)] // https://github.com/rust-lang/rust/issues/60993
-#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SendAll<'a, Si, St>
 where
     Si: ?Sized,
-    St: Stream + ?Sized,
+    St: ?Sized + TryStream,
 {
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
-    buffered: Option<St::Item>,
+    buffered: Option<St::Ok>,
+}
+
+impl<Si, St> fmt::Debug for SendAll<'_, Si, St>
+where
+    Si: fmt::Debug + ?Sized,
+    St: fmt::Debug + ?Sized + TryStream,
+    St::Ok: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SendAll")
+            .field("sink", &self.sink)
+            .field("stream", &self.stream)
+            .field("buffered", &self.buffered)
+            .finish()
+    }
 }
 
 // Pinning is never projected to any fields
 impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
     Si: Unpin + ?Sized,
-    St: Stream + Unpin + ?Sized,
+    St: TryStream + Unpin + ?Sized,
 {}
 
-impl<'a, Si, St> SendAll<'a, Si, St>
+impl<'a, Si, St, Ok, Error> SendAll<'a, Si, St>
 where
-    Si: Sink<St::Item> + Unpin + ?Sized,
-    St: Stream + Unpin + ?Sized,
+    Si: Sink<Ok, Error = Error> + Unpin + ?Sized,
+    St: TryStream<Ok = Ok, Error = Error> + Stream + Unpin + ?Sized,
 {
     pub(super) fn new(
         sink: &'a mut Si,
@@ -45,7 +60,7 @@ where
     fn try_start_send(
         &mut self,
         cx: &mut Context<'_>,
-        item: St::Item,
+        item: St::Ok,
     ) -> Poll<Result<(), Si::Error>> {
         debug_assert!(self.buffered.is_none());
         match Pin::new(&mut self.sink).poll_ready(cx)? {
@@ -60,12 +75,12 @@ where
     }
 }
 
-impl<Si, St> Future for SendAll<'_, Si, St>
+impl<Si, St, Ok, Error> Future for SendAll<'_, Si, St>
 where
-    Si: Sink<St::Item> + Unpin + ?Sized,
-    St: Stream + Unpin + ?Sized,
+    Si: Sink<Ok, Error = Error> + Unpin + ?Sized,
+    St: Stream<Item = Result<Ok, Error>> + Unpin + ?Sized,
 {
-    type Output = Result<(), Si::Error>;
+    type Output = Result<(), Error>;
 
     fn poll(
         mut self: Pin<&mut Self>,
@@ -79,7 +94,7 @@ where
         }
 
         loop {
-            match this.stream.poll_next_unpin(cx) {
+            match this.stream.try_poll_next_unpin(cx)? {
                 Poll::Ready(Some(item)) => {
                     ready!(this.try_start_send(cx, item))?
                 }

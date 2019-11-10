@@ -1,14 +1,14 @@
 [package]
-name = "futures-preview"
+name = "futures"
 edition = "2018"
-version = "0.3.0-alpha.19"
+version = "0.3.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://docs.rs/futures-preview/0.3.0-alpha.19"
+documentation = "https://docs.rs/futures/0.3.0"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
@@ -22,35 +22,37 @@ name = "futures"
 travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.19", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.19", default-features = false, features = ["sink"] }
-futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.19", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.19", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.19", default-features = false }
-futures-util-preview = { path = "../futures-util", version = "=0.3.0-alpha.19", default-features = false, features = ["sink"] }
+futures-core = { path = "../futures-core", version = "0.3.1", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.1", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.1", default-features = false, features = ["sink"] }
+futures-executor = { path = "../futures-executor", version = "0.3.1", default-features = false, optional = true }
+futures-io = { path = "../futures-io", version = "0.3.1", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.1", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.1", default-features = false, features = ["sink"] }
 
 [dev-dependencies]
 pin-utils = "0.1.0-alpha.4"
-futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.19" }
+futures-test = { path = "../futures-test", version = "0.3.1" }
 tokio = "0.1.11"
 assert_matches = "1.3.0"
 
 [features]
-default = ["std"]
-std = ["alloc", "futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std", "futures-util-preview/io", "futures-util-preview/channel"]
-alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-channel-preview/alloc", "futures-util-preview/alloc"]
-async-await = ["futures-util-preview/async-await", "futures-util-preview/async-await-macro"]
-compat = ["std", "futures-util-preview/compat"]
-io-compat = ["compat", "futures-util-preview/io-compat"]
-thread-pool = ["futures-executor-preview/thread-pool"]
+default = ["std", "async-await", "executor"]
+std = ["alloc", "futures-core/std", "futures-task/std", "futures-io/std", "futures-sink/std", "futures-util/std", "futures-util/io", "futures-util/channel"]
+alloc = ["futures-core/alloc", "futures-task/alloc", "futures-sink/alloc", "futures-channel/alloc", "futures-util/alloc"]
+async-await = ["futures-util/async-await", "futures-util/async-await-macro"]
+compat = ["std", "futures-util/compat"]
+io-compat = ["compat", "futures-util/io-compat"]
+executor = ["std", "futures-executor/std"]
+thread-pool = ["executor", "futures-executor/thread-pool"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core-preview/unstable", "futures-channel-preview/unstable", "futures-io-preview/unstable", "futures-util-preview/unstable"]
-cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
-bilock = ["futures-util-preview/bilock"]
-read-initializer = ["futures-io-preview/read-initializer", "futures-util-preview/read-initializer"]
+unstable = ["futures-core/unstable", "futures-task/unstable", "futures-channel/unstable", "futures-io/unstable", "futures-util/unstable"]
+cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic", "futures-task/cfg-target-has-atomic", "futures-channel/cfg-target-has-atomic", "futures-util/cfg-target-has-atomic"]
+bilock = ["futures-util/bilock"]
+read-initializer = ["futures-io/read-initializer", "futures-util/read-initializer"]
 
 [package.metadata.docs.rs]
 all-features = true

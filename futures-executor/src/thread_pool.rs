@@ -1,9 +1,10 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
-use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Context, Poll, Spawn, SpawnError};
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
+use futures_task::{FutureObj, Spawn, SpawnError};
+use futures_task::{ArcWake, waker_ref};
 use futures_util::future::FutureExt;
-use futures_util::task::{ArcWake, waker_ref};
 use std::cmp;
 use std::fmt;
 use std::io;
@@ -130,17 +131,7 @@ impl ThreadPool {
 
 impl Spawn for ThreadPool {
     fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
-        self.spawn_obj_ok(future);
-        Ok(())
-    }
-}
-
-impl Spawn for &ThreadPool {
-    fn spawn_obj(
-        &mut self,
+        &self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
         self.spawn_obj_ok(future);

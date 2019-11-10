@@ -11,8 +11,8 @@
     <img alt="Build Status" src="https://travis-ci.com/rust-lang-nursery/futures-rs.svg?branch=master">
   </a>
 
-  <a href="https://crates.io/crates/futures-preview">
-    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg">
+  <a href="https://crates.io/crates/futures">
+    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures.svg">
   </a>
 
   <a href="https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html">
@@ -21,12 +21,17 @@
 </p>
 
 <p align="center">
-  <a href="https://docs.rs/futures-preview/">
+  <a href="https://docs.rs/futures/">
     Documentation
   </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
     Website
   </a>
 </p>
+
+`futures-rs` is a library providing the foundations for asynchronous programming in Rust.
+It includes key trait definitions like `Stream`, as well as utilities like `join!`,
+`select!`, and various futures combinator methods which enable expressive asynchronous
+control flow.
 
 ## Usage
 
@@ -34,16 +39,16 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "=0.3.0-alpha.19"
+futures = "0.3"
 ```
 
 Now, you can use futures-rs:
 
 ```rust
-use futures::future::Future; // Note: It's not `futures_preview`
+use futures::future::Future;
 ```
 
-The current futures-rs requires Rust 1.36 or later.
+The current futures-rs requires Rust 1.39 or later.
 
 ### Feature `std`
 
@@ -53,19 +58,8 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "=0.3.0-alpha.19", default-features = false }
+futures = { version = "0.3.1", default-features = false }
 ```
-
-### Feature `async-await`
-
-The `async-await` feature provides several convenient features using async/await. To use futures-rs with async/await, use:
-
-```toml
-[dependencies]
-futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
-```
-
-The current `async-await` feature requires Rust 1.39 or later.
 
 # License
 

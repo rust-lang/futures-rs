@@ -1,7 +1,6 @@
-use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnError};
+use futures_task::{FutureObj, Spawn, SpawnError};
 
-/// An implementation of [`Spawn`](futures_core::task::Spawn) that panics
+/// An implementation of [`Spawn`](futures_task::Spawn) that panics
 /// when used.
 ///
 /// # Examples
@@ -10,7 +9,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures::task::SpawnExt;
 /// use futures_test::task::PanicSpawner;
 ///
-/// let mut spawn = PanicSpawner::new();
+/// let spawn = PanicSpawner::new();
 /// spawn.spawn(async { })?; // Will panic
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -27,10 +26,7 @@ impl PanicSpawner {
 }
 
 impl Spawn for PanicSpawner {
-    fn spawn_obj(
-        &mut self,
-        _future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&self, _future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         panic!("should not spawn")
     }
 }

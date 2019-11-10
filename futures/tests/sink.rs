@@ -86,13 +86,13 @@ fn send() {
 fn send_all() {
     let mut v = Vec::new();
 
-    block_on(v.send_all(&mut stream::iter(vec![0, 1]))).unwrap();
+    block_on(v.send_all(&mut stream::iter(vec![0, 1]).map(Ok))).unwrap();
     assert_eq!(v, vec![0, 1]);
 
-    block_on(v.send_all(&mut stream::iter(vec![2, 3]))).unwrap();
+    block_on(v.send_all(&mut stream::iter(vec![2, 3]).map(Ok))).unwrap();
     assert_eq!(v, vec![0, 1, 2, 3]);
 
-    block_on(v.send_all(&mut stream::iter(vec![4, 5]))).unwrap();
+    block_on(v.send_all(&mut stream::iter(vec![4, 5]).map(Ok))).unwrap();
     assert_eq!(v, vec![0, 1, 2, 3, 4, 5]);
 }
 
@@ -434,7 +434,7 @@ fn fanout_smoke() {
     let sink1 = Vec::new();
     let sink2 = Vec::new();
     let mut sink = sink1.fanout(sink2);
-    block_on(sink.send_all(&mut stream::iter(vec![1, 2, 3]))).unwrap();
+    block_on(sink.send_all(&mut stream::iter(vec![1, 2, 3]).map(Ok))).unwrap();
     let (sink1, sink2) = sink.into_inner();
     assert_eq!(sink1, vec![1, 2, 3]);
     assert_eq!(sink2, vec![1, 2, 3]);

@@ -1,7 +1,6 @@
-use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnError};
+use futures_task::{FutureObj, Spawn, SpawnError};
 
-/// An implementation of [`Spawn`](futures_core::task::Spawn) that
+/// An implementation of [`Spawn`](futures_task::Spawn) that
 /// discards spawned futures when used.
 ///
 /// # Examples
@@ -10,7 +9,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures::task::SpawnExt;
 /// use futures_test::task::NoopSpawner;
 ///
-/// let mut spawner = NoopSpawner::new();
+/// let spawner = NoopSpawner::new();
 /// spawner.spawn(async { }).unwrap();
 /// ```
 #[derive(Debug)]
@@ -26,10 +25,7 @@ impl NoopSpawner {
 }
 
 impl Spawn for NoopSpawner {
-    fn spawn_obj(
-        &mut self,
-        _future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&self, _future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         Ok(())
     }
 }
