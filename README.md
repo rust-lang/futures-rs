@@ -15,8 +15,8 @@
     <img alt="Crates.io" src="https://img.shields.io/crates/v/futures.svg">
   </a>
 
-  <a href="https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html">
-    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.36+-lightgray.svg">
+  <a href="https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html">
+    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.39+-lightgray.svg">
   </a>
 </p>
 
