@@ -1,5 +1,6 @@
 use crate::stream::{StreamExt, TryStreamExt, Fuse};
 use core::fmt;
+use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{TryStream, Stream};
@@ -17,6 +18,7 @@ where
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
     buffered: Option<St::Ok>,
+    yield_after: NonZeroU32,
 }
 
 impl<Si, St> fmt::Debug for SendAll<'_, Si, St>
@@ -30,6 +32,7 @@ where
             .field("sink", &self.sink)
             .field("stream", &self.stream)
             .field("buffered", &self.buffered)
+            .field("yield_after", &self.yield_after)
             .finish()
     }
 }
@@ -54,6 +57,7 @@ where
             sink,
             stream: stream.fuse(),
             buffered: None,
+            yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
 
@@ -93,7 +97,7 @@ where
             ready!(this.try_start_send(cx, item))?
         }
 
-        loop {
+        poll_loop! { this.yield_after, cx,
             match this.stream.try_poll_next_unpin(cx)? {
                 Poll::Ready(Some(item)) => {
                     ready!(this.try_start_send(cx, item))?
