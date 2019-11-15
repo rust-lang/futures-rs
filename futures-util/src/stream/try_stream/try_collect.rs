@@ -20,6 +20,8 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_unpinned!(items: C);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    try_future_method_yield_after_every!();
+
     pub(super) fn new(s: St) -> TryCollect<St, C> {
         TryCollect {
             stream: s,

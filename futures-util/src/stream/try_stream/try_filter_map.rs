@@ -42,6 +42,12 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
     unsafe_pinned!(pending: Option<Fut>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream and, when pending, a future returned by the map closure,"]
+        #[doc = "`Ok` items are consecutively yielded by the stream,
+            but get immediately filtered out,"]
+    }
+
     pub(super) fn new(stream: St, f: F) -> Self {
         TryFilterMap {
             stream,

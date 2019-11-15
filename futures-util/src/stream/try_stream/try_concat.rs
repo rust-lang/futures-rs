@@ -25,6 +25,8 @@ where
     unsafe_unpinned!(accum: Option<St::Ok>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    try_future_method_yield_after_every!();
+
     pub(super) fn new(stream: St) -> TryConcat<St> {
         TryConcat {
             stream,

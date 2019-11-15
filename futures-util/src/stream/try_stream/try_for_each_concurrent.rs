@@ -61,6 +61,13 @@ where St: TryStream,
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    future_method_yield_after_every! {
+        #[doc = "the underlying stream and a pool of pending futures returned by
+            the processing closure,"]
+        #[doc = "the underlying stream consecutively yields `Ok` items and some of
+            the processing futures resolve, all of them with `Ok`,"]
+    }
+
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> TryForEachConcurrent<St, Fut, F> {
         TryForEachConcurrent {
             stream: Some(stream),

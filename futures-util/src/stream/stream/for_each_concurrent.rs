@@ -49,6 +49,13 @@ where St: Stream,
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    future_method_yield_after_every! {
+        #[doc = "the underlying stream and a pool of pending futures returned by
+            the processing closure,"]
+        #[doc = "the underlying stream consecutively yields items and some of
+            the processing futures turn out ready,"]
+    }
+
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> ForEachConcurrent<St, Fut, F> {
         ForEachConcurrent {
             stream: Some(stream),

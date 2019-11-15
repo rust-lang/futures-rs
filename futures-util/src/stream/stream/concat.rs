@@ -25,6 +25,8 @@ where St: Stream,
     unsafe_unpinned!(accum: Option<St::Item>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    future_method_yield_after_every!();
+
     pub(super) fn new(stream: St) -> Concat<St> {
         Concat {
             stream,

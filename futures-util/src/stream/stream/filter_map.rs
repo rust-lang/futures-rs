@@ -87,6 +87,11 @@ impl<St, Fut, F> FilterMap<St, Fut, F>
     pub fn into_inner(self) -> St {
         self.stream
     }
+
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream and, when pending, a future returned by the map closure,"]
+        #[doc = "items are consecutively yielded by the stream, but get immediately filtered out,"]
+    }
 }
 
 impl<St, Fut, F, T> FusedStream for FilterMap<St, Fut, F>

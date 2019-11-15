@@ -94,6 +94,13 @@ where St: Stream,
     pub fn into_inner(self) -> St {
         self.stream
     }
+
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream and, when pending, a future returned by
+            the predicate closure,"]
+        #[doc = "items are consecutively yielded by the stream,
+            but get immediately filtered out,"]
+    }
 }
 
 impl<St, Fut, F> FusedStream for Filter<St, Fut, F>

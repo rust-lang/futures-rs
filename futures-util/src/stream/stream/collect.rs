@@ -26,6 +26,8 @@ impl<St: Stream, C: Default> Collect<St, C> {
         mem::replace(self.as_mut().collection(), Default::default())
     }
 
+    future_method_yield_after_every!();
+
     pub(super) fn new(stream: St) -> Collect<St, C> {
         Collect {
             stream,

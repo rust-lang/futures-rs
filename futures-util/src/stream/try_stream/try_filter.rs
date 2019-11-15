@@ -50,6 +50,13 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream and, when pending, a future returned by
+            the predicate closure,"]
+        #[doc = "`Ok` items are consecutively yielded by the stream,
+            but get immediately filtered out,"]
+    }
+
     pub(super) fn new(stream: St, f: F) -> Self {
         TryFilter {
             stream,

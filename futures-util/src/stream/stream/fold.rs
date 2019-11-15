@@ -45,6 +45,13 @@ where St: Stream,
     unsafe_pinned!(future: Option<Fut>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    future_method_yield_after_every! {
+        #[doc = "the underlying stream and, if pending, a future returned by
+            the accumulation closure,"]
+        #[doc = "the underlying stream consecutively yields items and
+            the accumulation futures immediately resolve as ready,"]
+    }
+
     pub(super) fn new(stream: St, f: F, t: T) -> Fold<St, Fut, T, F> {
         Fold {
             stream,

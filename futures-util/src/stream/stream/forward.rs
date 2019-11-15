@@ -31,6 +31,12 @@ where
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
     unsafe_unpinned!(yield_after: NonZeroU32);
 
+    future_method_yield_after_every! {
+        #[doc = "the underlying stream and the sink"]
+        #[doc = "the stream consecutively yields items that the sink
+            is ready to accept,"]
+    }
+
     pub(super) fn new(stream: St, sink: Si) -> Self {
         Forward {
             sink: Some(sink),

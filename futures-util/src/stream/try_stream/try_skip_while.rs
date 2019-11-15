@@ -98,6 +98,13 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     pub fn into_inner(self) -> St {
         self.stream
     }
+
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream and, when pending, a future returned by
+            the predicate closure,"]
+        #[doc = "`Ok` items are consecutively yielded by the stream,
+            but the predicate immediately resolves to skip them,"]
+    }
 }
 
 impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>

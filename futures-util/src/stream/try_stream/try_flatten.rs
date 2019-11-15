@@ -79,6 +79,11 @@ where
     pub fn into_inner(self) -> St {
         self.stream
     }
+
+    stream_method_yield_after_every! {
+        #[doc = "the underlying stream or a yet unconsumed stream yielded by it"]
+        #[doc = "the underlying stream keeps yielding streams that immediately poll empty,"]
+    }
 }
 
 impl<St> FusedStream for TryFlatten<St>

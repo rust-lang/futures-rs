@@ -49,6 +49,12 @@ where
     Si: Sink<Ok, Error = Error> + Unpin + ?Sized,
     St: TryStream<Ok = Ok, Error = Error> + Stream + Unpin + ?Sized,
 {
+    future_method_yield_after_every! {
+        #[doc = "the underlying stream and the sink"]
+        #[doc = "the stream consecutively yields items that the sink
+            is ready to accept,"]
+    }
+
     pub(super) fn new(
         sink: &'a mut Si,
         stream: &'a mut St,
