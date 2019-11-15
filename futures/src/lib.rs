@@ -554,6 +554,7 @@ pub mod inner_macro {
     pub use futures_util::join;
     pub use futures_util::try_join;
     pub use futures_util::select;
+    pub use futures_util::select_biased;
 }
 
 #[cfg(feature = "std")]
@@ -587,6 +588,16 @@ futures_util::document_select_macro! {
     macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
         ($($tokens:tt)*) => {
             $crate::inner_macro::select! {
+                futures_crate_path ( ::futures )
+                $( $tokens )*
+            }
+        }
+    }
+
+    #[macro_export]
+    macro_rules! select_biased { // replace `::futures_util` with `::futures` as the crate path
+        ($($tokens:tt)*) => {
+            $crate::inner_macro::select_biased! {
                 futures_crate_path ( ::futures )
                 $( $tokens )*
             }
