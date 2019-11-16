@@ -1,7 +1,7 @@
 use core::mem;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::iteration;
 use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -12,13 +12,13 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct TryCollect<St, C> {
     stream: St,
     items: C,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(items: C);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     try_future_method_yield_after_every!();
 
@@ -58,7 +58,7 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        poll_loop! { self.yield_after, cx,
+        poll_loop! { self.as_mut().yield_after(), cx,
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => self.as_mut().items().extend(Some(x)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),

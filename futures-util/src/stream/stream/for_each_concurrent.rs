@@ -1,8 +1,9 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::fmt;
-use core::num::{NonZeroU32, NonZeroUsize};
+use core::num::NonZeroUsize;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::iteration;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -15,7 +16,7 @@ pub struct ForEachConcurrent<St, Fut, F> {
     f: F,
     futures: FuturesUnordered<Fut>,
     limit: Option<NonZeroUsize>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St, Fut, F> Unpin for ForEachConcurrent<St, Fut, F>
@@ -47,7 +48,7 @@ where St: Stream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(futures: FuturesUnordered<Fut>);
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     future_method_yield_after_every! {
         #[doc = "the underlying stream and a pool of pending futures returned by
@@ -86,7 +87,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             let mut made_progress_this_iter = false;
 
             // Try and pull an item from the stream

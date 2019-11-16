@@ -1,8 +1,8 @@
 use crate::stream::{StreamExt, TryStreamExt, Fuse};
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::iteration;
 use futures_core::stream::{TryStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
@@ -18,7 +18,7 @@ where
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
     buffered: Option<St::Ok>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<Si, St> fmt::Debug for SendAll<'_, Si, St>
@@ -103,7 +103,7 @@ where
             ready!(this.try_start_send(cx, item))?
         }
 
-        poll_loop! { this.yield_after, cx,
+        poll_loop! { &mut this.yield_after, cx,
             match this.stream.try_poll_next_unpin(cx)? {
                 Poll::Ready(Some(item)) => {
                     ready!(this.try_start_send(cx, item))?

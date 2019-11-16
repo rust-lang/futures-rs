@@ -1,7 +1,7 @@
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::iteration;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -14,7 +14,7 @@ pub struct FilterMap<St, Fut, F> {
     stream: St,
     f: F,
     pending: Option<Fut>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St, Fut, F> Unpin for FilterMap<St, Fut, F>
@@ -45,7 +45,7 @@ impl<St, Fut, F> FilterMap<St, Fut, F>
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending: Option<Fut>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     pub(super) fn new(stream: St, f: F) -> FilterMap<St, Fut, F> {
         FilterMap {
@@ -115,7 +115,7 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<T>> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             if self.pending.is_none() {
                 let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                     Some(e) => e,

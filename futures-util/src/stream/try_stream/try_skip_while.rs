@@ -1,7 +1,7 @@
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
+use futures_core::iteration;
 use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -17,7 +17,7 @@ pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
     done_skipping: bool,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St: Unpin + TryStream, Fut: Unpin, F> Unpin for TrySkipWhile<St, Fut, F> {}
@@ -54,7 +54,7 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(done_skipping: bool);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
         TrySkipWhile {
@@ -122,7 +122,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
             return self.as_mut().stream().try_poll_next(cx);
         }
 
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             if self.pending_item.is_none() {
                 let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(e) => e,

@@ -28,6 +28,8 @@ pub mod stream;
 #[macro_use]
 pub mod task;
 
+pub mod iteration;
+
 // Not public API.
 #[doc(hidden)]
 pub mod core_reexport {

@@ -1,6 +1,6 @@
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::iteration;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -11,7 +11,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 pub struct TryConcat<St: TryStream> {
     stream: St,
     accum: Option<St::Ok>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St: TryStream + Unpin> Unpin for TryConcat<St> {}
@@ -23,7 +23,7 @@ where
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(accum: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     try_future_method_yield_after_every!();
 
@@ -44,7 +44,7 @@ where
     type Output = Result<St::Ok, St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_loop! { self.yield_after, cx,
+        poll_loop! { self.as_mut().yield_after(), cx,
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => {
                     let accum = self.as_mut().accum();

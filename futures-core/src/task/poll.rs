@@ -10,10 +10,10 @@ macro_rules! ready {
     })
 }
 
-/// An eager polling loop with a limit on repetitions.
+/// An eager polling loop with a customizable policy on iterations.
 ///
 /// This macro helps implement eager polling loops in a way that prevents
-/// uncooperative polling behavior. It's typical for such a loop to occur
+/// uncooperative polling behavior. It's typical for such a loop to occur in
 /// a [`Future`](core::future::Future) implementation that repeatedly polls
 /// asynchronous event sources, most often a [`Stream`](crate::Stream), to
 /// perform some internal work without resolving the future and resume polling
@@ -22,28 +22,26 @@ macro_rules! ready {
 /// potentially starving other asynchronous operations in the same task
 /// from being polled.
 ///
-/// To prevent this, `poll_loop!` runs a counter on the number of iterations
-/// to perform before yielding to the task by returning `Pending`, initialized
-/// from the first parameter of the macro. The second parameter receives the
-/// reference to the [`Context`](core::task::Context) passed to the poll
-/// function, and the third parameter is given the body of a loop iteration.
+/// To prevent this, `poll_loop!` uses a [`Policy`](crate::iteration::Policy)
+/// guard to check at the beginning of each iteration whether to yield
+/// to the task by returning `Pending`. The first parameter of the macro
+/// receives a mutable reference to the iteration policy checker.
+/// The second parameter receives the reference to the
+/// [`Context`](core::task::Context) passed to the poll function.
+/// The third parameter is given the body of a loop iteration.
 #[macro_export]
 macro_rules! poll_loop {
-    {$yield_after:expr, $cx:expr, $body:expr} => {
+    {$policy:expr, $cx:expr, $body:expr} => {
+        #[allow(clippy::deref_addrof)]
         {
-            let mut range = 0u32..$crate::core_reexport::convert::Into::into($yield_after);
-            debug_assert!(
-                range.end != 0,
-                "0 used as the iteration limit in a poll loop",
-            );
+            let mut guard = $crate::iteration::Policy::begin(&mut *$policy);
             let _ = loop {
-                if range.next().is_none() {
+                if $crate::iteration::Policy::yield_check(&*$policy, &mut guard) {
                     break $crate::task::ToYield;
                 }
                 $body
             };
 
-            #[cold]
             $crate::core_reexport::task::Context::waker($cx).wake_by_ref();
             return $crate::core_reexport::task::Poll::Pending;
         }

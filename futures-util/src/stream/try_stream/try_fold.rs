@@ -1,7 +1,7 @@
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
+use futures_core::iteration;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -13,7 +13,7 @@ pub struct TryFold<St, Fut, T, F> {
     f: F,
     accum: Option<T>,
     future: Option<Fut>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St: Unpin, Fut: Unpin, T, F> Unpin for TryFold<St, Fut, T, F> {}
@@ -43,7 +43,7 @@ where St: TryStream,
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(accum: Option<T>);
     unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     future_method_yield_after_every! {
         #[doc = "the underlying stream and, if pending, a future returned by
@@ -81,7 +81,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
     type Output = Result<T, St::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             // we're currently processing a future to produce a new accum value
             if self.accum.is_none() {
                 let accum = match ready!(

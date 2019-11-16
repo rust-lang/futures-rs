@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::iteration;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
@@ -16,7 +16,7 @@ pub struct Forward<St: TryStream, Si> {
     sink: Option<Si>,
     stream: Fuse<St>,
     buffered_item: Option<St::Ok>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St: TryStream + Unpin, Si: Unpin> Unpin for Forward<St, Si> {}
@@ -29,7 +29,7 @@ where
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     future_method_yield_after_every! {
         #[doc = "the underlying stream and the sink"]
@@ -90,7 +90,7 @@ where
             ready!(self.as_mut().try_start_send(cx, item))?;
         }
 
-        poll_loop! { self.yield_after, cx,
+        poll_loop! { self.as_mut().yield_after(), cx,
             match self.as_mut().stream().poll_next(cx)? {
                 Poll::Ready(Some(item)) =>
                    ready!(self.as_mut().try_start_send(cx, item))?,

@@ -1,7 +1,7 @@
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::iteration;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -12,7 +12,7 @@ pub struct ForEach<St, Fut, F> {
     stream: St,
     f: F,
     future: Option<Fut>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St, Fut, F> Unpin for ForEach<St, Fut, F>
@@ -43,7 +43,7 @@ where St: Stream,
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(future: Option<Fut>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     future_method_yield_after_every! {
         #[doc = "the underlying stream and, if pending, a future returned by
@@ -80,7 +80,7 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.poll(cx));
             }

@@ -1,7 +1,7 @@
 use core::fmt;
-use core::num::NonZeroU32;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::iteration;
 use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -18,7 +18,7 @@ pub struct TryFilter<St, Fut, F>
     f: F,
     pending_fut: Option<Fut>,
     pending_item: Option<St::Ok>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St, Fut, F> Unpin for TryFilter<St, Fut, F>
@@ -48,7 +48,7 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 
     stream_method_yield_after_every! {
         #[doc = "the underlying stream and, when pending, a future returned by
@@ -121,7 +121,7 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<St::Ok, St::Error>>> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             if self.pending_fut.is_none() {
                 let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(x) => x,

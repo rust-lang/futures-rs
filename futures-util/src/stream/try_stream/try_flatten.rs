@@ -1,5 +1,5 @@
-use core::num::NonZeroU32;
 use core::pin::Pin;
+use futures_core::iteration;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -15,7 +15,7 @@ where
 {
     stream: St,
     next: Option<St::Ok>,
-    yield_after: NonZeroU32,
+    yield_after: iteration::Limit,
 }
 
 impl<St> Unpin for TryFlatten<St>
@@ -31,7 +31,7 @@ where
 {
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Ok>);
-    unsafe_unpinned!(yield_after: NonZeroU32);
+    unsafe_unpinned!(yield_after: iteration::Limit);
 }
 
 impl<St> TryFlatten<St>
@@ -106,7 +106,7 @@ where
     type Item = Result<<St::Ok as TryStream>::Ok, <St::Ok as TryStream>::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_loop! { self.yield_after, cx, {
+        poll_loop! { self.as_mut().yield_after(), cx, {
             if self.next.is_none() {
                 match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                     Some(e) => self.as_mut().next().set(Some(e)),
