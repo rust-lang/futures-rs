@@ -25,6 +25,19 @@ where
     unsafe_unpinned!(accum: Option<St::Ok>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (Pin<&mut St>, &mut Option<St::Ok>, &mut iteration::Limit) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.accum,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     try_future_method_yield_after_every!();
 
     pub(super) fn new(stream: St) -> TryConcat<St> {
@@ -43,11 +56,11 @@ where
 {
     type Output = Result<St::Ok, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_loop! { self.as_mut().yield_after(), cx,
-            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let (mut stream, accum, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx,
+            match ready!(stream.as_mut().try_poll_next(cx)?) {
                 Some(x) => {
-                    let accum = self.as_mut().accum();
                     if let Some(a) = accum {
                         a.extend(x)
                     } else {
@@ -55,7 +68,7 @@ where
                     }
                 },
                 None => {
-                    return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default()))
+                    return Poll::Ready(Ok(accum.take().unwrap_or_default()))
                 }
             }
         }

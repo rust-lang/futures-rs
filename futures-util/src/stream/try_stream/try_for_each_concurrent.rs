@@ -62,6 +62,25 @@ where St: TryStream,
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut Option<St>>,
+        &mut F,
+        &mut FuturesUnordered<Fut>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                &mut this.futures,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     future_method_yield_after_every! {
         #[doc = "the underlying stream and a pool of pending futures returned by
             the processing closure,"]
@@ -88,15 +107,17 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let limit = self.limit;
+        let (mut stream, op, futures, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
             let mut made_progress_this_iter = false;
 
             // Try and pull an item from the stream
-            let current_len = self.futures.len();
+            let current_len = futures.len();
             // Check if we've already created a number of futures greater than `limit`
-            if self.limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
-                let poll_res = match self.as_mut().stream().as_pin_mut() {
+            if limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
+                let poll_res = match stream.as_mut().as_pin_mut() {
                     Some(stream) => stream.try_poll_next(cx),
                     None => Poll::Ready(None),
                 };
@@ -107,29 +128,29 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
                         Some(elem)
                     },
                     Poll::Ready(None) => {
-                        self.as_mut().stream().set(None);
+                        stream.set(None);
                         None
                     }
                     Poll::Pending => None,
                     Poll::Ready(Some(Err(e))) => {
                         // Empty the stream and futures so that we know
                         // the future has completed.
-                        self.as_mut().stream().set(None);
-                        drop(mem::replace(self.as_mut().futures(), FuturesUnordered::new()));
+                        stream.set(None);
+                        drop(mem::replace(futures, FuturesUnordered::new()));
                         return Poll::Ready(Err(e));
                     }
                 };
 
                 if let Some(elem) = elem {
-                    let next_future = (self.as_mut().f())(elem);
-                    self.as_mut().futures().push(next_future);
+                    let next_future = op(elem);
+                    futures.push(next_future);
                 }
             }
 
-            match self.as_mut().futures().poll_next_unpin(cx) {
+            match futures.poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(()))) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
-                    if self.stream.is_none() {
+                    if stream.as_ref().is_none() {
                         return Poll::Ready(Ok(()))
                     }
                 },
@@ -137,8 +158,8 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
                 Poll::Ready(Some(Err(e))) => {
                     // Empty the stream and futures so that we know
                     // the future has completed.
-                    self.as_mut().stream().set(None);
-                    drop(mem::replace(self.as_mut().futures(), FuturesUnordered::new()));
+                    stream.as_mut().set(None);
+                    drop(mem::replace(futures, FuturesUnordered::new()));
                     return Poll::Ready(Err(e));
                 }
             }

@@ -50,6 +50,27 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        &mut F,
+        Pin<&mut Option<Fut>>,
+        &mut Option<St::Ok>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                Pin::new_unchecked(&mut this.pending_fut),
+                &mut this.pending_item,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     stream_method_yield_after_every! {
         #[doc = "the underlying stream and, when pending, a future returned by
             the predicate closure,"]
@@ -118,23 +139,24 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
     type Item = Result<St::Ok, St::Error>;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<St::Ok, St::Error>>> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
-            if self.pending_fut.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+        let (mut stream, op, mut pending_fut, pending_item, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
+            if pending_fut.as_ref().is_none() {
+                let item = match ready!(stream.as_mut().try_poll_next(cx)?) {
                     Some(x) => x,
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.as_mut().f())(&item);
-                self.as_mut().pending_fut().set(Some(fut));
-                *self.as_mut().pending_item() = Some(item);
+                let fut = op(&item);
+                pending_fut.as_mut().set(Some(fut));
+                *pending_item = Some(item);
             }
 
-            let yield_item = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(cx));
-            self.as_mut().pending_fut().set(None);
-            let item = self.as_mut().pending_item().take().unwrap();
+            let yield_item = ready!(pending_fut.as_mut().as_pin_mut().unwrap().poll(cx));
+            pending_fut.as_mut().set(None);
+            let item = pending_item.take().unwrap();
 
             if yield_item {
                 return Poll::Ready(Some(Ok(item)));

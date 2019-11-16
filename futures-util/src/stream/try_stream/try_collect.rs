@@ -20,6 +20,17 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_unpinned!(items: C);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(self: Pin<&mut Self>) -> (Pin<&mut St>, &mut C, &mut iteration::Limit) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.items,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     try_future_method_yield_after_every!();
 
     pub(super) fn new(s: St) -> TryCollect<St, C> {
@@ -28,10 +39,6 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
             items: Default::default(),
             yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
-    }
-
-    fn finish(self: Pin<&mut Self>) -> C {
-        mem::replace(self.items(), Default::default())
     }
 }
 
@@ -54,14 +61,12 @@ where
 {
     type Output = Result<C, St::Error>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
-        poll_loop! { self.as_mut().yield_after(), cx,
-            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
-                Some(x) => self.as_mut().items().extend(Some(x)),
-                None => return Poll::Ready(Ok(self.as_mut().finish())),
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let (mut stream, items, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx,
+            match ready!(stream.as_mut().try_poll_next(cx)?) {
+                Some(x) => items.extend(Some(x)),
+                None => return Poll::Ready(Ok(mem::replace(items, Default::default()))),
             }
         }
     }

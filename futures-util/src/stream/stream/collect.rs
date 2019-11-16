@@ -22,8 +22,17 @@ impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_unpinned!(collection: C);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
-    fn finish(mut self: Pin<&mut Self>) -> C {
-        mem::replace(self.as_mut().collection(), Default::default())
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (Pin<&mut St>, &mut C, &mut iteration::Limit) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.collection,
+                &mut this.yield_after,
+            )
+        }
     }
 
     future_method_yield_after_every!();
@@ -52,11 +61,12 @@ where St: Stream,
 {
     type Output = C;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<C> {
-        poll_loop! { self.as_mut().yield_after(), cx,
-            match ready!(self.as_mut().stream().poll_next(cx)) {
-                Some(e) => self.as_mut().collection().extend(Some(e)),
-                None => return Poll::Ready(self.as_mut().finish()),
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<C> {
+        let (mut stream, collection, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx,
+            match ready!(stream.as_mut().poll_next(cx)) {
+                Some(e) => collection.extend(Some(e)),
+                None => return Poll::Ready(mem::replace(collection, Default::default())),
             }
         }
     }

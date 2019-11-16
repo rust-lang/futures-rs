@@ -45,6 +45,25 @@ where St: Stream,
     unsafe_pinned!(future: Option<Fut>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        &mut F,
+        Pin<&mut Option<Fut>>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                Pin::new_unchecked(&mut this.future),
+                &mut this.yield_after,
+            )
+        }
+    }
+
     future_method_yield_after_every! {
         #[doc = "the underlying stream and, if pending, a future returned by
             the processing closure,"]
@@ -79,17 +98,18 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
-            if let Some(future) = self.as_mut().future().as_pin_mut() {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let (mut stream, op, mut future, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
+            if let Some(future) = future.as_mut().as_pin_mut() {
                 ready!(future.poll(cx));
             }
-            self.as_mut().future().set(None);
+            future.set(None);
 
-            match ready!(self.as_mut().stream().poll_next(cx)) {
+            match ready!(stream.as_mut().poll_next(cx)) {
                 Some(e) => {
-                    let future = (self.as_mut().f())(e);
-                    self.as_mut().future().set(Some(future));
+                    let fut = op(e);
+                    future.as_mut().set(Some(fut));
                 }
                 None => {
                     return Poll::Ready(());

@@ -56,6 +56,29 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     unsafe_unpinned!(done_skipping: bool);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        &mut F,
+        Pin<&mut Option<Fut>>,
+        &mut Option<St::Ok>,
+        &mut bool,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                Pin::new_unchecked(&mut this.pending_fut),
+                &mut this.pending_item,
+                &mut this.done_skipping,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
         TrySkipWhile {
             stream,
@@ -122,23 +145,25 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
             return self.as_mut().stream().try_poll_next(cx);
         }
 
-        poll_loop! { self.as_mut().yield_after(), cx, {
-            if self.pending_item.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+        let (mut stream, predicate, mut pending_fut, pending_item, done_skipping, yield_after) =
+            self.split_borrows();
+        poll_loop! { yield_after, cx, {
+            if pending_item.is_none() {
+                let item = match ready!(stream.as_mut().try_poll_next(cx)?) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.as_mut().f())(&item);
-                self.as_mut().pending_fut().set(Some(fut));
-                *self.as_mut().pending_item() = Some(item);
+                let fut = predicate(&item);
+                pending_fut.as_mut().set(Some(fut));
+                *pending_item = Some(item);
             }
 
-            let skipped = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().try_poll(cx)?);
-            let item = self.as_mut().pending_item().take().unwrap();
-            self.as_mut().pending_fut().set(None);
+            let skipped = ready!(pending_fut.as_mut().as_pin_mut().unwrap().try_poll(cx)?);
+            let item = pending_item.take().unwrap();
+            pending_fut.as_mut().set(None);
 
             if !skipped {
-                *self.as_mut().done_skipping() = true;
+                *done_skipping = true;
                 return Poll::Ready(Some(Ok(item)))
             }
         }}

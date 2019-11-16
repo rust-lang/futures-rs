@@ -45,6 +45,27 @@ where St: Stream,
     unsafe_pinned!(future: Option<Fut>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        &mut F,
+        &mut Option<T>,
+        Pin<&mut Option<Fut>>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                &mut this.accum,
+                Pin::new_unchecked(&mut this.future),
+                &mut this.yield_after,
+            )
+        }
+    }
+
     future_method_yield_after_every! {
         #[doc = "the underlying stream and, if pending, a future returned by
             the accumulation closure,"]
@@ -80,22 +101,23 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+        let (mut stream, op, accum, mut future, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
             // we're currently processing a future to produce a new accum value
-            if self.accum.is_none() {
-                let accum = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
-                *self.as_mut().accum() = Some(accum);
-                self.as_mut().future().set(None);
+            if accum.is_none() {
+                let acc = ready!(future.as_mut().as_pin_mut().unwrap().poll(cx));
+                *accum = Some(acc);
+                future.set(None);
             }
 
-            let item = ready!(self.as_mut().stream().poll_next(cx));
-            let accum = self.as_mut().accum().take()
+            let item = ready!(stream.as_mut().poll_next(cx));
+            let accum = accum.take()
                 .expect("Fold polled after completion");
 
             if let Some(e) = item {
-                let future = (self.as_mut().f())(accum, e);
-                self.as_mut().future().set(Some(future));
+                let fut = op(accum, e);
+                future.as_mut().set(Some(fut));
             } else {
                 return Poll::Ready(accum)
             }

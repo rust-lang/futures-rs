@@ -66,21 +66,23 @@ where
             yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
+}
 
-    fn try_start_send(
-        &mut self,
-        cx: &mut Context<'_>,
-        item: St::Ok,
-    ) -> Poll<Result<(), Si::Error>> {
-        debug_assert!(self.buffered.is_none());
-        match Pin::new(&mut self.sink).poll_ready(cx)? {
-            Poll::Ready(()) => {
-                Poll::Ready(Pin::new(&mut self.sink).start_send(item))
-            }
-            Poll::Pending => {
-                self.buffered = Some(item);
-                Poll::Pending
-            }
+fn try_start_send<Si, Ok>(
+    mut sink: Pin<&mut Si>,
+    cx: &mut Context<'_>,
+    item: Ok,
+    buffered: &mut Option<Ok>,
+) -> Poll<Result<(), Si::Error>>
+where
+    Si: Sink<Ok> + ?Sized,
+{
+    debug_assert!(buffered.is_none());
+    match sink.as_mut().poll_ready(cx)? {
+        Poll::Ready(()) => Poll::Ready(sink.as_mut().start_send(item)),
+        Poll::Pending => {
+            *buffered = Some(item);
+            Poll::Pending
         }
     }
 }
@@ -97,23 +99,29 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
+        let (stream, mut sink, buffered) = (
+            &mut this.stream,
+            Pin::new(&mut this.sink),
+            &mut this.buffered,
+        );
+
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
-        if let Some(item) = this.buffered.take() {
-            ready!(this.try_start_send(cx, item))?
+        if let Some(item) = buffered.take() {
+            ready!(try_start_send(sink.as_mut(), cx, item, buffered))?
         }
 
         poll_loop! { &mut this.yield_after, cx,
-            match this.stream.try_poll_next_unpin(cx)? {
+            match stream.try_poll_next_unpin(cx)? {
                 Poll::Ready(Some(item)) => {
-                    ready!(this.try_start_send(cx, item))?
+                    ready!(try_start_send(sink.as_mut(), cx, item, buffered))?
                 }
                 Poll::Ready(None) => {
-                    ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
+                    ready!(sink.as_mut().poll_flush(cx))?;
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
+                    ready!(sink.as_mut().poll_flush(cx))?;
                     return Poll::Pending
                 }
             }

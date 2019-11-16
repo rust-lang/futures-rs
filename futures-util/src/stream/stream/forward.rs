@@ -31,6 +31,25 @@ where
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut Option<Si>>,
+        Pin<&mut Fuse<St>>,
+        &mut Option<St::Ok>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.sink),
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.buffered_item,
+                &mut this.yield_after,
+            )
+        }
+    }
+
     future_method_yield_after_every! {
         #[doc = "the underlying stream and the sink"]
         #[doc = "the stream consecutively yields items that the sink
@@ -45,22 +64,26 @@ where
             yield_after: crate::DEFAULT_YIELD_AFTER_LIMIT,
         }
     }
+}
 
-    fn try_start_send(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        item: St::Ok,
-    ) -> Poll<Result<(), E>> {
-        debug_assert!(self.buffered_item.is_none());
-        {
-            let mut sink = self.as_mut().sink().as_pin_mut().unwrap();
-            if sink.as_mut().poll_ready(cx)?.is_ready() {
-                return Poll::Ready(sink.start_send(item));
-            }
+fn try_start_send<Si, Ok>(
+    sink: Pin<&mut Option<Si>>,
+    cx: &mut Context<'_>,
+    item: Ok,
+    buffered_item: &mut Option<Ok>,
+) -> Poll<Result<(), Si::Error>>
+where
+    Si: Sink<Ok>,
+{
+    debug_assert!(buffered_item.is_none());
+    {
+        let mut sink = sink.as_pin_mut().unwrap();
+        if sink.as_mut().poll_ready(cx)?.is_ready() {
+            return Poll::Ready(sink.start_send(item));
         }
-        *self.as_mut().buffered_item() = Some(item);
-        Poll::Pending
     }
+    *buffered_item = Some(item);
+    Poll::Pending
 }
 
 impl<St, Si, Item, E> FusedFuture for Forward<St, Si>
@@ -80,27 +103,26 @@ where
 {
     type Output = Result<(), E>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let (mut sink, mut stream, buffered_item, yield_after) = self.split_borrows();
+
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
-        if let Some(item) = self.as_mut().buffered_item().take() {
-            ready!(self.as_mut().try_start_send(cx, item))?;
+        if let Some(item) = buffered_item.take() {
+            ready!(try_start_send(sink.as_mut(), cx, item, buffered_item))?;
         }
 
-        poll_loop! { self.as_mut().yield_after(), cx,
-            match self.as_mut().stream().poll_next(cx)? {
+        poll_loop! { yield_after, cx,
+            match stream.as_mut().poll_next(cx)? {
                 Poll::Ready(Some(item)) =>
-                   ready!(self.as_mut().try_start_send(cx, item))?,
+                   ready!(try_start_send(sink.as_mut(), cx, item, buffered_item))?,
                 Poll::Ready(None) => {
-                    ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_close(cx))?;
-                    self.as_mut().sink().set(None);
+                    ready!(sink.as_mut().as_pin_mut().expect(INVALID_POLL).poll_close(cx))?;
+                    sink.as_mut().set(None);
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_flush(cx))?;
+                    ready!(sink.as_mut().as_pin_mut().expect(INVALID_POLL).poll_flush(cx))?;
                     return Poll::Pending
                 }
             }

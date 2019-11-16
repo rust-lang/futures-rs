@@ -45,6 +45,27 @@ where St: TryStream,
     unsafe_pinned!(future: Option<Fut>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        &mut F,
+        &mut Option<T>,
+        Pin<&mut Option<Fut>>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                &mut this.f,
+                &mut this.accum,
+                Pin::new_unchecked(&mut this.future),
+                &mut this.yield_after,
+            )
+        }
+    }
+
     future_method_yield_after_every! {
         #[doc = "the underlying stream and, if pending, a future returned by
             the accumulation closure,"]
@@ -80,40 +101,41 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
 {
     type Output = Result<T, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let (mut stream, op, accum, mut future, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
             // we're currently processing a future to produce a new accum value
-            if self.accum.is_none() {
-                let accum = match ready!(
-                    self.as_mut().future().as_pin_mut()
+            if accum.is_none() {
+                let a = match ready!(
+                    future.as_mut().as_pin_mut()
                        .expect("TryFold polled after completion")
                        .try_poll(cx)
                 ) {
                     Ok(accum) => accum,
                     Err(e) => {
                         // Indicate that the future can no longer be polled.
-                        self.as_mut().future().set(None);
+                        future.set(None);
                         return Poll::Ready(Err(e));
                     }
                 };
-                *self.as_mut().accum() = Some(accum);
-                self.as_mut().future().set(None);
+                *accum = Some(a);
+                future.set(None);
             }
 
-            let item = match ready!(self.as_mut().stream().try_poll_next(cx)) {
+            let item = match ready!(stream.as_mut().try_poll_next(cx)) {
                 Some(Ok(item)) => Some(item),
                 Some(Err(e)) => {
                     // Indicate that the future can no longer be polled.
-                    *self.as_mut().accum() = None;
+                    *accum = None;
                     return Poll::Ready(Err(e));
                 }
                 None => None,
             };
-            let accum = self.as_mut().accum().take().unwrap();
+            let accum = accum.take().unwrap();
 
             if let Some(e) = item {
-                let future = (self.as_mut().f())(accum, e);
-                self.as_mut().future().set(Some(future));
+                let fut = op(accum, e);
+                future.as_mut().set(Some(fut));
             } else {
                 return Poll::Ready(Ok(accum))
             }

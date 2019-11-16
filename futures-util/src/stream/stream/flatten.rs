@@ -32,6 +32,23 @@ where
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Item>);
     unsafe_unpinned!(yield_after: iteration::Limit);
+
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        Pin<&mut Option<St::Item>>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                Pin::new_unchecked(&mut this.next),
+                &mut this.yield_after,
+            )
+        }
+    }
 }
 
 impl<St> Flatten<St>
@@ -102,19 +119,20 @@ where
 {
     type Item = <St::Item as Stream>::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
-            if self.next.is_none() {
-                match ready!(self.as_mut().stream().poll_next(cx)) {
-                    Some(e) => self.as_mut().next().set(Some(e)),
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let (mut stream, mut next, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
+            if next.as_ref().is_none() {
+                match ready!(stream.as_mut().poll_next(cx)) {
+                    Some(e) => next.set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
 
-            if let Some(item) = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx)) {
+            if let Some(item) = ready!(next.as_mut().as_pin_mut().unwrap().poll_next(cx)) {
                 return Poll::Ready(Some(item));
             } else {
-                self.as_mut().next().set(None);
+                next.set(None);
             }
         }}
     }

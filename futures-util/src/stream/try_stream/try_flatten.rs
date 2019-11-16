@@ -32,6 +32,23 @@ where
     unsafe_pinned!(stream: St);
     unsafe_pinned!(next: Option<St::Ok>);
     unsafe_unpinned!(yield_after: iteration::Limit);
+
+    fn split_borrows(
+        self: Pin<&mut Self>,
+    ) -> (
+        Pin<&mut St>,
+        Pin<&mut Option<St::Ok>>,
+        &mut iteration::Limit,
+    ) {
+        unsafe {
+            let this = self.get_unchecked_mut();
+            (
+                Pin::new_unchecked(&mut this.stream),
+                Pin::new_unchecked(&mut this.next),
+                &mut this.yield_after,
+            )
+        }
+    }
 }
 
 impl<St> TryFlatten<St>
@@ -105,25 +122,24 @@ where
 {
     type Item = Result<<St::Ok as TryStream>::Ok, <St::Ok as TryStream>::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_loop! { self.as_mut().yield_after(), cx, {
-            if self.next.is_none() {
-                match ready!(self.as_mut().stream().try_poll_next(cx)?) {
-                    Some(e) => self.as_mut().next().set(Some(e)),
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let (mut stream, mut next, yield_after) = self.split_borrows();
+        poll_loop! { yield_after, cx, {
+            if next.as_ref().is_none() {
+                match ready!(stream.as_mut().try_poll_next(cx)?) {
+                    Some(e) => next.as_mut().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
 
-            if let Some(item) = ready!(self
-                .as_mut()
-                .next()
+            if let Some(item) = ready!(next.as_mut()
                 .as_pin_mut()
                 .unwrap()
                 .try_poll_next(cx)?)
             {
                 return Poll::Ready(Some(Ok(item)));
             } else {
-                self.as_mut().next().set(None);
+                next.as_mut().set(None);
             }
         }}
     }
