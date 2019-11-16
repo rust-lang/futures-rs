@@ -7,4 +7,3 @@ mod poll;
 pub mod __internal;
 
 pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
-pub use poll::ToYield;

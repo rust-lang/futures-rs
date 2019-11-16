@@ -45,14 +45,8 @@ impl Policy for Limit {
 
     #[inline]
     fn yield_check(&self, counter: &mut u32) -> bool {
-        match counter.checked_sub(1) {
-            Some(v) => {
-                *counter = v;
-                false
-            }
-            #[cold]
-            None => true,
-        }
+        *counter -= 1;
+        *counter == 0
     }
 }
 
