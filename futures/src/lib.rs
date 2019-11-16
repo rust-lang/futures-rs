@@ -439,6 +439,7 @@ pub mod stream {
         poll_fn, PollFn,
         select, Select,
         unfold, Unfold,
+        try_unfold, TryUnfold,
 
         StreamExt,
         Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
