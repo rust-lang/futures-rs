@@ -38,9 +38,9 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 
 mod try_stream;
 pub use self::try_stream::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryCollect,
-    TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext, TrySkipWhile,
-    TryStreamExt,
+    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
+    TrySkipWhile, TryStreamExt, TryUnfold,
 };
 
 #[cfg(feature = "io")]
