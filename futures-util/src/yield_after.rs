@@ -1,10 +1,10 @@
 use core::num::NonZeroU32;
 use futures_core::iteration::Limit;
 
-// Default for repetition limits on eager polling loops, to prevent
+// Default for iteration limits on eager polling loops, to prevent
 // stream-consuming combinators like ForEach from starving other tasks.
 pub(crate) const DEFAULT_YIELD_AFTER_LIMIT: Limit = Limit::new(
-    unsafe { NonZeroU32::new_unchecked(100) }
+    unsafe { NonZeroU32::new_unchecked(64) }
 );
 
 macro_rules! method_yield_after_every {
