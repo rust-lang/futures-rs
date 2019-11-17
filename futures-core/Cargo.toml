@@ -11,9 +11,6 @@ description = """
 The core traits and types in for the `futures` library.
 """
 
-[lib]
-name = "futures_core"
-
 [features]
 default = ["std"]
 std = ["alloc"]

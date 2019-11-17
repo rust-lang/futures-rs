@@ -11,9 +11,6 @@ description = """
 Executors for asynchronous tasks based on the futures-rs library.
 """
 
-[lib]
-name = "futures_executor"
-
 [features]
 default = ["std"]
 std = ["futures-core/std", "futures-task/std", "futures-util/std"]
