@@ -338,6 +338,24 @@ pub mod io {
     };
 }
 
+pub mod iteration {
+    //! Utilities for implementing iterative polling in a cooperative way.
+    //!
+    //! This module provides the [`Policy`] trait and its implementations
+    //! that can be used to tune behavior of eager polling loops in a
+    //! polymorphic way.
+    //!
+    //! An object implementing `Policy` is used by the [`poll_loop!`] macro,
+    //! normally as a member of a structure implementing an asynchronous polling
+    //! API such as [`Future`], where a poll function runs a loop that can
+    //! potentially be saturated by asynchronous sources readily yielding
+    //! data for many consecutive iterations.
+    //!
+    //! [`Future`]: core::future::Future
+
+    pub use futures_core::iteration::{Policy, LoopGuard, Limit, Unlimited};
+}
+
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod lock {
