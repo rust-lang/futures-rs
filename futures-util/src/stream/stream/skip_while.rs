@@ -19,6 +19,15 @@ pub struct SkipWhile<St, Fut, F> where St: Stream {
     yield_after: iteration::Limit,
 }
 
+struct Borrows<'a, St, Fut, F> where St: Stream {
+    stream: Pin<&'a mut St>,
+    f: &'a mut F,
+    pending_fut: Pin<&'a mut Option<Fut>>,
+    pending_item: &'a mut Option<St::Item>,
+    done_skipping: &'a mut bool,
+    yield_after: &'a mut iteration::Limit,
+}
+
 impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
 
 impl<St, Fut, F> fmt::Debug for SkipWhile<St, Fut, F>
@@ -50,26 +59,17 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
     unsafe_unpinned!(done_skipping: bool);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
-    fn split_borrows(
-        self: Pin<&mut Self>,
-    ) -> (
-        Pin<&mut St>,
-        &mut F,
-        Pin<&mut Option<Fut>>,
-        &mut Option<St::Item>,
-        &mut bool,
-        &mut iteration::Limit,
-    ) {
+    fn split_borrows(self: Pin<&mut Self>) -> Borrows<'_, St, Fut, F> {
         unsafe {
             let this = self.get_unchecked_mut();
-            (
-                Pin::new_unchecked(&mut this.stream),
-                &mut this.f,
-                Pin::new_unchecked(&mut this.pending_fut),
-                &mut this.pending_item,
-                &mut this.done_skipping,
-                &mut this.yield_after,
-            )
+            Borrows {
+                stream: Pin::new_unchecked(&mut this.stream),
+                f: &mut this.f,
+                pending_fut: Pin::new_unchecked(&mut this.pending_fut),
+                pending_item: &mut this.pending_item,
+                done_skipping: &mut this.done_skipping,
+                yield_after: &mut this.yield_after,
+            }
         }
     }
 
@@ -149,15 +149,22 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
             return self.as_mut().stream().poll_next(cx);
         }
 
-        let (mut stream, predicate, mut pending_fut, pending_item, done_skipping, yield_after) =
-            self.split_borrows();
+        let Borrows {
+            mut stream,
+            f,
+            mut pending_fut,
+            pending_item,
+            done_skipping,
+            yield_after,
+        } = self.split_borrows();
+
         poll_loop! { yield_after, cx, {
             if pending_item.is_none() {
                 let item = match ready!(stream.as_mut().poll_next(cx)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
-                let fut = predicate(&item);
+                let fut = f(&item);
                 pending_fut.as_mut().set(Some(fut));
                 *pending_item = Some(item);
             }

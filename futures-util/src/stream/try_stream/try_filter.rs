@@ -21,6 +21,16 @@ pub struct TryFilter<St, Fut, F>
     yield_after: iteration::Limit,
 }
 
+struct Borrows<'a, St, Fut, F>
+    where St: TryStream
+{
+    stream: Pin<&'a mut St>,
+    f: &'a mut F,
+    pending_fut: Pin<&'a mut Option<Fut>>,
+    pending_item: &'a mut Option<St::Ok>,
+    yield_after: &'a mut iteration::Limit,
+}
+
 impl<St, Fut, F> Unpin for TryFilter<St, Fut, F>
     where St: TryStream + Unpin, Fut: Unpin,
 {}
@@ -50,24 +60,16 @@ impl<St, Fut, F> TryFilter<St, Fut, F>
     unsafe_unpinned!(pending_item: Option<St::Ok>);
     unsafe_unpinned!(yield_after: iteration::Limit);
 
-    fn split_borrows(
-        self: Pin<&mut Self>,
-    ) -> (
-        Pin<&mut St>,
-        &mut F,
-        Pin<&mut Option<Fut>>,
-        &mut Option<St::Ok>,
-        &mut iteration::Limit,
-    ) {
+    fn split_borrows(self: Pin<&mut Self>) -> Borrows<'_, St, Fut, F> {
         unsafe {
             let this = self.get_unchecked_mut();
-            (
-                Pin::new_unchecked(&mut this.stream),
-                &mut this.f,
-                Pin::new_unchecked(&mut this.pending_fut),
-                &mut this.pending_item,
-                &mut this.yield_after,
-            )
+            Borrows {
+                stream: Pin::new_unchecked(&mut this.stream),
+                f: &mut this.f,
+                pending_fut: Pin::new_unchecked(&mut this.pending_fut),
+                pending_item: &mut this.pending_item,
+                yield_after: &mut this.yield_after,
+            }
         }
     }
 
@@ -142,14 +144,20 @@ impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<St::Ok, St::Error>>> {
-        let (mut stream, op, mut pending_fut, pending_item, yield_after) = self.split_borrows();
+        let Borrows {
+            mut stream,
+            f,
+            mut pending_fut,
+            pending_item,
+            yield_after,
+        } = self.split_borrows();
         poll_loop! { yield_after, cx, {
             if pending_fut.as_ref().is_none() {
                 let item = match ready!(stream.as_mut().try_poll_next(cx)?) {
                     Some(x) => x,
                     None => return Poll::Ready(None),
                 };
-                let fut = op(&item);
+                let fut = f(&item);
                 pending_fut.as_mut().set(Some(fut));
                 *pending_item = Some(item);
             }
