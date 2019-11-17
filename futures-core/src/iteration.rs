@@ -31,7 +31,8 @@ pub trait Policy {
     /// The default implementation of this method does nothing.
     /// Some advanced `Policy` implementations may use this method to collect
     /// statistics or implement adaptive behaviors.
-    fn when_ended_early(&mut self, #[allow(unused_variables)] state: &mut Self::State) {}
+    #[allow(unused_variables)]
+    fn when_ended_early(&mut self, state: &mut Self::State) {}
 
     /// Called immediately after `self` has returned true from its
     /// [`yield_check`] method, before returning from the poll function.
@@ -44,7 +45,8 @@ pub trait Policy {
     /// The default implementation of this method does nothing.
     /// Some advanced `Policy` implementations may use this method to collect
     /// statistics or implement adaptive behaviors.
-    fn when_yielded(&mut self, #[allow(unused_variables)] state: &mut Self::State) {}
+    #[allow(unused_variables)]
+    fn when_yielded(&mut self, state: &mut Self::State) {}
 }
 
 /// A RAII guard around [`Policy`] and its state created to check iterations
