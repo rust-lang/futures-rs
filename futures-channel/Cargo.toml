@@ -11,9 +11,6 @@ description = """
 Channels for asynchronous communication using futures-rs.
 """
 
-[lib]
-name = "futures_channel"
-
 [features]
 default = ["std"]
 std = ["alloc", "futures-core/std"]

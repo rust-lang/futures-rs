@@ -11,9 +11,6 @@ description = """
 Common utilities for testing components built off futures-rs.
 """
 
-[lib]
-name = "futures_test"
-
 [dependencies]
 futures-core = { version = "0.3.1", path = "../futures-core", default-features = false }
 futures-task = { version = "0.3.1", path = "../futures-task", default-features = false }

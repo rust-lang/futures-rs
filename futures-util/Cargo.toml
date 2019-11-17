@@ -11,9 +11,6 @@ description = """
 Common utilities and extension traits for the futures-rs library.
 """
 
-[lib]
-name = "futures_util"
-
 [features]
 default = ["std", "async-await", "async-await-macro"]
 std = ["alloc", "futures-core/std", "futures-task/std", "slab"]

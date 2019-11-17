@@ -11,9 +11,6 @@ description = """
 Tools for working with tasks.
 """
 
-[lib]
-name = "futures_task"
-
 [features]
 default = ["std"]
 std = ["alloc"]

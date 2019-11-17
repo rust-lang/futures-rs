@@ -15,9 +15,6 @@ composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
 
-[lib]
-name = "futures"
-
 [badges]
 travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 

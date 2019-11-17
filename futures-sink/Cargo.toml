@@ -11,9 +11,6 @@ description = """
 The asynchronous `Sink` trait for the futures-rs library.
 """
 
-[lib]
-name = "futures_sink"
-
 [features]
 default = ["std"]
 std = ["alloc"]

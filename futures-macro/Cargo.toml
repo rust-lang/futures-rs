@@ -12,7 +12,6 @@ The futures-rs procedural macro implementations.
 """
 
 [lib]
-name = "futures_macro"
 proc-macro = true
 
 [features]
