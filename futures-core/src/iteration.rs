@@ -4,10 +4,12 @@
 //! be used to tune behavior of eager polling loops in a polymorphic way.
 //!
 //! An object implementing `Policy` is used by the [`poll_loop!`] macro,
-//! normally as a member of a future, stream, or sink object that runs a
-//! loop in its polling function that can potentially be saturated
-//! by asynchronous sources readily providing data for
-//! many consecutive iterations.
+//! normally as a member of a structure implementing an asynchronous
+//! API such as [`Future`] where a polling function runs a loop that
+//! can potentially be saturated by asynchronous sources readily yielding data
+//! for many consecutive iterations.
+//!
+//! [`Future`]: core::future::Future
 
 use core::mem;
 use core::num::NonZeroU32;
