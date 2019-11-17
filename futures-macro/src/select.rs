@@ -175,8 +175,8 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                     // We check for this condition here in order to be able to
                     // safely use Pin::new_unchecked(&mut #path) later on.
                     future_let_bindings.push(quote! {
-                        #futures_crate::async_await::assert_fused_future(&mut #path);
-                        #futures_crate::async_await::assert_unpin(&mut #path);
+                        #futures_crate::async_await::assert_fused_future(&#path);
+                        #futures_crate::async_await::assert_unpin(&#path);
                     });
                     path
                 },
