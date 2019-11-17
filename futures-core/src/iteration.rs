@@ -92,8 +92,11 @@ impl<P> Drop for LoopGuard<'_, P>
 where
     P: ?Sized + Policy,
 {
-    /// Calls [`when_ended_early`](Policy::when_ended_early)
-    /// on the wrapped [`Policy`] reference with its internal state object.
+    /// Calls [`when_ended_early`] on the wrapped [`Policy`] reference
+    /// with its internal state object.
+    ///
+    /// [`Policy`]: crate::iteration::Policy
+    /// [`when_ended_early`]: crate::iteration::Policy::when_ended_early
     fn drop(&mut self) {
         self.policy.when_ended_early(&mut self.state);
     }
@@ -104,7 +107,7 @@ where
 /// The [`Policy`] implementation for a value of this token type bypasses
 /// any checking on iterations of a polling loop, allowing it to continue
 /// indefinitely until ended by logic in the loop body (normally when
-/// an asyncrhonous source is pending or the poll resolves with a return
+/// an asynchronous source is pending or the poll resolves with an output
 /// value).
 #[derive(Debug)]
 pub struct Unlimited {}
