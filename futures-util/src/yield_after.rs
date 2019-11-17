@@ -9,24 +9,28 @@ pub(crate) const DEFAULT_YIELD_AFTER_LIMIT: Limit = Limit::new(
 
 macro_rules! method_yield_after_every {
     ($(#[$doc:meta])*) => {
+        method_yield_after_every!($(#[$doc])* self.yield_after);
+    };
+    ($(#[$doc:meta])* self$(.$field:ident)+) => {
         $(#[$doc])*
         pub fn yield_after_every(mut self, iterations: u32) -> Self {
             let v = core::num::NonZeroU32::new(iterations)
                 .expect("iteration limit can't be 0");
-            self.yield_after = futures_core::iteration::Limit::new(v);
+            self$(.$field)+ = futures_core::iteration::Limit::new(v);
             self
         }
     }
 }
 
 macro_rules! future_method_yield_after_every {
-    () => {
+    ($(self$(.$field:ident)+)?) => {
         future_method_yield_after_every! {
             #[doc = "the underlying stream"]
             #[doc = "the stream consecutively yields items,"]
+            $(self$(.$field)+)?
         }
     };
-    (#[$pollee:meta] #[$why_busy:meta]) => {
+    (#[$pollee:meta] #[$why_busy:meta] $(self$(.$field:ident)+)?) => {
         method_yield_after_every! {
             /// Changes the maximum number of iterations before `poll` yields.
             ///
@@ -46,27 +50,30 @@ macro_rules! future_method_yield_after_every {
             /// # Panics
             ///
             /// If called with 0 as the number of iterations, this method panics.
+            $(self$(.$field)+)?
         }
     };
 }
 
 macro_rules! try_future_method_yield_after_every {
-    () => {
+    ($(self$(.$field:ident)+)?) => {
         future_method_yield_after_every! {
             #[doc = "the underlying stream"]
             #[doc = "the stream consecutively yields `Ok` items,"]
-        }    
+            $(self$(.$field)+)?
+        }
     }
 }
 
 macro_rules! stream_method_yield_after_every {
-    () => {
+    ($(self$(.$field:ident)+)?) => {
         stream_method_yield_after_every! {
             #[doc = "the underlying stream"]
             #[doc = "the stream consecutively yields items,"]
+            $(self$(.$field)+)?
         }
     };
-    (#[$pollee:meta] #[$why_busy:meta]) => {
+    (#[$pollee:meta] #[$why_busy:meta] $(self$(.$field:ident)+)?) => {
         method_yield_after_every! {
             /// Changes the maximum number of iterations before `poll_next` yields.
             ///
@@ -86,6 +93,7 @@ macro_rules! stream_method_yield_after_every {
             /// # Panics
             ///
             /// If called with 0 as the number of iterations, this method panics.
+            $(self$(.$field)+)?
         }
     };
 }
