@@ -1,7 +1,12 @@
 language: rust
 sudo: false
-# TODO: https://github.com/rust-lang-nursery/futures-rs/pull/1681#issuecomment-507791279
-# cache: cargo
+
+# Refs: https://levans.fr/rust_travis_cache.html
+cache:
+  directories:
+    - /home/travis/.cargo
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 
 stages:
   - name: test
