@@ -353,7 +353,7 @@ pub mod iteration {
     //!
     //! [`Future`]: core::future::Future
 
-    pub use futures_core::iteration::{Policy, LoopGuard, Limit, Unlimited};
+    pub use futures_core::iteration::{Policy, Limit, Unlimited};
 }
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]

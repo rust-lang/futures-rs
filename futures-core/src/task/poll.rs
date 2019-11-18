@@ -35,28 +35,24 @@ macro_rules! ready {
 /// bypassing the iteration policy check, so it should be used with caution.
 /// `break` can be used as in the body of an unlabeled `loop`, also for
 /// producing the value of the macro invocation used as an expression.
-/// The loop is immediately terminated by `break`, and a scoped [`LoopGuard`]
-/// around the `Policy` object is dropped, resulting in a [`when_ended_early`]
-/// method call on the latter.
+/// The loop is immediately terminated by `break` with no hidden effects.
 ///
 /// [`Future`]: core::future::Future
 /// [`Stream`]: stream::Stream
 /// [`Context`]: core::task::Context
 /// [`Pending`]: core::task::Poll::Pending
 /// [`Ready`]: core::task::Poll::Ready
-/// [`LoopGuard`]: iteration::LoopGuard
 /// [`Policy`]: iteration::Policy
-/// [`when_ended_early`]: iteration::Policy::when_ended_early
 #[macro_export]
 macro_rules! poll_loop {
     {$policy:expr, $cx:expr, $body:expr} => {
-        #[allow(clippy::deref_addrof)]
         {
-            let mut guard = $crate::iteration::LoopGuard::new(&mut *$policy);
+            #[allow(clippy::deref_addrof)]
+            let policy = &mut *$policy;
+            let mut state = $crate::iteration::Policy::begin(policy);
             loop {
                 { $body }
-                if guard.yield_check() {
-                    guard.process_yield();
+                if $crate::iteration::Policy::yield_check(policy, &mut state) {
                     $crate::core_reexport::task::Context::waker($cx).wake_by_ref();
                     return $crate::core_reexport::task::Poll::Pending;
                 }
