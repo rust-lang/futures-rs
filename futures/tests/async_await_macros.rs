@@ -57,6 +57,26 @@ fn select() {
 }
 
 #[test]
+fn select_biased() {
+    use futures::select_biased;
+
+    let (tx1, rx1) = oneshot::channel::<i32>();
+    let (_tx2, rx2) = oneshot::channel::<i32>();
+    tx1.send(1).unwrap();
+    let mut ran = false;
+    block_on(async {
+        select_biased! {
+            res = rx1.fuse() => {
+                assert_eq!(Ok(1), res);
+                ran = true;
+            },
+            _ = rx2.fuse() => unreachable!(),
+        }
+    });
+    assert!(ran);
+}
+
+#[test]
 fn select_streams() {
     let (mut tx1, rx1) = mpsc::channel::<i32>(1);
     let (mut tx2, rx2) = mpsc::channel::<i32>(1);

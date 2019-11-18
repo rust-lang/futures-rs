@@ -35,3 +35,9 @@ pub fn try_join(input: TokenStream) -> TokenStream {
 pub fn select(input: TokenStream) -> TokenStream {
     crate::select::select(input)
 }
+
+/// The `select_biased!` macro.
+#[proc_macro_hack]
+pub fn select_biased(input: TokenStream) -> TokenStream {
+    crate::select::select_biased(input)
+}
