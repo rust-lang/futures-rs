@@ -26,7 +26,7 @@ pub trait LoopPolicy {
 /// an asynchronous source is pending or the poll resolves with an output
 /// value).
 #[derive(Debug)]
-pub struct Unlimited {}
+pub struct Unlimited;
 
 impl LoopPolicy for Unlimited {
     type State = ();
