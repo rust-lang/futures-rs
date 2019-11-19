@@ -3,13 +3,13 @@
 use core::num::NonZeroU32;
 
 /// Iteration policy checker for eager polling loops.
-pub trait Policy {
+pub trait LoopPolicy {
     /// State for checking iterations over the lifetime of a polling loop.
     type State;
 
     /// Called before entering the loop to initialize state for
     /// iteration checks.
-    fn begin(&mut self) -> Self::State;
+    fn enter(&mut self) -> Self::State;
 
     /// Called at the end of each iteration to update the check state
     /// and decide whether the poll function should yield, that is,
@@ -20,7 +20,7 @@ pub trait Policy {
 
 /// An unlimited iteration policy.
 ///
-/// The [`Policy`] implementation for a value of this token type bypasses
+/// The [`LoopPolicy`] implementation for a value of this token type bypasses
 /// any checking on iterations of a polling loop, allowing it to continue
 /// indefinitely until ended by logic in the loop body (normally when
 /// an asynchronous source is pending or the poll resolves with an output
@@ -28,11 +28,11 @@ pub trait Policy {
 #[derive(Debug)]
 pub struct Unlimited {}
 
-impl Policy for Unlimited {
+impl LoopPolicy for Unlimited {
     type State = ();
 
     #[inline]
-    fn begin(&mut self) {}
+    fn enter(&mut self) {}
 
     #[inline]
     fn yield_check(&mut self, _: &mut ()) -> bool {
@@ -42,9 +42,9 @@ impl Policy for Unlimited {
 
 /// An iteration policy with a limit on the number of consecutive iterations.
 ///
-/// The [`Policy`] implementation of this type runs a counter on the number
+/// The [`LoopPolicy`] implementation of this type runs a counter on the number
 /// of iterations and, when the given limit is reached, instructs the
-/// [`yield_check`](Policy::yield_check) caller to yield.
+/// [`yield_check`](LoopPolicy::yield_check) caller to yield.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Limit(NonZeroU32);
 
@@ -56,11 +56,11 @@ impl Limit {
     }
 }
 
-impl Policy for Limit {
+impl LoopPolicy for Limit {
     type State = u32;
 
     #[inline]
-    fn begin(&mut self) -> u32 {
+    fn enter(&mut self) -> u32 {
         self.0.into()
     }
 

@@ -22,11 +22,11 @@ macro_rules! ready {
 /// potentially starving other asynchronous operations in the same task
 /// from being polled.
 ///
-/// To prevent this, `poll_loop!` uses the [`Policy`] protocol to check
+/// To prevent this, `poll_loop!` uses the [`LoopPolicy`] protocol to check
 /// at the end of each iteration whether to yield to the task by returning
 /// [`Pending`].
 /// The first parameter of the macro receives a mutable pointer to the
-/// iteration policy checker implementing `Policy`.
+/// iteration policy checker implementing `LoopPolicy`.
 /// The second parameter receives the reference to the
 /// [`Context`] passed to the poll function.
 /// The body of a loop iteration is given in the third parameter.
@@ -42,17 +42,17 @@ macro_rules! ready {
 /// [`Context`]: core::task::Context
 /// [`Pending`]: core::task::Poll::Pending
 /// [`Ready`]: core::task::Poll::Ready
-/// [`Policy`]: iteration::Policy
+/// [`LoopPolicy`]: iteration::LoopPolicy
 #[macro_export]
 macro_rules! poll_loop {
     {$policy:expr, $cx:expr, $body:expr} => {
         {
             #[allow(clippy::deref_addrof)]
             let policy = &mut *$policy;
-            let mut state = $crate::iteration::Policy::begin(policy);
+            let mut state = $crate::iteration::LoopPolicy::enter(policy);
             loop {
                 { $body }
-                if $crate::iteration::Policy::yield_check(policy, &mut state) {
+                if $crate::iteration::LoopPolicy::yield_check(policy, &mut state) {
                     $crate::core_reexport::task::Context::waker($cx).wake_by_ref();
                     return $crate::core_reexport::task::Poll::Pending;
                 }
