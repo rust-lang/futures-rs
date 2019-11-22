@@ -6,7 +6,7 @@ use std::sync::mpsc as std_mpsc;
 use std::thread;
 
 #[test]
-#[ignore] // FIXME: https://github.com/rust-lang-nursery/futures-rs/issues/1790
+#[ignore] // FIXME: https://github.com/rust-lang/futures-rs/issues/1790
 fn works() {
     const N: usize = 4;
 

@@ -14,7 +14,7 @@ use alloc::vec::Vec;
 pub struct Chunks<St: Stream> {
     stream: Fuse<St>,
     items: Vec<St::Item>,
-    cap: usize, // https://github.com/rust-lang-nursery/futures-rs/issues/1475
+    cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
 }
 
 impl<St: Unpin + Stream> Unpin for Chunks<St> {}

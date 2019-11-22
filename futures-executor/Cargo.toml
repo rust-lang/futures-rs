@@ -4,8 +4,8 @@ edition = "2018"
 version = "0.3.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://rust-lang-nursery.github.io/futures-rs"
+repository = "https://github.com/rust-lang/futures-rs"
+homepage = "https://rust-lang.github.io/futures-rs"
 documentation = "https://docs.rs/futures-executor/0.3.0"
 description = """
 Executors for asynchronous tasks based on the futures-rs library.
