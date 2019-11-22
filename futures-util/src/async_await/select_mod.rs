@@ -30,7 +30,7 @@ macro_rules! document_select_macro {
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
         /// It is also gated behind the `async-await` feature of this library, which is
-        /// _not_ activated by default.
+        /// activated by default.
         ///
         /// Note that `select!` relies on `proc-macro-hack`, and may require to set the
         /// compiler's recursion limit very high, e.g. `#![recursion_limit="1024"]`.
@@ -179,7 +179,7 @@ macro_rules! document_select_macro {
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
         /// It is also gated behind the `async-await` feature of this library, which is
-        /// _not_ activated by default.
+        /// activated by default.
         ///
         /// # Examples
         ///
