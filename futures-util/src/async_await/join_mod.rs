@@ -14,7 +14,7 @@ macro_rules! document_join_macro {
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
         /// It is also gated behind the `async-await` feature of this library, which is
-        /// _not_ activated by default.
+        /// activated by default.
         ///
         /// # Examples
         ///
@@ -38,7 +38,7 @@ macro_rules! document_join_macro {
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
         /// It is also gated behind the `async-await` feature of this library, which is
-        /// _not_ activated by default.
+        /// activated by default.
         ///
         /// # Examples
         ///
