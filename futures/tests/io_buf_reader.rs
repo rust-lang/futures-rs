@@ -304,7 +304,7 @@ impl AsyncSeek for MaybePendingSeek<'_> {
     }
 }
 
-// https://github.com/rust-lang-nursery/futures-rs/pull/1573#discussion_r281162309
+// https://github.com/rust-lang/futures-rs/pull/1573#discussion_r281162309
 #[test]
 fn maybe_pending_seek() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];

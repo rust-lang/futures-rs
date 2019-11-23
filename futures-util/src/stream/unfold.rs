@@ -108,7 +108,8 @@ impl<T, F, Fut, Item> Stream for Unfold<T, F, Fut>
             self.as_mut().fut().set(Some(fut));
         }
 
-        let step = ready!(self.as_mut().fut().as_pin_mut().unwrap().poll(cx));
+        let step = ready!(self.as_mut().fut().as_pin_mut()
+            .expect("Unfold must not be polled after it returned `Poll::Ready(None)`").poll(cx));
         self.as_mut().fut().set(None);
 
         if let Some((item, next_state)) = step {

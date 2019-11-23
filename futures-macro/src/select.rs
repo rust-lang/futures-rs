@@ -136,6 +136,15 @@ fn declare_result_enum(
 
 /// The `select!` macro.
 pub(crate) fn select(input: TokenStream) -> TokenStream {
+    select_inner(input, true)
+}
+
+/// The `select_biased!` macro.
+pub(crate) fn select_biased(input: TokenStream) -> TokenStream {
+    select_inner(input, false)
+}
+
+fn select_inner(input: TokenStream, random: bool) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Select);
 
     let futures_crate: syn::Path = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
@@ -166,8 +175,8 @@ pub(crate) fn select(input: TokenStream) -> TokenStream {
                     // We check for this condition here in order to be able to
                     // safely use Pin::new_unchecked(&mut #path) later on.
                     future_let_bindings.push(quote! {
-                        #futures_crate::async_await::assert_fused_future(&mut #path);
-                        #futures_crate::async_await::assert_unpin(&mut #path);
+                        #futures_crate::async_await::assert_fused_future(&#path);
+                        #futures_crate::async_await::assert_unpin(&#path);
                     });
                     path
                 },
@@ -286,6 +295,14 @@ pub(crate) fn select(input: TokenStream) -> TokenStream {
         }
     };
 
+    let shuffle = if random {
+        quote! {
+            #futures_crate::async_await::shuffle(&mut __select_arr);
+        }
+    } else {
+        quote!()
+    };
+
     TokenStream::from(quote! { {
         #enum_item
 
@@ -298,7 +315,7 @@ pub(crate) fn select(input: TokenStream) -> TokenStream {
                 #( #poll_functions )*
 
                 let mut __select_arr = [#( #variant_names ),*];
-                #futures_crate::async_await::shuffle(&mut __select_arr);
+                #shuffle
                 for poller in &mut __select_arr {
                     let poller: &mut &mut dyn FnMut(
                         &mut #futures_crate::task::Context<'_>

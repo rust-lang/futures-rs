@@ -60,7 +60,7 @@ fn buf_writer_inner_flushes() {
 
 #[test]
 fn buf_writer_seek() {
-    // FIXME: when https://github.com/rust-lang-nursery/futures-rs/issues/1510 fixed,
+    // FIXME: when https://github.com/rust-lang/futures-rs/issues/1510 fixed,
     // use `Vec::new` instead of `vec![0; 8]`.
     let mut w = BufWriter::with_capacity(3, Cursor::new(vec![0; 8]));
     block_on(w.write_all(&[0, 1, 2, 3, 4, 5])).unwrap();
@@ -222,7 +222,7 @@ impl AsyncSeek for MaybePendingSeek {
 
 #[test]
 fn maybe_pending_buf_writer_seek() {
-    // FIXME: when https://github.com/rust-lang-nursery/futures-rs/issues/1510 fixed,
+    // FIXME: when https://github.com/rust-lang/futures-rs/issues/1510 fixed,
     // use `Vec::new` instead of `vec![0; 8]`.
     let mut w = BufWriter::with_capacity(3, MaybePendingSeek::new(vec![0; 8]));
     run(w.write_all(&[0, 1, 2, 3, 4, 5])).unwrap();

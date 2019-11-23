@@ -186,8 +186,8 @@ impl ThreadPoolBuilder {
     /// Create a default thread pool configuration.
     ///
     /// See the other methods on this type for details on the defaults.
-    pub fn new() -> ThreadPoolBuilder {
-        ThreadPoolBuilder {
+    pub fn new() -> Self {
+        Self {
             pool_size: cmp::max(1, num_cpus::get()),
             stack_size: 0,
             name_prefix: None,
@@ -200,7 +200,12 @@ impl ThreadPoolBuilder {
     ///
     /// The size of a thread pool is the number of worker threads spawned. By
     /// default, this is equal to the number of CPU cores.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `pool_size == 0`.
     pub fn pool_size(&mut self, size: usize) -> &mut Self {
+        assert!(size > 0);
         self.pool_size = size;
         self
     }
@@ -256,10 +261,6 @@ impl ThreadPoolBuilder {
     }
 
     /// Create a [`ThreadPool`](ThreadPool) with the given configuration.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `pool_size == 0`.
     pub fn create(&mut self) -> Result<ThreadPool, io::Error> {
         let (tx, rx) = mpsc::channel();
         let pool = ThreadPool {
@@ -270,7 +271,6 @@ impl ThreadPoolBuilder {
                 size: self.pool_size,
             }),
         };
-        assert!(self.pool_size > 0);
 
         for counter in 0..self.pool_size {
             let state = pool.state.clone();
