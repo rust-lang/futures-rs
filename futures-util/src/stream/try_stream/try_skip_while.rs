@@ -123,9 +123,9 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     }
 
     stream_method_yield_after_every! {
-        #[doc = "the underlying stream and, when pending, a future returned by
+        #[pollee = "the underlying stream and, when pending, a future returned by
             the predicate closure,"]
-        #[doc = "`Ok` items are consecutively yielded by the stream,
+        #[why_busy = "`Ok` items are consecutively yielded by the stream,
             but the predicate immediately resolves to skip them,"]
     }
 }

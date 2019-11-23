@@ -70,9 +70,9 @@ where St: Stream,
     }
 
     future_method_yield_after_every! {
-        #[doc = "the underlying stream and a pool of pending futures returned by
+        #[pollee = "the underlying stream and a pool of pending futures returned by
             the processing closure,"]
-        #[doc = "the underlying stream consecutively yields items and some of
+        #[why_busy = "the underlying stream consecutively yields items and some of
             the processing futures turn out ready,"]
     }
 

@@ -25,19 +25,19 @@ macro_rules! method_yield_after_every {
 macro_rules! future_method_yield_after_every {
     ($(self$(.$field:ident)+)?) => {
         future_method_yield_after_every! {
-            #[doc = "the underlying stream"]
-            #[doc = "the stream consecutively yields items,"]
+            #[pollee = "the underlying stream"]
+            #[why_busy = "the stream consecutively yields items,"]
             $(self$(.$field)+)?
         }
     };
-    (#[$pollee:meta] #[$why_busy:meta] $(self$(.$field:ident)+)?) => {
+    (#[pollee = $pollee:literal] #[why_busy = $why_busy:literal] $(self$(.$field:ident)+)?) => {
         method_yield_after_every! {
             /// Changes the maximum number of iterations before `poll` yields.
             ///
             /// The implementation of [`poll`] on this future
-            /** polls */#[$pollee]/** in a loop. */
+            /** polls */#[doc = $pollee]/** in a loop. */
             /// To prevent blocking in the call to `poll` for too long while
-            #[$why_busy]
+            #[doc = $why_busy]
             /// the number of iterations is capped to an internal limit,
             /// after which the `poll` function wakes up the task
             /// and returns [`Pending`]. The `yield_after_every` combinator
@@ -58,8 +58,8 @@ macro_rules! future_method_yield_after_every {
 macro_rules! try_future_method_yield_after_every {
     ($(self$(.$field:ident)+)?) => {
         future_method_yield_after_every! {
-            #[doc = "the underlying stream"]
-            #[doc = "the stream consecutively yields `Ok` items,"]
+            #[pollee = "the underlying stream"]
+            #[why_busy = "the stream consecutively yields `Ok` items,"]
             $(self$(.$field)+)?
         }
     }
@@ -68,19 +68,19 @@ macro_rules! try_future_method_yield_after_every {
 macro_rules! stream_method_yield_after_every {
     ($(self$(.$field:ident)+)?) => {
         stream_method_yield_after_every! {
-            #[doc = "the underlying stream"]
-            #[doc = "the stream consecutively yields items,"]
+            #[pollee = "the underlying stream"]
+            #[why_busy = "the stream consecutively yields items,"]
             $(self$(.$field)+)?
         }
     };
-    (#[$pollee:meta] #[$why_busy:meta] $(self$(.$field:ident)+)?) => {
+    (#[pollee = $pollee:literal] #[why_busy = $why_busy:literal] $(self$(.$field:ident)+)?) => {
         method_yield_after_every! {
             /// Changes the maximum number of iterations before `poll_next` yields.
             ///
             /// The implementation of [`poll_next`] on this stream
-            /** polls */#[$pollee]/** in a loop. */
+            /** polls */#[doc = $pollee]/** in a loop. */
             /// To prevent blocking in the call to `poll_next` for too long while
-            #[$why_busy]
+            #[doc = $why_busy]
             /// the number of iterations is capped to an internal limit,
             /// after which the `poll_next` function wakes up the task
             /// and returns [`Pending`]. The `yield_after_every` combinator

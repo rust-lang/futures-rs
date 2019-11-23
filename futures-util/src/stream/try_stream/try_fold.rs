@@ -67,9 +67,9 @@ where St: TryStream,
     }
 
     future_method_yield_after_every! {
-        #[doc = "the underlying stream and, if pending, a future returned by
+        #[pollee = "the underlying stream and, if pending, a future returned by
             the accumulation closure,"]
-        #[doc = "the underlying stream consecutively yields `Ok` items and
+        #[why_busy = "the underlying stream consecutively yields `Ok` items and
             the accumulation futures immediately resolve with `Ok`,"]
     }
 

@@ -119,9 +119,9 @@ where St: Stream,
     }
 
     stream_method_yield_after_every! {
-        #[doc = "the underlying stream and, when pending, a future returned by
-            the predicate closure,"]
-        #[doc = "items are consecutively yielded by the stream,
+        #[pollee = "the underlying stream and, when pending,
+            a future returned by the predicate closure,"]
+        #[why_busy = "items are consecutively yielded by the stream,
             but get immediately filtered out,"]
     }
 }

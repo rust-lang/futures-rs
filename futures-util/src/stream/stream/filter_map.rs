@@ -108,8 +108,9 @@ impl<St, Fut, F> FilterMap<St, Fut, F>
     }
 
     stream_method_yield_after_every! {
-        #[doc = "the underlying stream and, when pending, a future returned by the map closure,"]
-        #[doc = "items are consecutively yielded by the stream, but get immediately filtered out,"]
+        #[pollee = "the underlying stream and, when pending, a future returned by the map closure,"]
+        #[why_busy = "items are consecutively yielded by the stream,
+            but get immediately filtered out,"]
     }
 }
 

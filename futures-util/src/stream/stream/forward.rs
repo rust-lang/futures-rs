@@ -51,8 +51,8 @@ where
     }
 
     future_method_yield_after_every! {
-        #[doc = "the underlying stream and the sink"]
-        #[doc = "the stream consecutively yields items that the sink
+        #[pollee = "the underlying stream and the sink"]
+        #[why_busy = "the stream consecutively yields items that the sink
             is ready to accept,"]
     }
 
