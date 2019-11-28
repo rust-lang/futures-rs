@@ -190,7 +190,7 @@ pub mod executor {
     //! handle a very large set of spawned tasks (which are much lighter weight
     //! than threads). Tasks spawned onto the pool with the
     //! [`spawn_ok()`](crate::executor::ThreadPool::spawn_ok)
-    //! function will run on ambiently on the created threads.
+    //! function will run ambiently on the created threads.
     //!
     //! # Spawning additional tasks
     //!
