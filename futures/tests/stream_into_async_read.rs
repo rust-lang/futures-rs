@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures::future;
 use futures::io::{AsyncRead, AsyncBufRead};
-use futures::stream::{self, StreamExt, TryStreamExt};
+use futures::stream::{self, IntoAsyncReadParts, StreamExt, TryStreamExt};
 use futures::task::Poll;
 use futures_test::{task::noop_context, stream::StreamTestExt};
 
@@ -106,14 +106,21 @@ fn test_into_async_read_into_inner() {
     assert_eq!(&buf, &[1, 2, 3]);
 
     // turn the reader into its inner parts, which we can inspect
-    let (first, rest) = reader.into_inner();
-    let (mut chunk, offset) = first.expect(".into_inner() called in the middle of a chunk");
-    assert_eq!(&chunk, &[1, 2, 3, 4, 5]);
-    assert_eq!(offset, 3);
+    let mut reader = if let IntoAsyncReadParts::PartiallyBuffered {
+        mut chunk,
+        offset,
+        stream: rest,
+    } = reader.into_inner()
+    {
+        assert_eq!(&chunk, &[1, 2, 3, 4, 5]);
+        assert_eq!(offset, 3);
 
-    // package the stream back up by splitting off the chunk according to the offset we got back
-    let stream = stream::once(future::ready(Ok(chunk.split_off(offset)))).chain(rest);
-    let mut reader = stream.into_async_read();
+        // package the stream back up by splitting off the chunk according to the offset we got back
+        let stream = stream::once(future::ready(Ok(chunk.split_off(offset)))).chain(rest);
+        stream.into_async_read()
+    } else {
+        panic!("reader should have a partial buffer");
+    };
 
     // resume reading as normal
     assert_read!(reader, &mut buf, 2);
@@ -125,12 +132,12 @@ fn test_into_async_read_into_inner() {
     assert_read!(reader, &mut buf, 2);
     assert_eq!(&buf[..2], &[4, 5]);
 
-    // turn the reader into its inner parts again, this time on a chunk boundary
-    let (first, rest) = reader.into_inner();
-    assert!(first.is_none());
-
-    // package the stream back up and resume reading as normal
-    let mut reader = rest.into_async_read();
+    let mut reader = if let IntoAsyncReadParts::Pending { stream: rest } = reader.into_inner() {
+        // package the stream back up and resume reading as normal
+        rest.into_async_read()
+    } else {
+        panic!("reader should have no partial buffer on a chunk boundary");
+    };
 
     assert_read!(reader, &mut buf, 3);
     assert_eq!(&buf, &[1, 2, 3]);
@@ -140,7 +147,10 @@ fn test_into_async_read_into_inner() {
 
     assert_read!(reader, &mut buf, 0);
 
-    // at the end of the stream, there should be no element buffered in the reader
-    let (first, _end) = reader.into_inner();
-    assert!(first.is_none());
+    // at the end of the stream, we should see Eof
+    if let IntoAsyncReadParts::Eof = reader.into_inner() {
+        // succeed
+    } else {
+        panic!("reader should be at eof");
+    }
 }

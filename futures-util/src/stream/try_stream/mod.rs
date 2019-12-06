@@ -104,7 +104,7 @@ mod into_async_read;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::into_async_read::IntoAsyncRead;
+pub use self::into_async_read::{IntoAsyncRead, IntoAsyncReadParts};
 
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
