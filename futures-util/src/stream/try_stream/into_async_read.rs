@@ -43,6 +43,20 @@ where
             state: ReadState::PendingChunk,
         }
     }
+
+    /// Return the underlying stream along with any stream elements that are currently buffered.
+    ///
+    /// Returns `(None, stream)` if no stream elements are currently buffered.
+    ///
+    /// Returns `(Some(element, offset), stream)` if an element is currently buffered, where
+    /// `offset` is the current offset into `element` that would have been read from next.
+    pub fn into_inner(self) -> (Option<(St::Ok, usize)>, St) {
+        match self.state {
+            ReadState::Ready { chunk, chunk_start } => (Some((chunk, chunk_start)), self.stream),
+            ReadState::PendingChunk => (None, self.stream),
+            ReadState::Eof => (None, self.stream),
+        }
+    }
 }
 
 impl<St> AsyncRead for IntoAsyncRead<St>
