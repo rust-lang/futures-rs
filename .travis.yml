@@ -129,7 +129,7 @@ matrix:
     - name: cargo check (features)
       rust: nightly
       install:
-        - cargo install -Z install-upgrade cargo-hack
+        - cargo install cargo-hack
       script:
         # Check each specified feature works properly
         # * `--each-feature` - run for each feature which includes --no-default-features and default features of package
