@@ -1,10 +1,6 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(feature = "std")]
-use std::{
-    cell::Cell,
-    collections::hash_map::DefaultHasher,
-    hash::Hasher,
-};
+use std::cell::Cell;
 
 // Based on [Fisher–Yates shuffle].
 //
@@ -32,17 +28,9 @@ fn random() -> usize {
         // Any non-zero seed will do
         let mut seed = 0;
         while seed == 0 {
-            let mut hasher = DefaultHasher::new();
-            hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
-            seed = hasher.finish();
+            seed = COUNTER.fetch_add(1, Ordering::Relaxed);
         }
-        seed as usize
-    }
-
-    #[cfg(not(feature = "std"))]
-    const fn prng_seed() -> usize {
-        // A deterministic seed is used in absense of TLS
-        42
+        seed
     }
 
     /// [xorshift*] is used on 64bit platforms.
@@ -98,7 +86,8 @@ fn random() -> usize {
 
     #[cfg(not(feature = "std"))]
     fn rng() -> usize {
-        static RNG: AtomicUsize = AtomicUsize::new(prng_seed());
+        // A deterministic seed is used in absense of TLS
+        static RNG: AtomicUsize = AtomicUsize::new(42);
 
         // Preemption here can cause multiple threads to observe repeated state
         let (x, res) = xorshift(RNG.load(Ordering::Relaxed));
