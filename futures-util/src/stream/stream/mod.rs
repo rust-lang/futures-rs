@@ -120,6 +120,12 @@ mod chunks;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chunks::Chunks;
 
+#[cfg(feature = "alloc")]
+mod chunks_lazy;
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::chunks_lazy::ChunksLazy;
+
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod buffer_unordered;
@@ -1061,6 +1067,33 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         Chunks::new(self, capacity)
+    }
+
+    /// An adaptor for non-greedily chunking up items of the stream inside a vector.
+    ///
+    /// This combinator will attempt to pull items from this stream and buffer
+    /// them into a local vector. At most `capacity` items will get buffered
+    /// before they're yielded from the returned stream.
+    ///
+    /// Note that the vectors returned from this iterator may not always have
+    /// `capacity` elements. If the underlying stream ended and only a partial
+    /// vector was created, it'll be returned. Also, if the underlying stream
+    /// returns `Poll::Pending`, the currently buffered items will be yielded,
+    /// even if the buffer is empty. Futhermore, if an error happens from the 
+    /// underlying stream then the currently buffered items will be yielded.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `capacity` is zero.
+    #[cfg(feature = "alloc")]
+    fn chunks_lazy(self, capacity: usize) -> ChunksLazy<Self>
+    where
+        Self: Sized,
+    {
+        ChunksLazy::new(self, capacity)
     }
 
     /// A future that completes after the given stream has been fully processed
