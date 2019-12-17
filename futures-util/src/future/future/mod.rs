@@ -231,14 +231,11 @@ pub trait FutureExt: Future {
         IntoStream::new(self)
     }
 
-    /// Flatten the execution of this future when the successful result of this
+    /// Flatten the execution of this future when the output of this
     /// future is itself another future.
     ///
     /// This can be useful when combining futures together to flatten the
-    /// computation out the final result. This method can only be called
-    /// when the successful result of this future itself implements the
-    /// `IntoFuture` trait and the error can be created from this future's error
-    /// type.
+    /// computation out the final result.
     ///
     /// This method is roughly equivalent to `self.then(|x| x)`.
     ///

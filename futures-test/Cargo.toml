@@ -4,15 +4,12 @@ edition = "2018"
 version = "0.3.1"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://rust-lang-nursery.github.io/futures-rs"
+repository = "https://github.com/rust-lang/futures-rs"
+homepage = "https://rust-lang.github.io/futures-rs"
 documentation = "https://docs.rs/futures-test/0.3.0"
 description = """
 Common utilities for testing components built off futures-rs.
 """
-
-[lib]
-name = "futures_test"
 
 [dependencies]
 futures-core = { version = "0.3.1", path = "../futures-core", default-features = false }

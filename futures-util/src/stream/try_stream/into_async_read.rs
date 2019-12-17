@@ -171,7 +171,7 @@ where
         mut self: Pin<&mut Self>,
         amount: usize,
     ) {
-         // https://github.com/rust-lang-nursery/futures-rs/pull/1556#discussion_r281644295
+         // https://github.com/rust-lang/futures-rs/pull/1556#discussion_r281644295
         if amount == 0 { return }
         if let ReadState::Ready { chunk, chunk_start } = &mut self.state {
             *chunk_start += amount;

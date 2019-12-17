@@ -4,15 +4,12 @@ edition = "2018"
 version = "0.3.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.18/futures_core"
+repository = "https://github.com/rust-lang/futures-rs"
+homepage = "https://rust-lang.github.io/futures-rs"
+documentation = "https://rust-lang.github.io/futures-api-docs/0.3.0-alpha.18/futures_core"
 description = """
 Tools for working with tasks.
 """
-
-[lib]
-name = "futures_task"
 
 [features]
 default = ["std"]

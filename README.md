@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="futures-rs" src="https://raw.githubusercontent.com/rust-lang-nursery/futures-rs/gh-pages/assets/images/futures-rs-logo.svg?sanitize=true" width="400">
+  <img alt="futures-rs" src="https://raw.githubusercontent.com/rust-lang/futures-rs/gh-pages/assets/images/futures-rs-logo.svg?sanitize=true" width="400">
 </p>
 
 <p align="center">
@@ -7,23 +7,23 @@
 </p>
 
 <p align="center">
-  <a href="https://travis-ci.com/rust-lang-nursery/futures-rs">
-    <img alt="Build Status" src="https://travis-ci.com/rust-lang-nursery/futures-rs.svg?branch=master">
+  <a href="https://travis-ci.com/rust-lang/futures-rs">
+    <img alt="Build Status" src="https://travis-ci.com/rust-lang/futures-rs.svg?branch=master">
   </a>
 
   <a href="https://crates.io/crates/futures">
     <img alt="Crates.io" src="https://img.shields.io/crates/v/futures.svg">
   </a>
 
-  <a href="https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html">
-    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.36+-lightgray.svg">
+  <a href="https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html">
+    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.39+-lightgray.svg">
   </a>
 </p>
 
 <p align="center">
   <a href="https://docs.rs/futures/">
     Documentation
-  </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
+  </a> | <a href="https://rust-lang.github.io/futures-rs/">
     Website
   </a>
 </p>
