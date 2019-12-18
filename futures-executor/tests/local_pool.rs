@@ -1,10 +1,14 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
-use futures::future::{Future, lazy, poll_fn};
+use futures::future::{self, Future, lazy, poll_fn};
 use futures::task::{Context, Poll, Spawn, LocalSpawn, Waker};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{Ordering, AtomicBool};
 
 struct Pending(Rc<()>);
 
@@ -357,3 +361,34 @@ fn tasks_are_scheduled_fairly() {
 
     pool.run();
 }
+
+// Tests that the use of park/unpark in user-code has no
+// effect on the expected behaviour of the executor.
+#[test]
+fn park_unpark_independence() {
+    let mut done = false;
+
+    let future = future::poll_fn(move |cx| {
+        if done {
+            return Poll::Ready(())
+        }
+        done = true;
+        cx.waker().clone().wake(); // (*)
+        // some user-code that temporarily parks the thread
+        let test = thread::current();
+        let latch = Arc::new(AtomicBool::new(false));
+        let signal = latch.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            signal.store(true, Ordering::SeqCst);
+            test.unpark()
+        });
+        while !latch.load(Ordering::Relaxed) {
+            thread::park();
+        }
+        Poll::Pending // Expect to be called again due to (*).
+    });
+
+    futures::executor::block_on(future)
+}
+
