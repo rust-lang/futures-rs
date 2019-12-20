@@ -197,7 +197,7 @@ const WAKING: usize = 0b10;
 
 impl AtomicWaker {
     /// Create an `AtomicWaker`.
-    pub fn new() -> AtomicWaker {
+    pub const fn new() -> Self {
         // Make sure that task is Sync
         trait AssertSync: Sync {}
         impl AssertSync for Waker {}
