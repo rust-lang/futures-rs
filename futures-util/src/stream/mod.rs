@@ -25,7 +25,7 @@ pub use self::stream::CatchUnwind;
 pub use self::stream::Chunks;
 
 #[cfg(feature = "alloc")]
-pub use self::stream::ChunksLazy;
+pub use self::stream::ChunksEager;
 
 #[cfg(feature = "sink")]
 pub use self::stream::Forward;

@@ -8,25 +8,25 @@ use core::mem;
 use core::pin::Pin;
 use alloc::vec::Vec;
 
-/// Stream for the [`chunks_lazy`](super::StreamExt::chunks_lazy) method.
+/// Stream for the [`chunks_eager`](super::StreamExt::chunks_eager) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct ChunksLazy<St: Stream> {
+pub struct ChunksEager<St: Stream> {
     stream: Fuse<St>,
     items: Vec<St::Item>,
     cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
 }
 
-impl<St: Unpin + Stream> Unpin for ChunksLazy<St> {}
+impl<St: Unpin + Stream> Unpin for ChunksEager<St> {}
 
-impl<St: Stream> ChunksLazy<St> where St: Stream {
+impl<St: Stream> ChunksEager<St> where St: Stream {
     unsafe_unpinned!(items:  Vec<St::Item>);
     unsafe_pinned!(stream: Fuse<St>);
 
-    pub(super) fn new(stream: St, capacity: usize) -> ChunksLazy<St> {
+    pub(super) fn new(stream: St, capacity: usize) -> ChunksEager<St> {
         assert!(capacity > 0);
 
-        ChunksLazy {
+        ChunksEager {
             stream: super::Fuse::new(stream),
             items: Vec::with_capacity(capacity),
             cap: capacity,
@@ -71,7 +71,7 @@ impl<St: Stream> ChunksLazy<St> where St: Stream {
     }
 }
 
-impl<St: Stream> Stream for ChunksLazy<St> {
+impl<St: Stream> Stream for ChunksEager<St> {
     type Item = Vec<St::Item>;
 
     fn poll_next(
@@ -124,7 +124,7 @@ impl<St: Stream> Stream for ChunksLazy<St> {
     }
 }
 
-impl<St: FusedStream> FusedStream for ChunksLazy<St> {
+impl<St: FusedStream> FusedStream for ChunksEager<St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated() && self.items.is_empty()
     }
@@ -132,7 +132,7 @@ impl<St: FusedStream> FusedStream for ChunksLazy<St> {
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, Item> Sink<Item> for ChunksLazy<S>
+impl<S, Item> Sink<Item> for ChunksEager<S>
 where
     S: Stream + Sink<Item>,
 {

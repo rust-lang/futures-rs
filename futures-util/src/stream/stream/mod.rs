@@ -121,10 +121,10 @@ mod chunks;
 pub use self::chunks::Chunks;
 
 #[cfg(feature = "alloc")]
-mod chunks_lazy;
+mod chunks_eager;
 #[cfg(feature = "alloc")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::chunks_lazy::ChunksLazy;
+pub use self::chunks_eager::ChunksEager;
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
@@ -1089,11 +1089,11 @@ pub trait StreamExt: Stream {
     ///
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
-    fn chunks_lazy(self, capacity: usize) -> ChunksLazy<Self>
+    fn chunks_eager(self, capacity: usize) -> ChunksEager<Self>
     where
         Self: Sized,
     {
-        ChunksLazy::new(self, capacity)
+        ChunksEager::new(self, capacity)
     }
 
     /// A future that completes after the given stream has been fully processed
