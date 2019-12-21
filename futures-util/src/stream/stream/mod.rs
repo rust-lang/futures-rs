@@ -1079,7 +1079,7 @@ pub trait StreamExt: Stream {
     /// `capacity` elements. If the underlying stream ended and only a partial
     /// vector was created, it'll be returned. Also, if the underlying stream
     /// returns `Poll::Pending`, the currently buffered items will be yielded,
-    /// even if the buffer is empty. Futhermore, if an error happens from the 
+    /// but only if the buffer has itemd. Futhermore, if an error happens from the 
     /// underlying stream then the currently buffered items will be yielded.
     ///
     /// This method is only available when the `std` or `alloc` feature of this

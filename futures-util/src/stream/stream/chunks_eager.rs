@@ -81,9 +81,14 @@ impl<St: Stream> Stream for ChunksEager<St> {
         loop {
             match self.as_mut().stream().poll_next(cx) {
                 // The underlying stream is pending, return what 
-                // we have already buffered, even if it is empty.
+                // we have already buffered, but only if the
+                // buffer has items.
                 Poll::Pending => {
-                    return Poll::Ready(Some(self.as_mut().take()))
+                    if !self.items.is_empty() {
+                        return Poll::Ready(Some(self.as_mut().take()));
+                    } else {
+                        return Poll::Pending;
+                    }
                 }
 
                 // Push the item into the buffer and check whether it is full.
