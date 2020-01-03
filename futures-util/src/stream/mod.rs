@@ -14,8 +14,8 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 mod stream;
 pub use self::stream::{
     Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold, ForEach, Fuse, Inspect,
-    Map, Next, Peekable, SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeWhile,
-    Then, Zip,
+    Map, Next, Peek, Peekable, SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take,
+    TakeWhile, Then, Zip,
 };
 
 #[cfg(feature = "std")]
