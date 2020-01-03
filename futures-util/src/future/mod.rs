@@ -102,7 +102,7 @@ cfg_target_has_atomic! {
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
-fn assert_future<T, F>(future: F) -> F
+pub(crate) fn assert_future<T, F>(future: F) -> F
 where
     F: Future<Output = T>,
 {

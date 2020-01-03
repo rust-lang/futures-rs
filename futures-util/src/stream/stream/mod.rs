@@ -3,7 +3,7 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use crate::future::Either;
+use crate::future::{assert_future, Either};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::pin::Pin;
@@ -153,6 +153,7 @@ mod catch_unwind;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::catch_unwind::CatchUnwind;
+use crate::stream::assert_stream;
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 
@@ -186,7 +187,7 @@ pub trait StreamExt: Stream {
     where
         Self: Unpin,
     {
-        Next::new(self)
+        assert_future::<Option<Self::Item>, _>(Next::new(self))
     }
 
     /// Converts this stream into a future of `(next_item, tail_of_stream)`.
@@ -221,7 +222,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized + Unpin,
     {
-        StreamFuture::new(self)
+        assert_future::<(Option<Self::Item>, Self), _>(StreamFuture::new(self))
     }
 
     /// Maps this stream's items to a different type, returning a new stream of
@@ -252,7 +253,7 @@ pub trait StreamExt: Stream {
         F: FnMut(Self::Item) -> T,
         Self: Sized,
     {
-        Map::new(self, f)
+        assert_stream::<T, _>(Map::new(self, f))
     }
 
     /// Creates a stream which gives the current iteration count as well as
@@ -297,7 +298,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Enumerate::new(self)
+        assert_stream::<(usize, Self::Item), _>(Enumerate::new(self))
     }
 
     /// Filters the values produced by this stream according to the provided
@@ -332,7 +333,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = bool>,
         Self: Sized,
     {
-        Filter::new(self, f)
+        assert_stream::<Self::Item, _>(Filter::new(self, f))
     }
 
     /// Filters the values produced by this stream while simultaneously mapping
@@ -366,7 +367,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = Option<T>>,
         Self: Sized,
     {
-        FilterMap::new(self, f)
+        assert_stream::<T, _>(FilterMap::new(self, f))
     }
 
     /// Computes from this stream's items new items of a different type using
@@ -397,7 +398,7 @@ pub trait StreamExt: Stream {
         Fut: Future,
         Self: Sized,
     {
-        Then::new(self, f)
+        assert_stream::<Fut::Output, _>(Then::new(self, f))
     }
 
     /// Transforms a stream into a collection, returning a
@@ -429,7 +430,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Collect::new(self)
+        assert_future::<C, _>(Collect::new(self))
     }
 
     /// Concatenate all items of a stream into a single extendable
@@ -469,7 +470,7 @@ pub trait StreamExt: Stream {
         Self: Sized,
         Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
     {
-        Concat::new(self)
+        assert_future::<Self::Item, _>(Concat::new(self))
     }
 
     /// Execute an accumulating asynchronous computation over a stream,
@@ -498,7 +499,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = T>,
         Self: Sized,
     {
-        Fold::new(self, f, init)
+        assert_future::<T, _>(Fold::new(self, f, init))
     }
 
     /// Flattens a stream of streams into just one continuous stream.
@@ -537,7 +538,7 @@ pub trait StreamExt: Stream {
         Self::Item: Stream,
         Self: Sized,
     {
-        Flatten::new(self)
+        assert_stream::<<Self::Item as Stream>::Item, _>(Flatten::new(self))
     }
 
     /// Skip elements on this stream while the provided asynchronous predicate
@@ -568,7 +569,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = bool>,
         Self: Sized,
     {
-        SkipWhile::new(self, f)
+        assert_stream::<Self::Item, _>(SkipWhile::new(self, f))
     }
 
     /// Take elements from this stream while the provided asynchronous predicate
@@ -598,7 +599,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = bool>,
         Self: Sized,
     {
-        TakeWhile::new(self, f)
+        assert_stream::<Self::Item, _>(TakeWhile::new(self, f))
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
@@ -640,7 +641,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = ()>,
         Self: Sized,
     {
-        ForEach::new(self, f)
+        assert_future::<(), _>(ForEach::new(self, f))
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
@@ -700,7 +701,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = ()>,
         Self: Sized,
     {
-        ForEachConcurrent::new(self, limit.into(), f)
+        assert_future::<(), _>(ForEachConcurrent::new(self, limit.into(), f))
     }
 
     /// Creates a new stream of at most `n` items of the underlying stream.
@@ -723,7 +724,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Take::new(self, n)
+        assert_stream::<Self::Item, _>(Take::new(self, n))
     }
 
     /// Creates a new stream which skips `n` items of the underlying stream.
@@ -746,7 +747,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Skip::new(self, n)
+        assert_stream::<Self::Item, _>(Skip::new(self, n))
     }
 
     /// Fuse a stream such that [`poll_next`](Stream::poll_next) will never
@@ -792,7 +793,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Fuse::new(self)
+        assert_stream::<Self::Item, _>(Fuse::new(self))
     }
 
     /// Borrows a stream, rather than consuming it.
@@ -870,7 +871,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized + std::panic::UnwindSafe,
     {
-        CatchUnwind::new(self)
+        assert_stream(CatchUnwind::new(self))
     }
 
     /// Wrap the stream in a Box, pinning it.
@@ -882,7 +883,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized + Send + 'a,
     {
-        Box::pin(self)
+        assert_stream::<Self::Item, _>(Box::pin(self))
     }
 
     /// Wrap the stream in a Box, pinning it.
@@ -896,7 +897,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized + 'a,
     {
-        Box::pin(self)
+        assert_stream::<Self::Item, _>(Box::pin(self))
     }
 
     /// An adaptor for creating a buffered list of pending futures.
@@ -918,7 +919,7 @@ pub trait StreamExt: Stream {
         Self::Item: Future,
         Self: Sized,
     {
-        Buffered::new(self, n)
+        assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n))
     }
 
     /// An adaptor for creating a buffered list of pending futures (unordered).
@@ -963,7 +964,7 @@ pub trait StreamExt: Stream {
         Self::Item: Future,
         Self: Sized,
     {
-        BufferUnordered::new(self, n)
+        assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n))
     }
 
     /// An adapter for zipping two streams together.
@@ -993,7 +994,7 @@ pub trait StreamExt: Stream {
         St: Stream,
         Self: Sized,
     {
-        Zip::new(self, other)
+        assert_stream::<(Self::Item, St::Item), _>(Zip::new(self, other))
     }
 
     /// Adapter for chaining two streams.
@@ -1024,7 +1025,7 @@ pub trait StreamExt: Stream {
         St: Stream<Item = Self::Item>,
         Self: Sized,
     {
-        Chain::new(self, other)
+        assert_stream::<Self::Item, _>(Chain::new(self, other))
     }
 
     /// Creates a new stream which exposes a `peek` method.
@@ -1034,7 +1035,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Peekable::new(self)
+        assert_stream::<Self::Item, _>(Peekable::new(self))
     }
 
     /// An adaptor for chunking up items of the stream inside a vector.
@@ -1060,7 +1061,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        Chunks::new(self, capacity)
+        assert_stream::<alloc::vec::Vec<Self::Item>, _>(Chunks::new(self, capacity))
     }
 
     /// A future that completes after the given stream has been fully processed
@@ -1098,7 +1099,8 @@ pub trait StreamExt: Stream {
     where
         Self: Sink<Item> + Sized,
     {
-        split::split(self)
+        let (sink, stream) = split::split(self);
+        (sink, assert_stream::<Self::Item, _>(stream))
     }
 
     /// Do something with each item of this stream, afterwards passing it on.
@@ -1111,7 +1113,7 @@ pub trait StreamExt: Stream {
         F: FnMut(&Self::Item),
         Self: Sized,
     {
-        Inspect::new(self, f)
+        assert_stream::<Self::Item, _>(Inspect::new(self, f))
     }
 
     /// Wrap this stream in an `Either` stream, making it the left-hand variant
@@ -1124,7 +1126,7 @@ pub trait StreamExt: Stream {
         B: Stream<Item = Self::Item>,
         Self: Sized,
     {
-        Either::Left(self)
+        assert_stream::<Self::Item, _>(Either::Left(self))
     }
 
     /// Wrap this stream in an `Either` stream, making it the right-hand variant
@@ -1137,7 +1139,7 @@ pub trait StreamExt: Stream {
         B: Stream<Item = Self::Item>,
         Self: Sized,
     {
-        Either::Right(self)
+        assert_stream::<Self::Item, _>(Either::Right(self))
     }
 
     /// A convenience method for calling [`Stream::poll_next`] on [`Unpin`]

@@ -69,6 +69,8 @@ pub(crate) use self::flatten_stream_sink::FlattenStreamSink;
 
 mod try_chain;
 pub(crate) use self::try_chain::{TryChain, TryChainAction};
+use crate::future::assert_future;
+use crate::stream::assert_stream;
 
 impl<Fut: ?Sized + TryFuture> TryFutureExt for Fut {}
 
@@ -157,7 +159,7 @@ pub trait TryFutureExt: TryFuture {
         F: FnOnce(Self::Ok) -> T,
         Self: Sized,
     {
-        MapOk::new(self, f)
+        assert_future::<Result<T, Self::Error>, _>(MapOk::new(self, f))
     }
 
     /// Maps this future's error value to a different value.
@@ -204,7 +206,7 @@ pub trait TryFutureExt: TryFuture {
         F: FnOnce(Self::Error) -> E,
         Self: Sized,
     {
-        MapErr::new(self, f)
+        assert_future::<Result<Self::Ok, E>, _>(MapErr::new(self, f))
     }
 
     /// Maps this future's [`Error`](TryFuture::Error) to a new error type
@@ -234,7 +236,7 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized,
         Self::Error: Into<E>,
     {
-        ErrInto::new(self)
+        assert_future::<Result<Self::Ok, E>, _>(ErrInto::new(self))
     }
 
     /// Executes another future after this one resolves successfully. The
@@ -279,7 +281,7 @@ pub trait TryFutureExt: TryFuture {
         Fut: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
-        AndThen::new(self, f)
+        assert_future::<Result<Fut::Ok, Fut::Error>, _>(AndThen::new(self, f))
     }
 
     /// Executes another future if this one resolves to an error. The
@@ -324,7 +326,7 @@ pub trait TryFutureExt: TryFuture {
         Fut: TryFuture<Ok = Self::Ok>,
         Self: Sized,
     {
-        OrElse::new(self, f)
+        assert_future::<Result<Self::Ok, Fut::Error>, _>(OrElse::new(self, f))
     }
 
     /// Do something with the success value of a future before passing it on.
@@ -350,7 +352,7 @@ pub trait TryFutureExt: TryFuture {
         F: FnOnce(&Self::Ok),
         Self: Sized,
     {
-        InspectOk::new(self, f)
+        assert_future::<Result<Self::Ok, Self::Error>, _>(InspectOk::new(self, f))
     }
 
     /// Do something with the error value of a future before passing it on.
@@ -376,7 +378,7 @@ pub trait TryFutureExt: TryFuture {
         F: FnOnce(&Self::Error),
         Self: Sized,
     {
-        InspectErr::new(self, f)
+        assert_future::<Result<Self::Ok, Self::Error>, _>(InspectErr::new(self, f))
     }
 
     /// Flatten the execution of this future when the successful result of this
@@ -409,7 +411,9 @@ pub trait TryFutureExt: TryFuture {
         Self::Ok: TryStream<Error = Self::Error>,
         Self: Sized,
     {
-        TryFlattenStream::new(self)
+        assert_stream::<Result<<Self::Ok as TryStream>::Ok, Self::Error>, _>(TryFlattenStream::new(
+            self,
+        ))
     }
 
     /// Unwraps this future's ouput, producing a future with this future's
@@ -439,7 +443,7 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized,
         F: FnOnce(Self::Error) -> Self::Ok,
     {
-        UnwrapOrElse::new(self, f)
+        assert_future::<Self::Ok, _>(UnwrapOrElse::new(self, f))
     }
 
     /// Wraps a [`TryFuture`] into a future compatable with libraries using
@@ -477,7 +481,7 @@ pub trait TryFutureExt: TryFuture {
     where
         Self: Sized,
     {
-        IntoFuture::new(self)
+        assert_future::<Result<Self::Ok, Self::Error>, _>(IntoFuture::new(self))
     }
 
     /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]
