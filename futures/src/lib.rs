@@ -444,7 +444,7 @@ pub mod stream {
         StreamExt,
         Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
         Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
-        SelectNextSome, Peekable, Skip, SkipWhile, Take, TakeWhile,
+        SelectNextSome, Peek, Peekable, Skip, SkipWhile, Take, TakeWhile,
         Then, Zip,
 
         TryStreamExt,
