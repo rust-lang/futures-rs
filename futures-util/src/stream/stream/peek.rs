@@ -1,5 +1,6 @@
 use crate::future::Either;
 use crate::stream::{Fuse, StreamExt};
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
@@ -7,7 +8,6 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::fmt;
 
 /// A `Stream` that implements a `peek` method.
 ///
