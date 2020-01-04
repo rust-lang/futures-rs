@@ -126,7 +126,7 @@ fn test_buffered_reader_seek_underflow() {
     assert_eq!(block_on(reader.seek(SeekFrom::End(-5))).ok(), Some(u64::max_value()-5));
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // the following seek will require two underlying seeks
-    let expected = 9223372036854775802;
+    let expected = 9_223_372_036_854_775_802;
     assert_eq!(block_on(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), Some(expected));
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // seeking to 0 should empty the buffer.

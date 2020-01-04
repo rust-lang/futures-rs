@@ -28,7 +28,7 @@ fn cancel_notifies() {
     let (tx, rx) = oneshot::channel::<u32>();
 
     let t = thread::spawn(|| {
-        block_on(WaitForCancel { tx: tx });
+        block_on(WaitForCancel { tx });
     });
     drop(rx);
     t.join().unwrap();
@@ -99,7 +99,7 @@ fn close_wakes() {
         rx.close();
         rx2.recv().unwrap();
     });
-    block_on(WaitForCancel { tx: tx });
+    block_on(WaitForCancel { tx });
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
@@ -126,7 +126,7 @@ fn cancel_sends() {
         tx.send(otx).unwrap();
 
         orx.close();
-        drop(block_on(orx));
+        let _ = block_on(orx);
     }
 
     drop(tx);

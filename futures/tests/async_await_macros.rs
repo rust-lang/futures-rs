@@ -284,11 +284,11 @@ async fn async_noop() {}
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
     block_on(async {
-        let mut foo = 234;
+        let mut value = 234;
         select! {
-            x = require_mutable(&mut foo).fuse() => { },
+            x = require_mutable(&mut value).fuse() => { },
             y = async_noop().fuse() => {
-                foo += 5;
+                value += 5;
             },
         }
     });
@@ -297,14 +297,14 @@ fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
     block_on(async {
-        let mut foo = 234;
+        let mut value = 234;
         select! {
-            x = require_mutable(&mut foo).fuse() => { },
+            x = require_mutable(&mut value).fuse() => { },
             y = async_noop().fuse() => {
-                foo += 5;
+                value += 5;
             },
             default => {
-                foo += 27;
+                value += 27;
             },
         }
     });

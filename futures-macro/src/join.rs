@@ -152,6 +152,7 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
     TokenStream::from(quote! { {
         #( #future_let_bindings )*
 
+        #[allow(clippy::diverging_sub_expression)]
         #futures_crate::future::poll_fn(move |__cx: &mut #futures_crate::task::Context<'_>| {
             let mut __all_done = true;
             #( #poll_futures )*

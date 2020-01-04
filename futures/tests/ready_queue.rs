@@ -128,8 +128,8 @@ fn stress() {
 
             rx.sort();
 
-            for num in 0..n {
-                assert_eq!(rx[num], num);
+            for (i, x) in rx.into_iter().enumerate() {
+                assert_eq!(i, x);
             }
 
             queue = sync.into_inner();

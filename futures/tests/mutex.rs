@@ -61,7 +61,7 @@ fn mutex_contested() {
 
     block_on(async {
         for _ in 0..num_tasks {
-            let () = rx.next().await.unwrap();
+            rx.next().await.unwrap();
         }
         let lock = mutex.lock().await;
         assert_eq!(num_tasks, *lock);

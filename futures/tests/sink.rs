@@ -306,7 +306,7 @@ impl<T: Unpin> ManualFlush<T> {
 // but doesn't claim to be flushed until the underlying sink is
 #[test]
 fn with_flush_propagate() {
-    let mut sink = ManualFlush::new().with(|x| future::ok::<Option<i32>, ()>(x));
+    let mut sink = ManualFlush::new().with(future::ok::<Option<i32>, ()>);
     flag_cx(|flag, cx| {
         unwrap(Pin::new(&mut sink).poll_ready(cx));
         Pin::new(&mut sink).start_send(Some(0)).unwrap();
