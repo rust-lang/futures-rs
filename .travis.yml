@@ -22,13 +22,13 @@ matrix:
           fi
       script:
         # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-        - cargo hack --remove-dev-deps --all
+        - cargo hack --remove-dev-deps --workspace
         # Check no-default-features
-        - cargo hack check --all --exclude futures-test --ignore-private --no-default-features
+        - cargo hack check --workspace --exclude futures-test --ignore-private --no-default-features
         # Check alloc feature
-        - cargo hack check --all --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
+        - cargo hack check --workspace --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
         # Check std feature
-        - cargo hack check --all --ignore-private --no-default-features --features std --ignore-unknown-features
+        - cargo hack check --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
         # Check compat feature (futures, futures-util)
         - cargo hack check -p futures -p futures-util --no-default-features --features std,io-compat
         # Check thread-pool feature (futures, futures-executor)
@@ -41,19 +41,19 @@ matrix:
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # async-await feature is activated by default.
-        - cargo build --all
+        - cargo build --workspace
 
     - name: cargo +stable build
       rust: stable
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --all
+        - cargo build --workspace
 
     - name: cargo +beta build
       rust: beta
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --all
+        - cargo build --workspace
 
     - name: cargo test
       rust: nightly
@@ -68,7 +68,7 @@ matrix:
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo update -Zminimal-versions
-        - cargo build --all --all-features
+        - cargo build --workspace --all-features
 
     - name: cargo clippy
       rust: nightly
@@ -81,12 +81,12 @@ matrix:
             rustup component add clippy;
           fi
       script:
-        - cargo clippy --all --all-features --all-targets
+        - cargo clippy --workspace --all-features --all-targets
 
     - name: cargo bench
       rust: nightly
       script:
-        - cargo bench --all
+        - cargo bench --workspace
         - cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
 
     - name: cargo build --target=thumbv6m-none-eabi
@@ -139,17 +139,17 @@ matrix:
         # * `--ignore-unknown-features` - some crates doesn't have 'unstable' feature
         - cargo hack check
             --each-feature --no-dev-deps
-            --all --exclude futures-test
+            --workspace --exclude futures-test
             --features unstable --ignore-unknown-features
 
     - name: cargo doc
       rust: nightly
       script:
-        - RUSTDOCFLAGS=-Dwarnings cargo doc --all --no-deps --all-features
+        - RUSTDOCFLAGS=-Dwarnings cargo doc --workspace --no-deps --all-features
 
 script:
-  - cargo test --all --all-features
-  - cargo test --all --all-features --release
+  - cargo test --workspace --all-features
+  - cargo test --workspace --all-features --release
 
 env:
   - RUSTFLAGS=-Dwarnings
