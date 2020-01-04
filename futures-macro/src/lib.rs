@@ -10,6 +10,9 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-join-macro/0.3.0")]
 
+// Since https://github.com/rust-lang/cargo/pull/7700 `proc_macro` is part of the prelude for
+// proc-macro crates, but to support older compilers we still need this explicit `extern crate`.
+#[allow(unused_extern_crates)]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
