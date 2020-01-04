@@ -13,7 +13,7 @@ fn smoke() {
     });
 
     // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
-    drop(block_on(receiver.take(3).for_each(|_| futures::future::ready(()))));
+    block_on(receiver.take(3).for_each(|_| futures::future::ready(())));
 
     t.join().unwrap()
 }

@@ -116,8 +116,6 @@ fn recv_close_gets_none() {
             Poll::Ready(Err(e)) => assert!(e.is_disconnected()),
         };
 
-        drop(&tx);
-
         Poll::Ready(())
     }));
 }
@@ -357,7 +355,7 @@ fn stress_close_receiver_iter() {
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
     let th = thread::spawn(move || {
         for i in 1.. {
-            if let Err(_) = tx.unbounded_send(i) {
+            if tx.unbounded_send(i).is_err() {
                 unwritten_tx.send(i).expect("unwritten_tx");
                 return;
             }
@@ -469,7 +467,7 @@ fn try_send_2() {
         block_on(tx.send("goodbye")).unwrap();
     });
 
-    drop(block_on(readyrx));
+    let _ = block_on(readyrx);
     assert_eq!(rx.next(), Some("hello"));
     assert_eq!(rx.next(), Some("goodbye"));
     assert_eq!(rx.next(), None);
