@@ -163,9 +163,7 @@ enum SendErrorKind {
 }
 
 /// The error type returned from [`try_next`](Receiver::try_next).
-pub struct TryRecvError {
-    _priv: (),
-}
+pub struct TryRecvError(());
 
 impl fmt::Display for SendError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -856,7 +854,7 @@ impl<T> Receiver<T> {
             Poll::Ready(msg) => {
                 Ok(msg)
             },
-            Poll::Pending => Err(TryRecvError { _priv: () }),
+            Poll::Pending => Err(TryRecvError(())),
         }
     }
 

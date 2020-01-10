@@ -8,9 +8,7 @@ use std::pin::Pin;
 
 /// Reader for the [`empty()`] function.
 #[must_use = "readers do nothing unless polled"]
-pub struct Empty {
-    _priv: (),
-}
+pub struct Empty(());
 
 /// Constructs a new handle to an empty reader.
 ///
@@ -31,7 +29,7 @@ pub struct Empty {
 /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
 /// ```
 pub fn empty() -> Empty {
-    Empty { _priv: () }
+    Empty(())
 }
 
 impl AsyncRead for Empty {

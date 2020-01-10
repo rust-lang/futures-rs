@@ -6,15 +6,11 @@ thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 /// Represents an executor context.
 ///
 /// For more details, see [`enter` documentation](enter()).
-pub struct Enter {
-    _priv: (),
-}
+pub struct Enter(());
 
 /// An error returned by `enter` if an execution scope has already been
 /// entered.
-pub struct EnterError {
-    _priv: (),
-}
+pub struct EnterError(());
 
 impl fmt::Debug for EnterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -55,11 +51,11 @@ impl std::error::Error for EnterError {}
 pub fn enter() -> Result<Enter, EnterError> {
     ENTERED.with(|c| {
         if c.get() {
-            Err(EnterError { _priv: () })
+            Err(EnterError(()))
         } else {
             c.set(true);
 
-            Ok(Enter { _priv: () })
+            Ok(Enter(()))
         }
     })
 }

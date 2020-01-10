@@ -6,9 +6,7 @@ use std::pin::Pin;
 
 /// Writer for the [`sink()`] function.
 #[must_use = "writers do nothing unless polled"]
-pub struct Sink {
-    _priv: (),
-}
+pub struct Sink(());
 
 /// Creates an instance of a writer which will successfully consume all data.
 ///
@@ -28,7 +26,7 @@ pub struct Sink {
 /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
 /// ```
 pub fn sink() -> Sink {
-    Sink { _priv: () }
+    Sink(())
 }
 
 impl AsyncWrite for Sink {
