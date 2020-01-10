@@ -25,7 +25,7 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
     }
 
     fn finish(self: Pin<&mut Self>) -> C {
-        mem::take(self.items())
+        mem::replace(self.items(), Default::default())
     }
 }
 

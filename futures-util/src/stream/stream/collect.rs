@@ -20,7 +20,7 @@ impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_unpinned!(collection: C);
 
     fn finish(mut self: Pin<&mut Self>) -> C {
-        mem::take(self.as_mut().collection())
+        mem::replace(self.as_mut().collection(), Default::default())
     }
 
     pub(super) fn new(stream: St) -> Collect<St, C> {
