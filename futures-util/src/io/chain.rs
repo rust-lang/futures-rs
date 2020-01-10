@@ -80,6 +80,7 @@ where
         f.debug_struct("Chain")
             .field("t", &self.first)
             .field("u", &self.second)
+            .field("done_first", &self.done_first)
             .finish()
     }
 }
