@@ -94,9 +94,15 @@ mod queue;
 mod sink_impl;
 
 #[derive(Debug)]
-struct SenderInner<T> {
+struct UnboundedSenderInner<T> {
     // Channel state shared between the sender and receiver.
-    inner: Arc<Inner<T>>,
+    inner: Arc<UnboundedInner<T>>,
+}
+
+#[derive(Debug)]
+struct BoundedSenderInner<T> {
+    // Channel state shared between the sender and receiver.
+    inner: Arc<BoundedInner<T>>,
 
     // Handle to the task that is blocked on this sender. This handle is sent
     // to the receiver half in order to be notified when the sender becomes
@@ -109,19 +115,20 @@ struct SenderInner<T> {
 }
 
 // We never project Pin<&mut SenderInner> to `Pin<&mut T>`
-impl<T> Unpin for SenderInner<T> {}
+impl<T> Unpin for UnboundedSenderInner<T> {}
+impl<T> Unpin for BoundedSenderInner<T> {}
 
 /// The transmission end of a bounded mpsc channel.
 ///
 /// This value is created by the [`channel`](channel) function.
 #[derive(Debug)]
-pub struct Sender<T>(Option<SenderInner<T>>);
+pub struct Sender<T>(Option<BoundedSenderInner<T>>);
 
 /// The transmission end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
-pub struct UnboundedSender<T>(Option<SenderInner<T>>);
+pub struct UnboundedSender<T>(Option<UnboundedSenderInner<T>>);
 
 trait AssertKinds: Send + Sync + Clone {}
 impl AssertKinds for UnboundedSender<u32> {}
@@ -131,14 +138,16 @@ impl AssertKinds for UnboundedSender<u32> {}
 /// This value is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Receiver<T> {
-    inner: Option<Arc<Inner<T>>>,
+    inner: Option<Arc<BoundedInner<T>>>,
 }
 
 /// The receiving end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
-pub struct UnboundedReceiver<T>(Receiver<T>);
+pub struct UnboundedReceiver<T> {
+    inner: Option<Arc<UnboundedInner<T>>>,
+}
 
 // `Pin<&mut UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
 impl<T> Unpin for UnboundedReceiver<T> {}
@@ -255,9 +264,25 @@ impl fmt::Display for TryRecvError {
 impl std::error::Error for TryRecvError {}
 
 #[derive(Debug)]
-struct Inner<T> {
+struct UnboundedInner<T> {
+    // Internal channel state. Consists of the number of messages stored in the
+    // channel as well as a flag signalling that the channel is closed.
+    state: AtomicUsize,
+
+    // Atomic, FIFO queue used to send messages to the receiver
+    message_queue: Queue<T>,
+
+    // Number of senders in existence
+    num_senders: AtomicUsize,
+
+    // Handle to the receiver's task.
+    recv_task: AtomicWaker,
+}
+
+#[derive(Debug)]
+struct BoundedInner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
-    buffer: Option<usize>,
+    buffer: usize,
 
     // Internal channel state. Consists of the number of messages stored in the
     // channel as well as a flag signalling that the channel is closed.
@@ -339,7 +364,26 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
     assert!(buffer < MAX_BUFFER, "requested buffer size too large");
-    let (tx, rx) = channel2(Some(buffer));
+
+    let inner = Arc::new(BoundedInner {
+        buffer,
+        state: AtomicUsize::new(INIT_STATE),
+        message_queue: Queue::new(),
+        parked_queue: Queue::new(),
+        num_senders: AtomicUsize::new(1),
+        recv_task: AtomicWaker::new(),
+    });
+
+    let tx = BoundedSenderInner {
+        inner: inner.clone(),
+        sender_task: Arc::new(Mutex::new(SenderTask::new())),
+        maybe_parked: false,
+    };
+
+    let rx = Receiver {
+        inner: Some(inner),
+    };
+
     (Sender(Some(tx)), rx)
 }
 
@@ -354,31 +398,23 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
 /// the channel. Using an `unbounded` channel has the ability of causing the
 /// process to run out of memory. In this case, the process will be aborted.
 pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
-    let (tx, rx) = channel2(None);
-    (UnboundedSender(Some(tx)), UnboundedReceiver(rx))
-}
 
-fn channel2<T>(buffer: Option<usize>) -> (SenderInner<T>, Receiver<T>) {
-    let inner = Arc::new(Inner {
-        buffer,
+    let inner = Arc::new(UnboundedInner {
         state: AtomicUsize::new(INIT_STATE),
         message_queue: Queue::new(),
-        parked_queue: Queue::new(),
         num_senders: AtomicUsize::new(1),
         recv_task: AtomicWaker::new(),
     });
 
-    let tx = SenderInner {
+    let tx = UnboundedSenderInner {
         inner: inner.clone(),
-        sender_task: Arc::new(Mutex::new(SenderTask::new())),
-        maybe_parked: false,
     };
 
-    let rx = Receiver {
+    let rx = UnboundedReceiver {
         inner: Some(inner),
     };
 
-    (tx, rx)
+    (UnboundedSender(Some(tx)), rx)
 }
 
 /*
@@ -387,7 +423,88 @@ fn channel2<T>(buffer: Option<usize>) -> (SenderInner<T>, Receiver<T>) {
  *
  */
 
-impl<T> SenderInner<T> {
+impl<T> UnboundedSenderInner<T> {
+    fn poll_ready_nb(&self) -> Poll<Result<(), SendError>> {
+        let state = decode_state(self.inner.state.load(SeqCst));
+        if state.is_open {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Ready(Err(SendError {
+                kind: SendErrorKind::Disconnected,
+            }))
+        }
+    }
+
+
+    // Push message to the queue and signal to the receiver
+    fn queue_push_and_signal(&self, msg: T) {
+        // Push the message onto the message queue
+        self.inner.message_queue.push(msg);
+
+        // Signal to the receiver that a message has been enqueued. If the
+        // receiver is parked, this will unpark the task.
+        self.inner.recv_task.wake();
+    }
+
+    // Increment the number of queued messages. Returns the resulting number.
+    fn inc_num_messages(&self) -> Option<usize> {
+        let mut curr = self.inner.state.load(SeqCst);
+
+        loop {
+            let mut state = decode_state(curr);
+
+            // The receiver end closed the channel.
+            if !state.is_open {
+                return None;
+            }
+
+            // This probably is never hit? Odds are the process will run out of
+            // memory first. It may be worth to return something else in this
+            // case?
+            assert!(state.num_messages < MAX_CAPACITY, "buffer space \
+                    exhausted; sending this messages would overflow the state");
+
+            state.num_messages += 1;
+
+            let next = encode_state(&state);
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    return Some(state.num_messages)
+                }
+                Err(actual) => curr = actual,
+            }
+        }
+    }
+
+    /// Returns whether the senders send to the same receiver.
+    fn same_receiver(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+
+    /// Returns pointer to the Arc containing sender
+    ///
+    /// The returned pointer is not referenced and should be only used for hashing!
+    fn ptr(&self) -> *const UnboundedInner<T> {
+        &*self.inner
+    }
+
+    /// Returns whether this channel is closed without needing a context.
+    fn is_closed(&self) -> bool {
+        !decode_state(self.inner.state.load(SeqCst)).is_open
+    }
+
+    /// Closes this channel from the sender side, preventing any new messages.
+    fn close_channel(&self) {
+        // There's no need to park this sender, its dropping,
+        // and we don't want to check for capacity, so skip
+        // that stuff from `do_send`.
+
+        self.inner.set_closed();
+        self.inner.recv_task.wake();
+    }
+}
+
+impl<T> BoundedSenderInner<T> {
     /// Attempts to send a message on this `Sender`, returning the message
     /// if there was an error.
     fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
@@ -426,7 +543,7 @@ impl<T> SenderInner<T> {
             Some(num_messages) => {
                 // Block if the current number of pending messages has exceeded
                 // the configured buffer size
-                num_messages > self.inner.buffer.unwrap()
+                num_messages > self.inner.buffer
             }
             None => return Err(TrySendError {
                 err: SendError {
@@ -451,18 +568,6 @@ impl<T> SenderInner<T> {
 
         Ok(())
     }
-
-    fn poll_ready_nb(&self) -> Poll<Result<(), SendError>> {
-        let state = decode_state(self.inner.state.load(SeqCst));
-        if state.is_open {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Ready(Err(SendError {
-                kind: SendErrorKind::Disconnected,
-            }))
-        }
-    }
-
 
     // Push message to the queue and signal to the receiver
     fn queue_push_and_signal(&self, msg: T) {
@@ -555,7 +660,7 @@ impl<T> SenderInner<T> {
     /// Returns pointer to the Arc containing sender
     ///
     /// The returned pointer is not referenced and should be only used for hashing!
-    fn ptr(&self) -> *const Inner<T> {
+    fn ptr(&self) -> *const BoundedInner<T> {
         &*self.inner
     }
 
@@ -651,7 +756,7 @@ impl<T> Sender<T> {
 
     /// Returns whether this channel is closed without needing a context.
     pub fn is_closed(&self) -> bool {
-        self.0.as_ref().map(SenderInner::is_closed).unwrap_or(true)
+        self.0.as_ref().map(BoundedSenderInner::is_closed).unwrap_or(true)
     }
 
     /// Closes this channel from the sender side, preventing any new messages.
@@ -697,7 +802,7 @@ impl<T> UnboundedSender<T> {
 
     /// Returns whether this channel is closed without needing a context.
     pub fn is_closed(&self) -> bool {
-        self.0.as_ref().map(SenderInner::is_closed).unwrap_or(true)
+        self.0.as_ref().map(UnboundedSenderInner::is_closed).unwrap_or(true)
     }
 
     /// Closes this channel from the sender side, preventing any new messages.
@@ -776,8 +881,39 @@ impl<T> Clone for UnboundedSender<T> {
     }
 }
 
-impl<T> Clone for SenderInner<T> {
-    fn clone(&self) -> SenderInner<T> {
+impl<T> Clone for UnboundedSenderInner<T> {
+    fn clone(&self) -> UnboundedSenderInner<T> {
+        // Since this atomic op isn't actually guarding any memory and we don't
+        // care about any orderings besides the ordering on the single atomic
+        // variable, a relaxed ordering is acceptable.
+        let mut curr = self.inner.num_senders.load(SeqCst);
+
+        loop {
+            // If the maximum number of senders has been reached, then fail
+            if curr == MAX_BUFFER {
+                panic!("cannot clone `Sender` -- too many outstanding senders");
+            }
+
+            debug_assert!(curr < MAX_BUFFER);
+
+            let next = curr + 1;
+            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
+
+            // The ABA problem doesn't matter here. We only care that the
+            // number of senders never exceeds the maximum.
+            if actual == curr {
+                return UnboundedSenderInner {
+                    inner: self.inner.clone(),
+                };
+            }
+
+            curr = actual;
+        }
+    }
+}
+
+impl<T> Clone for BoundedSenderInner<T> {
+    fn clone(&self) -> BoundedSenderInner<T> {
         // Since this atomic op isn't actually guarding any memory and we don't
         // care about any orderings besides the ordering on the single atomic
         // variable, a relaxed ordering is acceptable.
@@ -797,7 +933,7 @@ impl<T> Clone for SenderInner<T> {
             // The ABA problem doesn't matter here. We only care that the
             // number of senders never exceeds the maximum.
             if actual == curr {
-                return SenderInner {
+                return BoundedSenderInner {
                     inner: self.inner.clone(),
                     sender_task: Arc::new(Mutex::new(SenderTask::new())),
                     maybe_parked: false,
@@ -809,7 +945,18 @@ impl<T> Clone for SenderInner<T> {
     }
 }
 
-impl<T> Drop for SenderInner<T> {
+impl<T> Drop for UnboundedSenderInner<T> {
+    fn drop(&mut self) {
+        // Ordering between variables don't matter here
+        let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
+
+        if prev == 1 {
+            self.close_channel();
+        }
+    }
+}
+
+impl<T> Drop for BoundedSenderInner<T> {
     fn drop(&mut self) {
         // Ordering between variables don't matter here
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
@@ -963,12 +1110,14 @@ impl<T> Drop for Receiver<T> {
 }
 
 impl<T> UnboundedReceiver<T> {
-    /// Closes the receiving half of the channel, without dropping it.
+    /// Closes the receiving half of a channel, without dropping it.
     ///
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        self.0.close();
+        if let Some(inner) = &mut self.inner {
+            inner.set_closed();
+        }
     }
 
     /// Tries to receive the next message without notifying a context if empty.
@@ -980,13 +1129,58 @@ impl<T> UnboundedReceiver<T> {
     /// This function will panic if called after `try_next` or `poll_next` has
     /// returned None.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
-        self.0.try_next()
+        match self.next_message() {
+            Poll::Ready(msg) => {
+                Ok(msg)
+            },
+            Poll::Pending => Err(TryRecvError { _priv: () }),
+        }
+    }
+
+    fn next_message(&mut self) -> Poll<Option<T>> {
+        let inner = self.inner.as_mut().expect("Receiver::next_message called after `None`");
+        // Pop off a message
+        match unsafe { inner.message_queue.pop_spin() } {
+            Some(msg) => {
+                // Decrement number of messages
+                self.dec_num_messages();
+
+                Poll::Ready(Some(msg))
+            }
+            None => {
+                let state = decode_state(inner.state.load(SeqCst));
+                if state.is_open || state.num_messages != 0 {
+                    // If queue is open, we need to return Pending
+                    // to be woken up when new messages arrive.
+                    // If queue is closed but num_messages is non-zero,
+                    // it means that senders updated the state,
+                    // but didn't put message to queue yet,
+                    // so we need to park until sender unparks the task
+                    // after queueing the message.
+                    Poll::Pending
+                } else {
+                    // If closed flag is set AND there are no pending messages
+                    // it means end of stream
+                    self.inner = None;
+                    Poll::Ready(None)
+                }
+            }
+        }
+    }
+
+    fn dec_num_messages(&self) {
+        if let Some(inner) = &self.inner {
+            // OPEN_MASK is highest bit, so it's unaffected by subtraction
+            // unless there's underflow, and we know there's no underflow
+            // because number of messages at this point is always > 0.
+            inner.state.fetch_sub(1, SeqCst);
+        }
     }
 }
 
 impl<T> FusedStream for UnboundedReceiver<T> {
     fn is_terminated(&self) -> bool {
-        self.0.is_terminated()
+        self.inner.is_none()
     }
 }
 
@@ -997,7 +1191,23 @@ impl<T> Stream for UnboundedReceiver<T> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(cx)
+        // Try to read a message off of the message queue.
+        match self.next_message() {
+            Poll::Ready(msg) => {
+                if msg.is_none() {
+                    self.inner = None;
+                }
+                Poll::Ready(msg)
+            },
+            Poll::Pending => {
+                // There are no messages to read, in this case, park.
+                self.inner.as_ref().unwrap().recv_task.register(cx.waker());
+                // Check queue again after parking to prevent race condition:
+                // a message could be added to the queue after previous `next_message`
+                // before `register` call.
+                self.next_message()
+            }
+        }
     }
 }
 
@@ -1007,14 +1217,23 @@ impl<T> Stream for UnboundedReceiver<T> {
  *
  */
 
-impl<T> Inner<T> {
+impl<T> UnboundedInner<T> {
+    // Clear `open` flag in the state, keep `num_messages` intact.
+    fn set_closed(&self) {
+        let curr = self.state.load(SeqCst);
+        if !decode_state(curr).is_open {
+            return;
+        }
+
+        self.state.fetch_and(!OPEN_MASK, SeqCst);
+    }
+}
+
+impl<T> BoundedInner<T> {
     // The return value is such that the total number of messages that can be
     // enqueued into the channel will never exceed MAX_CAPACITY
     fn max_senders(&self) -> usize {
-        match self.buffer {
-            Some(buffer) => MAX_CAPACITY - buffer,
-            None => MAX_BUFFER,
-        }
+        MAX_CAPACITY - self.buffer
     }
 
     // Clear `open` flag in the state, keep `num_messages` intact.
@@ -1028,8 +1247,11 @@ impl<T> Inner<T> {
     }
 }
 
-unsafe impl<T: Send> Send for Inner<T> {}
-unsafe impl<T: Send> Sync for Inner<T> {}
+unsafe impl<T: Send> Send for UnboundedInner<T> {}
+unsafe impl<T: Send> Sync for UnboundedInner<T> {}
+
+unsafe impl<T: Send> Send for BoundedInner<T> {}
+unsafe impl<T: Send> Sync for BoundedInner<T> {}
 
 /*
  *
