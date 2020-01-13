@@ -1,14 +1,14 @@
 //! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::fmt;
 use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 #[derive(Debug)]
 enum ElemState<F>
@@ -41,11 +41,7 @@ where
     }
 }
 
-impl<F> Unpin for ElemState<F>
-where
-    F: Future + Unpin,
-{
-}
+impl<F> Unpin for ElemState<F> where F: Future + Unpin {}
 
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
@@ -118,7 +114,9 @@ where
     I::Item: Future,
 {
     let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
-    JoinAll { elems: elems.into() }
+    JoinAll {
+        elems: elems.into(),
+    }
 }
 
 impl<F> Future for JoinAll<F>
@@ -155,5 +153,121 @@ where
 impl<F: Future> FromIterator<F> for JoinAll<F> {
     fn from_iter<T: IntoIterator<Item = F>>(iter: T) -> Self {
         join_all(iter)
+    }
+}
+
+/// Future for the [`join_all_or_first_error`] function.
+pub struct JoinAllFirstError<F, T, E>
+where
+    F: Future<Output = Result<T, E>>,
+{
+    elems: Pin<Box<[ElemState<F>]>>,
+}
+
+impl<F, T, E> fmt::Debug for JoinAllFirstError<F, T, E>
+where
+    F: Future<Output = Result<T, E>> + fmt::Debug,
+    F::Output: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinAllFirstError")
+            .field("elems", &self.elems)
+            .finish()
+    }
+}
+
+/// Creates a future which represents a collection of the outputs of the futures
+/// given.
+///
+/// The returned future will drive execution for all of its underlying futures,
+/// collecting the results into a destination `Vec<T>` in the same order as they
+/// were provided. Or, if any of them result in an Err<E> then that is returned.
+///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
+/// # Examples
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures::future::join_all_or_first_error;
+///
+/// async fn foo(i: u32) -> Result<u32, String> {
+///     if i < 2 {
+///         Ok(i)
+///     } else {
+///         Err("An Error".to_string())
+///     }
+/// }
+///
+/// let futures = vec![foo(1), foo(2), foo(3)];
+///
+/// assert_eq!(join_all_or_first_error(futures).await, Err("An Error".to_string()));
+/// # });
+/// ```
+pub fn join_all_or_first_error<I, T, E>(i: I) -> JoinAllFirstError<I::Item, T, E>
+where
+    I: IntoIterator,
+    I::Item: Future<Output = Result<T, E>>,
+{
+    let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
+    JoinAllFirstError {
+        elems: elems.into(),
+    }
+}
+
+impl<F, T, E> Future for JoinAllFirstError<F, T, E>
+where
+    F: Future<Output = Result<T, E>>,
+{
+    type Output = Result<Vec<T>, E>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut all_done = true;
+        let mut error_returned = false;
+
+        for mut elem in iter_pin_mut(self.elems.as_mut()) {
+            if let Some(pending) = elem.as_mut().pending_pin_mut() {
+                if let Poll::Ready(output) = pending.poll(cx) {
+                    error_returned = output.is_err();
+                    elem.set(ElemState::Done(Some(output)));
+
+                    if error_returned {
+                        break;
+                    }
+                } else {
+                    all_done = false;
+                }
+            }
+        }
+
+        if error_returned {
+            let mut elems = mem::replace(&mut self.elems, Box::pin([]));
+            let result = iter_pin_mut(elems.as_mut())
+                .map(|e| e.take_done())
+                .find(|e| if let Some(Err(_)) = e { true } else { false })
+                .unwrap() // the find option
+                .unwrap() // the take_down option
+                .err() // getting just the error
+                .unwrap();
+            Poll::Ready(Err(result))
+        } else if all_done {
+            let mut elems = mem::replace(&mut self.elems, Box::pin([]));
+            let result = iter_pin_mut(elems.as_mut())
+                .filter_map(|e| e.take_done().unwrap().ok())
+                .collect();
+            Poll::Ready(Ok(result))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+impl<F, T, E> FromIterator<F> for JoinAllFirstError<F, T, E>
+where
+    F: Future<Output = Result<T, E>>,
+{
+    fn from_iter<I: IntoIterator<Item = F>>(iter: I) -> Self {
+        join_all_or_first_error(iter)
     }
 }

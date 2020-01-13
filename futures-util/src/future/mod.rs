@@ -62,7 +62,7 @@ pub use self::join::{join, join3, join4, join5, Join, Join3, Join4, Join5};
 #[cfg(feature = "alloc")]
 mod join_all;
 #[cfg(feature = "alloc")]
-pub use self::join_all::{join_all, JoinAll};
+pub use self::join_all::{join_all, join_all_or_first_error, JoinAll, JoinAllFirstError};
 
 mod select;
 pub use self::select::{select, Select};
