@@ -66,7 +66,7 @@ mod if_std {
         ///
         /// # Safety
         ///
-        /// This method is `unsafe` because and `AsyncRead`er could otherwise
+        /// This method is `unsafe` because an `AsyncRead`er could otherwise
         /// return a non-zeroing `Initializer` from another `AsyncRead` type
         /// without an `unsafe` block.
         #[cfg(feature = "read-initializer")]
