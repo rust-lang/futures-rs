@@ -126,7 +126,7 @@ impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
 #[cfg(feature = "alloc")]
 mod if_alloc {
     use super::*;
-    use alloc::boxed::Box;
+    use alloc::{ boxed::Box, rc::Rc };
 
     impl<Sp: ?Sized + Spawn> Spawn for Box<Sp> {
         fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
@@ -145,6 +145,50 @@ mod if_alloc {
 
         fn status_local(&self) -> Result<(), SpawnError> {
             (**self).status_local()
+        }
+    }
+
+    impl<Sp: ?Sized + Spawn> Spawn for Rc<Sp> {
+        fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+            (**self).spawn_obj(future)
+        }
+
+        fn status(&self) -> Result<(), SpawnError> {
+            (**self).status()
+        }
+    }
+
+    impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Rc<Sp> {
+        fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+            (**self).spawn_local_obj(future)
+        }
+
+        fn status_local(&self) -> Result<(), SpawnError> {
+            (**self).status_local()
+        }
+    }
+
+    cfg_target_has_atomic! {
+        use alloc::{ sync::Arc };
+
+        impl<Sp: ?Sized + Spawn> Spawn for Arc<Sp> {
+            fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+                (**self).spawn_obj(future)
+            }
+
+            fn status(&self) -> Result<(), SpawnError> {
+                (**self).status()
+            }
+        }
+
+        impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Arc<Sp> {
+            fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+                (**self).spawn_local_obj(future)
+            }
+
+            fn status_local(&self) -> Result<(), SpawnError> {
+                (**self).status_local()
+            }
         }
     }
 }
