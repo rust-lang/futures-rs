@@ -14,3 +14,19 @@ fn select() {
     select_and_compare(vec![1, 2, 3], vec![4, 5], vec![1, 4, 2, 5, 3]);
     select_and_compare(vec![1, 2], vec![4, 5, 6], vec![1, 4, 2, 5, 6]);
 }
+
+#[test]
+fn scan() {
+    futures::executor::block_on(async {
+        assert_eq!(
+            stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
+                .scan(1, |acc, e| {
+                    *acc += 1;
+                    futures::future::ready(if e < *acc { Some(e) } else { None })
+                })
+                .collect::<Vec<_>>()
+                .await,
+            vec![1u8, 2, 3, 4]
+        );
+    });
+}
