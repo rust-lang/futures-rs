@@ -120,6 +120,10 @@ mod chunks;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chunks::Chunks;
 
+mod scan;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::scan::Scan;
+
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod buffer_unordered;
@@ -538,6 +542,37 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         Flatten::new(self)
+    }
+
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state and produces a new stream.
+    ///
+    /// Accepts initial state and closure which will be applied to each element of the stream until provided closure
+    /// returns `None`. Once `None` is returned, stream will be terminated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.scan(0, |state, x| {
+    ///         *state += x;
+    ///         future::ready(if *state < 10 { Some(x) } else { None })
+    /// });
+    ///
+    /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn scan<B, Fut, S, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
+    where
+        F: FnMut(&mut S, Self::Item) -> Fut,
+        Fut: Future<Output = Option<B>>,
+        Self: Sized,
+    {
+        Scan::new(self, initial_state, f)
     }
 
     /// Skip elements on this stream while the provided asynchronous predicate

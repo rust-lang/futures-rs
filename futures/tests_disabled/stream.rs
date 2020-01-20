@@ -159,6 +159,12 @@ fn take_while() {
 }
 
 #[test]
+fn scan() {
+    assert_done(|| list().scan(1, |acc, e| { *acc += 1; (if e < acc { Some(e) } else { None }) }).collect(),
+                Ok(vec![1, 2, 3, 4]));
+}
+
+#[test]
 fn take_passes_errors_through() {
     let mut s = block_on_stream(iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)]).take(1));
     assert_eq!(s.next(), Some(Err(1)));
