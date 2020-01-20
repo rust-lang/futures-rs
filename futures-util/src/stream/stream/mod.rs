@@ -559,8 +559,8 @@ pub trait StreamExt: Stream {
     /// let stream = stream::iter(1..=10);
     ///
     /// let stream = stream.scan(0, |state, x| {
-    ///         *state += x;
-    ///         future::ready(if *state < 10 { Some(x) } else { None })
+    ///     *state += x;
+    ///     future::ready(if *state < 10 { Some(x) } else { None })
     /// });
     ///
     /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
