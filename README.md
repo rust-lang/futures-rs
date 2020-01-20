@@ -1,4 +1,4 @@
-# <https://rust-lang-nursery.github.io/futures-rs/>
+# <https://rust-lang.github.io/futures-rs/>
 
 ## Developing locally
 
