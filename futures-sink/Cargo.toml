@@ -17,3 +17,6 @@ std = ["alloc"]
 alloc = []
 
 [dependencies]
+
+[package.metadata.docs.rs]
+all-features = true
