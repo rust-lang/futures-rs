@@ -8,7 +8,7 @@ repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
 documentation = "https://docs.rs/futures-io/0.3.0"
 description = """
-The `AsyncRead` and `AsyncWrite` traits for the futures-rs library.
+The `AsyncRead`, `AsyncWrite`, `AsyncSeek`, and `AsyncBufRead` traits for the futures-rs library.
 """
 
 [features]
