@@ -25,3 +25,6 @@ futures = { version = "0.3.1", path = "../futures", default-features = false, fe
 [features]
 default = ["std"]
 std = ["futures-core/std", "futures-task/std", "futures-io/std", "futures-util/std", "futures-util/io", "futures-executor/std"]
+
+[package.metadata.docs.rs]
+all-features = true

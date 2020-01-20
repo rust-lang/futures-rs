@@ -22,3 +22,6 @@ unstable = []
 read-initializer = []
 
 [dependencies]
+
+[package.metadata.docs.rs]
+all-features = true
