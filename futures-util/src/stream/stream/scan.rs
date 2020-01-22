@@ -6,7 +6,7 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::mem::transmute;
+use core::mem::transmute;
 
 struct StateFn<S, F> {
     state: S,
