@@ -566,10 +566,10 @@ pub trait StreamExt: Stream {
     /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
     /// # });
     /// ```
-    fn scan<S, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
+    fn scan<'a, S: 'a, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
     where
-        F: FnMut(&mut S, Self::Item) -> Fut,
-        Fut: Future<Output = Option<B>>,
+        F: FnMut(&'a mut S, Self::Item) -> Fut,
+        Fut: Future<Output = Option<B>> + 'a,
         Self: Sized,
     {
         Scan::new(self, initial_state, f)

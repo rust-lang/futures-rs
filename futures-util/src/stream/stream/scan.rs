@@ -6,6 +6,7 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use std::mem::transmute;
 
 struct StateFn<S, F> {
     state: S,
@@ -25,7 +26,6 @@ impl<St: Unpin + Stream, S, Fut: Unpin, F> Unpin for Scan<St, S, Fut, F> {}
 impl<St, S, Fut, F> fmt::Debug for Scan<St, S, Fut, F>
 where
     St: Stream + fmt::Debug,
-    St::Item: fmt::Debug,
     S: fmt::Debug,
     Fut: fmt::Debug,
 {
@@ -50,11 +50,11 @@ impl<St: Stream, S, Fut, F> Scan<St, S, Fut, F> {
     }
 }
 
-impl<B, St, S, Fut, F> Scan<St, S, Fut, F>
+impl<'a, B, St, S: 'a, Fut, F> Scan<St, S, Fut, F>
 where
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    F: FnMut(&'a mut S, St::Item) -> Fut,
+    Fut: Future<Output = Option<B>> + 'a,
 {
     pub(super) fn new(stream: St, initial_state: S, f: F) -> Scan<St, S, Fut, F> {
         Scan {
@@ -100,11 +100,11 @@ where
     }
 }
 
-impl<B, St, S, Fut, F> Stream for Scan<St, S, Fut, F>
+impl<'a, B, St, S: 'a, Fut, F> Stream for Scan<St, S, Fut, F>
 where
+    F: FnMut(&'a mut S, St::Item) -> Fut,
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    Fut: Future<Output = Option<B>> + 'a,
 {
     type Item = B;
 
@@ -119,7 +119,12 @@ where
                 None => return Poll::Ready(None),
             };
             let state_f = self.as_mut().state_f().as_mut().unwrap();
-            let fut = (state_f.f)(&mut state_f.state, item);
+            let fut = (state_f.f)(
+                // Safety: this's safe because state is internal and can only be accessed
+                // via provided function.
+                unsafe { transmute(&mut state_f.state) },
+                item,
+            );
             self.as_mut().future().set(Some(fut));
         }
 
@@ -142,11 +147,11 @@ where
     }
 }
 
-impl<B, St, S, Fut, F> FusedStream for Scan<St, S, Fut, F>
+impl<'a, B, St, S: 'a, Fut, F> FusedStream for Scan<St, S, Fut, F>
 where
+    F: FnMut(&'a mut S, St::Item) -> Fut,
     St: FusedStream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    Fut: Future<Output = Option<B>> + 'a,
 {
     fn is_terminated(&self) -> bool {
         self.is_done_taking() || self.future.is_none() && self.stream.is_terminated()
