@@ -61,9 +61,12 @@ mod if_std {
         /// The default implementation returns an initializer which will zero
         /// buffers.
         ///
+        /// This method is only available when the `read-initializer` feature of this
+        /// library is activated.
+        ///
         /// # Safety
         ///
-        /// This method is `unsafe` because and `AsyncRead`er could otherwise
+        /// This method is `unsafe` because an `AsyncRead`er could otherwise
         /// return a non-zeroing `Initializer` from another `AsyncRead` type
         /// without an `unsafe` block.
         #[cfg(feature = "read-initializer")]

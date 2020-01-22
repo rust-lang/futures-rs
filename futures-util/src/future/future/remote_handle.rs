@@ -20,7 +20,8 @@ use {
 };
 
 /// The handle to a remote future returned by
-/// [`remote_handle`](crate::future::FutureExt::remote_handle).
+/// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
+/// the remote future will be woken up to be dropped by the executor.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct RemoteHandle<T> {

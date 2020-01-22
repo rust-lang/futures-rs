@@ -30,3 +30,6 @@ futures-sink = { path = "../futures-sink", version = "0.3.1", default-features =
 [dev-dependencies]
 futures = { path = "../futures", version = "0.3.1", default-features = true }
 futures-test = { path = "../futures-test", version = "0.3.1", default-features = true }
+
+[package.metadata.docs.rs]
+all-features = true
