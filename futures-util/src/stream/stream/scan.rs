@@ -102,8 +102,8 @@ where
 
 impl<'a, B, St, S: 'a, Fut, F> Stream for Scan<St, S, Fut, F>
 where
-    F: FnMut(&'a mut S, St::Item) -> Fut,
     St: Stream,
+    F: FnMut(&'a mut S, St::Item) -> Fut,
     Fut: Future<Output = Option<B>> + 'a,
 {
     type Item = B;
@@ -149,8 +149,8 @@ where
 
 impl<'a, B, St, S: 'a, Fut, F> FusedStream for Scan<St, S, Fut, F>
 where
-    F: FnMut(&'a mut S, St::Item) -> Fut,
     St: FusedStream,
+    F: FnMut(&'a mut S, St::Item) -> Fut,
     Fut: Future<Output = Option<B>> + 'a,
 {
     fn is_terminated(&self) -> bool {
