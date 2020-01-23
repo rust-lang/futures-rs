@@ -186,7 +186,7 @@ pub trait SinkExt<Item>: Sink<Item> {
         Fanout::new(self, other)
     }
 
-    /// Flush the sync, processing all pending items.
+    /// Flush the sink, processing all pending items.
     ///
     /// This adapter is intended to be used when you want to stop sending to the sink
     /// until all current requests are processed.
