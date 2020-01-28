@@ -8,14 +8,14 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_task::{FutureObj, LocalFutureObj, Spawn, LocalSpawn, SpawnError};
 use crate::task::AtomicWaker;
-use core::cell::{Cell, UnsafeCell};
+use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 use core::ptr;
-use core::sync::atomic::Ordering::SeqCst;
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{AtomicPtr, AtomicBool};
 use alloc::sync::{Arc, Weak};
 
@@ -29,15 +29,6 @@ use self::task::Task;
 
 mod ready_to_run_queue;
 use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
-
-/// Constant used for a `FuturesUnordered` to indicate we are empty and have
-/// yielded a `None` element so can return `true` from
-/// `FusedStream::is_terminated`
-///
-/// It is safe to not check for this when incrementing as even a ZST future will
-/// have a `Task` allocated for it, so we cannot ever reach usize::max_value()
-/// without running out of ram.
-const TERMINATED_SENTINEL_LENGTH: usize = usize::max_value();
 
 /// Constant used for a `FuturesUnordered` to determine how many times it is
 /// allowed to poll underlying futures without yielding.
@@ -79,8 +70,8 @@ const YIELD_EVERY: usize = 32;
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
-    len: Cell<usize>,
-    head_all: Cell<*const Task<Fut>>,
+    head_all: AtomicPtr<Task<Fut>>,
+    is_terminated: AtomicBool,
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
@@ -107,10 +98,12 @@ impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
-// been scheduled for polling. The first linked list is not thread safe and is
-// only accessed by the thread that owns the `FuturesUnordered` value. The
-// second linked list is an implementation of the intrusive MPSC queue algorithm
-// described by 1024cores.net.
+// been scheduled for polling. The first linked list allows for thread safe
+// insertion of nodes at the head as well as forward iteration, but is otherwise
+// not thread safe and is only accessed by the thread that owns the
+// `FuturesUnordered` value for any other operations. The second linked list is
+// an implementation of the intrusive MPSC queue algorithm described by
+// 1024cores.net.
 //
 // When a future is submitted to the set, a task is allocated and inserted in
 // both linked lists. The next call to `poll_next` will (eventually) see this
@@ -137,8 +130,9 @@ impl<Fut: Future> FuturesUnordered<Fut> {
     pub fn new() -> FuturesUnordered<Fut> {
         let stub = Arc::new(Task {
             future: UnsafeCell::new(None),
-            next_all: UnsafeCell::new(ptr::null()),
+            next_all: AtomicPtr::new(ptr::null_mut()),
             prev_all: UnsafeCell::new(ptr::null()),
+            len_all: UnsafeCell::new(0),
             next_ready_to_run: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
             ready_to_run_queue: Weak::new(),
@@ -152,9 +146,9 @@ impl<Fut: Future> FuturesUnordered<Fut> {
         });
 
         FuturesUnordered {
-            len: 0.into(),
-            head_all: Cell::from(ptr::null()),
+            head_all: AtomicPtr::new(ptr::null_mut()),
             ready_to_run_queue,
+            is_terminated: AtomicBool::new(false),
         }
     }
 }
@@ -170,14 +164,15 @@ impl<Fut> FuturesUnordered<Fut> {
     ///
     /// This represents the total number of in-flight futures.
     pub fn len(&self) -> usize {
-        let len = self.len.get();
-        if len == TERMINATED_SENTINEL_LENGTH { 0 } else { len }
+        let (_, len) = self.atomic_load_head_and_len_all();
+        len
     }
 
     /// Returns `true` if the set contains no futures.
     pub fn is_empty(&self) -> bool {
-        let len = self.len.get();
-        len == 0 || len == TERMINATED_SENTINEL_LENGTH
+        // Relaxed ordering can be used here since we don't need to read from
+        // the head pointer, only check whether it is null.
+        self.head_all.load(Relaxed).is_null()
     }
 
     /// Push a future into the set.
@@ -189,18 +184,17 @@ impl<Fut> FuturesUnordered<Fut> {
     pub fn push(&self, future: Fut) {
         let task = Arc::new(Task {
             future: UnsafeCell::new(Some(future)),
-            next_all: UnsafeCell::new(ptr::null_mut()),
+            next_all: AtomicPtr::new(self.pending_next_all()),
             prev_all: UnsafeCell::new(ptr::null_mut()),
+            len_all: UnsafeCell::new(0),
             next_ready_to_run: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
             ready_to_run_queue: Arc::downgrade(&self.ready_to_run_queue),
         });
 
-        // If we've previously marked ourselves as terminated we need to reset
-        // len to 0 to track it correctly
-        if self.len.get() == TERMINATED_SENTINEL_LENGTH {
-            self.len.set(0);
-        }
+        // Reset the `is_terminated` flag if we've previously marked ourselves
+        // as terminated.
+        self.is_terminated.store(false, Relaxed);
 
         // Right now our task has a strong reference count of 1. We transfer
         // ownership of this reference count to our internal linked list
@@ -221,9 +215,12 @@ impl<Fut> FuturesUnordered<Fut> {
 
     /// Returns an iterator that allows inspecting each future in the set.
     fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
+        let (task, len) = self.atomic_load_head_and_len_all();
+
         IterPinRef {
-            task: self.head_all.get(),
-            len: self.len(),
+            task,
+            len,
+            pending_next_all: self.pending_next_all(),
             _marker: PhantomData,
         }
     }
@@ -234,12 +231,40 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_pin_mut(self: Pin<&mut Self>) -> IterPinMut<'_, Fut> {
+    pub fn iter_pin_mut(mut self: Pin<&mut Self>) -> IterPinMut<'_, Fut> {
+        // `head_all` can be accessed directly and we don't need to spin on
+        // `Task::next_all` since we have exclusive access to the set.
+        let task = *self.head_all.get_mut();
+        let len = if task.is_null() {
+            0
+        } else {
+            unsafe {
+                *(*task).len_all.get()
+            }
+        };
+
         IterPinMut {
-            task: self.head_all.get(),
-            len: self.len(),
+            task,
+            len,
             _marker: PhantomData
         }
+    }
+
+    /// Returns the current head node and number of futures in the list of all
+    /// futures within a context where access is shared with other threads
+    /// (mostly for use with the `len` and `iter_pin_ref` methods).
+    fn atomic_load_head_and_len_all(&self) -> (*const Task<Fut>, usize) {
+        let task = self.head_all.load(Acquire);
+        let len = if task.is_null() {
+            0
+        } else {
+            unsafe {
+                (*task).spin_next_all(self.pending_next_all(), Acquire);
+                *(*task).len_all.get()
+            }
+        };
+
+        (task, len)
     }
 
     /// Releases the task. It destorys the future inside and either drops
@@ -247,8 +272,8 @@ impl<Fut> FuturesUnordered<Fut> {
     /// The task this method is called on must have been unlinked before.
     fn release_task(&mut self, task: Arc<Task<Fut>>) {
         // `release_task` must only be called on unlinked tasks
+        debug_assert_eq!(task.next_all.load(Relaxed), self.pending_next_all());
         unsafe {
-            debug_assert!((*task.next_all.get()).is_null());
             debug_assert!((*task.prev_all.get()).is_null());
         }
 
@@ -284,17 +309,38 @@ impl<Fut> FuturesUnordered<Fut> {
 
     /// Insert a new task into the internal linked list.
     fn link(&self, task: Arc<Task<Fut>>) -> *const Task<Fut> {
+        // `next_all` should already be reset to the pending state before this
+        // function is called.
+        debug_assert_eq!(task.next_all.load(Relaxed), self.pending_next_all());
         let ptr = Arc::into_raw(task);
+
+        // Atomically swap out the old head node to get the node that should be
+        // assigned to `next_all`.
+        let next = self.head_all.swap(ptr as *mut _, AcqRel);
+
         unsafe {
-            *(*ptr).next_all.get() = self.head_all.get();
-            if !self.head_all.get().is_null() {
-                *(*self.head_all.get()).prev_all.get() = ptr;
+            // Store the new list length in the new node.
+            let new_len = if next.is_null() {
+                1
+            } else {
+                // Make sure `next_all` has been written to signal that it is
+                // safe to read `len_all`.
+                (*next).spin_next_all(self.pending_next_all(), Acquire);
+                *(*next).len_all.get() + 1
+            };
+            *(*ptr).len_all.get() = new_len;
+
+            // Write the old head as the next node pointer, signaling to other
+            // threads that `len_all` and `next_all` are ready to read.
+            (*ptr).next_all.store(next, Release);
+
+            // `prev_all` updates don't need to be synchronized, as the field is
+            // only ever used after exclusive access has been acquired.
+            if !next.is_null() {
+                *(*next).prev_all.get() = ptr;
             }
         }
 
-        self.head_all.set(ptr);
-        let old_len = self.len.get();
-        self.len.set(old_len + 1);
         ptr
     }
 
@@ -303,10 +349,16 @@ impl<Fut> FuturesUnordered<Fut> {
     /// This method is unsafe because it has be guaranteed that `task` is a
     /// valid pointer.
     unsafe fn unlink(&mut self, task: *const Task<Fut>) -> Arc<Task<Fut>> {
+        // Compute the new list length now in case we're removing the head node
+        // and won't be able to retrieve the correct length later.
+        let head = *self.head_all.get_mut();
+        debug_assert!(!head.is_null());
+        let new_len = *(*head).len_all.get() - 1;
+
         let task = Arc::from_raw(task);
-        let next = *task.next_all.get();
+        let next = task.next_all.load(Relaxed);
         let prev = *task.prev_all.get();
-        *task.next_all.get() = ptr::null_mut();
+        task.next_all.store(self.pending_next_all(), Relaxed);
         *task.prev_all.get() = ptr::null_mut();
 
         if !next.is_null() {
@@ -314,13 +366,47 @@ impl<Fut> FuturesUnordered<Fut> {
         }
 
         if !prev.is_null() {
-            *(*prev).next_all.get() = next;
+            (*prev).next_all.store(next, Relaxed);
         } else {
-            self.head_all.set(next);
+            *self.head_all.get_mut() = next;
         }
-        let old_len = self.len.get();
-        self.len.set(old_len - 1);
+
+        // Store the new list length in the head node.
+        let head = *self.head_all.get_mut();
+        if !head.is_null() {
+            *(*head).len_all.get() = new_len;
+        }
+
         task
+    }
+
+    /// Returns the reserved value for `Task::next_all` to indicate a pending
+    /// assignment from the thread that inserted the task.
+    ///
+    /// `FuturesUnordered::link` needs to update `Task` pointers in an order
+    /// that ensures any iterators created on other threads can correctly
+    /// traverse the entire `Task` list using the chain of `next_all` pointers.
+    /// This could be solved with a compare-exchange loop that stores the
+    /// current `head_all` in `next_all` and swaps out `head_all` with the new
+    /// `Task` pointer if the head hasn't already changed. Under heavy thread
+    /// contention, this compare-exchange loop could become costly.
+    ///
+    /// An alternative is to initialize `next_all` to a reserved pending state
+    /// first, perform an atomic swap on `head_all`, and finally update
+    /// `next_all` with the old head node. Iterators will then either see the
+    /// pending state value or the correct next node pointer, and can reload
+    /// `next_all` as needed until the correct value is loaded. The number of
+    /// retries needed (if any) would be small and will always be finite, so
+    /// this should generally perform better than the compare-exchange loop.
+    ///
+    /// A valid `Task` pointer in the `head_all` list is guaranteed to never be
+    /// this value, so it is safe to use as a reserved value until the correct
+    /// value can be written.
+    fn pending_next_all(&self) -> *mut Task<Fut> {
+        // The `ReadyToRunQueue` stub is never inserted into the `head_all`
+        // list, and its pointer value will remain valid for the lifetime of
+        // this `FuturesUnordered`, so we can make use of its value here.
+        &*self.ready_to_run_queue.stub as *const _ as *mut _
     }
 }
 
@@ -345,7 +431,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     if self.is_empty() {
                         // We can only consider ourselves terminated once we
                         // have yielded a `None`
-                        self.len.set(TERMINATED_SENTINEL_LENGTH);
+                        *self.is_terminated.get_mut() = true;
                         return Poll::Ready(None);
                     } else {
                         return Poll::Pending;
@@ -385,8 +471,11 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
 
                     // Double check that the call to `release_task` really
                     // happened. Calling it required the task to be unlinked.
+                    debug_assert_eq!(
+                        task.next_all.load(Relaxed),
+                        self.pending_next_all()
+                    );
                     unsafe {
-                        debug_assert!((*task.next_all.get()).is_null());
                         debug_assert!((*task.prev_all.get()).is_null());
                     }
                     continue
@@ -496,8 +585,8 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // wakers flying around which contain `Task<Fut>` references
         // inside them. We'll let those naturally get deallocated.
         unsafe {
-            while !self.head_all.get().is_null() {
-                let head = self.head_all.get();
+            while !self.head_all.get_mut().is_null() {
+                let head = *self.head_all.get_mut();
                 let task = self.unlink(head);
                 self.release_task(task);
             }
@@ -530,6 +619,6 @@ impl<Fut: Future> FromIterator<Fut> for FuturesUnordered<Fut> {
 
 impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
     fn is_terminated(&self) -> bool {
-        self.len.get() == TERMINATED_SENTINEL_LENGTH
+        self.is_terminated.load(Relaxed)
     }
 }
