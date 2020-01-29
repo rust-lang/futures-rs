@@ -6,7 +6,7 @@
 #[cfg(feature = "std")]
 mod mutex;
 #[cfg(feature = "std")]
-pub use self::mutex::{Mutex, MutexLockFuture, MutexGuard};
+pub use self::mutex::{MappedMutexGuard, Mutex, MutexLockFuture, MutexGuard};
 
 #[cfg(any(feature = "bilock", feature = "sink", feature = "io"))]
 #[cfg_attr(not(feature = "bilock"), allow(unreachable_pub))]

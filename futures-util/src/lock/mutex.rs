@@ -154,6 +154,18 @@ impl<T: ?Sized> Mutex<T> {
             }
         }
     }
+
+    // Unlocks the mutex. Called by MutexGuard and MappedMutexGuard when they are
+    // dropped.
+    fn unlock(&self) {
+        let old_state = self.state.fetch_and(!IS_LOCKED, Ordering::AcqRel);
+        if (old_state & HAS_WAITERS) != 0 {
+            let mut waiters = self.waiters.lock().unwrap();
+            if let Some((_i, waiter)) = waiters.iter_mut().next() {
+                waiter.wake();
+            }
+        }
+    }
 }
 
 // Sentinel for when no slot in the `Slab` has been dedicated to this object.
@@ -243,6 +255,36 @@ pub struct MutexGuard<'a, T: ?Sized> {
     mutex: &'a Mutex<T>,
 }
 
+impl<'a, T: ?Sized> MutexGuard<'a, T> {
+    /// Returns a locked view over a portion of the locked data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::lock::{Mutex, MutexGuard};
+    ///
+    /// let data = Mutex::new(Some("value".to_string()));
+    /// {
+    ///     let locked_str = MutexGuard::map(data.lock().await, |opt| opt.as_mut().unwrap());
+    ///     assert_eq!(&*locked_str, "value");
+    /// }
+    /// # });
+    /// ```
+    #[inline]
+    pub fn map<U: ?Sized, F>(this: Self, f: F) -> MappedMutexGuard<'a, T, U>
+    where
+        F: FnOnce(&mut T) -> &mut U,
+    {
+        let mutex = this.mutex;
+        let value = f(unsafe { &mut *this.mutex.value.get() });
+        // Don't run the `drop` method for MutexGuard. The ownership of the underlying
+        // locked state is being moved to the returned MappedMutexGuard.
+        mem::forget(this);
+        MappedMutexGuard { mutex, value }
+    }
+}
+
 impl<T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MutexGuard")
@@ -254,13 +296,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'_, T> {
 
 impl<T: ?Sized> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
-        let old_state = self.mutex.state.fetch_and(!IS_LOCKED, Ordering::AcqRel);
-        if (old_state & HAS_WAITERS) != 0 {
-            let mut waiters = self.mutex.waiters.lock().unwrap();
-            if let Some((_i, waiter)) = waiters.iter_mut().next() {
-                waiter.wake();
-            }
-        }
+        self.mutex.unlock()
     }
 }
 
@@ -274,6 +310,72 @@ impl<T: ?Sized> Deref for MutexGuard<'_, T> {
 impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.mutex.value.get() }
+    }
+}
+
+/// An RAII guard returned by the `MutexGuard::map` and `MappedMutexGuard::map` methods.
+/// When this structure is dropped (falls out of scope), the lock will be unlocked.
+pub struct MappedMutexGuard<'a, T: ?Sized, U: ?Sized> {
+    mutex: &'a Mutex<T>,
+    value: *mut U,
+}
+
+impl<'a, T: ?Sized, U: ?Sized> MappedMutexGuard<'a, T, U> {
+    /// Returns a locked view over a portion of the locked data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::lock::{MappedMutexGuard, Mutex, MutexGuard};
+    ///
+    /// let data = Mutex::new(Some("value".to_string()));
+    /// {
+    ///     let locked_str = MutexGuard::map(data.lock().await, |opt| opt.as_mut().unwrap());
+    ///     let locked_char = MappedMutexGuard::map(locked_str, |s| s.get_mut(0..1).unwrap());
+    ///     assert_eq!(&*locked_char, "v");
+    /// }
+    /// # });
+    /// ```
+    #[inline]
+    pub fn map<V: ?Sized, F>(this: Self, f: F) -> MappedMutexGuard<'a, T, V>
+    where
+        F: FnOnce(&mut U) -> &mut V,
+    {
+        let mutex = this.mutex;
+        let value = f(unsafe { &mut *this.value });
+        // Don't run the `drop` method for MappedMutexGuard. The ownership of the underlying
+        // locked state is being moved to the returned MappedMutexGuard.
+        mem::forget(this);
+        MappedMutexGuard { mutex, value }
+    }
+}
+
+impl<T: ?Sized, U: ?Sized + fmt::Debug> fmt::Debug for MappedMutexGuard<'_, T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MappedMutexGuard")
+            .field("value", &&**self)
+            .field("mutex", &self.mutex)
+            .finish()
+    }
+}
+
+impl<T: ?Sized, U: ?Sized> Drop for MappedMutexGuard<'_, T, U> {
+    fn drop(&mut self) {
+        self.mutex.unlock()
+    }
+}
+
+impl<T: ?Sized, U: ?Sized> Deref for MappedMutexGuard<'_, T, U> {
+    type Target = U;
+    fn deref(&self) -> &U {
+        unsafe { &*self.value }
+    }
+}
+
+impl<T: ?Sized, U: ?Sized> DerefMut for MappedMutexGuard<'_, T, U> {
+    fn deref_mut(&mut self) -> &mut U {
+        unsafe { &mut *self.value }
     }
 }
 
@@ -292,10 +394,14 @@ unsafe impl<T: ?Sized> Sync for MutexLockFuture<'_, T> {}
 // lock is essentially spinlock-equivalent (attempt to flip an atomic bool)
 unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send, U: ?Sized> Send for MappedMutexGuard<'_, T, U> {}
+unsafe impl<T: ?Sized + Sync, U: ?Sized> Sync for MappedMutexGuard<'_, T, U> {}
 
 #[test]
 fn test_mutex_guard_debug_not_recurse() {
     let mutex = Mutex::new(42);
     let guard = mutex.try_lock().unwrap();
+    let _ = format!("{:?}", guard);
+    let guard = MutexGuard::map(guard, |n| n);
     let _ = format!("{:?}", guard);
 }
