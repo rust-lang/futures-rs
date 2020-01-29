@@ -1,3 +1,6 @@
+# 0.3.2 - 2020-??-??
+* Added `into_inner` method for `future::Ready` (#2055)
+
 # 0.3.1 - 2019-11-7
 * Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
 
@@ -5,7 +8,7 @@
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
 * Changed `Spawn` trait and `FuturesUnordered::push` to take `&self` (#1950)
-* Moved `Spawn` and `FutureObj` out of `futures-core` and into `futures-task (#1925)
+* Moved `Spawn` and `FutureObj` out of `futures-core` and into `futures-task` (#1925)
 * Changed case convention for feature names (#1937)
 * Added `executor` feature (#1949)
 * Moved `copy_into`/`copy_buf_into` (#1948)
