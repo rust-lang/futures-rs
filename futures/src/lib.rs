@@ -349,7 +349,7 @@ pub mod lock {
     pub use futures_util::lock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
 
     #[cfg(feature = "std")]
-    pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
+    pub use futures_util::lock::{MappedMutexGuard, Mutex, MutexLockFuture, MutexGuard};
 }
 
 pub mod prelude {
