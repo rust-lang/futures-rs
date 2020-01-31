@@ -174,7 +174,7 @@ pub trait TryFutureExt: TryFuture {
     /// the provided closure will never be invoked.
     /// 
     /// The provided closure `e` will only be called if this future is resolved
-    /// to an [`Error`]. If it resolves to an [`Ok`], panics, or is dropped, then
+    /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
     /// the provided closure will never be invoked.
     ///
     /// Note that this method consumes the future it is called on and returns a
