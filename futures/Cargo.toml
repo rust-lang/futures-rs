@@ -1,7 +1,7 @@
 [package]
 name = "futures"
 edition = "2018"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -19,18 +19,18 @@ categories = ["asynchronous"]
 travis-ci = { repository = "rust-lang/futures-rs" }
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.1", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.1", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.1", default-features = false, features = ["sink"] }
-futures-executor = { path = "../futures-executor", version = "0.3.1", default-features = false, optional = true }
-futures-io = { path = "../futures-io", version = "0.3.1", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.1", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.1", default-features = false, features = ["sink"] }
+futures-core = { path = "../futures-core", version = "0.3.2", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.2", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.2", default-features = false, features = ["sink"] }
+futures-executor = { path = "../futures-executor", version = "0.3.2", default-features = false, optional = true }
+futures-io = { path = "../futures-io", version = "0.3.2", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.2", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.2", default-features = false, features = ["sink"] }
 
 [dev-dependencies]
 pin-utils = "0.1.0-alpha.4"
-futures-executor = { path = "../futures-executor", version = "0.3.1", features = ["thread-pool"] }
-futures-test = { path = "../futures-test", version = "0.3.1" }
+futures-executor = { path = "../futures-executor", version = "0.3.2", features = ["thread-pool"] }
+futures-test = { path = "../futures-test", version = "0.3.2" }
 tokio = "0.1.11"
 assert_matches = "1.3.0"
 
