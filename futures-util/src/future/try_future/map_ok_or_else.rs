@@ -31,7 +31,7 @@ impl<Fut, F, E, T> FusedFuture for MapOkOrElse<Fut, F, E>
           E: FnOnce(Fut::Error) -> T,
 {
     fn is_terminated(&self) -> bool {
-        self.f.is_none()
+        self.f.is_none() || self.e.is_none()
     }
 }
 
