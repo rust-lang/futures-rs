@@ -1,3 +1,6 @@
+# 0.3.3 - 2020-02-04
+* Fixed compatibility issue with pinned facade (#2062)
+
 # 0.3.2 - 2020-02-03
 * Improved buffering performance of `SplitSink` (#1969)
 * Added `select_biased!` macro (#1976)

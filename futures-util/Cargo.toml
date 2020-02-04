@@ -1,7 +1,7 @@
 [package]
 name = "futures-util"
 edition = "2018"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
@@ -32,12 +32,12 @@ bilock = []
 read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.2", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.2", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.2", default-features = false, features = ["std"], optional = true }
-futures-io = { path = "../futures-io", version = "0.3.2", default-features = false, features = ["std"], optional = true }
-futures-sink = { path = "../futures-sink", version = "0.3.2", default-features = false, optional = true }
-futures-macro = { path = "../futures-macro", version = "0.3.2", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.3", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.3", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.3", default-features = false, features = ["std"], optional = true }
+futures-io = { path = "../futures-io", version = "0.3.3", default-features = false, features = ["std"], optional = true }
+futures-sink = { path = "../futures-sink", version = "0.3.3", default-features = false, optional = true }
+futures-macro = { path = "../futures-macro", version = "0.3.3", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
 slab = { version = "0.4", optional = true }
@@ -47,8 +47,8 @@ tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.2", features = ["async-await"] }
-futures-test = { path = "../futures-test", version = "0.3.2" }
+futures = { path = "../futures", version = "0.3.3", features = ["async-await"] }
+futures-test = { path = "../futures-test", version = "0.3.3" }
 tokio = "0.1.11"
 
 [package.metadata.docs.rs]
