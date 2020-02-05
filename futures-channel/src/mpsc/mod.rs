@@ -1211,6 +1211,18 @@ impl<T> Stream for UnboundedReceiver<T> {
     }
 }
 
+impl<T> Drop for UnboundedReceiver<T> {
+    fn drop(&mut self) {
+        // Drain the channel of all pending messages
+        self.close();
+        if self.inner.is_some() {
+            while let Poll::Ready(Some(..)) = self.next_message() {
+                // ...
+            }
+        }
+    }
+}
+
 /*
  *
  * ===== impl Inner =====
