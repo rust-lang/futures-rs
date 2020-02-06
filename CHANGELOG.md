@@ -1,3 +1,6 @@
+# 0.3.4 - 2020-02-06
+* Fixed missing `Drop` for `UnboundedReceiver` (#2064)
+
 # 0.3.3 - 2020-02-04
 * Fixed compatibility issue with pinned facade (#2062)
 
