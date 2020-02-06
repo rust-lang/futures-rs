@@ -7,7 +7,6 @@ mod pending_once;
 pub use self::pending_once::PendingOnce;
 
 use futures_core::future::Future;
-use futures_executor;
 use std::thread;
 
 pub use crate::interleave_pending::InterleavePending;
