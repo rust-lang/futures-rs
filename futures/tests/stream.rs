@@ -16,13 +16,31 @@ fn select() {
 }
 
 #[test]
+fn flat_map() {
+    futures::executor::block_on(async {
+        let st = stream::iter(vec![
+            stream::iter(0..=4u8),
+            stream::iter(6..=10),
+            stream::iter(0..=2),
+        ]);
+
+        let values: Vec<_> = st
+            .flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
+            .collect()
+            .await;
+
+        assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 0, 2]);
+    });
+}
+
+#[test]
 fn scan() {
     futures::executor::block_on(async {
         assert_eq!(
             stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
-                .scan(1, |acc, e| {
-                    *acc += 1;
-                    futures::future::ready(if e < *acc { Some(e) } else { None })
+                .scan(1, |state, e| {
+                    *state += 1;
+                    futures::future::ready(if e < *state { Some(e) } else { None })
                 })
                 .collect::<Vec<_>>()
                 .await,
