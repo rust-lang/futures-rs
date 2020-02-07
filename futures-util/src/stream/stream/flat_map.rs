@@ -78,7 +78,7 @@ where
     }
 }
 
-impl<St, F, U> FusedStream for FlatMap<St, U, F>
+impl<St, U, F> FusedStream for FlatMap<St, U, F>
 where
     St: FusedStream,
     U: FusedStream,
@@ -94,7 +94,7 @@ where
     }
 }
 
-impl<St, F, U> Stream for FlatMap<St, U, F>
+impl<St, U, F> Stream for FlatMap<St, U, F>
 where
     St: Stream,
     U: Stream,
@@ -153,13 +153,13 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, F, U, Item> Sink<Item> for FlatMap<S, U, F>
+impl<St, U, F, Item> Sink<Item> for FlatMap<St, U, F>
 where
-    S: Stream + Sink<Item>,
+    St: Stream + Sink<Item>,
     U: Stream,
-    F: FnMut(S::Item) -> U,
+    F: FnMut(St::Item) -> U,
 {
-    type Error = S::Error;
+    type Error = St::Error;
 
     delegate_sink!(stream, Item);
 }
