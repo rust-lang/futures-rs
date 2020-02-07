@@ -315,7 +315,9 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it, similar to the existing `filter` methods in the
-    /// standard library.
+    /// standard library. Because of current HRTB limitations, reference to item
+    /// can't be captured by the future. When it will be possible, method's signature
+    /// may be changed.
     ///
     /// # Examples
     ///
@@ -544,10 +546,14 @@ pub trait StreamExt: Stream {
         Flatten::new(self)
     }
 
-    /// Combinator similar to [`StreamExt::fold`] that holds internal state and produces a new stream.
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state 
+    /// and produces a new stream.
     ///
-    /// Accepts initial state and closure which will be applied to each element of the stream until provided closure
-    /// returns `None`. Once `None` is returned, stream will be terminated.
+    /// Accepts initial state and closure which will be applied to each element
+    /// of the stream until provided closure returns `None`. Once `None` is
+    /// returned, stream will be terminated. Because of current HRTB limitations,
+    /// `&mut` state can't be captured by the future. When it will be possible,
+    /// method's signature may be changed.
     ///
     /// # Examples
     ///
@@ -580,8 +586,10 @@ pub trait StreamExt: Stream {
     ///
     /// This function, like `Iterator::skip_while`, will skip elements on the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false all future elements will be returned from the underlying
-    /// stream.
+    /// returns `false`, all future elements will be returned from the underlying
+    /// stream. Because of current HRTB limitations, reference to item can't be
+    /// captured by the future. When it will be possible, method's signature may
+    /// be changed.
     ///
     /// # Examples
     ///
@@ -611,7 +619,9 @@ pub trait StreamExt: Stream {
     ///
     /// This function, like `Iterator::take_while`, will take elements from the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false it will always return that the stream is done.
+    /// returns `false` it will always return that the stream is done. Because
+    /// of current HRTB limitations, reference to item can't be captured by
+    /// the future. When it will be possible, method's signature may be changed.
     ///
     /// # Examples
     ///
@@ -1117,7 +1127,7 @@ pub trait StreamExt: Stream {
         Forward::new(self, sink)
     }
 
-    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
+    /// Splits this `Stream + Sink` object into separate `Sink` and `Stream`
     /// objects.
     ///
     /// This can be useful when you want to split ownership between tasks, or
