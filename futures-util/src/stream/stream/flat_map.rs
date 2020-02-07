@@ -106,6 +106,7 @@ where
         loop {
             if let Some(inner_stream) = self.as_mut().inner_stream().as_pin_mut() {
                 let next = ready!(inner_stream.poll_next(cx));
+
                 if next.is_some() {
                     break Poll::Ready(next);
                 } else {
