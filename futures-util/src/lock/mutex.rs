@@ -9,6 +9,13 @@ use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A futures-aware mutex.
+/// 
+/// # Fairness
+/// 
+/// This mutex provides no fairness guarantees. Tasks may not acquire the mutex
+/// in the order that they requested the lock, and it's possible for a single task
+/// which repeatedly takes the lock to starve other tasks, which may be left waiting
+/// indefinitely.
 pub struct Mutex<T: ?Sized> {
     state: AtomicUsize,
     waiters: StdMutex<Slab<Waiter>>,
