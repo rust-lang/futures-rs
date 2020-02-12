@@ -133,7 +133,7 @@ mod if_std {
     /// This trait is analogous to the `std::io::Write` trait, but integrates
     /// with the asynchronous task system. In particular, the `poll_write`
     /// method, unlike `Write::write`, will automatically queue the current task
-    /// for wakeup and return if data is not yet available, rather than blocking
+    /// for wakeup and return if the writer cannot take more data, rather than blocking
     /// the calling thread.
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
@@ -151,6 +151,9 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        ///
+        /// `poll_write` must try to make progress by flushing the underlying object if
+        /// that is the only way the underlying object can become writable again.
         fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>;
 
@@ -205,6 +208,8 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        ///
+        /// It only makes sense to do anything here if you actually buffer data.
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>>;
 
         /// Attempt to close the object.
