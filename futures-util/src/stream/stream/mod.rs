@@ -551,11 +551,11 @@ pub trait StreamExt: Stream {
     /// Maps a stream like [`StreamExt::map`] but flattens nested `Stream`s.
     ///
     /// [`StreamExt::map`] is very useful, but if it produces a `Stream` instead,
-    /// there's an extra layer of indirection. `flat_map()` will remove this extra
-    /// layer on its own.
+    /// you should chain cominators like `.map(f).flatten()` while this combinator
+    /// provides ability to write `.flat_map(f)` instead of chaining.
     ///
     /// The provided closure which produce inner streams is executed over all elements
-    /// of this stream as they are made available.
+    /// of stream as last inner stream is terminated and next stream item is available.
     ///
     /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it, similar to the existing `flat_map` methods in the

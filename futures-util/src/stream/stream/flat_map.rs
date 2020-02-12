@@ -14,7 +14,7 @@ pub struct FlatMap<St, U, F> {
     inner_stream: Option<U>,
 }
 
-impl<St: Unpin, U, F> Unpin for FlatMap<St, U, F> {}
+impl<St: Unpin, U: Unpin, F> Unpin for FlatMap<St, U, F> {}
 
 impl<St, U, F> fmt::Debug for FlatMap<St, U, F>
 where
@@ -130,7 +130,10 @@ where
 
         if let Some(inner_stream_size_hint) = self.inner_stream.as_ref().map(|st| st.size_hint()) {
             (
-                stream_size_hint.0 + inner_stream_size_hint.0,
+                stream_size_hint
+                    .0
+                    .checked_add(inner_stream_size_hint.0)
+                    .unwrap_or(stream_size_hint.0),
                 if no_stream_items_left {
                     inner_stream_size_hint.1
                 } else {
