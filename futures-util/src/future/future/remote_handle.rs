@@ -9,7 +9,7 @@ use {
     std::{
         any::Any,
         fmt,
-        panic::{self, AssertUnwindSafe},
+        panic::{AssertUnwindSafe},
         pin::Pin,
         sync::{
             Arc,
@@ -20,8 +20,76 @@ use {
 };
 
 /// The handle to a remote future returned by
-/// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
-/// the remote future will be woken up to be dropped by the executor.
+/// [`remote_handle`](crate::future::FutureExt::remote_handle).
+///
+/// The RemoteHandle resolves to an [std::thread::Result] over the output
+/// of the future.
+///
+/// ## Drop behavior
+/// When you drop RemoteHandle, the remote future will be woken up to
+/// be dropped by the executor. Else, if the remote executor drops the future
+/// before polling it to completion, the [std::thread::Result] RemoteHandle
+/// resolves to will contain a [futures_channel::oneshot::Canceled].
+///
+/// You can detach the handle from the future by calling [RemoteHandle::forget]. This
+/// will let the future continue to be polled by the executor, even when
+/// you drop the RemoteHandle.
+///
+/// ## Panics
+/// If the remote future panics, the error passed to the panic is sent to the
+/// RemoteHandle. You can downcast the error to check what went wrong.
+///
+/// The thread on which the panic happened will unwind.
+///
+/// ### Example
+/// ```
+/// use futures::executor::{block_on, ThreadPool};
+/// use futures::FutureExt;
+/// use futures::task::SpawnExt;
+/// use std::fs::File;
+///
+/// let executor = ThreadPool::new().unwrap();
+///
+/// // Only by explicitly passing the error to the panic! macro can we downcast it later.
+/// let future = async { panic!(File::open("doesnotexist").unwrap_err()); };
+///
+/// // for reference, this would print:
+/// // "got String: called `Result::unwrap()` on an `Err` value: Os { code: 2,
+/// // kind: NotFound, message: "No such file or directory" }"
+/// //
+/// // let future = async { File::open("doesnotexist").unwrap(); };
+///
+/// // This will print:
+/// // "got String: expect string: Os { code: 2, kind: NotFound,
+/// // message: "No such file or directory" }"
+/// //
+/// // let future = async { File::open("doesnotexist").expect("expect string"); };
+///
+/// let (task, handle) = future.remote_handle();
+/// executor.spawn(task).unwrap();
+/// let output = block_on(handle);
+///
+/// match output
+/// {
+///   Ok(_file) => unreachable!(), // our file doesn't exist, so this can't happen.
+///
+///   Err(e) => {
+///       if let Some(err) = e.downcast_ref::<std::io::Error>() {
+///           assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+///       }
+///       else if let Some(err) = e.downcast_ref::<String>() {
+///         println!("got String: {}", err);
+///         unreachable!();
+///       }
+///       else if let Some(_err) = e.downcast_ref::<futures_channel::oneshot::Canceled>() {
+///           println!("Executor dropped remote future before completion.");
+///           unreachable!();
+///       }
+///       else { unreachable!(); }
+///   }
+/// }
+/// ```
+///
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct RemoteHandle<T> {
@@ -40,13 +108,16 @@ impl<T> RemoteHandle<T> {
 }
 
 impl<T: Send + 'static> Future for RemoteHandle<T> {
-    type Output = T;
+    type Output = std::thread::Result<T>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match ready!(self.rx.poll_unpin(cx)) {
-            Ok(Ok(output)) => Poll::Ready(output),
-            Ok(Err(e)) => panic::resume_unwind(e),
-            Err(e) => panic::resume_unwind(Box::new(e)),
+            Ok(Ok(output)) => Poll::Ready(Ok(output)),
+            // this is when the future panicked.
+            Ok(Err(e)) => Poll::Ready(Err(e)),
+            // this is when the channel sender has been dropped. This can
+            // happen if the executor drops the future before driving it to completion.
+            Err(e) => Poll::Ready(Err(Box::new(e))),
         }
     }
 }
@@ -88,12 +159,23 @@ impl<Fut: Future> Future for Remote<Fut> {
             }
         }
 
-        let output = ready!(self.as_mut().future().poll(cx));
-
-        // if the receiving end has gone away then that's ok, we just ignore the
-        // send error here.
-        drop(self.as_mut().tx().take().unwrap().send(output));
-        Poll::Ready(())
+        // Did the future panic?...
+        match ready!(self.as_mut().future().poll(cx))
+        {
+            // ...no
+            Ok(value) => {
+                // if the receiving end has gone away then that's ok, we just ignore the
+                // send error here.
+                drop(self.as_mut().tx().take().unwrap().send(Ok(value)));
+                Poll::Ready(())
+            }
+            // ...yes, Send the error to the RemoteHandle and then tear down this thread.
+            Err(e) => {
+                let msg = format!("Remote future panicked with: {:?}", &e);
+                drop(self.as_mut().tx().take().unwrap().send(Err(e)));
+                std::panic::resume_unwind(Box::new(msg));
+            }
+        }
     }
 }
 
@@ -101,9 +183,11 @@ pub(super) fn remote_handle<Fut: Future>(future: Fut) -> (Remote<Fut>, RemoteHan
     let (tx, rx) = oneshot::channel();
     let keep_running = Arc::new(AtomicBool::new(false));
 
-    // AssertUnwindSafe is used here because `Send + 'static` is basically
-    // an alias for an implementation of the `UnwindSafe` trait but we can't
-    // express that in the standard library right now.
+    // Safety:
+    // We catch_unwind the future so that we can propagate the error from the
+    // future to the thread awaiting the handle. However we don't want to make any
+    // claims about it being safe to keep running, so we tear down the thread
+    // that panicked with resume_unwind after passing on the error.
     let wrapped = Remote {
         future: AssertUnwindSafe(future).catch_unwind(),
         tx: Some(tx),

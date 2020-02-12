@@ -66,7 +66,7 @@ pub trait SpawnExt: Spawn {
     ///
     /// let future = future::ready(1);
     /// let join_handle_fut = executor.spawn_with_handle(future).unwrap();
-    /// assert_eq!(block_on(join_handle_fut), 1);
+    /// assert_eq!(block_on(join_handle_fut).expect("remote future doesn't panic"), 1);
     /// ```
     #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
@@ -142,7 +142,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     ///
     /// let future = async { 1 };
     /// let join_handle_fut = spawner.spawn_local_with_handle(future).unwrap();
-    /// assert_eq!(executor.run_until(join_handle_fut), 1);
+    /// assert_eq!(executor.run_until(join_handle_fut).expect("remote future doesn't panic"), 1);
     /// ```
     #[cfg(feature = "channel")]
     #[cfg(feature = "std")]
