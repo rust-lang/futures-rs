@@ -387,9 +387,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// This function is similar to
     /// [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while) but exits
-    /// early if an error occurs. Because of current HRTB limitations, `Self::Ok`
-    /// reference can't be captured by the future. When it will be possible,
-    /// method's signature may be changed.
+    /// early if an error occurs.
     ///
     /// # Examples
     ///
@@ -520,9 +518,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it, similar to the existing `filter` methods in
-    /// the standard library. Because of current HRTB limitations, `Self::Ok`
-    /// reference can't be captured by the future. When it will be possible,
-    /// method's signature may be changed.
+    /// the standard library.
     ///
     /// # Examples
     /// ```

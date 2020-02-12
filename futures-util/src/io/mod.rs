@@ -312,7 +312,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// use futures::io::{self, AsyncReadExt, Cursor};
     ///
     /// // Note that for `Cursor` the read and write halves share a single
-    /// // seek position. This may or may not be `true` for other types that
+    /// // seek position. This may or may not be true for other types that
     /// // implement both `AsyncRead` and `AsyncWrite`.
     ///
     /// let reader = Cursor::new([1, 2, 3, 4]);
