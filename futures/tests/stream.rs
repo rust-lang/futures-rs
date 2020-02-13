@@ -20,9 +20,9 @@ fn scan() {
     futures::executor::block_on(async {
         assert_eq!(
             stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
-                .scan(1, |acc, e| {
-                    *acc += 1;
-                    futures::future::ready(if e < *acc { Some(e) } else { None })
+                .scan(1, |state, e| {
+                    *state += 1;
+                    futures::future::ready(if e < *state { Some(e) } else { None })
                 })
                 .collect::<Vec<_>>()
                 .await,

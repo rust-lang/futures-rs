@@ -385,8 +385,9 @@ pub trait TryStreamExt: TryStream {
     /// Skip elements on this stream while the provided asynchronous predicate
     /// resolves to `true`.
     ///
-    /// This function is similar to [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while)
-    /// but exits early if an error occurs.
+    /// This function is similar to
+    /// [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while) but exits
+    /// early if an error occurs.
     ///
     /// # Examples
     ///
