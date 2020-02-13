@@ -29,7 +29,7 @@ use {
 /// the thread where `RemoteHandle` is being awaited. This is good for the common
 /// case where [Remote] is spawned on a threadpool. It is unlikely that other code
 /// in the executor working thread shares mutable data with the spawned future and we
-/// preserve the executor from losing it's working threads.
+/// preserve the executor from losing its working threads.
 ///
 /// If you run the future locally and send the handle of to be awaited elsewhere, you
 /// must be careful with regard to unwind safety because the thread in which the future
