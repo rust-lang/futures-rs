@@ -39,7 +39,7 @@ impl<T> RemoteHandle<T> {
     }
 }
 
-impl<T: Send + 'static> Future for RemoteHandle<T> {
+impl<T: 'static> Future for RemoteHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
