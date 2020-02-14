@@ -47,6 +47,10 @@ mod flatten;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::flatten::Flatten;
 
+mod flat_map_unordered;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::flat_map_unordered::FlatMapUnordered;
+
 mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fold::Fold;
@@ -542,6 +546,52 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         Flatten::new(self)
+    }
+
+    /// Maps a stream like [`StreamExt::map`] but flattens nested `Stream`s
+    /// and polls them concurrently, yielding items in any order, as they made
+    /// available.
+    ///
+    /// [`StreamExt::map`] is very useful, but if it produces `Stream`s
+    /// instead, and you need to poll all of them concurrently, you would
+    /// have to use something like `for_each_concurrent` and merge values
+    /// by hand. This combinator provides ability to collect all values
+    /// from concurrently polled streams into one stream.
+    /// 
+    /// The first argument is an optional limit on the number of concurrently
+    /// polled streams. If this limit is not `None`, no more than `limit` streams
+    /// will be polled concurrently. The `limit` argument is of type
+    /// `Into<Option<usize>>`, and so can be provided as either `None`,
+    /// `Some(10)`, or just `10`. Note: a limit of zero is interpreted as
+    /// no limit at all, and will have the same result as passing in `None`.
+    ///
+    /// The provided closure which produce inner streams is executed over
+    /// all elements of stream as next stream item is available and limit
+    /// of concurrently processed streams isn't exceeded.
+    ///
+    /// Note that this function consumes the stream passed into it and
+    /// returns a wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..5);
+    /// let stream = stream.flat_map_unordered(1, |x| stream::iter(vec![x; x]));
+    /// let mut values = stream.collect::<Vec<_>>().await;
+    /// values.sort();
+    ///
+    /// assert_eq!(vec![1usize, 2, 2, 3, 3, 3, 4, 4, 4, 4], values);
+    /// # });
+    fn flat_map_unordered<U, F>(self, limit: impl Into<Option<usize>>, f: F) -> FlatMapUnordered<Self, U, F>
+    where
+        U: Stream,
+        F: FnMut(Self::Item) -> U,
+        Self: Sized,
+    {
+        FlatMapUnordered::new(self, limit.into(), f)
     }
 
     /// Combinator similar to [`StreamExt::fold`] that holds internal state 

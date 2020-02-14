@@ -1,5 +1,5 @@
 use futures::executor::block_on;
-use futures::stream::{self, StreamExt};
+use futures::stream::{self, *};
 
 #[test]
 fn select() {
@@ -28,5 +28,23 @@ fn scan() {
                 .await,
             vec![1u8, 2, 3, 4]
         );
+    });
+}
+
+#[test]
+fn flat_map_unordered() {
+    futures::executor::block_on(async {
+        let st = stream::iter(vec![
+            stream::iter(0..=4u8),
+            stream::iter(6..=10),
+            stream::iter(0..=2),
+        ]);
+
+        let mut fm_unordered = st
+            .flat_map_unordered(1, |s| s.filter(|v| futures::future::ready(v % 2 == 0)))
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_eq!(fm_unordered.sort(), vec![0, 2, 4, 6, 8, 10, 0, 2].sort());
     });
 }
