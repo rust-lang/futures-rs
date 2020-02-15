@@ -40,14 +40,14 @@ futures-sink = { path = "../futures-sink", version = "0.3.4", default-features =
 futures-macro = { path = "../futures-macro", version = "0.3.4", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
-slab = { version = "0.4", optional = true }
+slab = { version = "0.4.2", optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.4", features = ["async-await"] }
+futures = { path = "../futures", version = "0.3.4", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test", version = "0.3.4" }
 tokio = "0.1.11"
 

@@ -109,7 +109,7 @@ struct BoundedSenderInner<T> {
     // unblocked.
     sender_task: Arc<Mutex<SenderTask>>,
 
-    // True if the sender might be blocked. This is an optimization to avoid
+    // `true` if the sender might be blocked. This is an optimization to avoid
     // having to lock the mutex most of the time.
     maybe_parked: bool,
 }
@@ -189,7 +189,7 @@ impl fmt::Display for SendError {
 impl std::error::Error for SendError {}
 
 impl SendError {
-    /// Returns true if this error is a result of the channel being full.
+    /// Returns `true` if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
         match self.kind {
             SendErrorKind::Full => true,
@@ -197,7 +197,7 @@ impl SendError {
         }
     }
 
-    /// Returns true if this error is a result of the receiver being dropped.
+    /// Returns `true` if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
         match self.kind {
             SendErrorKind::Disconnected => true,
@@ -227,12 +227,12 @@ impl<T> fmt::Display for TrySendError<T> {
 impl<T: core::any::Any> std::error::Error for TrySendError<T> {}
 
 impl<T> TrySendError<T> {
-    /// Returns true if this error is a result of the channel being full.
+    /// Returns `true` if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
         self.err.is_full()
     }
 
-    /// Returns true if this error is a result of the receiver being dropped.
+    /// Returns `true` if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
         self.err.is_disconnected()
     }
@@ -536,7 +536,7 @@ impl<T> BoundedSenderInner<T> {
         // This operation will also atomically determine if the sender task
         // should be parked.
         //
-        // None is returned in the case that the channel has been closed by the
+        // `None` is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
         let park_self = match self.inc_num_messages() {
@@ -997,7 +997,7 @@ impl<T> Receiver<T> {
     /// no longer empty.
     ///
     /// This function will panic if called after `try_next` or `poll_next` has
-    /// returned None.
+    /// returned `None`.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {
@@ -1127,7 +1127,7 @@ impl<T> UnboundedReceiver<T> {
     /// no longer empty.
     ///
     /// This function will panic if called after `try_next` or `poll_next` has
-    /// returned None.
+    /// returned `None`.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {

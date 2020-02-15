@@ -582,10 +582,12 @@ pub trait StreamExt: Stream {
         FlatMap::new(self, f)
     }
 
-    /// Combinator similar to [`StreamExt::fold`] that holds internal state and produces a new stream.
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state 
+    /// and produces a new stream.
     ///
-    /// Accepts initial state and closure which will be applied to each element of the stream until provided closure
-    /// returns `None`. Once `None` is returned, stream will be terminated.
+    /// Accepts initial state and closure which will be applied to each element
+    /// of the stream until provided closure returns `None`. Once `None` is
+    /// returned, stream will be terminated.
     ///
     /// # Examples
     ///
@@ -618,7 +620,7 @@ pub trait StreamExt: Stream {
     ///
     /// This function, like `Iterator::skip_while`, will skip elements on the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false all future elements will be returned from the underlying
+    /// returns `false`, all future elements will be returned from the underlying
     /// stream.
     ///
     /// # Examples
@@ -649,7 +651,7 @@ pub trait StreamExt: Stream {
     ///
     /// This function, like `Iterator::take_while`, will take elements from the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false it will always return that the stream is done.
+    /// returns `false`, it will always return that the stream is done.
     ///
     /// # Examples
     ///
@@ -1155,7 +1157,7 @@ pub trait StreamExt: Stream {
         Forward::new(self, sink)
     }
 
-    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
+    /// Splits this `Stream + Sink` object into separate `Sink` and `Stream`
     /// objects.
     ///
     /// This can be useful when you want to split ownership between tasks, or
