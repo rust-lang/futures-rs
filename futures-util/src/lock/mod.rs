@@ -25,3 +25,12 @@ mod bilock;
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "std")]
 mod mutex;
+
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "std")]
+mod rwlock;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "std")]
+pub use self::rwlock::{
+    RwLock, RwLockReadFuture, RwLockReadGuard, RwLockWriteFuture, RwLockWriteGuard,
+};
