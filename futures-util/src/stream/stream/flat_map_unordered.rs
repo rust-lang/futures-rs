@@ -355,7 +355,7 @@ where
             ctx.waker().wake_by_ref();
         }
 
-        if self.futures.is_empty() && self.is_stream_done || next_item.is_some() {
+        if next_item.is_some() || self.futures.is_empty() && self.is_stream_done {
             Poll::Ready(next_item)
         } else {
             Poll::Pending
