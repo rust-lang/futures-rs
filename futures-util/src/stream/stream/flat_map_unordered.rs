@@ -347,8 +347,8 @@ where
 
         if poll_state_value & NEED_TO_POLL != NONE
             && (polling_with_two_wakers
-                || (poll_state_value & NEED_TO_POLL_FUTURES != NONE && !futures_will_be_woken
-                    || poll_state_value & NEED_TO_POLL_STREAM != NONE && !stream_will_be_woken))
+                || poll_state_value & NEED_TO_POLL_FUTURES != NONE && !futures_will_be_woken
+                    || poll_state_value & NEED_TO_POLL_STREAM != NONE && !stream_will_be_woken)
         {
             ctx.waker().wake_by_ref();
         }

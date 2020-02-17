@@ -45,6 +45,8 @@ fn flat_map_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        assert_eq!(fm_unordered.sort(), vec![0, 2, 4, 6, 8, 10, 0, 2].sort());
+        fm_unordered.sort();
+
+        assert_eq!(fm_unordered, vec![0, 0, 2, 2, 4, 6, 8, 10]);
     });
 }
