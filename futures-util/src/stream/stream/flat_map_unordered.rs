@@ -76,8 +76,8 @@ struct PollWaker {
 impl ArcWake for PollWaker {
     fn wake_by_ref(self_arc: &Arc<Self>) {
         let poll_state_value = self_arc.poll_state.set_or(self_arc.need_to_poll);
-        // Only call waker if stream isn't polled because it will called at the end
-        // of polling if it needs to poll something.
+        // Only call waker if stream isn't polled because it will be called
+        // at the end of polling if state was changed.
         if poll_state_value & POLLING == NONE {
             self_arc.inner_waker.wake_by_ref();
         }
