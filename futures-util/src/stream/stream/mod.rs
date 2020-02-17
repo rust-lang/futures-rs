@@ -47,10 +47,6 @@ mod flatten;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::flatten::Flatten;
 
-mod flat_map_unordered;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flat_map_unordered::FlatMapUnordered;
-
 mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fold::Fold;
@@ -134,6 +130,12 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use self::buffer_unordered::BufferUnordered;
+
+    #[cfg(feature = "alloc")]
+    mod flat_map_unordered;
+    #[cfg(feature = "alloc")]
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use self::flat_map_unordered::FlatMapUnordered;
 
     #[cfg(feature = "alloc")]
     mod buffered;
@@ -585,6 +587,8 @@ pub trait StreamExt: Stream {
     ///
     /// assert_eq!(vec![1usize, 2, 2, 3, 3, 3, 4, 4, 4, 4], values);
     /// # });
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
     fn flat_map_unordered<U, F>(self, limit: impl Into<Option<usize>>, f: F) -> FlatMapUnordered<Self, U, F>
     where
         U: Stream,

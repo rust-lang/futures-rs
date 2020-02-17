@@ -3,6 +3,8 @@ use crate::stream::FuturesUnordered;
 use core::fmt;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
+use core::sync::atomic::{Ordering, AtomicU8};
+use alloc::sync::Arc;
 use futures_core::future::Future;
 use futures_core::stream::FusedStream;
 use futures_core::stream::Stream;
@@ -11,8 +13,6 @@ use futures_core::task::{Context, Poll, Waker};
 use futures_sink::Sink;
 use futures_task::{waker, ArcWake};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::sync::atomic::*;
-use std::sync::Arc;
 
 /// Indicates that there is nothing to poll and stream isn't polled at the
 /// moment.

@@ -442,10 +442,9 @@ pub mod stream {
         try_unfold, TryUnfold,
 
         StreamExt,
-        Chain, Collect, Concat, Enumerate, Filter, FilterMap, FlatMapUnordered,
-        Flatten, Fold, Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
-        SelectNextSome, Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeWhile,
-        Then, Zip,
+        Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
+        Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next, SelectNextSome,
+        Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeWhile, Then, Zip,
 
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
@@ -469,7 +468,7 @@ pub mod stream {
 
         // For StreamExt:
         BufferUnordered, Buffered, ForEachConcurrent, SplitStream, SplitSink,
-        ReuniteError,
+        ReuniteError, FlatMapUnordered,
 
         select_all, SelectAll,
     };

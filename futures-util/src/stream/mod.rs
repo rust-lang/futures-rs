@@ -13,7 +13,7 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 #[allow(clippy::module_inception)]
 mod stream;
 pub use self::stream::{
-    Chain, Collect, Concat, Enumerate, Filter, FilterMap, FlatMapUnordered, Flatten, Fold, ForEach,
+    Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold, ForEach,
     Fuse, Inspect, Map, Next, Peek, Peekable, Scan, SelectNextSome, Skip, SkipWhile, StreamExt,
     StreamFuture, Take, TakeWhile, Then, Zip,
 };
@@ -29,7 +29,7 @@ pub use self::stream::Forward;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-pub use self::stream::{BufferUnordered, Buffered, ForEachConcurrent};
+pub use self::stream::{BufferUnordered, FlatMapUnordered, Buffered, ForEachConcurrent};
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "sink")]
