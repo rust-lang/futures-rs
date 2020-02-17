@@ -24,7 +24,7 @@ const NEED_TO_POLL_FUTURES: u8 = 0b1;
 /// Indicates that `stream` needs to be polled.
 const NEED_TO_POLL_STREAM: u8 = 0b10;
 
-/// Indicates that we need to poll something.
+/// Indicates that it needs to poll something.
 const NEED_TO_POLL: u8 = NEED_TO_POLL_FUTURES | NEED_TO_POLL_STREAM;
 
 /// Indicates that current stream is polled at the moment.
@@ -76,7 +76,7 @@ struct PollWaker {
 impl ArcWake for PollWaker {
     fn wake_by_ref(self_arc: &Arc<Self>) {
         let poll_state_value = self_arc.poll_state.set_or(self_arc.need_to_poll);
-        // Only call waker if we're not polling because we will call it at the end
+        // Only call waker if stream isn't polled because it will called at the end
         // of polling if it needs to poll something.
         if poll_state_value & POLLING == NONE {
             self_arc.inner_waker.wake_by_ref();
@@ -90,25 +90,25 @@ impl ArcWake for PollWaker {
 /// If `poll_next` will return `Poll::Pending`, it will be forwared to
 /// the future, and current task will be notified by waker.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-struct StreamFut<St> {
+struct PollStreamFut<St> {
     stream: Option<St>,
 }
 
-impl<St> StreamFut<St> {
+impl<St> PollStreamFut<St> {
     unsafe_pinned!(stream: Option<St>);
 
-    /// Constructs new `StreamFut` using given `stream`.
-    fn new(stream: St) -> Self {
+    /// Constructs new `PollStreamFut` using given `stream`.
+    fn new(stream: impl Into<Option<St>>) -> Self {
         Self {
             stream: stream.into(),
         }
     }
 }
 
-impl<St: Stream + Unpin> Unpin for StreamFut<St> {}
+impl<St: Stream + Unpin> Unpin for PollStreamFut<St> {}
 
-impl<St: Stream> Future for StreamFut<St> {
-    type Output = Option<(St::Item, StreamFut<St>)>;
+impl<St: Stream> Future for PollStreamFut<St> {
+    type Output = Option<(St::Item, PollStreamFut<St>)>;
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
         let item = if let Some(stream) = self.as_mut().stream().as_pin_mut() {
@@ -120,9 +120,7 @@ impl<St: Stream> Future for StreamFut<St> {
         Poll::Ready(item.map(|item| {
             (
                 item,
-                StreamFut {
-                    stream: unsafe { self.get_unchecked_mut().stream.take() },
-                },
+                PollStreamFut::new(unsafe { self.get_unchecked_mut().stream.take() }),
             )
         }))
     }
@@ -133,7 +131,7 @@ impl<St: Stream> Future for StreamFut<St> {
 #[must_use = "streams do nothing unless polled"]
 pub struct FlatMapUnordered<St: Stream, U: Stream, F: FnMut(St::Item) -> U> {
     poll_state: SharedPollState,
-    futures: FuturesUnordered<StreamFut<U>>,
+    futures: FuturesUnordered<PollStreamFut<U>>,
     stream: Map<St, F>,
     limit: Option<NonZeroUsize>,
     is_stream_done: bool,
@@ -170,7 +168,7 @@ where
     U: Stream,
     F: FnMut(St::Item) -> U,
 {
-    unsafe_pinned!(futures: FuturesUnordered<StreamFut<U>>);
+    unsafe_pinned!(futures: FuturesUnordered<PollStreamFut<U>>);
     unsafe_pinned!(stream: Map<St, F>);
     unsafe_unpinned!(is_stream_done: bool);
     unsafe_unpinned!(limit: Option<NonZeroUsize>);
@@ -178,7 +176,7 @@ where
 
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> FlatMapUnordered<St, U, F> {
         FlatMapUnordered {
-            // Because to create first future, we need to get inner
+            // Because to create first future, it needs to get inner
             // stream from `stream`
             poll_state: SharedPollState::new(NEED_TO_POLL_STREAM),
             futures: FuturesUnordered::new(),
@@ -290,7 +288,7 @@ where
                     self.as_mut().stream().poll_next(ctx)
                 } {
                     Poll::Ready(Some(inner_stream)) => {
-                        self.as_mut().futures().push(StreamFut::new(inner_stream));
+                        self.as_mut().futures().push(PollStreamFut::new(inner_stream));
                         need_to_poll_next |= NEED_TO_POLL_STREAM;
                         // Polling futures in current iteration with the same context
                         // is ok because we already received `Poll::Ready` from
