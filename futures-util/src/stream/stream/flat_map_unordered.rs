@@ -53,7 +53,7 @@ impl SharedPollState {
     /// Performs bitwise or with `to_poll` and given state, returning
     /// previous state.
     fn set_or(&self, to_poll: u8) -> u8 {
-        self.state.fetch_or(to_poll, Ordering::AcqRel)
+        self.state.fetch_or(to_poll, Ordering::Relaxed)
     }
 
     /// Performs bitwise or with `to_poll` and current state, stores result
