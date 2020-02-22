@@ -1,5 +1,4 @@
-use super::Map;
-use crate::stream::FuturesUnordered;
+use crate::stream::{Map, FuturesUnordered};
 use core::fmt;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
@@ -15,8 +14,8 @@ use futures_task::{waker, ArcWake};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::cell::UnsafeCell;
 
-/// Indicates that there is nothing to poll and stream isn't polled at the
-/// moment.
+/// Indicates that there is nothing to poll and stream isn't being polled at
+/// the moment.
 const NONE: u8 = 0;
 
 /// Indicates that `futures` need to be polled.
@@ -31,8 +30,8 @@ const NEED_TO_POLL: u8 = NEED_TO_POLL_FUTURES | NEED_TO_POLL_STREAM;
 /// Indicates that current stream is polled at the moment.
 const POLLING: u8 = 0b100;
 
-/// State which used to determine what needs to be polled,
-/// and are we polling stream at the moment or not.
+/// State which used to determine what needs to be polled, and are we polling
+/// stream at the moment or not.
 #[derive(Clone, Debug)]
 struct SharedPollState {
     state: Arc<AtomicU8>,
@@ -81,7 +80,7 @@ unsafe impl Sync for PollWaker {}
 impl ArcWake for PollWaker {
     fn wake_by_ref(self_arc: &Arc<Self>) {
         let poll_state_value = self_arc.poll_state.set_or(self_arc.need_to_poll);
-        // Only call waker if stream isn't polled because it will be called
+        // Only call waker if stream isn't being polled because it will be called
         // at the end of polling if state was changed.
         if poll_state_value & POLLING == NONE {
             if let Some(Some(inner_waker)) = unsafe { self_arc.inner_waker.get().as_ref() } {
