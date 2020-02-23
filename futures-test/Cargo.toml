@@ -1,30 +1,30 @@
 [package]
 name = "futures-test"
 edition = "2018"
-version = "0.3.1"
+version = "0.3.4"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://rust-lang-nursery.github.io/futures-rs"
+repository = "https://github.com/rust-lang/futures-rs"
+homepage = "https://rust-lang.github.io/futures-rs"
 documentation = "https://docs.rs/futures-test/0.3.0"
 description = """
 Common utilities for testing components built off futures-rs.
 """
 
-[lib]
-name = "futures_test"
-
 [dependencies]
-futures-core = { version = "0.3.1", path = "../futures-core", default-features = false }
-futures-task = { version = "0.3.1", path = "../futures-task", default-features = false }
-futures-io = { version = "0.3.1", path = "../futures-io", default-features = false }
-futures-util = { version = "0.3.1", path = "../futures-util", default-features = false }
-futures-executor = { version = "0.3.1", path = "../futures-executor", default-features = false }
+futures-core = { version = "0.3.4", path = "../futures-core", default-features = false }
+futures-task = { version = "0.3.4", path = "../futures-task", default-features = false }
+futures-io = { version = "0.3.4", path = "../futures-io", default-features = false }
+futures-util = { version = "0.3.4", path = "../futures-util", default-features = false }
+futures-executor = { version = "0.3.4", path = "../futures-executor", default-features = false }
 pin-utils = { version = "0.1.0-alpha.4", default-features = false }
 
 [dev-dependencies]
-futures = { version = "0.3.1", path = "../futures", default-features = false, features = ["std"] }
+futures = { version = "0.3.4", path = "../futures", default-features = false, features = ["std"] }
 
 [features]
 default = ["std"]
 std = ["futures-core/std", "futures-task/std", "futures-io/std", "futures-util/std", "futures-util/io", "futures-executor/std"]
+
+[package.metadata.docs.rs]
+all-features = true

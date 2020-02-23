@@ -1,10 +1,14 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
-use futures::future::{Future, lazy, poll_fn};
+use futures::future::{self, Future, lazy, poll_fn};
 use futures::task::{Context, Poll, Spawn, LocalSpawn, Waker};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{Ordering, AtomicBool};
 
 struct Pending(Rc<()>);
 
@@ -28,9 +32,8 @@ fn run_until_single_future() {
         let mut pool = LocalPool::new();
         let fut = lazy(|_| {
             cnt += 1;
-            ()
         });
-        assert_eq!(pool.run_until(fut), ());
+        pool.run_until(fut);
     }
 
     assert_eq!(cnt, 1);
@@ -41,7 +44,7 @@ fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
-    assert_eq!(pool.run_until(lazy(|_| ())), ());
+    pool.run_until(lazy(|_| ()));
 }
 
 #[test]
@@ -51,7 +54,6 @@ fn run_until_executes_spawned() {
     let spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pin(lazy(move |_| {
         tx.send(()).unwrap();
-        ()
     })).into()).unwrap();
     pool.run_until(rx).unwrap();
 }
@@ -75,9 +77,7 @@ fn run_executes_spawned() {
     spawn.spawn_local_obj(Box::pin(lazy(move |_| {
         spawn2.spawn_local_obj(Box::pin(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
-            ()
         })).into()).unwrap();
-        ()
     })).into()).unwrap();
 
     pool.run();
@@ -99,7 +99,6 @@ fn run_spawn_many() {
         let cnt = cnt.clone();
         spawn.spawn_local_obj(Box::pin(lazy(move |_| {
             cnt.set(cnt.get() + 1);
-            ()
         })).into()).unwrap();
     }
 
@@ -111,7 +110,7 @@ fn run_spawn_many() {
 #[test]
 fn try_run_one_returns_if_empty() {
     let mut pool = LocalPool::new();
-    assert!(pool.try_run_one() == false);
+    assert!(!pool.try_run_one());
 }
 
 #[test]
@@ -129,7 +128,6 @@ fn try_run_one_executes_one_ready() {
         let cnt = cnt.clone();
         spawn.spawn_local_obj(Box::pin(lazy(move |_| {
             cnt.set(cnt.get() + 1);
-            ()
         })).into()).unwrap();
 
         spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
@@ -140,7 +138,7 @@ fn try_run_one_executes_one_ready() {
         assert!(pool.try_run_one());
         assert_eq!(cnt.get(), i + 1);
     }
-    assert!(pool.try_run_one() == false);
+    assert!(!pool.try_run_one());
 }
 
 #[test]
@@ -266,7 +264,6 @@ fn run_until_stalled_executes_all_ready() {
             let cnt = cnt.clone();
             spawn.spawn_local_obj(Box::pin(lazy(move |_| {
                 cnt.set(cnt.get() + 1);
-                ()
             })).into()).unwrap();
 
             // also add some pending tasks to test if they are ignored
@@ -351,9 +348,40 @@ fn tasks_are_scheduled_fairly() {
     }).into()).unwrap();
 
     spawn.spawn_local_obj(Box::pin(Spin {
-        state: state,
+        state,
         idx: 1,
     }).into()).unwrap();
 
     pool.run();
 }
+
+// Tests that the use of park/unpark in user-code has no
+// effect on the expected behaviour of the executor.
+#[test]
+fn park_unpark_independence() {
+    let mut done = false;
+
+    let future = future::poll_fn(move |cx| {
+        if done {
+            return Poll::Ready(())
+        }
+        done = true;
+        cx.waker().clone().wake(); // (*)
+        // some user-code that temporarily parks the thread
+        let test = thread::current();
+        let latch = Arc::new(AtomicBool::new(false));
+        let signal = latch.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            signal.store(true, Ordering::SeqCst);
+            test.unpark()
+        });
+        while !latch.load(Ordering::Relaxed) {
+            thread::park();
+        }
+        Poll::Pending // Expect to be called again due to (*).
+    });
+
+    futures::executor::block_on(future)
+}
+

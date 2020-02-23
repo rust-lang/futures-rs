@@ -20,7 +20,21 @@ use {
 };
 
 /// The handle to a remote future returned by
-/// [`remote_handle`](crate::future::FutureExt::remote_handle).
+/// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
+/// the remote future will be woken up to be dropped by the executor.
+///
+/// ## Unwind safety
+///
+/// When the remote future panics, [Remote] will catch the unwind and transfer it to
+/// the thread where `RemoteHandle` is being awaited. This is good for the common
+/// case where [Remote] is spawned on a threadpool. It is unlikely that other code
+/// in the executor working thread shares mutable data with the spawned future and we
+/// preserve the executor from losing its working threads.
+///
+/// If you run the future locally and send the handle of to be awaited elsewhere, you
+/// must be careful with regard to unwind safety because the thread in which the future
+/// is polled will keep running after the panic and the thread running the [RemoteHandle]
+/// will unwind.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct RemoteHandle<T> {
@@ -44,7 +58,9 @@ impl<T: Send + 'static> Future for RemoteHandle<T> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
         match ready!(self.rx.poll_unpin(cx)) {
             Ok(Ok(output)) => Poll::Ready(output),
+            // the remote future panicked.
             Ok(Err(e)) => panic::resume_unwind(e),
+            // The oneshot sender was dropped.
             Err(e) => panic::resume_unwind(Box::new(e)),
         }
     }
@@ -100,9 +116,7 @@ pub(super) fn remote_handle<Fut: Future>(future: Fut) -> (Remote<Fut>, RemoteHan
     let (tx, rx) = oneshot::channel();
     let keep_running = Arc::new(AtomicBool::new(false));
 
-    // AssertUnwindSafe is used here because `Send + 'static` is basically
-    // an alias for an implementation of the `UnwindSafe` trait but we can't
-    // express that in the standard library right now.
+    // Unwind Safety: See the docs for RemoteHandle.
     let wrapped = Remote {
         future: AssertUnwindSafe(future).catch_unwind(),
         tx: Some(tx),

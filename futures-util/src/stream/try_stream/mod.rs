@@ -76,6 +76,10 @@ mod try_fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_fold::TryFold;
 
+mod try_unfold;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_unfold::{try_unfold, TryUnfold};
+
 mod try_skip_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_skip_while::TrySkipWhile;
@@ -381,8 +385,9 @@ pub trait TryStreamExt: TryStream {
     /// Skip elements on this stream while the provided asynchronous predicate
     /// resolves to `true`.
     ///
-    /// This function is similar to [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while)
-    /// but exits early if an error occurs.
+    /// This function is similar to
+    /// [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while) but exits
+    /// early if an error occurs.
     ///
     /// # Examples
     ///

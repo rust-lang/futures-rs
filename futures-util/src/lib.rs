@@ -10,6 +10,11 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
+// The solution for this lint is not available on 1.39 which is the current minimum supported version.
+// Can be removed as of minimum supported 1.40 or if https://github.com/rust-lang/rust-clippy/issues/3941
+// get's implemented.
+#![allow(clippy::mem_replace_with_default)]
+
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.0")]
@@ -34,12 +39,10 @@ pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
 // Not public API.
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[macro_use]
 #[doc(hidden)]
 pub mod async_await;
-#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use self::async_await::*;

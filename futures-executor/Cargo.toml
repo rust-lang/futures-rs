@@ -1,18 +1,15 @@
 [package]
 name = "futures-executor"
 edition = "2018"
-version = "0.3.1"
+version = "0.3.4"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://rust-lang-nursery.github.io/futures-rs"
+repository = "https://github.com/rust-lang/futures-rs"
+homepage = "https://rust-lang.github.io/futures-rs"
 documentation = "https://docs.rs/futures-executor/0.3.0"
 description = """
 Executors for asynchronous tasks based on the futures-rs library.
 """
-
-[lib]
-name = "futures_executor"
 
 [features]
 default = ["std"]
@@ -20,10 +17,13 @@ std = ["futures-core/std", "futures-task/std", "futures-util/std"]
 thread-pool = ["std", "num_cpus"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.1", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.1", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.1", default-features = false }
+futures-core = { path = "../futures-core", version = "0.3.4", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.4", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.4", default-features = false }
 num_cpus = { version = "1.8.0", optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.1" }
+futures = { path = "../futures", version = "0.3.4" }
+
+[package.metadata.docs.rs]
+all-features = true

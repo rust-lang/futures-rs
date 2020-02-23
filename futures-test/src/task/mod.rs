@@ -2,7 +2,7 @@
 // in the redered docs. Is this desirable? If so, should we change the paths here?
 //
 // Also, there is cross crate links in here. They are not going to work anytime soon. Do we put https links
-// in here? to here: https://rust-lang-nursery.github.io/futures-api-docs? The problem is these have a
+// in here? to here: https://rust-lang.github.io/futures-api-docs? The problem is these have a
 // version hardcoded in the url: 0.3.0-alpha.16 We could link to docs.rs, but currently that says:
 // docs.rs failed to build futures-0.3.0-alpha.16 -> ok the reason seems to be that they are on
 // 2019-04-17 which does still have futures-api unstable feature, so that should get solved.

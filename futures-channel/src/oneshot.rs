@@ -126,7 +126,7 @@ impl<T> Inner<T> {
         }
 
         // Note that this lock acquisition may fail if the receiver
-        // is closed and sets the `complete` flag to true, whereupon
+        // is closed and sets the `complete` flag to `true`, whereupon
         // the receiver may call `poll()`.
         if let Some(mut slot) = self.data.try_lock() {
             assert!(slot.is_none());
@@ -211,7 +211,7 @@ impl<T> Inner<T> {
         // under the hood. If it instead used `Release` / `Acquire` ordering,
         // then it would not necessarily synchronize with `inner.complete`
         // and deadlock might be possible, as was observed in
-        // https://github.com/rust-lang-nursery/futures-rs/pull/219.
+        // https://github.com/rust-lang/futures-rs/pull/219.
         self.complete.store(true, SeqCst);
 
         if let Some(mut slot) = self.rx_task.try_lock() {

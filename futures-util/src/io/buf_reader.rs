@@ -1,7 +1,7 @@
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
-use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, IoSliceMut, SeekFrom};
+use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::io::{self, Read};
 use std::pin::Pin;
@@ -34,11 +34,13 @@ pub struct BufReader<R> {
     cap: usize,
 }
 
-impl<R: AsyncRead> BufReader<R> {
+impl<R> BufReader<R> {
     unsafe_pinned!(inner: R);
     unsafe_unpinned!(pos: usize);
     unsafe_unpinned!(cap: usize);
+}
 
+impl<R: AsyncRead> BufReader<R> {
     /// Creates a new `BufReader` with a default buffer capacity. The default is currently 8 KB,
     /// but may change in the future.
     pub fn new(inner: R) -> Self {
@@ -169,6 +171,32 @@ impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
 
     fn consume(mut self: Pin<&mut Self>, amt: usize) {
         *self.as_mut().pos() = cmp::min(self.pos + amt, self.cap);
+    }
+}
+
+impl<R: AsyncWrite> AsyncWrite for BufReader<R> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.inner().poll_write(cx, buf)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.inner().poll_write_vectored(cx, bufs)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.inner().poll_flush(cx)
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.inner().poll_close(cx)
     }
 }
 

@@ -1,3 +1,27 @@
+# 0.3.4 - 2020-02-06
+* Fixed missing `Drop` for `UnboundedReceiver` (#2064)
+
+# 0.3.3 - 2020-02-04
+* Fixed compatibility issue with pinned facade (#2062)
+
+# 0.3.2 - 2020-02-03
+* Improved buffering performance of `SplitSink` (#1969)
+* Added `select_biased!` macro (#1976)
+* Added `hash_receiver` method to mpsc channel (#1962)
+* Added `stream::try_unfold` (#1977)
+* Fixed bug with zero-size buffers in vectored IO (#1998)
+* `AtomicWaker::new()` is now `const fn` (#2007)
+* Fixed bug between threadpool and user park/unparking (#2010)
+* Added `stream::Peakable::peek` (#2021)
+* Added `StreamExt::scan` (#2044)
+* Added impl of `AsyncRead`/`Write` for `BufReader`/`Writer` (#2033)
+* Added impl of `Spawn` and `LocalSpawn` for `Arc<impl Spawn` and `Rc<impl Spawn>` (#2039)
+* Fixed `Sync` issues with `FuturesUnordered` (#2054)
+* Added `into_inner` method for `future::Ready` (#2055)
+* Added `MappedMutexGuard` API (#2056)
+* Mitigated starvation issues in `FuturesUnordered` (#2049)
+* Added `TryFutureExt::map_ok_or_else` (#2058)
+
 # 0.3.1 - 2019-11-7
 * Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
 
@@ -5,7 +29,7 @@
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
 * Changed `Spawn` trait and `FuturesUnordered::push` to take `&self` (#1950)
-* Moved `Spawn` and `FutureObj` out of `futures-core` and into `futures-task (#1925)
+* Moved `Spawn` and `FutureObj` out of `futures-core` and into `futures-task` (#1925)
 * Changed case convention for feature names (#1937)
 * Added `executor` feature (#1949)
 * Moved `copy_into`/`copy_buf_into` (#1948)

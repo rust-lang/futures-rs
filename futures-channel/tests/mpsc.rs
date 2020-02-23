@@ -116,8 +116,6 @@ fn recv_close_gets_none() {
             Poll::Ready(Err(e)) => assert!(e.is_disconnected()),
         };
 
-        drop(&tx);
-
         Poll::Ready(())
     }));
 }
@@ -357,7 +355,7 @@ fn stress_close_receiver_iter() {
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
     let th = thread::spawn(move || {
         for i in 1.. {
-            if let Err(_) = tx.unbounded_send(i) {
+            if tx.unbounded_send(i).is_err() {
                 unwritten_tx.send(i).expect("unwritten_tx");
                 return;
             }
@@ -469,7 +467,7 @@ fn try_send_2() {
         block_on(tx.send("goodbye")).unwrap();
     });
 
-    drop(block_on(readyrx));
+    let _ = block_on(readyrx);
     assert_eq!(rx.next(), Some("hello"));
     assert_eq!(rx.next(), Some("goodbye"));
     assert_eq!(rx.next(), None);
@@ -527,6 +525,55 @@ fn same_receiver() {
 
     assert!(!txa1.same_receiver(&txa2));
     assert!(txb1.same_receiver(&txb2));
+}
+
+#[test]
+fn hash_receiver() {
+    use std::hash::Hasher;
+    use std::collections::hash_map::DefaultHasher;
+
+    let mut hasher_a1 = DefaultHasher::new();
+    let mut hasher_a2 = DefaultHasher::new();
+    let mut hasher_b1 = DefaultHasher::new();
+    let mut hasher_b2 = DefaultHasher::new();
+    let (mut txa1, _) = mpsc::channel::<i32>(1);
+    let txa2 = txa1.clone();
+
+    let (mut txb1, _) = mpsc::channel::<i32>(1);
+    let txb2 = txb1.clone();
+
+    txa1.hash_receiver(&mut hasher_a1);
+    let hash_a1 = hasher_a1.finish();
+    txa2.hash_receiver(&mut hasher_a2);
+    let hash_a2 = hasher_a2.finish();
+    txb1.hash_receiver(&mut hasher_b1);
+    let hash_b1 = hasher_b1.finish();
+    txb2.hash_receiver(&mut hasher_b2);
+    let hash_b2 = hasher_b2.finish();
+
+    assert_eq!(hash_a1, hash_a2);
+    assert_eq!(hash_b1, hash_b2);
+    assert!(hash_a1 != hash_b1);
+
+    txa1.disconnect();
+    txb1.close_channel();
+
+    let mut hasher_a1 = DefaultHasher::new();
+    let mut hasher_a2 = DefaultHasher::new();
+    let mut hasher_b1 = DefaultHasher::new();
+    let mut hasher_b2 = DefaultHasher::new();
+
+    txa1.hash_receiver(&mut hasher_a1);
+    let hash_a1 = hasher_a1.finish();
+    txa2.hash_receiver(&mut hasher_a2);
+    let hash_a2 = hasher_a2.finish();
+    txb1.hash_receiver(&mut hasher_b1);
+    let hash_b1 = hasher_b1.finish();
+    txb2.hash_receiver(&mut hasher_b2);
+    let hash_b2 = hasher_b2.finish();
+
+    assert!(hash_a1 != hash_a2);
+    assert_eq!(hash_b1, hash_b2);
 }
 
 #[test]

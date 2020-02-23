@@ -129,6 +129,8 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
             } else if unsafe { #futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.output_mut().unwrap().is_err() {
                 // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
                 // a `T: Debug` bound.
+                // Also, for an error type of ! any code after `err().unwrap()` is unreachable.
+                #[allow(unreachable_code)]
                 return #futures_crate::core_reexport::task::Poll::Ready(
                     #futures_crate::core_reexport::result::Result::Err(
                         unsafe { #futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().err().unwrap()
@@ -141,6 +143,8 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
         quote! {
             // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
             // an `E: Debug` bound.
+            // Also, for an ok type of ! any code after `ok().unwrap()` is unreachable.
+            #[allow(unreachable_code)]
             unsafe { #futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().ok().unwrap(),
         }
     });
@@ -148,6 +152,7 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
     TokenStream::from(quote! { {
         #( #future_let_bindings )*
 
+        #[allow(clippy::diverging_sub_expression)]
         #futures_crate::future::poll_fn(move |__cx: &mut #futures_crate::task::Context<'_>| {
             let mut __all_done = true;
             #( #poll_futures )*

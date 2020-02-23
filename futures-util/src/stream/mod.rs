@@ -14,8 +14,8 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 mod stream;
 pub use self::stream::{
     Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold, ForEach, Fuse, Inspect,
-    Map, Next, Peekable, SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeWhile,
-    Then, Zip,
+    Map, Next, Peek, Peekable, Scan, SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take,
+    TakeWhile, Then, Zip,
 };
 
 #[cfg(feature = "std")]
@@ -38,9 +38,9 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 
 mod try_stream;
 pub use self::try_stream::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryCollect,
-    TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext, TrySkipWhile,
-    TryStreamExt,
+    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
+    TrySkipWhile, TryStreamExt, TryUnfold,
 };
 
 #[cfg(feature = "io")]

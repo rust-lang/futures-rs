@@ -6,7 +6,7 @@ use std::sync::mpsc as std_mpsc;
 use std::thread;
 
 #[test]
-#[ignore] // FIXME: https://github.com/rust-lang-nursery/futures-rs/issues/1790
+#[ignore] // FIXME: https://github.com/rust-lang/futures-rs/issues/1790
 fn works() {
     const N: usize = 4;
 
@@ -15,7 +15,7 @@ fn works() {
     let (tx2, rx2) = std_mpsc::channel();
     let (tx3, rx3) = std_mpsc::channel();
     let t1 = thread::spawn(move || {
-        for _ in 0..N+1 {
+        for _ in 0..=N {
             let (mytx, myrx) = oneshot::channel();
             block_on(tx.send(myrx)).unwrap();
             tx3.send(mytx).unwrap();

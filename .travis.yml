@@ -1,26 +1,38 @@
 language: rust
 sudo: false
-# TODO: https://github.com/rust-lang-nursery/futures-rs/pull/1681#issuecomment-507791279
-# cache: cargo
 
-stages:
-  - name: test
-  - name: release
-    if: tag IS present
+# Refs: https://levans.fr/rust_travis_cache.html
+cache:
+  directories:
+    - /home/travis/.cargo
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 
 matrix:
   include:
     # This is the minimum Rust version supported by futures-rs.
     # When updating this, the reminder to update the minimum required version in README.md.
-    - name: cargo build (minimum required version)
+    - name: cargo check (minimum required version)
       rust: 1.36.0
+      install:
+        # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+        # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+        - if ! cargo hack -V 2>/dev/null; then
+            cargo install cargo-hack;
+          fi
       script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        # Check default-features
-        - cargo build --all
-        # Check compat & thread-pool features
-        - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
+        # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+        - cargo hack --remove-dev-deps --workspace
+        # Check no-default-features
+        - cargo hack check --workspace --exclude futures-test --ignore-private --no-default-features
+        # Check alloc feature
+        - cargo hack check --workspace --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
+        # Check std feature
+        - cargo hack check --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
+        # Check compat feature (futures, futures-util)
+        - cargo hack check -p futures -p futures-util --no-default-features --features std,io-compat
+        # Check thread-pool feature (futures, futures-executor)
+        - cargo hack check -p futures -p futures-executor --no-default-features --features std,thread-pool
 
     # This is the minimum Rust version supported by `async-await` feature.
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
@@ -28,29 +40,20 @@ matrix:
       rust: 1.39.0
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --features async-await
+        # async-await feature is activated by default.
+        - cargo build --workspace
 
     - name: cargo +stable build
       rust: stable
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        # Check default-features
-        - cargo build --all
-        # Check compat & thread-pool & async-await features
-        - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
-        - cargo build --manifest-path futures/Cargo.toml --features async-await
+        - cargo build --workspace
 
     - name: cargo +beta build
       rust: beta
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        # Check default-features
-        - cargo build --all
-        # Check compat & thread-pool & async-await features
-        - cargo build --manifest-path futures/Cargo.toml --features io-compat
-        - cargo build --manifest-path futures/Cargo.toml --features thread-pool
-        - cargo build --manifest-path futures/Cargo.toml --features async-await
+        - cargo build --workspace
 
     - name: cargo test
       rust: nightly
@@ -65,47 +68,26 @@ matrix:
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo update -Zminimal-versions
-        - cargo build --all --all-features
+        - cargo build --workspace --all-features
 
     - name: cargo clippy
       rust: nightly
-      script:
-        - if ! rustup component add clippy; then
+      install:
+        - if ! rustup component add clippy 2>/dev/null; then
             target=`curl https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy`;
             echo "'clippy' is unavailable on the toolchain 'nightly', use the toolchain 'nightly-$target' instead";
             rustup toolchain install nightly-$target;
             rustup default nightly-$target;
             rustup component add clippy;
           fi
-        - cargo clippy --all --all-features
+      script:
+        - cargo clippy --workspace --all-features --all-targets
 
     - name: cargo bench
       rust: nightly
       script:
-        - cargo bench --all
+        - cargo bench --workspace
         - cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
-
-    - name: cargo +stable build --no-default-features
-      rust: stable
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
-
-    - name: cargo +stable build (alloc)
-      rust: stable
-      script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features alloc
-        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
@@ -146,81 +128,31 @@ matrix:
 
     - name: cargo check (features)
       rust: nightly
+      install:
+        - cargo install cargo-hack
       script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
-
-        # futures
-        # Check default-features, all-features
-        - cargo check --manifest-path futures/Cargo.toml
-        - cargo check --manifest-path futures/Cargo.toml --all-features
-        # Check each features
-        - cargo check --manifest-path futures/Cargo.toml --features async-await
-        - cargo check --manifest-path futures/Cargo.toml --features compat
-        - cargo check --manifest-path futures/Cargo.toml --features io-compat
-        - cargo check --manifest-path futures/Cargo.toml --features read-initializer,unstable
-        - cargo check --manifest-path futures/Cargo.toml --features bilock,unstable
-        # Check each features with --no-default-features
-        - cargo check --manifest-path futures/Cargo.toml --no-default-features --features async-await
-        - cargo check --manifest-path futures/Cargo.toml --no-default-features --features compat
-        - cargo check --manifest-path futures/Cargo.toml --no-default-features --features io-compat
-        - cargo check --manifest-path futures/Cargo.toml --no-default-features --features executor
-
-        # futures-io
-        # Check default-features, all-features
-        - cargo check --manifest-path futures-io/Cargo.toml
-        - cargo check --manifest-path futures-io/Cargo.toml --all-features
-        # Check each features
-        - cargo check --manifest-path futures-io/Cargo.toml --features read-initializer,unstable
-
-        # futures-util
-        # Check default-features, all-features
-        - cargo check --manifest-path futures-util/Cargo.toml
-        - cargo check --manifest-path futures-util/Cargo.toml --all-features
-        # Check each features
-        - cargo check --manifest-path futures-util/Cargo.toml --features sink
-        - cargo check --manifest-path futures-util/Cargo.toml --features io
-        - cargo check --manifest-path futures-util/Cargo.toml --features channel
-        - cargo check --manifest-path futures-util/Cargo.toml --features async-await
-        - cargo check --manifest-path futures-util/Cargo.toml --features async-await-macro
-        - cargo check --manifest-path futures-util/Cargo.toml --features compat
-        - cargo check --manifest-path futures-util/Cargo.toml --features io-compat
-        - cargo check --manifest-path futures-util/Cargo.toml --features sink,compat
-        - cargo check --manifest-path futures-util/Cargo.toml --features sink,channel
-        - cargo check --manifest-path futures-util/Cargo.toml --features bilock,unstable
-        - cargo check --manifest-path futures-util/Cargo.toml --features sink,bilock,unstable
-        - cargo check --manifest-path futures-util/Cargo.toml --features io,bilock,unstable
-        - cargo check --manifest-path futures-util/Cargo.toml --features sink,io
-        - cargo check --manifest-path futures-util/Cargo.toml --features read-initializer,unstable
-        # Check each features with --no-default-features
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,sink
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features async-await
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features bilock,unstable
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features sink,bilock,unstable
-        - cargo check --manifest-path futures-util/Cargo.toml --no-default-features --features io,bilock,unstable
-
-        # futures-executor
-        # Check default-features, all-features
-        - cargo check --manifest-path futures-executor/Cargo.toml
-        - cargo check --manifest-path futures-executor/Cargo.toml --all-features
-        # Check each features
-        - cargo check --manifest-path futures-executor/Cargo.toml --features thread-pool
-        # Check each features with --no-default-features
-        - cargo check --manifest-path futures-executor/Cargo.toml --no-default-features --features thread-pool
+        # Check each specified feature works properly
+        # * `--each-feature` - run for each feature which includes --no-default-features and default features of package
+        # * `--no-dev-deps` - build without dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+        # * `--exclude futures-test` - futures-test cannot be compiled with no-default features
+        # * `--features unstable` - some features cannot be compiled without this feature
+        # * `--ignore-unknown-features` - some crates doesn't have 'unstable' feature
+        - cargo hack check
+            --each-feature --no-dev-deps
+            --workspace --exclude futures-test
+            --features unstable --ignore-unknown-features
 
     - name: cargo doc
       rust: nightly
       script:
-        - RUSTDOCFLAGS=-Dwarnings cargo doc --all --no-deps --all-features
+        - RUSTDOCFLAGS=-Dwarnings cargo doc --workspace --no-deps --all-features
 
 script:
-  - cargo test --all --all-features
-  - cargo test --all --all-features --release
+  - cargo test --workspace --all-features
+  - cargo test --workspace --all-features --release
 
 env:
-  global:
-    - RUSTFLAGS=-Dwarnings
+  - RUSTFLAGS=-Dwarnings
 
 notifications:
   email:

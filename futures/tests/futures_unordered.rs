@@ -245,3 +245,43 @@ fn futures_not_moved_after_poll() {
     assert_stream_next!(stream, ());
     assert_stream_done!(stream);
 }
+
+#[test]
+fn len_valid_during_out_of_order_completion() {
+    // Complete futures out-of-order and add new futures afterwards to ensure
+    // length values remain correct.
+    let (a_tx, a_rx) = oneshot::channel::<i32>();
+    let (b_tx, b_rx) = oneshot::channel::<i32>();
+    let (c_tx, c_rx) = oneshot::channel::<i32>();
+    let (d_tx, d_rx) = oneshot::channel::<i32>();
+
+    let mut cx = noop_context();
+    let mut stream = FuturesUnordered::new();
+    assert_eq!(stream.len(), 0);
+
+    stream.push(a_rx);
+    assert_eq!(stream.len(), 1);
+    stream.push(b_rx);
+    assert_eq!(stream.len(), 2);
+    stream.push(c_rx);
+    assert_eq!(stream.len(), 3);
+
+    b_tx.send(4).unwrap();
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(4))));
+    assert_eq!(stream.len(), 2);
+
+    stream.push(d_rx);
+    assert_eq!(stream.len(), 3);
+
+    c_tx.send(5).unwrap();
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(5))));
+    assert_eq!(stream.len(), 2);
+
+    d_tx.send(6).unwrap();
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(6))));
+    assert_eq!(stream.len(), 1);
+
+    a_tx.send(7).unwrap();
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(7))));
+    assert_eq!(stream.len(), 0);
+}

@@ -1,5 +1,8 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::future::Either;
+use crate::stream::{Fuse, StreamExt};
+use core::fmt;
 use core::pin::Pin;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -27,7 +30,7 @@ impl<St: Stream> Peekable<St> {
     pub(super) fn new(stream: St) -> Peekable<St> {
         Peekable {
             stream: stream.fuse(),
-            peeked: None
+            peeked: None,
         }
     }
 
@@ -63,25 +66,47 @@ impl<St: Stream> Peekable<St> {
         self.stream.into_inner()
     }
 
+    /// Produces a `Peek` future which retrieves a reference to the next item
+    /// in the stream, or `None` if the underlying stream terminates.
+    pub fn peek(self: Pin<&mut Self>) -> Peek<'_, St> {
+        Peek { inner: Some(self) }
+    }
+
+    /// Attempt to poll the underlying stream, and return the mutable borrow
+    /// in case that is desirable to try for another time.
+    /// In case a peeking poll is successful, the reference to the next item
+    /// will be in the `Either::Right` variant; otherwise, the mutable borrow
+    /// will be in the `Either::Left` variant.
+    fn do_poll_peek(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Either<Pin<&mut Self>, Option<&St::Item>> {
+        if self.peeked.is_some() {
+            let this: &Self = self.into_ref().get_ref();
+            return Either::Right(this.peeked.as_ref());
+        }
+        match self.as_mut().stream().poll_next(cx) {
+            Poll::Ready(None) => Either::Right(None),
+            Poll::Ready(Some(item)) => {
+                *self.as_mut().peeked() = Some(item);
+                let this: &Self = self.into_ref().get_ref();
+                Either::Right(this.peeked.as_ref())
+            }
+            _ => Either::Left(self),
+        }
+    }
+
     /// Peek retrieves a reference to the next item in the stream.
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
     pub fn poll_peek(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<&St::Item>> {
-        if self.peeked.is_some() {
-            let this: &Self = self.into_ref().get_ref();
-            return Poll::Ready(this.peeked.as_ref())
-        }
-        match ready!(self.as_mut().stream().poll_next(cx)) {
-            None => Poll::Ready(None),
-            Some(item) => {
-                *self.as_mut().peeked() = Some(item);
-                let this: &Self = self.into_ref().get_ref();
-                Poll::Ready(this.peeked.as_ref())
-            }
+        match self.do_poll_peek(cx) {
+            Either::Left(_) => Poll::Pending,
+            Either::Right(poll) => Poll::Ready(poll),
         }
     }
 }
@@ -95,12 +120,9 @@ impl<St: Stream> FusedStream for Peekable<St> {
 impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if let Some(item) = self.as_mut().peeked().take() {
-            return Poll::Ready(Some(item))
+            return Poll::Ready(Some(item));
         }
         self.as_mut().stream().poll_next(cx)
     }
@@ -120,9 +142,56 @@ impl<S: Stream> Stream for Peekable<S> {
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Peekable<S>
-    where S: Sink<Item> + Stream
+where
+    S: Sink<Item> + Stream,
 {
     type Error = S::Error;
 
     delegate_sink!(stream, Item);
+}
+
+/// Future for the [`Peekable::peek()`](self::Peekable::peek) function from [`Peekable`]
+#[must_use = "futures do nothing unless polled"]
+pub struct Peek<'a, St: Stream> {
+    inner: Option<Pin<&'a mut Peekable<St>>>,
+}
+
+impl<St: Stream> Unpin for Peek<'_, St> {}
+
+impl<St> fmt::Debug for Peek<'_, St>
+where
+    St: Stream + fmt::Debug,
+    St::Item: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Peek")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+impl<St: Stream> FusedFuture for Peek<'_, St> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_none()
+    }
+}
+
+impl<'a, St> Future for Peek<'a, St>
+where
+    St: Stream,
+{
+    type Output = Option<&'a St::Item>;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if let Some(peekable) = self.inner.take() {
+            match peekable.do_poll_peek(cx) {
+                Either::Left(peekable) => {
+                    self.inner = Some(peekable);
+                    Poll::Pending
+                }
+                Either::Right(peek) => Poll::Ready(peek),
+            }
+        } else {
+            panic!("Peek polled after completion")
+        }
+    }
 }

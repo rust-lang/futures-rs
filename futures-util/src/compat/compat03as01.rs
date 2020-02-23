@@ -27,19 +27,18 @@ use std::{
     task::Context,
 };
 
-/// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
-/// [`TryStream`](futures_core::stream::TryStream) or
-/// [`Sink`](futures_sink::Sink) into a futures 0.1
-/// [`Future`](futures_01::future::Future),
-/// [`Stream`](futures_01::stream::Stream) or
-/// [`Sink`](futures_01::sink::Sink).
+/// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture) or
+/// [`TryStream`](futures_core::stream::TryStream) into a futures 0.1
+/// [`Future`](futures_01::future::Future) or
+/// [`Stream`](futures_01::stream::Stream).
 #[derive(Debug, Clone, Copy)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Compat<T> {
     pub(crate) inner: T,
 }
 
-/// Converts a futures 0.3 Sink object to a futures 0.1-compatible version
+/// Converts a futures 0.3 [`Sink`](futures_sink::Sink) into a futures 0.1
+/// [`Sink`](futures_01::sink::Sink).
 #[cfg(feature = "sink")]
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]

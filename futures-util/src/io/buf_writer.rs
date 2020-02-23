@@ -1,5 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
+#[cfg(feature = "read-initializer")]
+use futures_io::Initializer;
+use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::io::{self, Write};
@@ -33,10 +35,12 @@ pub struct BufWriter<W> {
     written: usize,
 }
 
-impl<W: AsyncWrite> BufWriter<W> {
+impl<W> BufWriter<W> {
     unsafe_pinned!(inner: W);
     unsafe_unpinned!(buf: Vec<u8>);
+}
 
+impl<W: AsyncWrite> BufWriter<W> {
     /// Creates a new `BufWriter` with a default buffer capacity. The default is currently 8 KB,
     /// but may change in the future.
     pub fn new(inner: W) -> Self {
@@ -153,6 +157,43 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         ready!(self.as_mut().flush_buf(cx))?;
         self.inner().poll_close(cx)
+    }
+}
+
+impl<W: AsyncRead> AsyncRead for BufWriter<W> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        self.inner().poll_read(cx, buf)
+    }
+
+    fn poll_read_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.inner().poll_read_vectored(cx, bufs)
+    }
+
+    // we can't skip unconditionally because of the large buffer case in read.
+    #[cfg(feature = "read-initializer")]
+    unsafe fn initializer(&self) -> Initializer {
+        self.inner.initializer()
+    }
+}
+
+impl<W: AsyncBufRead> AsyncBufRead for BufWriter<W> {
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&[u8]>> {
+        self.inner().poll_fill_buf(cx)
+    }
+
+    fn consume(self: Pin<&mut Self>, amt: usize) {
+        self.inner().consume(amt)
     }
 }
 

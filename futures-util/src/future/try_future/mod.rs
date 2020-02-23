@@ -50,6 +50,10 @@ mod map_ok;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map_ok::MapOk;
 
+mod map_ok_or_else;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::map_ok_or_else::MapOkOrElse;
+
 mod or_else;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::or_else::OrElse;
@@ -158,6 +162,47 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized,
     {
         MapOk::new(self, f)
+    }
+
+    /// Maps this future's success value to a different value, and permits for error handling resulting in the same type.
+    ///
+    /// This method can be used to coalesce your [`Ok`](TryFuture::Ok) type and [`Error`](TryFuture::Error) into another type,
+    /// where that type is the same for both outcomes.
+    ///
+    /// The provided closure `f` will only be called if this future is resolved
+    /// to an [`Ok`]. If it resolves to an [`Err`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
+    /// 
+    /// The provided closure `e` will only be called if this future is resolved
+    /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
+    ///
+    /// Note that this method consumes the future it is called on and returns a
+    /// wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::TryFutureExt;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(5) };
+    /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
+    /// assert_eq!(future.await, 8);
+    /// 
+    /// let future = async { Err::<i32, i32>(5) };
+    /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
+    /// assert_eq!(future.await, 10);
+    /// # });
+    /// ```
+    /// 
+    fn map_ok_or_else<T, E, F>(self, e: E, f: F) -> MapOkOrElse<Self, F, E>
+    where
+        F: FnOnce(Self::Ok) -> T,
+        E: FnOnce(Self::Error) -> T,
+        Self: Sized,
+    {
+        MapOkOrElse::new(self, e, f)
     }
 
     /// Maps this future's error value to a different value.

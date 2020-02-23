@@ -2,6 +2,7 @@ use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
+use std::sync::Arc;
 use std::thread;
 
 #[test]
@@ -13,7 +14,7 @@ fn smoke() {
     });
 
     // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
-    drop(block_on(receiver.take(3).for_each(|_| futures::future::ready(()))));
+    block_on(receiver.take(3).for_each(|_| futures::future::ready(())));
 
     t.join().unwrap()
 }
@@ -97,5 +98,47 @@ fn multiple_senders_close_channel() {
         assert!(err.is_disconnected());
 
         assert_eq!(block_on(rx.next()), None);
+    }
+}
+
+#[test]
+fn single_receiver_drop_closes_channel_and_drains() {
+    {
+        let ref_count = Arc::new(0);
+        let weak_ref = Arc::downgrade(&ref_count);
+
+        let (sender, receiver) = mpsc::unbounded();
+        sender.unbounded_send(ref_count).expect("failed to send");
+
+        // Verify that the sent message is still live.
+        assert!(weak_ref.upgrade().is_some());
+
+        drop(receiver);
+
+        // The sender should know the channel is closed.
+        assert!(sender.is_closed());
+
+        // Verify that the sent message has been dropped.
+        assert!(weak_ref.upgrade().is_none());
+    }
+
+    {
+        let ref_count = Arc::new(0);
+        let weak_ref = Arc::downgrade(&ref_count);
+
+        let (mut sender, receiver) = mpsc::channel(1);
+        sender.try_send(ref_count).expect("failed to send");
+
+        // Verify that the sent message is still live.
+        assert!(weak_ref.upgrade().is_some());
+
+        drop(receiver);
+
+        // The sender should know the channel is closed.
+        assert!(sender.is_closed());
+
+        // Verify that the sent message has been dropped.
+        assert!(weak_ref.upgrade().is_none());
+        assert!(sender.is_closed());
     }
 }
