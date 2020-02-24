@@ -78,6 +78,10 @@ mod map;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map::Map;
 
+mod flat_map;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::flat_map::FlatMap;
+
 mod next;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::next::Next;
@@ -542,6 +546,40 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         Flatten::new(self)
+    }
+
+    /// Maps a stream like [`StreamExt::map`] but flattens nested `Stream`s.
+    ///
+    /// [`StreamExt::map`] is very useful, but if it produces a `Stream` instead,
+    /// you would have to chain combinators like `.map(f).flatten()` while this
+    /// combinator provides ability to write `.flat_map(f)` instead of chaining.
+    ///
+    /// The provided closure which produce inner streams is executed over all elements
+    /// of stream as last inner stream is terminated and next stream item is available.
+    ///
+    /// Note that this function consumes the stream passed into it and returns a
+    /// wrapped version of it, similar to the existing `flat_map` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let stream = stream.flat_map(|x| stream::iter(vec![x + 3; x]));
+    ///
+    /// assert_eq!(vec![4, 5, 5, 6, 6, 6], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn flat_map<U, F>(self, f: F) -> FlatMap<Self, U, F>
+    where
+        F: FnMut(Self::Item) -> U,
+        U: Stream,
+        Self: Sized,
+    {
+        FlatMap::new(self, f)
     }
 
     /// Combinator similar to [`StreamExt::fold`] that holds internal state 

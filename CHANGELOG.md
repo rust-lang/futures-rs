@@ -239,7 +239,7 @@
 * Improvements to `select!` and `join!` macros
 * Added `try_join!` macro
 * Added `StreamExt` combinator methods `try_join` and `for_each_concurrent`
-* Added `TryStreamExt` combinator methdos `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
+* Added `TryStreamExt` combinator methods `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
 * Fix stream termination bug in `StreamExt::buffered` and `StreamExt::buffer_unordered`
 * Added docs for `StreamExt::buffered`, `StreamExt::buffer_unordered`
 * Added `task::local_waker_ref_from_nonlocal` and `task::local_waker_ref` functions
