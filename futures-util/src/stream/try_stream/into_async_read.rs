@@ -32,6 +32,31 @@ enum ReadState<T: AsRef<[u8]>> {
     Eof,
 }
 
+/// The parts returned by `IntoAsyncInner::into_inner()`.
+#[derive(Debug)]
+pub enum IntoAsyncReadParts<St>
+where
+    St: TryStream<Error = Error> + Unpin,
+    St::Ok: AsRef<[u8]>,
+{
+    /// A chunk from the stream is currently buffered.
+    PartiallyBuffered {
+        /// The currently buffered chunk.
+        chunk: St::Ok,
+        /// The offset into `chunk` that would have been read from next.
+        offset: usize,
+        /// The rest of the stream.
+        stream: St
+    },
+    /// No chunks from the stream are currently buffered.
+    Pending {
+        /// The rest of the stream.
+        stream: St
+    },
+    /// No chunks remain from the stream.
+    Eof,
+}
+
 impl<St> IntoAsyncRead<St>
 where
     St: TryStream<Error = Error> + Unpin,
@@ -41,6 +66,21 @@ where
         IntoAsyncRead {
             stream,
             state: ReadState::PendingChunk,
+        }
+    }
+
+    /// Return the underlying stream along with the currently-buffered chunk, if one is present.
+    pub fn into_inner(self) -> IntoAsyncReadParts<St> {
+        match self.state {
+            ReadState::Ready { chunk, chunk_start } => IntoAsyncReadParts::PartiallyBuffered {
+                chunk,
+                offset: chunk_start,
+                stream: self.stream,
+            },
+            ReadState::PendingChunk => IntoAsyncReadParts::Pending {
+                stream: self.stream,
+            },
+            ReadState::Eof => IntoAsyncReadParts::Eof,
         }
     }
 }

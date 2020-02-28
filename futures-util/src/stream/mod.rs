@@ -45,7 +45,7 @@ pub use self::try_stream::{
 
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
-pub use self::try_stream::IntoAsyncRead;
+pub use self::try_stream::{IntoAsyncRead, IntoAsyncReadParts};
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
