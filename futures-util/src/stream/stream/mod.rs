@@ -110,6 +110,10 @@ mod take_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::take_while::TakeWhile;
 
+mod take_until;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::take_until::TakeUntil;
+
 mod then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::then::Then;
@@ -674,6 +678,50 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         TakeWhile::new(self, f)
+    }
+
+    /// Take elements from this stream until the provided future resolves.
+    ///
+    /// This function will take elements from the stream until the provided
+    /// stopping future `fut` resolves. Once the `fut` future becomes ready,
+    /// this stream combinator will always return that the stream is done.
+    ///
+    /// The stopping future may return any type. Once the stream is stopped
+    /// the result of the stopping future may be aceessed with `TakeUntil::take_result()`.
+    /// The stream may also be resumed with `TakeUntil::take_future()`.
+    /// See the documentation of [`TakeUntil`] for more information.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let mut i = 0;
+    /// let stop_fut = future::poll_fn(|_cx| {
+    ///     i += 1;
+    ///     if i <= 5 {
+    ///         Poll::Pending
+    ///     } else {
+    ///         Poll::Ready(())
+    ///     }
+    /// });
+    ///
+    /// let stream = stream.take_until(stop_fut);
+    ///
+    /// assert_eq!(vec![1, 2, 3, 4, 5], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn take_until<Fut>(self, fut: Fut) -> TakeUntil<Self, Fut>
+    where
+        Fut: Future,
+        Self: Sized,
+    {
+        TakeUntil::new(self, fut)
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
