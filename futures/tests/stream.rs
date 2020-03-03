@@ -1,5 +1,7 @@
+use futures::future::{self, Future};
 use futures::executor::block_on;
 use futures::stream::{self, StreamExt};
+use futures::task::Poll;
 
 #[test]
 fn select() {
@@ -46,5 +48,69 @@ fn scan() {
                 .await,
             vec![1u8, 2, 3, 4]
         );
+    });
+}
+
+#[test]
+fn take_until() {
+    fn make_stop_fut(stop_on: u32) -> impl Future<Output = ()> {
+        let mut i = 0;
+        future::poll_fn(move |_cx| {
+            i += 1;
+            if i <= stop_on {
+                Poll::Pending
+            } else {
+                Poll::Ready(())
+            }
+        })
+    }
+
+    futures::executor::block_on(async {
+        // Verify stopping works:
+        let stream = stream::iter(1u32..=10);
+        let stop_fut = make_stop_fut(5);
+
+        let stream = stream.take_until(stop_fut);
+        let last = stream.fold(0, |_, i| async move { i }).await;
+        assert_eq!(last, 5);
+
+        // Verify take_future() works:
+        let stream = stream::iter(1..=10);
+        let stop_fut = make_stop_fut(5);
+
+        let mut stream = stream.take_until(stop_fut);
+
+        assert_eq!(stream.next().await, Some(1));
+        assert_eq!(stream.next().await, Some(2));
+
+        stream.take_future();
+
+        let last = stream.fold(0, |_, i| async move { i }).await;
+        assert_eq!(last, 10);
+
+        // Verify take_future() returns None if stream is stopped:
+        let stream = stream::iter(1u32..=10);
+        let stop_fut = make_stop_fut(1);
+        let mut stream = stream.take_until(stop_fut);
+        assert_eq!(stream.next().await, Some(1));
+        assert_eq!(stream.next().await, None);
+        assert!(stream.take_future().is_none());
+
+        // Verify TakeUntil is fused:
+        let mut i = 0;
+        let stream = stream::poll_fn(move |_cx| {
+            i += 1;
+            match i {
+                1 => Poll::Ready(Some(1)),
+                2 => Poll::Ready(None),
+                _ => panic!("TakeUntil not fused"),
+            }
+        });
+
+        let stop_fut = make_stop_fut(1);
+        let mut stream = stream.take_until(stop_fut);
+        assert_eq!(stream.next().await, Some(1));
+        assert_eq!(stream.next().await, None);
+        assert_eq!(stream.next().await, None);
     });
 }
