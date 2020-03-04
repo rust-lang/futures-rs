@@ -266,7 +266,7 @@ impl std::error::Error for TryRecvError {}
 #[derive(Debug)]
 struct UnboundedInner<T> {
     // Maximum number of items to buffer, if 0 is disabled
-    max_buffer: usize,
+    buffer: usize,
     // Internal channel state. Consists of the number of messages stored in the
     // channel as well as a flag signalling that the channel is closed.
     state: AtomicUsize,
@@ -414,10 +414,11 @@ pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
 /// the channel. Using an `unbounded` channel has the ability of causing the
 /// process to run out of memory. In this case, the process will be aborted.
 
-pub fn unbounded_max_buf<T>(max_buffer: usize) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
+pub fn unbounded_max_buf<T>(buffer: usize) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
+    assert!(buffer < MAX_BUFFER, "requested buffer size too large");
 
     let inner = Arc::new(UnboundedInner {
-        max_buffer,
+        buffer,
         state: AtomicUsize::new(INIT_STATE),
         message_queue: Queue::new(),
         num_senders: AtomicUsize::new(1),
@@ -840,7 +841,7 @@ impl<T> UnboundedSender<T> {
         if let Some(inner) = &self.0 {
             
             if let Some(num) = inner.inc_num_messages() {
-                if inner.inner.max_buffer > 0 && num > inner.inner.max_buffer {
+                if inner.inner.buffer > 0 && num > inner.inner.buffer {
                     return Err(TrySendError {
                         err: SendError {
                             kind: SendErrorKind::Full,
