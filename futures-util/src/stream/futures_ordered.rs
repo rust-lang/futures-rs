@@ -203,3 +203,14 @@ impl<Fut: Future> FromIterator<Fut> for FuturesOrdered<Fut> {
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }
+
+impl<Fut: Future> Extend<Fut> for FuturesOrdered<Fut> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = Fut>,
+    {
+        for item in iter.into_iter() {
+            self.push(item);
+        }
+    }
+}
