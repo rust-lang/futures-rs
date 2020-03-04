@@ -1,9 +1,8 @@
 use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
-use futures::future::{Future, FutureExt, poll_fn};
+use futures::future::{FutureExt, poll_fn};
 use futures::task::{Context, Poll};
 use futures_test::task::panic_waker_ref;
-use std::pin::Pin;
 use std::sync::mpsc;
 use std::thread;
 
@@ -32,18 +31,6 @@ fn cancel_notifies() {
     });
     drop(rx);
     t.join().unwrap();
-}
-
-struct WaitForCancel {
-    tx: Sender<u32>,
-}
-
-impl Future for WaitForCancel {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.tx.poll_canceled(cx)
-    }
 }
 
 #[test]
