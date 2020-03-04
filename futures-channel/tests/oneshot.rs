@@ -25,10 +25,10 @@ fn smoke_poll() {
 
 #[test]
 fn cancel_notifies() {
-    let (tx, rx) = oneshot::channel::<u32>();
+    let (mut tx, rx) = oneshot::channel::<u32>();
 
-    let t = thread::spawn(|| {
-        block_on(WaitForCancel { tx });
+    let t = thread::spawn(move || {
+        block_on(tx.await_canceled());
     });
     drop(rx);
     t.join().unwrap();
@@ -50,8 +50,8 @@ impl Future for WaitForCancel {
 fn cancel_lots() {
     let (tx, rx) = mpsc::channel::<(Sender<_>, mpsc::Sender<_>)>();
     let t = thread::spawn(move || {
-        for (tx, tx2) in rx {
-            block_on(WaitForCancel { tx });
+        for (mut tx, tx2) in rx {
+            block_on(tx.await_canceled());
             tx2.send(()).unwrap();
         }
     });
@@ -93,13 +93,13 @@ fn close() {
 
 #[test]
 fn close_wakes() {
-    let (tx, mut rx) = oneshot::channel::<u32>();
+    let (mut tx, mut rx) = oneshot::channel::<u32>();
     let (tx2, rx2) = mpsc::channel();
     let t = thread::spawn(move || {
         rx.close();
         rx2.recv().unwrap();
     });
-    block_on(WaitForCancel { tx });
+    block_on(tx.await_canceled());
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
