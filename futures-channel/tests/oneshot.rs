@@ -27,7 +27,7 @@ fn cancel_notifies() {
     let (mut tx, rx) = oneshot::channel::<u32>();
 
     let t = thread::spawn(move || {
-        block_on(tx.await_canceled());
+        block_on(tx.cancellation());
     });
     drop(rx);
     t.join().unwrap();
@@ -38,7 +38,7 @@ fn cancel_lots() {
     let (tx, rx) = mpsc::channel::<(Sender<_>, mpsc::Sender<_>)>();
     let t = thread::spawn(move || {
         for (mut tx, tx2) in rx {
-            block_on(tx.await_canceled());
+            block_on(tx.cancellation());
             tx2.send(()).unwrap();
         }
     });
@@ -86,7 +86,7 @@ fn close_wakes() {
         rx.close();
         rx2.recv().unwrap();
     });
-    block_on(tx.await_canceled());
+    block_on(tx.cancellation());
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
