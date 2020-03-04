@@ -358,6 +358,15 @@ impl<T> Sender<T> {
         self.inner.poll_canceled(cx)
     }
 
+    /// Creates a future that resolves when this `Sender`'s corresponding
+    /// [`Receiver`](Receiver) half has hung up.
+    ///
+    /// This is a utility wrapping [`poll_canceled`](Sender::poll_canceled)
+    /// to expose a [`Future`](core::future::Future). 
+    pub fn cancellation(&mut self) -> Cancellation<'_, T> {
+        Cancellation { inner: self }
+    }
+
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
     /// has been dropped.
     ///
@@ -372,6 +381,23 @@ impl<T> Sender<T> {
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
         self.inner.drop_tx()
+    }
+}
+
+/// A future that resolves when the receiving end of a channel has hung up.
+///
+/// This is an `.await`-friendly interface around [`poll_canceled`](Sender::poll_canceled).
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+#[derive(Debug)]
+pub struct Cancellation<'a, T> {
+    inner: &'a mut Sender<T>,
+}
+
+impl<T> Future for Cancellation<'_, T> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        self.inner.poll_canceled(cx)
     }
 }
 
