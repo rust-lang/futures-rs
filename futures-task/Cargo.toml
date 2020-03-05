@@ -13,7 +13,7 @@ Tools for working with tasks.
 
 [features]
 default = ["std"]
-std = ["alloc"]
+std = ["alloc", "once_cell"]
 alloc = []
 
 # Unstable features
@@ -23,6 +23,7 @@ unstable = []
 cfg-target-has-atomic = []
 
 [dependencies]
+once_cell = { version = "1.3.1", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.3.4" }

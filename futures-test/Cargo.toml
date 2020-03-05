@@ -18,13 +18,14 @@ futures-io = { version = "0.3.4", path = "../futures-io", default-features = fal
 futures-util = { version = "0.3.4", path = "../futures-util", default-features = false }
 futures-executor = { version = "0.3.4", path = "../futures-executor", default-features = false }
 pin-utils = { version = "0.1.0-alpha.4", default-features = false }
+once_cell = { version = "1.3.1", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
-futures = { version = "0.3.4", path = "../futures", default-features = false, features = ["std"] }
+futures = { version = "0.3.4", path = "../futures", default-features = false, features = ["std", "executor"] }
 
 [features]
 default = ["std"]
-std = ["futures-core/std", "futures-task/std", "futures-io/std", "futures-util/std", "futures-util/io", "futures-executor/std"]
+std = ["futures-core/std", "futures-task/std", "futures-io/std", "futures-util/std", "futures-util/io", "futures-executor/std", "once_cell"]
 
 [package.metadata.docs.rs]
 all-features = true
