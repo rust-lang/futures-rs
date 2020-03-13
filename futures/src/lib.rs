@@ -25,11 +25,16 @@
 //! within macros and keywords such as async and await!.
 //!
 //! ```rust
+//! # #[cfg(features = "thread-pool")]
 //! # use futures::channel::mpsc;
+//! # #[cfg(features = "thread-pool")]
 //! # use futures::executor; ///standard executors to provide a context for futures and streams
+//! # #[cfg(features = "thread-pool")]
 //! # use futures::executor::ThreadPool;
+//! # #[cfg(features = "thread-pool")]
 //! # use futures::StreamExt;
 //!
+//! # #[cfg(features = "thread-pool")]
 //! fn main() {
 //!     let pool = ThreadPool::new().expect("Failed to build pool");
 //!     let (tx, rx) = mpsc::unbounded::<i32>();
@@ -73,6 +78,9 @@
 //!
 //!     println!("Values={:?}", values);
 //! }
+//!
+//! # #[cfg(not(features = "thread-pool"))]
+//! # fn main() { }
 //! ```
 //!
 //! The majority of examples and code snippets in this crate assume that they are

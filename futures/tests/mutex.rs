@@ -1,11 +1,20 @@
+#[cfg(feature = "thread-pool")]
 use futures::channel::mpsc;
+#[cfg(feature = "thread-pool")]
 use futures::executor::block_on;
-use futures::future::{ready, FutureExt};
+#[cfg(feature = "thread-pool")]
+use futures::future::ready;
+use futures::future::FutureExt;
 use futures::lock::Mutex;
+#[cfg(feature = "thread-pool")]
 use futures::stream::StreamExt;
-use futures::task::{Context, SpawnExt};
+use futures::task::Context;
+#[cfg(feature = "thread-pool")]
+use futures::task::SpawnExt;
+#[cfg(feature = "thread-pool")]
 use futures_test::future::FutureTestExt;
 use futures_test::task::{new_count_waker, panic_context};
+#[cfg(feature = "thread-pool")]
 use std::sync::Arc;
 
 #[test]
@@ -34,6 +43,7 @@ fn mutex_wakes_waiters() {
     assert!(waiter.poll_unpin(&mut panic_context()).is_ready());
 }
 
+#[cfg(feature = "thread-pool")]
 #[test]
 fn mutex_contested() {
     let (tx, mut rx) = mpsc::unbounded();

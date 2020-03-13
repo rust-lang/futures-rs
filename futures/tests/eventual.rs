@@ -1,3 +1,4 @@
+#![cfg(feature = "thread-pool")]
 use futures::channel::oneshot;
 use futures::executor::ThreadPool;
 use futures::future::{self, ok, Future, FutureExt, TryFutureExt};
@@ -9,7 +10,6 @@ fn run<F: Future + Send + 'static>(future: F) {
     let tp = ThreadPool::new().unwrap();
     tp.spawn(future.map(drop)).unwrap();
 }
-
 #[test]
 fn join1() {
     let (tx, rx) = mpsc::channel();
