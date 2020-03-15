@@ -1,12 +1,12 @@
-use futures::{future, select};
-use futures::future::{FusedFuture, FutureExt};
-use futures::stream::{FuturesUnordered, StreamExt};
-use futures::task::{Context, Poll};
-use futures_test::future::FutureTestExt;
-use futures_test::task::new_count_waker;
-
+#[cfg(feature = "alloc")] // stream::FuturesUnordered
 #[test]
 fn is_terminated() {
+    use futures::future;
+    use futures::future::{FusedFuture, FutureExt};
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures::task::{Context, Poll};
+    use futures_test::task::new_count_waker;
+
     let (waker, counter) = new_count_waker();
     let mut cx = Context::from_waker(&waker);
 
@@ -29,8 +29,14 @@ fn is_terminated() {
     assert_eq!(select_next_some.is_terminated(), true);
 }
 
+#[cfg(all(feature = "async-await", feature = "std"))] // futures::select
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn select() {
+    use futures::{future, select};
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures_test::future::FutureTestExt;
+
     // Checks that even though `async_tasks` will yield a `None` and return
     // `is_terminated() == true` during the first poll, it manages to toggle
     // back to having items after a future is pushed into it during the second
@@ -56,8 +62,15 @@ fn select() {
 }
 
 // Check that `select!` macro does not fail when importing from `futures_util`.
+#[cfg(feature = "alloc")] // stream::FuturesUnordered
+#[cfg(feature = "async-await")] // futures_util::select turned on
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn futures_util_select() {
+    use futures::future;
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures_test::future::FutureTestExt;
+
     use futures_util::select;
 
     // Checks that even though `async_tasks` will yield a `None` and return
