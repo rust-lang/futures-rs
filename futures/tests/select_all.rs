@@ -1,9 +1,10 @@
-use futures::executor::block_on;
-use futures::future::{ready, select_all};
-use std::collections::HashSet;
-
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn smoke() {
+    use futures::executor::block_on;
+    use futures::future::{ready, select_all};
+    use std::collections::HashSet;
+
     let v = vec![
         ready(1),
         ready(2),
