@@ -1,10 +1,9 @@
-use futures::future::{self, Future};
-use futures::executor::block_on;
-use futures::stream::{self, StreamExt};
-use futures::task::Poll;
-
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn select() {
+    use futures::executor::block_on;
+    use futures::stream::{self, StreamExt};
+
     fn select_and_compare(a: Vec<u32>, b: Vec<u32>, expected: Vec<u32>) {
         let a = stream::iter(a);
         let b = stream::iter(b);
@@ -17,8 +16,11 @@ fn select() {
     select_and_compare(vec![1, 2], vec![4, 5, 6], vec![1, 4, 2, 5, 6]);
 }
 
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn flat_map() {
+    use futures::stream::{self, StreamExt};
+
     futures::executor::block_on(async {
         let st = stream::iter(vec![
             stream::iter(0..=4u8),
@@ -35,8 +37,11 @@ fn flat_map() {
     });
 }
 
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn scan() {
+    use futures::stream::{self, StreamExt};
+
     futures::executor::block_on(async {
         assert_eq!(
             stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
@@ -51,8 +56,13 @@ fn scan() {
     });
 }
 
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn take_until() {
+    use futures::future::{self, Future};
+    use futures::stream::{self, StreamExt};
+    use futures::task::Poll;
+
     fn make_stop_fut(stop_on: u32) -> impl Future<Output = ()> {
         let mut i = 0;
         future::poll_fn(move |_cx| {
