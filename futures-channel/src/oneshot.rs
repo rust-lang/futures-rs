@@ -82,22 +82,22 @@ struct Inner<T> {
 ///
 /// ```
 /// use futures::channel::oneshot;
-/// use futures::future::FutureExt;
-/// use std::thread;
-///
-/// let (sender, receiver) = oneshot::channel::<i32>();
-///
-/// # let t =
-/// thread::spawn(|| {
-///     let future = receiver.map(|i| {
-///         println!("got: {:?}", i);
+/// use std::{thread, time::Duration};
+/// 
+/// fn main() {
+///     let (sender, receiver) = oneshot::channel::<i32>();
+/// 
+///     thread::spawn(|| {
+///         println!("THREAD: sleeping zzz...");
+///         thread::sleep(Duration::from_millis(2000));
+///         println!("THREAD: i'm awake! sending.");
+///         sender.send(3).unwrap();
 ///     });
-///     // ...
-/// # return future;
-/// });
-///
-/// sender.send(3).unwrap();
-/// # futures::executor::block_on(t.join().unwrap());
+/// 
+///     println!("MAIN: doing some useful stuff; and waiting...");
+/// 
+///     println!("MAIN: got: {:?}", futures::executor::block_on(receiver));
+/// }
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner::new());
