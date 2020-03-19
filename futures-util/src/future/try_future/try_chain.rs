@@ -79,17 +79,19 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
 
 #[cfg(test)]
 mod tests {
-    use std::pin::Pin;
-    use std::task::Poll;
 
-    use futures_test::task::noop_context;
-
-    use crate::future::ready;
-
-    use super::{TryChain, TryChainAction};
-
+    #[cfg(feature = "std")] // dont test with no_std
     #[test]
     fn try_chain_is_terminated() {
+        use std::pin::Pin;
+        use std::task::Poll;
+
+        use futures_test::task::noop_context;
+
+        use crate::future::ready;
+
+        use super::{TryChain, TryChainAction};
+
         let mut cx = noop_context();
 
         let mut future = TryChain::new(ready(Ok(1)), ());
