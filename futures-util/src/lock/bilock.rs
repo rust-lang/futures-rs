@@ -88,6 +88,7 @@ impl<T> BiLock<T> {
     /// This function will panic if called outside the context of a future's
     /// task.
     pub fn poll_lock(&self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
+        let mut waker = None;
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -99,12 +100,14 @@ impl<T> BiLock<T> {
                 // A task was previously blocked on this lock, likely our task,
                 // so we need to update that task.
                 n => unsafe {
-                    drop(Box::from_raw(n as *mut Waker));
+                    let mut prev = Box::from_raw(n as *mut Waker);
+                    *prev = cx.waker().clone();
+                    waker = Some(prev);
                 }
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(cx.waker().clone());
+            let me: Box<Waker> = waker.take().unwrap_or_else(||Box::new(cx.waker().clone()));
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -116,7 +119,7 @@ impl<T> BiLock<T> {
                 // and before the compare_exchange. Deallocate what we just
                 // allocated and go through the loop again.
                 Err(0) => unsafe {
-                    drop(Box::from_raw(me as *mut Waker));
+                    waker = Some(Box::from_raw(me as *mut Waker));
                 },
 
                 // The top of this loop set the previous state to 1, so if we
