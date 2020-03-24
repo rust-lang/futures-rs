@@ -173,8 +173,8 @@ pub struct TrySendError<T> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum SendErrorKind {
     Full,
+    Ignored,
     Disconnected,
-    Unsupported,
 }
 
 /// The error type returned from [`try_next`](Receiver::try_next).
@@ -319,12 +319,30 @@ impl<T> Inner<T> {
                 return Err(SendErrorKind::Disconnected);
             }
 
-            if state.num_messages > self.buffer {
-                return Err(SendErrorKind::Unsupported);
-            }
-
             state.num_messages += 1;
-            let remaining = self.buffer.checked_sub(state.num_messages).ok_or(SendErrorKind::Full);
+
+            let remaining = match self.buffer.checked_sub(state.num_messages) {
+                // we are full, but maybe have a way to handle it.
+                None => match self.full_strategy {
+                    OnFullStrategy::Ring => {
+                        // dropping the first, trying again
+                        if let Poll::Ready(Some(_)) = self.next_message() {
+                            // and try again
+                            curr = self.state.load(SeqCst);
+                            continue
+                        } else {
+                            return Err(SendErrorKind::Disconnected)
+                        }
+                    }
+                    OnFullStrategy::Ignore => {
+                        // return without updating the value
+                        return Err(SendErrorKind::Ignored)
+                    }
+                    // Update the value, but escalate the error
+                    _ => Err(SendErrorKind::Full)
+                },
+                Some(x) => Ok(x)
+            };
 
             let next = encode_state(&state);
             match self.state.compare_exchange(curr, next, SeqCst, SeqCst) {
@@ -332,6 +350,16 @@ impl<T> Inner<T> {
                 Err(actual) => curr = actual,
             }
         }
+    }
+
+    fn queue_msg_and_notify(&self, msg: T) {
+
+        // Push the message onto the message queue
+        self.message_queue.push(msg);
+        // Signal to the receiver that a message has been enqueued. If the
+        // receiver is parked, this will unpark the task.p
+        self.recv_task.wake();
+        
     }
 
     fn next_message(&self) -> Poll<Option<T>> {
@@ -364,79 +392,6 @@ impl<T> Inner<T> {
                     Poll::Ready(None)
                 }
             }
-        }
-    }
-
-    // returns whether the number of open slots after
-    fn send<F>(&self, msg: T, maybe_parker: F) -> Result<bool, TrySendError<T>>
-        where F: Fn() -> Option<SendTaskRef>
-    {
-        loop {
-            let parked = match self.inc_num_messages() {
-                Err(SendErrorKind::Full) => {
-                    // we know how to handle full
-
-                    match self.full_strategy {
-                        OnFullStrategy::Backpressure => {
-                            // we require the outside to apply backpressure
-                            true
-                        }
-                        OnFullStrategy::Ignore => {
-                            self.dec_num_messages();
-                            // Silently dropping entry
-                            // no backpressure
-                            return Ok(false)
-                        }
-                        OnFullStrategy::Ring => {
-                            // dropping the first, trying again
-                            if let Poll::Ready(Some(_)) = self.next_message() {
-                                continue
-                            } else {
-                                return Err(TrySendError {
-                                    err: SendError {
-                                        kind: SendErrorKind::Disconnected,
-                                    },
-                                    val: msg,
-                                })
-                            }
-
-                        }
-                        OnFullStrategy::Error => {
-                            // the outer needs to handle this one
-                            return Err(TrySendError {
-                                err: SendError {
-                                    kind: SendErrorKind::Full,
-                                },
-                                val: msg,
-                            })
-                        }
-                    }
-                },
-                Err(e) => {
-                    // Other Error, return it.
-                    return Err(TrySendError {
-                        err: SendError {
-                            kind: e,
-                        },
-                        val: msg,
-                    }); 
-                }
-                Ok(_num) => { false }
-            };
-
-            // Push the message onto the message queue
-            self.message_queue.push(msg);
-
-            if parked {
-                if let Some(t) = maybe_parker() {
-                    self.parked_queue.push(t);
-                }
-            }
-
-            // Signal to the receiver that a message has been enqueued. If the
-            // receiver is parked, this will unpark the task.p
-            self.recv_task.wake();
-            return Ok(parked)
         }
     }
 
@@ -572,37 +527,58 @@ impl<T> SenderInner<T> {
                 val: msg,
             });
         }
-        self.inner.send(msg,|| {
-            {
-                let mut sender = self.sender_task.lock().unwrap();
-                sender.task = None;
-                sender.is_parked = true;
+        
+        let result = self.send(msg);
+        
+        match result {
+            Err(TrySendError {
+                err: SendError {
+                    kind: SendErrorKind::Full,
+                },
+                val: msg,
+            }) if self.inner.full_strategy == OnFullStrategy::Backpressure => {
+                self.park();
+                self.inner.queue_msg_and_notify(msg);
+                Ok(())
             }
+            _ => result
+        }
+    }
 
-            Some(self.sender_task.clone())
+    fn park(&mut self) {
+        {
+            let mut sender = self.sender_task.lock().unwrap();
+            sender.task = None;
+            sender.is_parked = true;
+        }
 
-        }).map(|park| {
-            if park {
-                // we do not want to park, if
-                // Check to make sure we weren't closed after we sent our task on the
-                // queue
-                let state = decode_state(self.inner.state.load(SeqCst));
-                self.maybe_parked = state.is_open;
-            }
-        })
+        self.inner.parked_queue.push(self.sender_task.clone());
 
+        // we do not want to park, if
+        // Check to make sure we weren't closed after we sent our task on the
+        // queue
+        let state = decode_state(self.inner.state.load(SeqCst));
+        self.maybe_parked = state.is_open;
+        // and we continue
     }
 
     fn send(&self, msg: T) -> Result<(), TrySendError<T>> {
-        // if self.inner.full_strategy == OnFullStrategy::Backpressure {
-        //     return Err(TrySendError {
-        //         err: SendError {
-        //             kind: SendErrorKind::Unsupported,
-        //         },
-        //         val: msg,
-        //     });
-        // }
-        self.inner.send(msg, || None).map(|_| ())
+        if let Err(e) = self.inner.inc_num_messages() {
+            if e == SendErrorKind::Ignored {
+                // we just don't mind and drop the value
+                return Ok(())
+            } else {
+                return Err(TrySendError {
+                    err: SendError {
+                        kind: e,
+                    },
+                    val: msg,
+                });
+            }
+        }
+
+        self.inner.queue_msg_and_notify(msg);
+        Ok(())
     }
 
     /// Polls the channel to determine if there is guaranteed capacity to send
