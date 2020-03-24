@@ -620,3 +620,14 @@ impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
         self.is_terminated.load(Relaxed)
     }
 }
+
+impl<Fut> Extend<Fut> for FuturesUnordered<Fut> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = Fut>,
+    {
+        for item in iter.into_iter() {
+            self.push(item);
+        }
+    }
+}
