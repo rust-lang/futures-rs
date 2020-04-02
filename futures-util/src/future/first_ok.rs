@@ -23,17 +23,10 @@ impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Basic logic diagram:
-        // - If all existing futures are terminated, return Pending. This means
-        //   someone polled after this future returned ready, or that this
-        //   future will never return ready because a future spuriously
-        //   terminated itself.
-        // - If a future returns Ok, clear the vector (this is safe because
-        //   vec drops in place), then return that value. We clear the vector
-        //   so that our FusedFuture impl, which checks `are all futures
-        //   terminated`, works correctly.
+        // - If all existing futures are terminated, return Pending.
+        // - If a future returns Ok, return that value.
         // - If all existing futures BECOME terminated while polling them, and
-        //   an error was returned, return the final error; otherwise return
-        //   pending.
+        //   an error was returned, return the final error.
 
         /// Helper enum to track our state as we poll each future
         enum State<E> {
@@ -64,19 +57,15 @@ impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
         }
 
         let mut state = State::NoErrors;
-        let this = self.get_mut();
-        for fut in this.futures.iter_mut() {
+
+        for fut in self.get_mut().futures.iter_mut() {
             if !fut.is_terminated() {
                 // Safety: we promise that the future is never moved out of the vec,
                 // and that the vec never reallocates once FirstOk has been created
                 // (specifically after the first poll)
                 let pinned = unsafe { Pin::new_unchecked(fut) };
                 match pinned.try_poll(cx) {
-                    Poll::Ready(Ok(out)) => {
-                        // Safety: safe because vec clears in place
-                        this.futures.clear();
-                        return Poll::Ready(Ok(out));
-                    }
+                    Poll::Ready(Ok(out)) => return Poll::Ready(Ok(out)),
                     Poll::Ready(Err(err)) => state.apply_error(err),
                     Poll::Pending => state.apply_pending(),
                 }
@@ -85,17 +74,21 @@ impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
 
         match state {
             SeenError(err) => Poll::Ready(Err(err)),
-            NoErrors | SeenPending => Poll::Pending,
+            SeenPending => Poll::Pending,
+            // This is unreachable unless every future in the vec returned
+            // is_terminated, which means that we must have returned Ready on
+            // a previous poll, or the vec is empty, which we disallow in the
+            // first_ok constructor, or that we were initialized with futures
+            // that have already returned Ready, which is possibly unsound
+            // (given !Unpin futures) but certainly breaks first_ok contract.
+            NoErrors => panic!("All futures in the FirstOk terminated without a result being found. Did you re-poll after Ready?"),
         }
     }
 }
 
-impl<F: FusedFuture + TryFuture> FusedFuture for FirstOk<F> {
-    #[inline]
-    fn is_terminated(&self) -> bool {
-        self.futures.iter().all(|fut| fut.is_terminated())
-    }
-}
+// We don't provide FusedFuture, because the overhead of implementing it (
+// which requires clearing the vector after Ready is returned) is precisely
+// the same as using .fuse()
 
 impl<Fut: FusedFuture + TryFuture> FromIterator<Fut> for FirstOk<Fut> {
     fn from_iter<T: IntoIterator<Item = Fut>>(iter: T) -> Self {
@@ -121,13 +114,27 @@ impl<Fut: FusedFuture + TryFuture> FromIterator<Fut> for FirstOk<Fut> {
 ///
 /// # Panics
 ///
-/// This function will panic if the iterator specified contains no items.
+/// This function will panic if the iterator specified contains no items, or
+/// if any of the futures have already been terminated.
 pub fn first_ok<I>(futures: I) -> FirstOk<I::Item>
 where
     I: IntoIterator,
     I::Item: FusedFuture + TryFuture,
 {
-    let futures = Vec::from_iter(futures);
-    assert!(!futures.is_empty(), "Need at least 1 future for first_ok");
+    let futures: Vec<_> = futures
+        .into_iter()
+        .inspect(|fut| {
+            assert!(
+                !fut.is_terminated(),
+                "Can't call first_ok with a terminated future"
+            )
+        })
+        .collect();
+
+    assert!(
+        !futures.is_empty(),
+        "Need at least 1 non-terminated future for first_ok"
+    );
+
     FirstOk { futures }
 }

@@ -1,6 +1,6 @@
 use core::iter::FromIterator;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
+use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
 /// Future for the [`first_all()`] function.
@@ -32,26 +32,15 @@ impl<F: Future> Future for FirstAll<F> {
                 Poll::Pending => None,
             }
         }) {
-            Some(out) => {
-                // Safety: safe because vec clears in place
-                this.futures.clear();
-                Poll::Ready(out)
-            }
+            Some(out) => Poll::Ready(out),
             None => Poll::Pending,
         }
     }
 }
 
-impl<F: FusedFuture> FusedFuture for FirstAll<F> {
-    #[inline]
-    fn is_terminated(&self) -> bool {
-        // Logic: it's possible for a future to independently become
-        // terminated, before it returns Ready, so we're not terminated unless
-        // *all* of our inner futures are terminated. When our own poll returns
-        // Ready, this vector is cleared, so the logic works correctly.
-        self.futures.iter().all(|fut| fut.is_terminated())
-    }
-}
+// We don't provide FusedFuture, because the overhead of implementing it (
+// which requires clearing the vector after Ready is returned) is precisely
+// the same as using .fuse()
 
 impl<Fut: Future> FromIterator<Fut> for FirstAll<Fut> {
     fn from_iter<T: IntoIterator<Item = Fut>>(iter: T) -> Self {

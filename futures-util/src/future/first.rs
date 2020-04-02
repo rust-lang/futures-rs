@@ -1,6 +1,6 @@
 use crate::future::Either;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
+use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -11,6 +11,8 @@ pub struct First<F1, F2> {
     future1: F1,
     future2: F2,
 }
+
+impl<F1: Unpin, F2: Unpin> Unpin for First<F1, F2> {}
 
 impl<F1, F2> First<F1, F2> {
     unsafe_pinned!(future1: F1);
@@ -32,12 +34,9 @@ impl<F1: Future, F2: Future> Future for First<F1, F2> {
     }
 }
 
-impl<F1: FusedFuture, F2: FusedFuture> FusedFuture for First<F1, F2> {
-    #[inline]
-    fn is_terminated(&self) -> bool {
-        self.future1.is_terminated() || self.future2.is_terminated()
-    }
-}
+// We don't provide FusedFuture, because the overhead of implementing it (
+// which requires a separate bool or Option field) is precisely the same as
+// calling .fuse()
 
 /// Waits for either one of two differently-typed futures to complete.
 ///
@@ -52,7 +51,7 @@ impl<F1: FusedFuture, F2: FusedFuture> FusedFuture for First<F1, F2> {
 /// wrapped version of them.
 ///
 /// Also note that if both this and the second future have the same
-/// output type you can use the `Either::factor_first` method to
+/// output type you can use the `Either::into_immer` method to
 /// conveniently extract out the value at the end.
 pub fn first<F1, F2>(future1: F1, future2: F2) -> First<F1, F2> {
     First { future1, future2 }
