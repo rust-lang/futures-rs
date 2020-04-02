@@ -1,4 +1,5 @@
 use crate::future::{Fuse, FutureExt};
+use alloc::vec::Vec;
 use core::iter::FromIterator;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
@@ -26,12 +27,6 @@ where
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Basic logic diagram:
-        // - If all existing futures are terminated, return Pending.
-        // - If a future returns Ok, return that value.
-        // - If all existing futures BECOME terminated while polling them, and
-        //   an error was returned, return the final error.
-
         /// Helper enum to track our state as we poll each future
         enum State<E> {
             /// Haven't seen any errors
@@ -78,12 +73,7 @@ where
 
         match state {
             SeenError(err) => Poll::Ready(Err(err)),
-            SeenPending => Poll::Pending,
-            // This is unreachable unless every future in the vec returned
-            // is_terminated, which means that we must have returned Ready on
-            // a previous poll, or the vec is empty, which we disallow in the
-            // first_ok constructor.
-            NoErrors => panic!("All futures in the FirstOk terminated without a result being found. Did you re-poll after Ready?"),
+            SeenPending | NoErrors => Poll::Pending,
         }
     }
 }

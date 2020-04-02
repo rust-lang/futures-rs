@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::iter::FromIterator;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -72,4 +73,39 @@ where
     let futures = Vec::from_iter(futures);
     assert!(!futures.is_empty(), "Need at least 1 future for first_any");
     FirstAll { futures }
+}
+
+#[test]
+fn test_first_all() {
+    use crate::task::noop_waker_ref;
+    use futures_channel::oneshot::channel;
+
+    let mut futures = vec![];
+    let mut senders = vec![];
+
+    for _ in 0..10 {
+        let (send, recv) = channel();
+        futures.push(recv);
+        senders.push(send);
+    }
+
+    let (send, recv) = channel();
+    futures.push(recv);
+
+    for _ in 0..10 {
+        let (send, recv) = channel();
+        futures.push(recv);
+        senders.push(send);
+    }
+
+    let mut fut = first_all(futures);
+    let mut pinned = Pin::new(&mut fut);
+    let mut context = Context::from_waker(noop_waker_ref());
+
+    let poll = pinned.as_mut().poll(&mut context);
+    assert_eq!(poll, Poll::Pending);
+
+    send.send(10).unwrap();
+    let poll = pinned.as_mut().poll(&mut context);
+    assert_eq!(poll, Poll::Ready(Ok(10)));
 }
