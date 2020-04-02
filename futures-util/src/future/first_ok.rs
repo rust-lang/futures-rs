@@ -154,7 +154,70 @@ where
 pub fn first_ok<T, E, I>(futures: I) -> FirstOk<Fuse<I::Item>>
 where
     I: IntoIterator,
-    I::Item: FusedFuture + Future<Output = Result<T, E>>,
+    I::Item: Future<Output = Result<T, E>>,
 {
     first_ok_fused(futures.into_iter().map(|fut| fut.fuse()))
+}
+
+#[test]
+fn test_first_ok_ok() {
+    use crate::task::noop_waker_ref;
+    use futures_channel::oneshot::channel;
+
+    let mut futures = vec![];
+    let mut senders = vec![];
+
+    for _ in 0..10 {
+        let (send, recv) = channel();
+        futures.push(recv);
+        senders.push(send);
+    }
+
+    let (send, recv) = channel();
+    futures.push(recv);
+
+    for _ in 0..10 {
+        let (send, recv) = channel();
+        futures.push(recv);
+        senders.push(send);
+    }
+
+    let mut fut = first_ok(futures);
+    let mut context = Context::from_waker(noop_waker_ref());
+
+    let poll = fut.poll_unpin(&mut context);
+    assert_eq!(poll, Poll::Pending);
+
+    send.send(10).unwrap();
+    let poll = fut.poll_unpin(&mut context);
+    assert_eq!(poll, Poll::Ready(Ok(10)));
+}
+
+#[test]
+fn test_first_ok_err() {
+    use crate::task::noop_waker_ref;
+    use futures_channel::oneshot::{channel, Canceled};
+
+    let mut futures = vec![];
+    let mut senders = vec![];
+
+    for _ in 0..10 {
+        let (send, recv) = channel::<u32>();
+        futures.push(recv);
+        senders.push(send);
+    }
+
+    let mut fut = first_ok(futures);
+    let mut context = Context::from_waker(noop_waker_ref());
+
+    // Dropping a sender causes an error in the receiver.
+    for sender in senders.into_iter() {
+        let poll = fut.poll_unpin(&mut context);
+        assert_eq!(poll, Poll::Pending);
+
+        drop(sender);
+    }
+
+    let poll = fut.poll_unpin(&mut context);
+    assert_eq!(poll, Poll::Ready(Err(Canceled)));
 }

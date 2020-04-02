@@ -77,6 +77,7 @@ where
 
 #[test]
 fn test_first_all() {
+    use crate::future::FutureExt;
     use crate::task::noop_waker_ref;
     use futures_channel::oneshot::channel;
 
@@ -99,13 +100,12 @@ fn test_first_all() {
     }
 
     let mut fut = first_all(futures);
-    let mut pinned = Pin::new(&mut fut);
     let mut context = Context::from_waker(noop_waker_ref());
 
-    let poll = pinned.as_mut().poll(&mut context);
+    let poll = fut.poll_unpin(&mut context);
     assert_eq!(poll, Poll::Pending);
 
     send.send(10).unwrap();
-    let poll = pinned.as_mut().poll(&mut context);
+    let poll = fut.poll_unpin(&mut context);
     assert_eq!(poll, Poll::Ready(Ok(10)));
 }
