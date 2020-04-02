@@ -1,3 +1,4 @@
+use crate::future::{Fuse, FutureExt};
 use core::iter::FromIterator;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
@@ -17,8 +18,11 @@ pub struct FirstOk<F> {
 // remain in place permanently.
 impl<F> Unpin for FirstOk<F> {}
 
-impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
-    type Output = Result<F::Ok, F::Error>;
+impl<T, E, F> Future for FirstOk<F>
+where
+    F: Future<Output = Result<T, E>> + FusedFuture,
+{
+    type Output = Result<T, E>;
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -78,9 +82,7 @@ impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
             // This is unreachable unless every future in the vec returned
             // is_terminated, which means that we must have returned Ready on
             // a previous poll, or the vec is empty, which we disallow in the
-            // first_ok constructor, or that we were initialized with futures
-            // that have already returned Ready, which is possibly unsound
-            // (given !Unpin futures) but certainly breaks first_ok contract.
+            // first_ok constructor.
             NoErrors => panic!("All futures in the FirstOk terminated without a result being found. Did you re-poll after Ready?"),
         }
     }
@@ -90,9 +92,12 @@ impl<F: FusedFuture + TryFuture> Future for FirstOk<F> {
 // which requires clearing the vector after Ready is returned) is precisely
 // the same as using .fuse()
 
-impl<Fut: FusedFuture + TryFuture> FromIterator<Fut> for FirstOk<Fut> {
-    fn from_iter<T: IntoIterator<Item = Fut>>(iter: T) -> Self {
-        first_ok(iter)
+impl<T, E, F> FromIterator<F> for FirstOk<F>
+where
+    F: FusedFuture + Future<Output = Result<T, E>>,
+{
+    fn from_iter<I: IntoIterator<Item = F>>(iter: I) -> Self {
+        first_ok_fused(iter)
     }
 }
 
@@ -100,35 +105,33 @@ impl<Fut: FusedFuture + TryFuture> FromIterator<Fut> for FirstOk<Fut> {
 /// future in a list of futures.
 ///
 /// The returned future will wait for any future within `iter` to be ready
-/// and Ok. Unlike `first_all`, this will only return the first successful
-/// completion, or the last error. This is useful in contexts where any success
-/// is desired and failures are ignored, unless all the futures fail.
+/// and `Ok`. Unlike `first_all`, this will only return the first successful
+/// completion, or the last error if none complete with `Ok`. This is useful
+/// in contexts where any success is desired and failures are ignored, unless
+/// all the futures fail.
 ///
-/// `first_ok` requires [`FusedFuture`], in order to track which futures have
+/// `first_ok_fused` requires [`FusedFuture`], in order to track which futures have
 /// completed with errors and which are still pending. Many futures already
-/// implement this trait, but you can also use [`FutureExt::fuse`] to turn
-/// any future into a fused future.
+/// implement this trait. Use [`first_ok`] if you have futures which do not
+/// implement [`FusedFuture`].
+///
+/// Any futures in the list that have already terminated will be ignored.
 ///
 /// This function is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
 ///
 /// # Panics
 ///
-/// This function will panic if the iterator specified contains no items, or
-/// if any of the futures have already been terminated.
-pub fn first_ok<I>(futures: I) -> FirstOk<I::Item>
+/// This function will panic if the iterator specified contains no unterminated
+/// items.
+pub fn first_ok_fused<T, E, I>(futures: I) -> FirstOk<I::Item>
 where
     I: IntoIterator,
-    I::Item: FusedFuture + TryFuture,
+    I::Item: FusedFuture + Future<Output = Result<T, E>>,
 {
     let futures: Vec<_> = futures
         .into_iter()
-        .inspect(|fut| {
-            assert!(
-                !fut.is_terminated(),
-                "Can't call first_ok with a terminated future"
-            )
-        })
+        .filter(|fut| !fut.is_terminated())
         .collect();
 
     assert!(
@@ -137,4 +140,31 @@ where
     );
 
     FirstOk { futures }
+}
+
+/// Creates a new future which will return the result of the first successful
+/// future in a list of futures.
+///
+/// The returned future will wait for any future within `iter` to be ready
+/// and `Ok`. Unlike `first_all`, this will only return the first successful
+/// completion, or the last error if none complete with `Ok`. This is useful
+/// in contexts where any success is desired and failures are ignored, unless
+/// all the futures fail.
+///
+/// If your future implements [`FusedFuture`], prefer [`first_ok_fused`],
+/// which will have less overhead.
+///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
+/// # Panics
+///
+/// This function will panic if the iterator specified contains no unterminated
+/// items.
+pub fn first_ok<T, E, I>(futures: I) -> FirstOk<Fuse<I::Item>>
+where
+    I: IntoIterator,
+    I::Item: FusedFuture + Future<Output = Result<T, E>>,
+{
+    first_ok_fused(futures.into_iter().map(|fut| fut.fuse()))
 }

@@ -101,7 +101,7 @@ pub use first_all::{first_all, FirstAll};
 #[cfg(feature = "alloc")]
 mod first_ok;
 #[cfg(feature = "alloc")]
-pub use first_ok::{first_ok, FirstOk};
+pub use first_ok::{first_ok, first_ok_fused, FirstOk};
 
 mod either;
 pub use self::either::Either;
