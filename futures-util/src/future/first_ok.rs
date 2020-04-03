@@ -119,10 +119,7 @@ where
     I: IntoIterator,
     I::Item: FusedFuture + Future<Output = Result<T, E>>,
 {
-    let futures: Vec<_> = futures
-        .into_iter()
-        .filter(|fut| !fut.is_terminated())
-        .collect();
+    let futures = Vec::from_iter(futures);
 
     assert!(
         !futures.is_empty(),
