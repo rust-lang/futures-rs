@@ -1231,8 +1231,8 @@ pub trait StreamExt: Stream {
     #[cfg(feature = "sink")]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink<<Self as TryStream>::Ok>,
-        Self: TryStream<Error = S::Error> + Sized,
+        S: Sink<Self::Ok, Error = Self::Error>,
+        Self: TryStream + Sized,
     {
         Forward::new(self, sink)
     }
