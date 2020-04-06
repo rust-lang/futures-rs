@@ -1,10 +1,11 @@
-use futures::executor::block_on;
-use futures::future::{self, FutureExt, BoxFuture};
-use std::sync::mpsc;
-use std::thread;
-
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn lots() {
+    use futures::executor::block_on;
+    use futures::future::{self, FutureExt, BoxFuture};
+    use std::sync::mpsc;
+    use std::thread;
+
     fn do_it(input: (i32, i32)) -> BoxFuture<'static, i32> {
         let (n, x) = input;
         if n == 0 {

@@ -1,18 +1,20 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future;
-use futures::stream::{FuturesUnordered, StreamExt};
-use futures::task::Poll;
-use futures_test::task::noop_context;
-use std::panic::{self, AssertUnwindSafe};
-use std::sync::{Arc, Barrier};
-use std::thread;
+#[cfg(feature = "alloc")] // FuturesUnordered
+mod assert_send_sync {
+    use futures::stream::FuturesUnordered;
 
-trait AssertSendSync: Send + Sync {}
-impl AssertSendSync for FuturesUnordered<()> {}
+    pub trait AssertSendSync: Send + Sync {}
+    impl AssertSendSync for FuturesUnordered<()> {}
+}
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn basic_usage() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures::task::Poll;
+
     block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
@@ -39,8 +41,15 @@ fn basic_usage() {
     }));
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn resolving_errors() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures::task::Poll;
+
     block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
@@ -67,8 +76,15 @@ fn resolving_errors() {
     }));
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dropping_ready_queue() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::stream::FuturesUnordered;
+    use futures_test::task::noop_context;
+
     block_on(future::lazy(move |_| {
         let queue = FuturesUnordered::new();
         let (mut tx1, rx1) = oneshot::channel::<()>();
@@ -94,8 +110,15 @@ fn dropping_ready_queue() {
     }));
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn stress() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on_stream;
+    use futures::stream::FuturesUnordered;
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+
     const ITER: usize = 300;
 
     for i in 0..ITER {
@@ -137,8 +160,15 @@ fn stress() {
     }
 }
 
+#[cfg(feature = "executor")] // executor
 #[test]
 fn panicking_future_dropped() {
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::stream::{FuturesUnordered, StreamExt};
+    use futures::task::Poll;
+    use std::panic::{self, AssertUnwindSafe};
+
     block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         queue.push(future::poll_fn(|_| -> Poll<Result<i32, i32>> { panic!() }));

@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use futures::io::Window;
 
 #[test]

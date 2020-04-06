@@ -1,12 +1,11 @@
-use futures::channel::mpsc;
-use futures::executor::block_on_stream;
-use futures::future::{self, FutureExt};
-use futures::stream::{self, select_all, FusedStream, SelectAll, StreamExt};
-use futures::task::Poll;
-use futures_test::task::noop_context;
-
+#[cfg(feature = "alloc")] // stream::SelectAll
 #[test]
 fn is_terminated() {
+    use futures::future::{self, FutureExt};
+    use futures::stream::{FusedStream, SelectAll, StreamExt};
+    use futures::task::Poll;
+    use futures_test::task::noop_context;
+
     let mut cx = noop_context();
     let mut tasks = SelectAll::new();
 
@@ -30,8 +29,12 @@ fn is_terminated() {
     assert_eq!(tasks.is_terminated(), true);
 }
 
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn issue_1626() {
+    use futures::executor::block_on_stream;
+    use futures::stream;
+
     let a = stream::iter(0..=2);
     let b = stream::iter(10..=14);
 
@@ -48,8 +51,14 @@ fn issue_1626() {
     assert_eq!(s.next(), None);
 }
 
+#[cfg(all(feature = "alloc", feature = "std"))] // channel::mpsc
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn works_1() {
+    use futures::channel::mpsc;
+    use futures::executor::block_on_stream;
+    use futures::stream::select_all;
+
     let (a_tx, a_rx) = mpsc::unbounded::<u32>();
     let (b_tx, b_rx) = mpsc::unbounded::<u32>();
     let (c_tx, c_rx) = mpsc::unbounded::<u32>();

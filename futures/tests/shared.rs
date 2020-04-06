@@ -1,12 +1,23 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, LocalPool};
-use futures::future::{self, FutureExt, TryFutureExt, LocalFutureObj};
-use futures::task::LocalSpawn;
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
-use std::thread;
+mod count_clone {
+    use std::cell::Cell;
+    use std::rc::Rc;
 
+    pub struct CountClone(pub Rc<Cell<i32>>);
+
+    impl Clone for CountClone {
+        fn clone(&self) -> Self {
+            self.0.set(self.0.get() + 1);
+            CountClone(self.0.clone())
+        }
+    }
+}
+
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+    use std::thread;
     let (tx, rx) = oneshot::channel::<i32>();
     let f = rx.shared();
     let join_handles = (0..threads_number)
@@ -26,23 +37,32 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     }
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn one_thread() {
     send_shared_oneshot_and_wait_on_multiple_threads(1);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn two_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(2);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn many_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(1000);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn drop_on_one_task_ok() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::{self, FutureExt, TryFutureExt};
+    use std::thread;
+
     let (tx, rx) = oneshot::channel::<u32>();
     let f1 = rx.shared();
     let f2 = f1.clone();
@@ -69,8 +89,15 @@ fn drop_on_one_task_ok() {
     t2.join().unwrap();
 }
 
+
+#[cfg(feature = "executor")] // executor::
 #[test]
 fn drop_in_poll() {
+    use futures::executor::block_on;
+    use futures::future::{self, FutureExt, LocalFutureObj};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     let slot1 = Rc::new(RefCell::new(None));
     let slot2 = slot1.clone();
 
@@ -85,8 +112,14 @@ fn drop_in_poll() {
     assert_eq!(block_on(future1), 1);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn peek() {
+    use futures::channel::oneshot;
+    use futures::executor::LocalPool;
+    use futures::future::{FutureExt, LocalFutureObj};
+    use futures::task::LocalSpawn;
+
     let mut local_pool = LocalPool::new();
     let spawn = &mut local_pool.spawner();
 
@@ -115,17 +148,17 @@ fn peek() {
     }
 }
 
-struct CountClone(Rc<Cell<i32>>);
-
-impl Clone for CountClone {
-    fn clone(&self) -> Self {
-        self.0.set(self.0.get() + 1);
-        CountClone(self.0.clone())
-    }
-}
-
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dont_clone_in_single_owner_shared_future() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    use count_clone::CountClone;
+
     let counter = CountClone(Rc::new(Cell::new(0)));
     let (tx, rx) = oneshot::channel();
 
@@ -136,8 +169,17 @@ fn dont_clone_in_single_owner_shared_future() {
     assert_eq!(block_on(rx).unwrap().0.get(), 0);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dont_do_unnecessary_clones_on_output() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    use count_clone::CountClone;
+
     let counter = CountClone(Rc::new(Cell::new(0)));
     let (tx, rx) = oneshot::channel();
 
