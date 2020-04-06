@@ -3,24 +3,21 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 /// Future for the [`collect`](super::StreamExt::collect) method.
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Collect<St, C> {
+    #[pin]
     stream: St,
     collection: C,
 }
 
-impl<St: Unpin, C> Unpin for Collect<St, C> {}
-
 impl<St: Stream, C: Default> Collect<St, C> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(collection: C);
-
-    fn finish(mut self: Pin<&mut Self>) -> C {
-        mem::replace(self.as_mut().collection(), Default::default())
+    fn finish(self: Pin<&mut Self>) -> C {
+        mem::replace(self.project().collection, Default::default())
     }
 
     pub(super) fn new(stream: St) -> Collect<St, C> {
@@ -46,11 +43,14 @@ where St: Stream,
 {
     type Output = C;
 
+    #[project]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<C> {
+        #[project]
+        let Collect { mut stream, collection } = self.as_mut().project();
         loop {
-            match ready!(self.as_mut().stream().poll_next(cx)) {
-                Some(e) => self.as_mut().collection().extend(Some(e)),
-                None => return Poll::Ready(self.as_mut().finish()),
+            match ready!(stream.as_mut().poll_next(cx)) {
+                Some(e) => collection.extend(Some(e)),
+                None => return Poll::Ready(self.finish()),
             }
         }
     }

@@ -1,25 +1,23 @@
 use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
 use core::fmt;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
 use alloc::sync::Arc;
+use pin_project::pin_project;
 
 /// A future which can be remotely short-circuited using an `AbortHandle`.
+#[pin_project]
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Abortable<Fut> {
+    #[pin]
     future: Fut,
     inner: Arc<AbortInner>,
 }
 
-impl<Fut: Unpin> Unpin for Abortable<Fut> {}
-
 impl<Fut> Abortable<Fut> where Fut: Future {
-    unsafe_pinned!(future: Fut);
-
     /// Creates a new `Abortable` future using an existing `AbortRegistration`.
     /// `AbortRegistration`s can be acquired through `AbortHandle::new`.
     ///
@@ -144,7 +142,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         }
 
         // attempt to complete the future
-        if let Poll::Ready(x) = self.as_mut().future().poll(cx) {
+        if let Poll::Ready(x) = self.as_mut().project().future.poll(cx) {
             return Poll::Ready(Ok(x))
         }
 

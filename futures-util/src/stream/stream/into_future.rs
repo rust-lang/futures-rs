@@ -3,7 +3,6 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
 
 /// Future for the [`into_future`](super::StreamExt::into_future) method.
 #[derive(Debug)]
@@ -12,11 +11,7 @@ pub struct StreamFuture<St> {
     stream: Option<St>,
 }
 
-impl<St: Unpin> Unpin for StreamFuture<St> {}
-
 impl<St: Stream + Unpin> StreamFuture<St> {
-    unsafe_pinned!(stream: Option<St>);
-
     pub(super) fn new(stream: St) -> StreamFuture<St> {
         StreamFuture { stream: Some(stream) }
     }
@@ -57,7 +52,7 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
     pub fn get_pin_mut(self: Pin<&mut Self>) -> Option<Pin<&mut St>> {
-        self.stream().as_pin_mut()
+        Pin::get_mut(self).stream.as_mut().map(Pin::new)
     }
 
     /// Consumes this combinator, returning the underlying stream.
