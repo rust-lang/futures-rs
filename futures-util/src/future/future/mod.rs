@@ -73,11 +73,6 @@ mod shared;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::shared::Shared;
 
-// Implementation details
-
-mod chain;
-pub(crate) use self::chain::Chain;
-
 impl<T: ?Sized> FutureExt for T where T: Future {}
 
 /// An extension trait for `Future`s that provides a variety of convenient
@@ -137,13 +132,13 @@ pub trait FutureExt: Future {
     /// assert_eq!(future_of_4.await, 4);
     /// # });
     /// ```
-    fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
+    fn then<Fut, F>(self, f: F) -> Then<Self, F>
     where
         F: FnOnce(Self::Output) -> Fut,
         Fut: Future,
         Self: Sized,
     {
-        assert_future::<Fut::Output, _>(Then::new(self, f))
+        assert_future::<Fut::Output, _>(Flatten::new(Map::new(self, f)))
     }
 
     /// Wrap this future in an `Either` future, making it the left-hand variant
