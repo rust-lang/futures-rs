@@ -284,7 +284,7 @@ fn select_on_non_unpin_size() {
         select_res
     };
 
-    assert_eq!(48, std::mem::size_of_val(&fut));
+    assert_eq!(32, std::mem::size_of_val(&fut));
 }
 
 #[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
