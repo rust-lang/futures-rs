@@ -107,7 +107,7 @@ mod sink;
 pub use self::sink::{sink, Sink};
 
 mod split;
-pub use self::split::{ReadHalf, WriteHalf};
+pub use self::split::{ReadHalf, WriteHalf, ReuniteError};
 
 mod take;
 pub use self::take::Take;
