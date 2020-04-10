@@ -458,7 +458,7 @@ pub mod stream {
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         // For StreamExt:
-        Chunks,
+        Chunks, ReadyChunks,
     };
 
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
