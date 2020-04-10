@@ -32,7 +32,7 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///
 /// // A poor-man's join implemented on top of select
 ///
-/// fn join<A, B, E>(a: A, b: B) -> impl Future<Output=(A::Output, B::Output)>
+/// fn join<A, B>(a: A, b: B) -> impl Future<Output=(A::Output, B::Output)>
 ///     where A: Future + Unpin,
 ///           B: Future + Unpin,
 /// {
