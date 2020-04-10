@@ -124,3 +124,42 @@ fn take_until() {
         assert_eq!(stream.next().await, None);
     });
 }
+
+#[test]
+#[should_panic]
+fn ready_chunks_panic_on_cap_zero() {
+    use futures::channel::mpsc;
+    use futures::stream::StreamExt;
+
+    let (_, rx1) = mpsc::channel::<()>(1);
+
+    let _ = rx1.ready_chunks(0);
+}
+
+#[cfg(feature = "executor")] // executor::
+#[test]
+fn ready_chunks() {
+    use futures::channel::mpsc;
+    use futures::stream::StreamExt;
+    use futures::sink::SinkExt;
+    use futures::FutureExt;
+    use futures_test::task::noop_context;
+
+    let (mut tx, rx1) = mpsc::channel::<i32>(16);
+
+    let mut s = rx1.ready_chunks(2);
+
+    let mut cx = noop_context();
+    assert!(s.next().poll_unpin(&mut cx).is_pending());
+
+    futures::executor::block_on(async {
+        tx.send(1).await.unwrap();
+
+        assert_eq!(s.next().await.unwrap(), vec![1]);
+        tx.send(2).await.unwrap();
+        tx.send(3).await.unwrap();
+        tx.send(4).await.unwrap();
+        assert_eq!(s.next().await.unwrap(), vec![2,3]);
+        assert_eq!(s.next().await.unwrap(), vec![4]);
+    });
+}

@@ -128,6 +128,12 @@ mod chunks;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chunks::Chunks;
 
+#[cfg(feature = "alloc")]
+mod ready_chunks;
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::ready_chunks::ReadyChunks;
+
 mod scan;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::scan::Scan;
@@ -1184,6 +1190,32 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         Chunks::new(self, capacity)
+    }
+
+    /// An adaptor for chunking up ready items of the stream inside a vector.
+    ///
+    /// This combinator will attempt to pull ready items from this stream and
+    /// buffer them into a local vector. At most `capacity` items will get
+    /// buffered before they're yielded from the returned stream. If underlying
+    /// stream returns `Poll::Pending`, and collected chunk is not empty, it will
+    /// be immediately returned.
+    ///
+    /// If the underlying stream ended and only a partial vector was created,
+    /// it'll be returned. Additionally if an error happens from the underlying
+    /// stream then the currently buffered items will be yielded.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `capacity` is zero.
+    #[cfg(feature = "alloc")]
+    fn ready_chunks(self, capacity: usize) -> ReadyChunks<Self>
+        where
+            Self: Sized,
+    {
+        ReadyChunks::new(self, capacity)
     }
 
     /// A future that completes after the given stream has been fully processed
