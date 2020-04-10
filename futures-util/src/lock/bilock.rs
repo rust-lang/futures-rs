@@ -4,7 +4,6 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
 use core::cell::UnsafeCell;
-#[cfg(any(feature = "bilock", feature = "sink"))]
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
@@ -152,7 +151,6 @@ impl<T> BiLock<T> {
     /// Attempts to put the two "halves" of a `BiLock<T>` back together and
     /// recover the original value. Succeeds only if the two `BiLock<T>`s
     /// originated from the same call to `BiLock::new`.
-    #[cfg(any(feature = "bilock", feature = "sink"))]
     pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>>
     where
         T: Unpin,
@@ -186,7 +184,6 @@ impl<T> BiLock<T> {
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T: Unpin> Inner<T> {
     unsafe fn into_value(mut self) -> T {
         self.value.take().unwrap().into_inner()
@@ -201,10 +198,8 @@ impl<T> Drop for Inner<T> {
 
 /// Error indicating two `BiLock<T>`s were not two halves of a whole, and
 /// thus could not be `reunite`d.
-#[cfg(any(feature = "bilock", feature = "sink"))]
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T> fmt::Debug for ReuniteError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ReuniteError")
@@ -213,14 +208,12 @@ impl<T> fmt::Debug for ReuniteError<T> {
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T> fmt::Display for ReuniteError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "tried to reunite two BiLocks that don't form a pair")
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 #[cfg(feature = "std")]
 impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 

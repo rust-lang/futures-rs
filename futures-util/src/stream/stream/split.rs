@@ -16,7 +16,7 @@ impl<S> Unpin for SplitStream<S> {}
 impl<S: Unpin> SplitStream<S> {
     /// Attempts to put the two "halves" of a split `Stream + Sink` back
     /// together. Succeeds only if the `SplitStream<S>` and `SplitSink<S>` are
-    /// a matching pair originating from the same call to `Stream::split`.
+    /// a matching pair originating from the same call to `StreamExt::split`.
     pub fn reunite<Item>(self, other: SplitSink<S, Item>) -> Result<S, ReuniteError<S, Item>>
         where S: Sink<Item>,
     {
@@ -53,7 +53,7 @@ impl<S, Item> Unpin for SplitSink<S, Item> {}
 impl<S: Sink<Item> + Unpin, Item> SplitSink<S, Item> {
     /// Attempts to put the two "halves" of a split `Stream + Sink` back
     /// together. Succeeds only if the `SplitStream<S>` and `SplitSink<S>` are
-    /// a matching pair originating from the same call to `Stream::split`.
+    /// a matching pair originating from the same call to `StreamExt::split`.
     pub fn reunite(self, other: SplitStream<S>) -> Result<S, ReuniteError<S, Item>> {
         self.lock.reunite(other.0).map_err(|err| {
             ReuniteError(SplitSink(err.0), SplitStream(err.1))

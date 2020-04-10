@@ -332,7 +332,7 @@ pub mod io {
         BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
         empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
-        Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
+        Repeat, ReuniteError, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
         WriteVectored,
     };
 }
