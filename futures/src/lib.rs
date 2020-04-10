@@ -550,35 +550,13 @@ pub use futures_util::async_await;
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod inner_macro {
-    pub use futures_util::join;
-    pub use futures_util::try_join;
     #[cfg(feature = "std")]
     pub use futures_util::select;
     pub use futures_util::select_biased;
 }
 
 #[cfg(feature = "async-await")]
-futures_util::document_join_macro! {
-    #[macro_export]
-    macro_rules! join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! try_join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::try_join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-}
+pub use futures_util::{join, try_join};
 
 #[cfg(feature = "async-await")]
 futures_util::document_select_macro! {

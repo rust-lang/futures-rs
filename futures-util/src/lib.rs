@@ -51,6 +51,14 @@ pub use self::async_await::*;
 #[doc(hidden)]
 pub use futures_core::core_reexport;
 
+// Not public API.
+#[cfg(feature = "async-await")]
+#[doc(hidden)]
+pub mod __reexport {
+    #[doc(hidden)]
+    pub use crate::*;
+}
+
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
         #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]

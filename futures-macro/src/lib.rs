@@ -23,13 +23,13 @@ mod select;
 
 /// The `join!` macro.
 #[proc_macro_hack]
-pub fn join(input: TokenStream) -> TokenStream {
+pub fn join_internal(input: TokenStream) -> TokenStream {
     crate::join::join(input)
 }
 
 /// The `try_join!` macro.
 #[proc_macro_hack]
-pub fn try_join(input: TokenStream) -> TokenStream {
+pub fn try_join_internal(input: TokenStream) -> TokenStream {
     crate::join::try_join(input)
 }
 
