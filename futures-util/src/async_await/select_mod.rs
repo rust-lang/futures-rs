@@ -2,8 +2,6 @@
 
 use proc_macro_hack::proc_macro_hack;
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! document_select_macro {
     // This branch is required for `futures 0.3.1`, from before select_biased was introduced
     ($select:item) => {
@@ -158,7 +156,7 @@ macro_rules! document_select_macro {
     };
 
     ($select:item $select_biased:item) => {
-        $crate::document_select_macro!($select);
+        document_select_macro!($select);
 
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. Unlike [`select!`], if multiple futures are ready,
@@ -310,11 +308,34 @@ macro_rules! document_select_macro {
     };
 }
 
+#[cfg(feature = "std")]
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::select_internal;
+
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::select_biased_internal;
+
 document_select_macro! {
     #[cfg(feature = "std")]
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::select;
+    #[macro_export]
+    macro_rules! select {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::select_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
 
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::select_biased;
+    #[macro_export]
+    macro_rules! select_biased {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::select_biased_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
 }
