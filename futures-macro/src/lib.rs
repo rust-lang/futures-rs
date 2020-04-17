@@ -35,12 +35,12 @@ pub fn try_join_internal(input: TokenStream) -> TokenStream {
 
 /// The `select!` macro.
 #[proc_macro_hack]
-pub fn select(input: TokenStream) -> TokenStream {
+pub fn select_internal(input: TokenStream) -> TokenStream {
     crate::select::select(input)
 }
 
 /// The `select_biased!` macro.
 #[proc_macro_hack]
-pub fn select_biased(input: TokenStream) -> TokenStream {
+pub fn select_biased_internal(input: TokenStream) -> TokenStream {
     crate::select::select_biased(input)
 }

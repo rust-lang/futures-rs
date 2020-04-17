@@ -537,47 +537,10 @@ pub mod never {
 
 // proc-macro re-export --------------------------------------
 
-// Not public API.
-#[doc(hidden)]
-pub use futures_core::core_reexport;
-
-// Not public API.
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub use futures_util::async_await;
-
-// Not public API.
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub mod inner_macro {
-    #[cfg(feature = "std")]
-    pub use futures_util::select;
-    pub use futures_util::select_biased;
-}
-
 #[cfg(feature = "async-await")]
 pub use futures_util::{join, try_join};
-
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
-futures_util::document_select_macro! {
-    #[cfg(feature = "std")]
-    #[macro_export]
-    macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! select_biased { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select_biased! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-}
+pub use futures_util::select;
+#[cfg(feature = "async-await")]
+pub use futures_util::select_biased;
