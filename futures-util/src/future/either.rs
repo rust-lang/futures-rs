@@ -7,7 +7,7 @@ use futures_sink::Sink;
 
 /// Combines two different futures, streams, or sinks having the same associated types into a single
 /// type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Either<A, B> {
     /// First branch of the type
     Left(A),
@@ -280,10 +280,7 @@ mod if_std {
         A: AsyncBufRead,
         B: AsyncBufRead,
     {
-        fn poll_fill_buf(
-            self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<Result<&[u8]>> {
+        fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8]>> {
             unsafe {
                 match self.get_unchecked_mut() {
                     Either::Left(x) => Pin::new_unchecked(x).poll_fill_buf(cx),
