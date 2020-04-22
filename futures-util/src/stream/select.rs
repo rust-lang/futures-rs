@@ -10,6 +10,7 @@ pub struct Select<St1, St2> {
     stream1: Fuse<St1>,
     stream2: Fuse<St2>,
     flag: bool,
+    bonded: bool,
 }
 
 impl<St1: Unpin, St2: Unpin> Unpin for Select<St1, St2> {}
@@ -32,8 +33,21 @@ pub fn select<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
         stream1: stream1.fuse(),
         stream2: stream2.fuse(),
         flag: false,
+        bonded: true,
     }
 }
+
+/// Similar to [`select()`] with a distinct difference.
+/// If either of the input streams is closed, the returned stream is also closed.
+pub fn select_unbonded<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
+    where St1: Stream,
+          St2: Stream<Item = St1::Item>
+{
+    let mut select = select(stream1, stream2);
+    select.bonded = false;
+    select
+}
+
 
 impl<St1, St2> Select<St1, St2> {
     /// Acquires a reference to the underlying streams that this combinator is
@@ -77,7 +91,11 @@ impl<St1, St2> FusedStream for Select<St1, St2>
           St2: Stream<Item = St1::Item>
 {
     fn is_terminated(&self) -> bool {
-        self.stream1.is_terminated() && self.stream2.is_terminated()
+        if self.bonded {
+            self.stream1.is_terminated() && self.stream2.is_terminated()
+        } else {
+            self.stream1.is_terminated() || self.stream2.is_terminated()
+        }
     }
 }
 
@@ -91,21 +109,22 @@ impl<St1, St2> Stream for Select<St1, St2>
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St1::Item>> {
-        let Select { flag, stream1, stream2 } =
+        let Select { flag, stream1, stream2, bonded } =
             unsafe { self.get_unchecked_mut() };
         let stream1 = unsafe { Pin::new_unchecked(stream1) };
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if !*flag {
-            poll_inner(flag, stream1, stream2, cx)
+            poll_inner(flag, *bonded, stream1, stream2, cx)
         } else {
-            poll_inner(flag, stream2, stream1, cx)
+            poll_inner(flag, *bonded, stream2, stream1, cx)
         }
     }
 }
 
 fn poll_inner<St1, St2>(
     flag: &mut bool,
+    bonded: bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
     cx: &mut Context<'_>
@@ -118,7 +137,8 @@ fn poll_inner<St1, St2>(
             *flag = !*flag;
             return Poll::Ready(Some(item))
         },
-        Poll::Ready(None) => true,
+        Poll::Ready(None) if bonded => true,
+        Poll::Ready(None) => return Poll::Ready(None),
         Poll::Pending => false,
     };
 
@@ -126,7 +146,8 @@ fn poll_inner<St1, St2>(
         Poll::Ready(Some(item)) => {
             Poll::Ready(Some(item))
         }
-        Poll::Ready(None) if a_done => Poll::Ready(None),
+        Poll::Ready(None) if a_done && bonded => Poll::Ready(None),
+        Poll::Ready(None) if !bonded => Poll::Ready(None),
         Poll::Ready(None) | Poll::Pending => Poll::Pending,
     }
 }
