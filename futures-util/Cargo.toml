@@ -45,7 +45,7 @@ slab = { version = "0.4.2", optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
-pin-utils = "0.1.0-alpha.4"
+pin-utils = "0.1.0"
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.3.4", features = ["async-await", "thread-pool"] }
