@@ -80,7 +80,9 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
         let Filter { mut stream, f, mut pending_fut, pending_item } = self.project();
         Poll::Ready(loop {
             if let Some(fut) = pending_fut.as_mut().as_pin_mut() {
-                if ready!(fut.poll(cx)) {
+                let res = ready!(fut.poll(cx));
+                pending_fut.set(None);
+                if res {
                     break pending_item.take();
                 }
                 *pending_item = None;

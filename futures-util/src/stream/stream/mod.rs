@@ -46,8 +46,14 @@ mod filter_map;
 pub use self::filter_map::FilterMap;
 
 mod flatten;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flatten::Flatten;
+
+delegate_all!(
+    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    Flatten<St>(
+        flatten::Flatten<St, St::Item>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| flatten::Flatten::new(x)]
+    where St: Stream
+);
 
 mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -61,7 +67,7 @@ delegate_all!(
     /// Future for the [`forward`](super::StreamExt::forward) method.
     Forward<St, Si>(
         forward::Forward<St, Si, St::Ok>
-    ): Debug + Future + Sink + Stream + FusedStream + New[|x: St, y: Si| forward::Forward::new(x, y)]
+    ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
     where St: TryStream
 );
 
@@ -81,7 +87,7 @@ delegate_all!(
     /// Stream for the [`inspect`](StreamExt::inspect) method.
     Inspect<St, F>(
         map::Map<St, InspectFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, f: F| map::Map::new(x, inspect_fn(f))]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, f: F| map::Map::new(x, inspect_fn(f))]
 );
 
 mod map;
@@ -91,8 +97,8 @@ pub use self::map::Map;
 delegate_all!(
     /// Stream for the [`flat_map`](StreamExt::flat_map) method.
     FlatMap<St, U, F>(
-        Flatten<Map<St, F>, U>
-    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Flatten::new(Map::new(x, f))]
+        flatten::Flatten<Map<St, F>, U>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| flatten::Flatten::new(Map::new(x, f))]
 );
 
 mod next;
@@ -563,7 +569,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # });
     /// ```
-    fn flatten(self) -> Flatten<Self, Self::Item>
+    fn flatten(self) -> Flatten<Self>
     where
         Self::Item: Stream,
         Self: Sized,

@@ -31,21 +31,22 @@ delegate_all!(
     /// Future for the [`try_flatten`](TryFutureExt::try_flatten) method.
     TryFlatten<Fut1, Fut2>(
         try_flatten::TryFlatten<Fut1, Fut2>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut1| try_flatten::TryFlatten::new(x)]
+    ): Debug + Future + FusedFuture + New[|x: Fut1| try_flatten::TryFlatten::new(x)]
 );
 
 delegate_all!(
     /// Future for the [`try_flatten_err`](TryFutureExt::try_flatten_err) method.
     TryFlattenErr<Fut1, Fut2>(
         try_flatten_err::TryFlattenErr<Fut1, Fut2>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut1| try_flatten_err::TryFlattenErr::new(x)]
+    ): Debug + Future + FusedFuture + New[|x: Fut1| try_flatten_err::TryFlattenErr::new(x)]
 );
 
 delegate_all!(
     /// Future for the [`try_flatten_stream`](TryFutureExt::try_flatten_stream) method.
-    TryFlattenStream<Fut, St>(
-        try_flatten::TryFlatten<Fut, St>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut| try_flatten::TryFlatten::new(x)]
+    TryFlattenStream<Fut>(
+        try_flatten::TryFlatten<Fut, Fut::Ok>
+    ): Debug + Sink + Stream + FusedStream + New[|x: Fut| try_flatten::TryFlatten::new(x)]
+    where Fut: TryFuture
 );
 
 #[cfg(feature = "sink")]
@@ -53,49 +54,49 @@ delegate_all!(
     /// Sink for the [`flatten_sink`](TryFutureExt::flatten_sink) method.
     FlattenSink<Fut, Si>(
         try_flatten::TryFlatten<Fut, Si>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut| try_flatten::TryFlatten::new(x)]
+    ): Debug + Sink + Stream + FusedStream + New[|x: Fut| try_flatten::TryFlatten::new(x)]
 );
 
 delegate_all!(
     /// Future for the [`and_then`](TryFutureExt::and_then) method.
     AndThen<Fut1, Fut2, F>(
         TryFlatten<MapOk<Fut1, F>, Fut2>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut1, f: F| TryFlatten::new(MapOk::new(x, f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut1, f: F| TryFlatten::new(MapOk::new(x, f))]
 );
 
 delegate_all!(
     /// Future for the [`or_else`](TryFutureExt::or_else) method.
     OrElse<Fut1, Fut2, F>(
         TryFlattenErr<MapErr<Fut1, F>, Fut2>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut1, f: F| TryFlattenErr::new(MapErr::new(x, f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut1, f: F| TryFlattenErr::new(MapErr::new(x, f))]
 );
 
 delegate_all!(
     /// Future for the [`err_into`](TryFutureExt::err_into) method.
     ErrInto<Fut, E>(
         MapErr<Fut, IntoFn<E>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut| MapErr::new(x, into_fn())]
+    ): Debug + Future + FusedFuture + New[|x: Fut| MapErr::new(x, into_fn())]
 );
 
 delegate_all!(
     /// Future for the [`ok_into`](TryFutureExt::ok_into) method.
     OkInto<Fut, E>(
         MapOk<Fut, IntoFn<E>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut| MapOk::new(x, into_fn())]
+    ): Debug + Future + FusedFuture + New[|x: Fut| MapOk::new(x, into_fn())]
 );
 
 delegate_all!(
     /// Future for the [`inspect_ok`](super::TryFutureExt::inspect_ok) method.
     InspectOk<Fut, F>(
         Inspect<IntoFuture<Fut>, InspectOkFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_ok_fn(f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_ok_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`inspect_err`](super::TryFutureExt::inspect_err) method.
     InspectErr<Fut, F>(
         Inspect<IntoFuture<Fut>, InspectErrFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_err_fn(f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_err_fn(f))]
 );
 
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -105,28 +106,28 @@ delegate_all!(
     /// Future for the [`map_ok`](TryFutureExt::map_ok) method.
     MapOk<Fut, F>(
         Map<IntoFuture<Fut>, MapOkFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_ok_fn(f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_ok_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`map_err`](TryFutureExt::map_err) method.
     MapErr<Fut, F>(
         Map<IntoFuture<Fut>, MapErrFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_err_fn(f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_err_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`map_ok_or_else`](TryFutureExt::map_ok_or_else) method.
     MapOkOrElse<Fut, F, G>(
         Map<IntoFuture<Fut>, MapOkOrElseFn<F, G>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F, g: G| Map::new(IntoFuture::new(x), map_ok_or_else_fn(f, g))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F, g: G| Map::new(IntoFuture::new(x), map_ok_or_else_fn(f, g))]
 );
 
 delegate_all!(
     /// Future for the [`unwrap_or_else`](TryFutureExt::unwrap_or_else) method.
     UnwrapOrElse<Fut, F>(
         Map<IntoFuture<Fut>, UnwrapOrElseFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), unwrap_or_else_fn(f))]
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), unwrap_or_else_fn(f))]
 );
 
 impl<Fut: ?Sized + TryFuture> TryFutureExt for Fut {}
@@ -526,7 +527,7 @@ pub trait TryFutureExt: TryFuture {
     /// assert_eq!(list, Ok(vec![17, 18, 19]));
     /// # });
     /// ```
-    fn try_flatten_stream(self) -> TryFlattenStream<Self, Self::Ok>
+    fn try_flatten_stream(self) -> TryFlattenStream<Self>
     where
         Self::Ok: TryStream<Error = Self::Error>,
         Self: Sized,

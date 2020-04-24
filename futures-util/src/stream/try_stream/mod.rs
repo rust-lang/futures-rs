@@ -24,21 +24,21 @@ delegate_all!(
     /// Stream for the [`err_into`](super::TryStreamExt::err_into) method.
     ErrInto<St, E>(
         MapErr<St, IntoFn<E>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| MapErr::new(x, into_fn())]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| MapErr::new(x, into_fn())]
 );
 
 delegate_all!(
     /// Stream for the [`inspect_ok`](super::TryStreamExt::inspect_ok) method.
     InspectOk<St, F>(
         Inspect<IntoStream<St>, InspectOkFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_ok_fn(f))]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_ok_fn(f))]
 );
 
 delegate_all!(
     /// Stream for the [`inspect_err`](super::TryStreamExt::inspect_err) method.
     InspectErr<St, F>(
         Inspect<IntoStream<St>, InspectErrFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_err_fn(f))]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_err_fn(f))]
 );
 
 mod into_stream;
@@ -49,14 +49,14 @@ delegate_all!(
     /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) method.
     MapOk<St, F>(
         Map<IntoStream<St>, MapOkFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_ok_fn(f))]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_ok_fn(f))]
 );
 
 delegate_all!(
     /// Stream for the [`map_err`](super::TryStreamExt::map_err) method.
     MapErr<St, F>(
         Map<IntoStream<St>, MapErrFn<F>>
-    ): Debug + Future + FusedFuture + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_err_fn(f))]
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_err_fn(f))]
 );
 
 mod or_else;

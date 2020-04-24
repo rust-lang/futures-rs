@@ -54,7 +54,7 @@ impl<Fut> Future for TryFlattenErr<Fut, Fut::Error>
                     self.set(TryFlattenErr::Empty);
                     break output;
                 },
-                TryFlattenErr::Empty => return Poll::Pending,
+                TryFlattenErr::Empty => panic!("TryFlattenErr polled after completion"),
             }
         })
     }
