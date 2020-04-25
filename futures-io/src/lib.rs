@@ -348,6 +348,7 @@ mod if_std {
         deref_async_read!();
     }
 
+    #[allow(single_use_lifetimes)] // FIXME: https://github.com/rust-lang/rust/issues/69952
     impl<T: ?Sized + Unpin> AsyncRead for Arc<T>
     where
         for<'a> &'a T: AsyncRead,
@@ -450,6 +451,7 @@ mod if_std {
         deref_async_write!();
     }
 
+    #[allow(single_use_lifetimes)] // FIXME: https://github.com/rust-lang/rust/issues/69952
     impl<T: ?Sized + Unpin> AsyncWrite for Arc<T>
     where
         for<'a> &'a T: AsyncWrite,
