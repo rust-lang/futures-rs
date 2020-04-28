@@ -52,7 +52,7 @@ impl<Fut> Future for Flatten<Fut, Fut::Output>
                     self.set(Flatten::Empty);
                     break output;
                 },
-                Flatten::Empty => return Poll::Pending,
+                Flatten::Empty => panic!("Flatten polled after completion"),
             }
         })
     }
