@@ -118,9 +118,11 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
+#[cfg(feature = "async-await")]
+pub use futures_util::{pending, poll, join, try_join, select_biased}; // Async-await
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
-pub use futures_util::{pending, poll}; // Async-await
+pub use futures_util::select;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
@@ -534,13 +536,3 @@ pub mod never {
 
     pub use futures_util::never::Never;
 }
-
-// proc-macro re-export --------------------------------------
-
-#[cfg(feature = "async-await")]
-pub use futures_util::{join, try_join};
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::select;
-#[cfg(feature = "async-await")]
-pub use futures_util::select_biased;
