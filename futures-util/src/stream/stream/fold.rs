@@ -3,18 +3,19 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 /// Future for the [`fold`](super::StreamExt::fold) method.
+#[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Fold<St, Fut, T, F> {
+    #[pin]
     stream: St,
     f: F,
     accum: Option<T>,
+    #[pin]
     future: Option<Fut>,
 }
-
-impl<St: Unpin, Fut: Unpin, T, F> Unpin for Fold<St, Fut, T, F> {}
 
 impl<St, Fut, T, F> fmt::Debug for Fold<St, Fut, T, F>
 where
@@ -36,11 +37,6 @@ where St: Stream,
       F: FnMut(T, St::Item) -> Fut,
       Fut: Future<Output = T>,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-    unsafe_unpinned!(accum: Option<T>);
-    unsafe_pinned!(future: Option<Fut>);
-
     pub(super) fn new(stream: St, f: F, t: T) -> Fold<St, Fut, T, F> {
         Fold {
             stream,
@@ -68,25 +64,27 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        loop {
-            // we're currently processing a future to produce a new accum value
-            if self.accum.is_none() {
-                let accum = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
-                *self.as_mut().accum() = Some(accum);
-                self.as_mut().future().set(None);
-            }
-
-            let item = ready!(self.as_mut().stream().poll_next(cx));
-            let accum = self.as_mut().accum().take()
-                .expect("Fold polled after completion");
-
-            if let Some(e) = item {
-                let future = (self.as_mut().f())(accum, e);
-                self.as_mut().future().set(Some(future));
+    #[project]
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+        #[project]
+        let Fold { mut stream, f, accum, mut future } = self.project();
+        Poll::Ready(loop {
+            if let Some(fut) = future.as_mut().as_pin_mut() {
+                // we're currently processing a future to produce a new accum value
+                *accum = Some(ready!(fut.poll(cx)));
+                future.set(None);
+            } else if accum.is_some() {
+                // we're waiting on a new item from the stream
+                let res = ready!(stream.as_mut().poll_next(cx));
+                let a = accum.take().unwrap();
+                if let Some(item) = res {
+                    future.set(Some(f(a, item)));
+                } else {
+                    break a;
+                }
             } else {
-                return Poll::Ready(accum)
+                panic!("Fold polled after completion")
             }
-        }
+        })
     }
 }

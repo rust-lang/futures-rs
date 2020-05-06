@@ -4,23 +4,20 @@ use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 /// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
+#[pin_project]
 #[must_use = "sinks do nothing unless polled"]
 pub struct WithFlatMap<Si, Item, U, St, F> {
+    #[pin]
     sink: Si,
     f: F,
+    #[pin]
     stream: Option<St>,
     buffer: Option<Item>,
     _marker: PhantomData<fn(U)>,
 }
-
-impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
-where
-    Si: Unpin,
-    St: Unpin,
-{}
 
 impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>
 where
@@ -43,10 +40,6 @@ where
     F: FnMut(U) -> St,
     St: Stream<Item = Result<Item, Si::Error>>,
 {
-    unsafe_pinned!(sink: Si);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(stream: Option<St>);
-
     pub(super) fn new(sink: Si, f: F) -> Self {
         WithFlatMap {
             sink,
@@ -57,37 +50,15 @@ where
         }
     }
 
-    /// Get a shared reference to the inner sink.
-    pub fn get_ref(&self) -> &Si {
-        &self.sink
-    }
+    delegate_access_inner!(sink, Si, ());
 
-    /// Get a mutable reference to the inner sink.
-    pub fn get_mut(&mut self) -> &mut Si {
-        &mut self.sink
-    }
-
-    /// Get a pinned mutable reference to the inner sink.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut Si> {
-        self.sink()
-    }
-
-    /// Consumes this combinator, returning the underlying sink.
-    ///
-    /// Note that this may discard intermediate state of this combinator, so
-    /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> Si {
-        self.sink
-    }
-
+    #[project]
     fn try_empty_stream(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Si::Error>> {
-        let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { self.get_unchecked_mut() };
-        let mut sink = unsafe { Pin::new_unchecked(sink) };
-        let mut stream = unsafe { Pin::new_unchecked(stream) };
+        #[project]
+        let WithFlatMap { mut sink, mut stream, buffer, .. } = self.project();
 
         if buffer.is_some() {
             ready!(sink.as_mut().poll_ready(cx))?;
@@ -119,16 +90,7 @@ where
 {
     type Item = S::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.sink.size_hint()
-    }
+    delegate_stream!(sink);
 }
 
 impl<S, Item, U, St, F> FusedStream for WithFlatMap<S, Item, U, St, F>
@@ -157,13 +119,16 @@ where
         self.try_empty_stream(cx)
     }
 
+    #[project]
     fn start_send(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         item: U,
     ) -> Result<(), Self::Error> {
-        assert!(self.stream.is_none());
-        let stream = (self.as_mut().f())(item);
-        self.stream().set(Some(stream));
+        #[project]
+        let WithFlatMap { mut stream, f, .. } = self.project();
+
+        assert!(stream.is_none());
+        stream.set(Some(f(item)));
         Ok(())
     }
 
@@ -172,7 +137,7 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
-        self.as_mut().sink().poll_flush(cx)
+        self.project().sink.poll_flush(cx)
     }
 
     fn poll_close(
@@ -180,6 +145,6 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
-        self.as_mut().sink().poll_close(cx)
+        self.project().sink.poll_close(cx)
     }
 }

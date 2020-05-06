@@ -11,34 +11,53 @@ use futures_core::{
     stream::TryStream,
     task::{Context, Poll},
 };
+use crate::fns::{
+    InspectOkFn, inspect_ok_fn, InspectErrFn, inspect_err_fn, MapErrFn, map_err_fn, IntoFn, into_fn, MapOkFn, map_ok_fn,
+};
+use crate::stream::{Map, Inspect};
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::and_then::AndThen;
 
-mod err_into;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::err_into::ErrInto;
+delegate_all!(
+    /// Stream for the [`err_into`](super::TryStreamExt::err_into) method.
+    ErrInto<St, E>(
+        MapErr<St, IntoFn<E>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| MapErr::new(x, into_fn())]
+);
 
-mod inspect_ok;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect_ok::InspectOk;
+delegate_all!(
+    /// Stream for the [`inspect_ok`](super::TryStreamExt::inspect_ok) method.
+    InspectOk<St, F>(
+        Inspect<IntoStream<St>, InspectOkFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_ok_fn(f))]
+);
 
-mod inspect_err;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect_err::InspectErr;
+delegate_all!(
+    /// Stream for the [`inspect_err`](super::TryStreamExt::inspect_err) method.
+    InspectErr<St, F>(
+        Inspect<IntoStream<St>, InspectErrFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_err_fn(f))]
+);
 
 mod into_stream;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_stream::IntoStream;
 
-mod map_ok;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::map_ok::MapOk;
+delegate_all!(
+    /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) method.
+    MapOk<St, F>(
+        Map<IntoStream<St>, MapOkFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_ok_fn(f))]
+);
 
-mod map_err;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::map_err::MapErr;
+delegate_all!(
+    /// Stream for the [`map_err`](super::TryStreamExt::map_err) method.
+    MapErr<St, F>(
+        Map<IntoStream<St>, MapErrFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_err_fn(f))]
+);
 
 mod or_else;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411

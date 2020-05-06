@@ -5,7 +5,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 struct StateFn<S, F> {
     state: S,
@@ -13,14 +13,15 @@ struct StateFn<S, F> {
 }
 
 /// Stream for the [`scan`](super::StreamExt::scan) method.
+#[pin_project]
 #[must_use = "streams do nothing unless polled"]
 pub struct Scan<St: Stream, S, Fut, F> {
+    #[pin]
     stream: St,
     state_f: Option<StateFn<S, F>>,
+    #[pin]
     future: Option<Fut>,
 }
-
-impl<St: Unpin + Stream, S, Fut: Unpin, F> Unpin for Scan<St, S, Fut, F> {}
 
 impl<St, S, Fut, F> fmt::Debug for Scan<St, S, Fut, F>
 where
@@ -40,10 +41,6 @@ where
 }
 
 impl<St: Stream, S, Fut, F> Scan<St, S, Fut, F> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(state_f: Option<StateFn<S, F>>);
-    unsafe_pinned!(future: Option<Fut>);
-
     /// Checks if internal state is `None`.
     fn is_done_taking(&self) -> bool {
         self.state_f.is_none()
@@ -67,37 +64,7 @@ where
         }
     }
 
-    /// Acquires a reference to the underlying stream that this combinator is
-    /// pulling from.
-    pub fn get_ref(&self) -> &St {
-        &self.stream
-    }
-
-    /// Acquires a mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut St {
-        &mut self.stream
-    }
-
-    /// Acquires a pinned mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut St> {
-        self.stream()
-    }
-
-    /// Consumes this combinator, returning the underlying stream.
-    ///
-    /// Note that this may discard intermediate state of this combinator, so
-    /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> St {
-        self.stream
-    }
+    delegate_access_inner!(stream, St, ());
 }
 
 impl<B, St, S, Fut, F> Stream for Scan<St, S, Fut, F>
@@ -108,29 +75,32 @@ where
 {
     type Item = B;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<B>> {
+    #[project]
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<B>> {
         if self.is_done_taking() {
             return Poll::Ready(None);
         }
 
-        if self.future.is_none() {
-            let item = match ready!(self.as_mut().stream().poll_next(cx)) {
-                Some(e) => e,
-                None => return Poll::Ready(None),
-            };
-            let state_f = self.as_mut().state_f().as_mut().unwrap();
-            let fut = (state_f.f)(&mut state_f.state, item);
-            self.as_mut().future().set(Some(fut));
-        }
+        #[project]
+        let Scan { mut stream, state_f, mut future } = self.project();
 
-        let item = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
-        self.as_mut().future().set(None);
+        Poll::Ready(loop {
+            if let Some(fut) = future.as_mut().as_pin_mut() {
+                let item = ready!(fut.poll(cx));
+                future.set(None);
 
-        if item.is_none() {
-            self.as_mut().state_f().take();
-        }
+                if item.is_none() {
+                    *state_f = None;
+                }
 
-        Poll::Ready(item)
+                break item;
+            } else if let Some(item) = ready!(stream.as_mut().poll_next(cx)) {
+                let state_f = state_f.as_mut().unwrap();
+                future.set(Some((state_f.f)(&mut state_f.state, item)))
+            } else {
+                break None;
+            }
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

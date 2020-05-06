@@ -3,7 +3,7 @@
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll};
-use pin_utils::unsafe_pinned;
+use pin_project::pin_project;
 
 /// A future representing a value which may or may not be present.
 ///
@@ -22,15 +22,10 @@ use pin_utils::unsafe_pinned;
 /// assert_eq!(a.await, None);
 /// # });
 /// ```
+#[pin_project]
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct OptionFuture<F> {
-    option: Option<F>,
-}
-
-impl<F> OptionFuture<F> {
-    unsafe_pinned!(option: Option<F>);
-}
+pub struct OptionFuture<F>(#[pin] Option<F>);
 
 impl<F: Future> Future for OptionFuture<F> {
     type Output = Option<F::Output>;
@@ -39,7 +34,7 @@ impl<F: Future> Future for OptionFuture<F> {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.option().as_pin_mut() {
+        match self.project().0.as_pin_mut() {
             Some(x) => x.poll(cx).map(Some),
             None => Poll::Ready(None),
         }
@@ -48,7 +43,7 @@ impl<F: Future> Future for OptionFuture<F> {
 
 impl<F: FusedFuture> FusedFuture for OptionFuture<F> {
     fn is_terminated(&self) -> bool {
-        match &self.option {
+        match &self.0 {
             Some(x) => x.is_terminated(),
             None => true,
         }
@@ -57,6 +52,6 @@ impl<F: FusedFuture> FusedFuture for OptionFuture<F> {
 
 impl<T> From<Option<T>> for OptionFuture<T> {
     fn from(option: Option<T>) -> Self {
-        OptionFuture { option }
+        OptionFuture(option)
     }
 }

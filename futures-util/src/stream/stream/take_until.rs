@@ -5,24 +5,25 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::unsafe_pinned;
+use pin_project::{pin_project, project};
 
 // FIXME: docs, tests
 
 /// Stream for the [`take_until`](super::StreamExt::take_until) method.
+#[pin_project]
 #[must_use = "streams do nothing unless polled"]
 pub struct TakeUntil<St: Stream, Fut: Future> {
+    #[pin]
     stream: St,
     /// Contains the inner Future on start and None once the inner Future is resolved
     /// or taken out by the user.
+    #[pin]
     fut: Option<Fut>,
     /// Contains fut's return value once fut is resolved
     fut_result: Option<Fut::Output>,
     /// Whether the future was taken out by the user.
     free: bool,
 }
-
-impl<St: Unpin + Stream, Fut: Future + Unpin> Unpin for TakeUntil<St, Fut> {}
 
 impl<St, Fut> fmt::Debug for TakeUntil<St, Fut>
 where
@@ -43,16 +44,6 @@ where
     St: Stream,
     Fut: Future,
 {
-    unsafe_pinned!(stream: St);
-    unsafe_pinned!(fut: Option<Fut>);
-    unsafe_pinned!(fut_result: Option<Fut::Output>);
-}
-
-impl<St, Fut> TakeUntil<St, Fut>
-where
-    St: Stream,
-    Fut: Future,
-{
     pub(super) fn new(stream: St, fut: Fut) -> TakeUntil<St, Fut> {
         TakeUntil {
             stream,
@@ -62,35 +53,7 @@ where
         }
     }
 
-    /// Acquires a reference to the underlying stream that this combinator is
-    /// pulling from.
-    pub fn get_ref(&self) -> &St {
-        &self.stream
-    }
-
-    /// Acquires a mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut St {
-        &mut self.stream
-    }
-
-    /// Acquires a pinned mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut St> {
-        self.stream()
-    }
-
-    /// Consumes this combinator, returning the underlying stream and the stopping
-    /// future, if it isn't resolved yet.
-    pub fn into_inner(self) -> (St, Option<Fut>) {
-        (self.stream, self.fut)
-    }
+    delegate_access_inner!(stream, St, ());
 
     /// Extract the stopping future out of the combinator.
     /// The future is returned only if it isn't resolved yet, ie. if the stream isn't stopped yet.
@@ -158,22 +121,26 @@ where
 {
     type Item = St::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
-        if let Some(fut) = self.as_mut().fut().as_pin_mut() {
-            if let Poll::Ready(result) = fut.poll(cx) {
-                self.as_mut().fut().set(None);
-                self.as_mut().fut_result().set(Some(result));
+    #[project]
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
+        #[project]
+        let TakeUntil { stream, mut fut, fut_result, free } = self.project();
+
+        if let Some(f) = fut.as_mut().as_pin_mut() {
+            if let Poll::Ready(result) = f.poll(cx) {
+                fut.set(None);
+                *fut_result = Some(result);
             }
         }
 
-        if self.is_stopped() {
+        if !*free && fut.is_none() {
             // Future resolved, inner stream stopped
             Poll::Ready(None)
         } else {
             // Future either not resolved yet or taken out by the user
-            let item = ready!(self.as_mut().stream().poll_next(cx));
+            let item = ready!(stream.poll_next(cx));
             if item.is_none() {
-                self.as_mut().fut().set(None);
+                fut.set(None);
             }
             Poll::Ready(item)
         }

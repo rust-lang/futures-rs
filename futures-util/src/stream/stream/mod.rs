@@ -19,6 +19,8 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
+use crate::fns::{InspectFn, inspect_fn};
+
 mod chain;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chain::Chain;
@@ -44,8 +46,14 @@ mod filter_map;
 pub use self::filter_map::FilterMap;
 
 mod flatten;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flatten::Flatten;
+
+delegate_all!(
+    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    Flatten<St>(
+        flatten::Flatten<St, St::Item>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| flatten::Flatten::new(x)]
+    where St: Stream
+);
 
 mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -53,9 +61,15 @@ pub use self::fold::Fold;
 
 #[cfg(feature = "sink")]
 mod forward;
+
 #[cfg(feature = "sink")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::forward::Forward;
+delegate_all!(
+    /// Future for the [`forward`](super::StreamExt::forward) method.
+    Forward<St, Si>(
+        forward::Forward<St, Si, St::Ok>
+    ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
+    where St: TryStream
+);
 
 mod for_each;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -69,18 +83,23 @@ mod into_future;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::StreamFuture;
 
-mod inspect;
-pub(crate) use self::inspect::inspect; // used by `TryStreamExt::{inspect_ok, inspect_err}`
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect::Inspect;
+delegate_all!(
+    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    Inspect<St, F>(
+        map::Map<St, InspectFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, f: F| map::Map::new(x, inspect_fn(f))]
+);
 
 mod map;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map::Map;
 
-mod flat_map;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flat_map::FlatMap;
+delegate_all!(
+    /// Stream for the [`flat_map`](StreamExt::flat_map) method.
+    FlatMap<St, U, F>(
+        flatten::Flatten<Map<St, F>, U>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| flatten::Flatten::new(Map::new(x, f))]
+);
 
 mod next;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411

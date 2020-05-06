@@ -4,23 +4,22 @@ use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
+use pin_project::{pin_project, project};
 
 /// A future that may have completed.
 ///
 /// This is created by the [`maybe_done()`] function.
+#[pin_project]
 #[derive(Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
-    Future(Fut),
+    Future(#[pin] Fut),
     /// The output of the completed future
     Done(Fut::Output),
     /// The empty variant after the result of a [`MaybeDone`] has been
     /// taken using the [`take_output`](MaybeDone::take_output) method.
     Gone,
 }
-
-// Safe because we never generate `Pin<&mut Fut::Output>`
-impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
 /// Wraps a future into a `MaybeDone`
 ///
@@ -48,14 +47,13 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// The output of this method will be [`Some`] if and only if the inner
     /// future has been completed and [`take_output`](MaybeDone::take_output)
     /// has not yet been called.
+    #[project]
     #[inline]
     pub fn output_mut(self: Pin<&mut Self>) -> Option<&mut Fut::Output> {
-        unsafe {
-            let this = self.get_unchecked_mut();
-            match this {
-                MaybeDone::Done(res) => Some(res),
-                _ => None,
-            }
+        #[project]
+        match self.project() {
+            MaybeDone::Done(res) => Some(res),
+            _ => None,
         }
     }
 
@@ -63,6 +61,11 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// towards completion.
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Output> {
+        // Safety: we return immediately unless we are in the `Done`
+        // state, which does not have any pinning guarantees to uphold.
+        //
+        // Hopefully `pin_project` will support this safely soon:
+        // https://github.com/taiki-e/pin-project/issues/184
         unsafe {
             let this = self.get_unchecked_mut();
             match this {
@@ -90,15 +93,17 @@ impl<Fut: Future> FusedFuture for MaybeDone<Fut> {
 impl<Fut: Future> Future for MaybeDone<Fut> {
     type Output = ();
 
+    #[project]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let res = unsafe {
-            match self.as_mut().get_unchecked_mut() {
-                MaybeDone::Future(a) => ready!(Pin::new_unchecked(a).poll(cx)),
-                MaybeDone::Done(_) => return Poll::Ready(()),
-                MaybeDone::Gone => panic!("MaybeDone polled after value taken"),
-            }
-        };
-        self.set(MaybeDone::Done(res));
+        #[project]
+        match self.as_mut().project() {
+            MaybeDone::Future(f) => {
+                let res = ready!(f.poll(cx));
+                self.set(MaybeDone::Done(res));
+            },
+            MaybeDone::Done(_) => {},
+            MaybeDone::Gone => panic!("MaybeDone polled after value taken"),
+        }
         Poll::Ready(())
     }
 }

@@ -3,22 +3,19 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 /// Stream for the [`skip`](super::StreamExt::skip) method.
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Skip<St> {
+    #[pin]
     stream: St,
     remaining: usize,
 }
 
-impl<St: Unpin> Unpin for Skip<St> {}
-
 impl<St: Stream> Skip<St> {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(remaining: usize);
-
     pub(super) fn new(stream: St, n: usize) -> Skip<St> {
         Skip {
             stream,
@@ -26,37 +23,7 @@ impl<St: Stream> Skip<St> {
         }
     }
 
-    /// Acquires a reference to the underlying stream that this combinator is
-    /// pulling from.
-    pub fn get_ref(&self) -> &St {
-        &self.stream
-    }
-
-    /// Acquires a mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut St {
-        &mut self.stream
-    }
-
-    /// Acquires a pinned mutable reference to the underlying stream that this
-    /// combinator is pulling from.
-    ///
-    /// Note that care must be taken to avoid tampering with the state of the
-    /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut St> {
-        self.stream()
-    }
-
-    /// Consumes this combinator, returning the underlying stream.
-    ///
-    /// Note that this may discard intermediate state of this combinator, so
-    /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> St {
-        self.stream
-    }
+    delegate_access_inner!(stream, St, ());
 }
 
 impl<St: FusedStream> FusedStream for Skip<St> {
@@ -68,18 +35,22 @@ impl<St: FusedStream> FusedStream for Skip<St> {
 impl<St: Stream> Stream for Skip<St> {
     type Item = St::Item;
 
+    #[project]
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        while self.remaining > 0 {
-            match ready!(self.as_mut().stream().poll_next(cx)) {
-                Some(_) => *self.as_mut().remaining() -= 1,
-                None => return Poll::Ready(None),
+        #[project]
+        let Skip { mut stream, remaining } = self.project();
+        while *remaining > 0 {
+            if ready!(stream.as_mut().poll_next(cx)).is_some() {
+                *remaining -= 1;
+            } else {
+                return Poll::Ready(None);
             }
         }
 
-        self.as_mut().stream().poll_next(cx)
+        stream.poll_next(cx)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
