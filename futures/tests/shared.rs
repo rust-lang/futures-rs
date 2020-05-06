@@ -89,7 +89,6 @@ fn drop_on_one_task_ok() {
     t2.join().unwrap();
 }
 
-
 #[cfg(feature = "executor")] // executor::
 #[test]
 fn drop_in_poll() {
@@ -104,7 +103,8 @@ fn drop_in_poll() {
     let future1 = future::lazy(move |_| {
         slot2.replace(None); // Drop future
         1
-    }).shared();
+    })
+    .shared();
 
     let future2 = LocalFutureObj::new(Box::new(future1.clone()));
     slot1.replace(Some(future2));
@@ -141,7 +141,9 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
+    spawn
+        .spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ()))))
+        .unwrap();
     local_pool.run();
     for _ in 0..2 {
         assert_eq!(*f2.peek().unwrap(), Ok(42));
@@ -190,4 +192,31 @@ fn dont_do_unnecessary_clones_on_output() {
     assert_eq!(block_on(rx.clone()).unwrap().0.get(), 1);
     assert_eq!(block_on(rx.clone()).unwrap().0.get(), 2);
     assert_eq!(block_on(rx).unwrap().0.get(), 2);
+}
+
+#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
+#[test]
+fn shared_future_that_wakes_itself_until_pending_is_returned() {
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+    use std::cell::Cell;
+    use std::task::Poll;
+
+    let proceed = Cell::new(false);
+    let fut = futures::future::poll_fn(|cx| {
+        if proceed.get() {
+            Poll::Ready(())
+        } else {
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    })
+    .shared();
+
+    // The join future can only complete if the second future gets a chance to run after the first
+    // has returned pending
+    assert_eq!(
+        block_on(futures::future::join(fut, async { proceed.set(true) })),
+        ((), ())
+    );
 }

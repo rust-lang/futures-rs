@@ -66,9 +66,8 @@ where
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
-const REPOLL: usize = 2;
-const COMPLETE: usize = 3;
-const POISONED: usize = 4;
+const COMPLETE: usize = 2;
+const POISONED: usize = 3;
 
 const NULL_WAKER_KEY: usize = usize::max_value();
 
@@ -196,7 +195,7 @@ where
             IDLE => {
                 // Lock acquired, fall through
             }
-            POLLING | REPOLL => {
+            POLLING => {
                 // Another task is currently polling, at this point we just want
                 // to ensure that the waker for this task is registered
                 this.inner = Some(inner);
@@ -227,7 +226,7 @@ where
 
         let _reset = Reset(&inner.notifier.state);
 
-        let output = loop {
+        let output = {
             let future = unsafe {
                 match &mut *inner.future_or_output.get() {
                     FutureOrOutput::Future(fut) => Pin::new_unchecked(fut),
@@ -235,27 +234,19 @@ where
                 }
             };
 
-            let poll = future.poll(&mut cx);
-
-            match poll {
+            match future.poll(&mut cx) {
                 Poll::Pending => {
-                    let state = &inner.notifier.state;
-                    match state.compare_and_swap(POLLING, IDLE, SeqCst) {
+                    match inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
                         POLLING => {
                             // Success
                             drop(_reset);
                             this.inner = Some(inner);
                             return Poll::Pending;
                         }
-                        REPOLL => {
-                            // Was woken since: Gotta poll again!
-                            let prev = state.swap(POLLING, SeqCst);
-                            assert_eq!(prev, REPOLL);
-                        }
                         _ => unreachable!(),
                     }
                 }
-                Poll::Ready(output) => break output,
+                Poll::Ready(output) => output,
             }
         };
 
@@ -313,8 +304,6 @@ where
 
 impl ArcWake for Notifier {
     fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
-
         let wakers = &mut *arc_self.wakers.lock().unwrap();
         if let Some(wakers) = wakers.as_mut() {
             for (_key, opt_waker) in wakers {
