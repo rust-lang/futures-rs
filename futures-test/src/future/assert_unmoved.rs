@@ -19,8 +19,8 @@ pub struct AssertUnmoved<Fut> {
 
 // Safety: having a raw pointer in a struct makes it `!Send`, however the
 // pointer is never dereferenced so this is safe.
-unsafe impl<Fut: Sync + Send> Send for AssertUnmoved<Fut> {}
-unsafe impl<Fut: Sync + Send> Sync for AssertUnmoved<Fut> {}
+unsafe impl<Fut: Send> Send for AssertUnmoved<Fut> {}
+unsafe impl<Fut: Sync> Sync for AssertUnmoved<Fut> {}
 
 impl<Fut> AssertUnmoved<Fut> {
     unsafe_pinned!(future: Fut);
