@@ -17,6 +17,11 @@ pub struct AssertUnmoved<Fut> {
     _pinned: PhantomPinned,
 }
 
+// Safety: having a raw pointer in a struct makes it `!Send`, however the
+// pointer is never dereferenced so this is safe.
+unsafe impl<Fut: Sync + Send> Send for AssertUnmoved<Fut> {}
+unsafe impl<Fut: Sync + Send> Sync for AssertUnmoved<Fut> {}
+
 impl<Fut> AssertUnmoved<Fut> {
     unsafe_pinned!(future: Fut);
     unsafe_unpinned!(this_ptr: *const Self);
@@ -33,10 +38,7 @@ impl<Fut> AssertUnmoved<Fut> {
 impl<Fut: Future> Future for AssertUnmoved<Fut> {
     type Output = Fut::Output;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
             // First time being polled
@@ -68,6 +70,12 @@ mod tests {
     use std::pin::Pin;
 
     use super::AssertUnmoved;
+
+    #[test]
+    fn assert_send_sync() {
+        fn assert<T: Send + Sync>() {}
+        assert::<AssertUnmoved<()>>();
+    }
 
     #[test]
     fn dont_panic_when_not_polled() {
