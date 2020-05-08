@@ -33,11 +33,9 @@ impl<Si1, Si2> Fanout<Si1, Si2> {
     }
 
     /// Get a pinned mutable reference to the inner sinks.
-    #[project]
     pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut Si1>, Pin<&mut Si2>) {
-        #[project]
-        let Fanout { sink1, sink2 } = self.project();
-        (sink1, sink2)
+        let this = self.project();
+        (this.sink1, this.sink2)
     }
 
     /// Consumes this combinator, returning the underlying sinks.

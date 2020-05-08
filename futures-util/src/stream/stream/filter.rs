@@ -37,6 +37,7 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Filter<St, Fut, F>
 where St: Stream,
       F: for<'a> FnMut1<&'a St::Item, Output=Fut>,
@@ -64,6 +65,7 @@ impl<St, Fut, F> FusedStream for Filter<St, Fut, F>
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for Filter<St, Fut, F>
     where St: Stream,
           F: for<'a> FnMut1<&'a St::Item, Output=Fut>,

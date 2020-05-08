@@ -7,6 +7,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+// It cannot be included in the published code because this lints have false positives in the minimum required version.
+#![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
 // The solution for this lint is not available on 1.39 which is the current minimum supported version.
@@ -183,7 +185,7 @@ macro_rules! delegate_async_buf_read {
         ) -> core::task::Poll<std::io::Result<&[u8]>> {
             self.project().$field.poll_fill_buf(cx)
         }
-    
+
         fn consume(self: core::pin::Pin<&mut Self>, amt: usize) {
             self.project().$field.consume(amt)
         }
