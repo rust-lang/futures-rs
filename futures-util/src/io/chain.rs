@@ -51,10 +51,8 @@ where
     /// underlying readers as doing so may corrupt the internal state of this
     /// `Chain`.
     pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut T>, Pin<&mut U>) {
-        unsafe {
-            let Self { first, second, .. } = self.get_unchecked_mut();
-            (Pin::new_unchecked(first), Pin::new_unchecked(second))
-        }
+        let this = self.project();
+        (this.first, this.second)
     }
 
     /// Consumes the `Chain`, returning the wrapped readers.

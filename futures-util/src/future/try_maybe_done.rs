@@ -1,15 +1,14 @@
 //! Definition of the TryMaybeDone combinator
 
-use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::{pin_project, project, project_replace};
 
 /// A future that may have completed with an error.
 ///
 /// This is created by the [`try_maybe_done()`] function.
-#[pin_project]
+#[pin_project(Replace)]
 #[derive(Debug)]
 pub enum TryMaybeDone<Fut: TryFuture> {
     /// A not-yet-completed future
@@ -44,24 +43,17 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
 
     /// Attempt to take the output of a `TryMaybeDone` without driving it
     /// towards completion.
+    #[project_replace]
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Ok> {
-        // Safety: we return immediately unless we are in the `Done`
-        // state, which does not have any pinning guarantees to uphold.
-        //
-        // Hopefully `pin_project` will support this safely soon:
-        // https://github.com/taiki-e/pin-project/issues/184
-        unsafe {
-            let this = self.get_unchecked_mut();
-            match this {
-                TryMaybeDone::Done(_) => {},
-                TryMaybeDone::Future(_) | TryMaybeDone::Gone => return None,
-            };
-            if let TryMaybeDone::Done(output) = mem::replace(this, TryMaybeDone::Gone) {
-                Some(output)
-            } else {
-                unreachable!()
-            }
+        match &*self {
+            TryMaybeDone::Done(_) => {},
+            TryMaybeDone::Future(_) | TryMaybeDone::Gone => return None,
+        }
+        #[project_replace]
+        match self.project_replace(TryMaybeDone::Gone) {
+            TryMaybeDone::Done(output) => Some(output),
+            _ => unreachable!()
         }
     }
 }

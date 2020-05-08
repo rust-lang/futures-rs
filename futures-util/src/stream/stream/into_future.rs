@@ -52,7 +52,7 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
     pub fn get_pin_mut(self: Pin<&mut Self>) -> Option<Pin<&mut St>> {
-        Pin::get_mut(self).stream.as_mut().map(Pin::new)
+        self.get_mut().stream.as_mut().map(Pin::new)
     }
 
     /// Consumes this combinator, returning the underlying stream.

@@ -17,6 +17,7 @@ use futures_core::{
 };
 use crate::never::Never;
 use crate::fns::{OkFn, ok_fn, IntoFn, into_fn, InspectFn, inspect_fn};
+use pin_utils::pin_mut;
 
 // Combinators
 
@@ -585,19 +586,16 @@ pub trait FutureExt: Future {
     ///
     /// assert_eq!(future_ready.now_or_never().expect("Future not ready"), "foobar");
     /// ```
-    fn now_or_never(mut self) -> Option<Self::Output>
+    fn now_or_never(self) -> Option<Self::Output>
     where
         Self: Sized,
     {
         let noop_waker = crate::task::noop_waker();
         let mut cx = Context::from_waker(&noop_waker);
 
-        // SAFETY: This is safe because this method consumes the future, so `poll` is
-        //         only going to be called once. Thus it doesn't matter to us if the
-        //         future is `Unpin` or not.
-        let pinned = unsafe { Pin::new_unchecked(&mut self) };
-
-        match pinned.poll(&mut cx) {
+        let this = self;
+        pin_mut!(this);
+        match this.poll(&mut cx) {
             Poll::Ready(x) => Some(x),
             _ => None,
         }

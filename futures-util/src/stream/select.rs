@@ -58,11 +58,9 @@ impl<St1, St2> Select<St1, St2> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    #[project]
     pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut St1>, Pin<&mut St2>) {
-        #[project]
-        let Select { stream1, stream2, .. } = self.project();
-        (stream1.get_pin_mut(), stream2.get_pin_mut())
+        let this = self.project();
+        (this.stream1.get_pin_mut(), this.stream2.get_pin_mut())
     }
 
     /// Consumes this combinator, returning the underlying streams.

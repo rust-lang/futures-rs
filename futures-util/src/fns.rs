@@ -140,6 +140,7 @@ trivial_fn_impls!(merge_result_fn <> MergeResultFn = "merge_result");
 #[derive(Debug, Copy, Clone, Default)]
 pub struct InspectFn<F>(F);
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<F, A> FnOnce1<A> for InspectFn<F>
 where
     F: for<'a> FnOnce1<&'a A, Output=()>,
@@ -150,6 +151,7 @@ where
         arg
     }
 }
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<F, A> FnMut1<A> for InspectFn<F>
 where
     F: for<'a> FnMut1<&'a A, Output=()>,
@@ -159,6 +161,7 @@ where
         arg
     }
 }
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<F, A> Fn1<A> for InspectFn<F>
 where
     F: for<'a> Fn1<&'a A, Output=()>,

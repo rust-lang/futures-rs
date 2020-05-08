@@ -5,17 +5,15 @@ fn test_split() {
     use futures::sink::{Sink, SinkExt};
     use futures::stream::{self, Stream, StreamExt};
     use futures::task::{Context, Poll};
-    use pin_utils::unsafe_pinned;
+    use pin_project::pin_project;
     use std::pin::Pin;
 
+    #[pin_project]
     struct Join<T, U> {
+        #[pin]
         stream: T,
-        sink: U
-    }
-
-    impl<T, U> Join<T, U> {
-        unsafe_pinned!(stream: T);
-        unsafe_pinned!(sink: U);
+        #[pin]
+        sink: U,
     }
 
     impl<T: Stream, U> Stream for Join<T, U> {
@@ -25,7 +23,7 @@ fn test_split() {
             self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Option<T::Item>> {
-            self.stream().poll_next(cx)
+            self.project().stream.poll_next(cx)
         }
     }
 
@@ -36,28 +34,28 @@ fn test_split() {
             self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Result<(), Self::Error>> {
-            self.sink().poll_ready(cx)
+            self.project().sink.poll_ready(cx)
         }
 
         fn start_send(
             self: Pin<&mut Self>,
             item: Item,
         ) -> Result<(), Self::Error> {
-            self.sink().start_send(item)
+            self.project().sink.start_send(item)
         }
 
         fn poll_flush(
             self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Result<(), Self::Error>> {
-            self.sink().poll_flush(cx)
+            self.project().sink.poll_flush(cx)
         }
 
         fn poll_close(
             self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Result<(), Self::Error>> {
-            self.sink().poll_close(cx)
+            self.project().sink.poll_close(cx)
         }
     }
 

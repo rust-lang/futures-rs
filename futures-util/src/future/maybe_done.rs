@@ -1,15 +1,14 @@
 //! Definition of the MaybeDone combinator
 
-use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::{pin_project, project, project_replace};
 
 /// A future that may have completed.
 ///
 /// This is created by the [`maybe_done()`] function.
-#[pin_project]
+#[pin_project(Replace)]
 #[derive(Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
@@ -59,24 +58,17 @@ impl<Fut: Future> MaybeDone<Fut> {
 
     /// Attempt to take the output of a `MaybeDone` without driving it
     /// towards completion.
+    #[project_replace]
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Output> {
-        // Safety: we return immediately unless we are in the `Done`
-        // state, which does not have any pinning guarantees to uphold.
-        //
-        // Hopefully `pin_project` will support this safely soon:
-        // https://github.com/taiki-e/pin-project/issues/184
-        unsafe {
-            let this = self.get_unchecked_mut();
-            match this {
-                MaybeDone::Done(_) => {},
-                MaybeDone::Future(_) | MaybeDone::Gone => return None,
-            };
-            if let MaybeDone::Done(output) = mem::replace(this, MaybeDone::Gone) {
-                Some(output)
-            } else {
-                unreachable!()
-            }
+        match &*self {
+            MaybeDone::Done(_) => {},
+            MaybeDone::Future(_) | MaybeDone::Gone => return None,
+        }
+        #[project_replace]
+        match self.project_replace(MaybeDone::Gone) {
+            MaybeDone::Done(output) => Some(output),
+            _ => unreachable!()
         }
     }
 }
