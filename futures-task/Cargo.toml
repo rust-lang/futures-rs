@@ -1,12 +1,12 @@
 [package]
 name = "futures-task"
 edition = "2018"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://rust-lang.github.io/futures-api-docs/0.3.0-alpha.18/futures_core"
+documentation = "https://docs.rs/futures-task/0.3.5"
 description = """
 Tools for working with tasks.
 """
@@ -26,7 +26,7 @@ cfg-target-has-atomic = []
 once_cell = { version = "1.3.1", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.4" }
+futures = { path = "../futures", version = "0.3.5" }
 
 [package.metadata.docs.rs]
 all-features = true
