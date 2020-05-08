@@ -1,3 +1,20 @@
+# 0.3.5 - 2020-05-08
+* Added `StreamExt::flat_map`.
+* Added `StreamExt::ready_chunks`.
+* Added `*_unpin` methods to `SinkExt`.
+* Added a `cancellation()` future to `oneshot::Sender`.
+* Added `reunite` method to `ReadHalf` and `WriteHalf`.
+* Added `Extend` implementations for `Futures(Un)Ordered` and `SelectAll`.
+* Added support for reexporting the `join!` and `select!` macros.
+* Added `no_std` support for the `pending!` and `poll!` macros.
+* Added `Send` and `Sync` support for `AssertUnmoved`.
+* Fixed a bug where `Shared` wasn't relinquishing control to the executor.
+* Removed the `Send` bound on the output of `RemoteHandle`.
+* Relaxed bounds on `FuturesUnordered`.
+* Reorganized internal tests to work under different `--feature`s.
+* Reorganized the bounds on `StreamExt::forward`.
+* Removed and replaced a large amount of internal `unsafe`.
+
 # 0.3.4 - 2020-02-06
 * Fixed missing `Drop` for `UnboundedReceiver` (#2064)
 

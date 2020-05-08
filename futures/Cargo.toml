@@ -1,14 +1,14 @@
 [package]
 name = "futures"
 edition = "2018"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures/0.3.0"
+documentation = "https://docs.rs/futures/0.3.5"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
@@ -19,18 +19,18 @@ categories = ["asynchronous"]
 travis-ci = { repository = "rust-lang/futures-rs" }
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.4", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.4", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.4", default-features = false, features = ["sink"] }
-futures-executor = { path = "../futures-executor", version = "0.3.4", default-features = false, optional = true }
-futures-io = { path = "../futures-io", version = "0.3.4", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.4", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.4", default-features = false, features = ["sink"] }
+futures-core = { path = "../futures-core", version = "0.3.5", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.5", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.5", default-features = false, features = ["sink"] }
+futures-executor = { path = "../futures-executor", version = "0.3.5", default-features = false, optional = true }
+futures-io = { path = "../futures-io", version = "0.3.5", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.5", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.5", default-features = false, features = ["sink"] }
 
 [dev-dependencies]
 pin-utils = "0.1.0"
-futures-executor = { path = "../futures-executor", version = "0.3.4", features = ["thread-pool"] }
-futures-test = { path = "../futures-test", version = "0.3.4" }
+futures-executor = { path = "../futures-executor", version = "0.3.5", features = ["thread-pool"] }
+futures-test = { path = "../futures-test", version = "0.3.5" }
 tokio = "0.1.11"
 assert_matches = "1.3.0"
 

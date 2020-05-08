@@ -1,12 +1,12 @@
 [package]
 name = "futures-core"
 edition = "2018"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures-core/0.3.0"
+documentation = "https://docs.rs/futures-core/0.3.5"
 description = """
 The core traits and types in for the `futures` library.
 """
@@ -25,7 +25,7 @@ cfg-target-has-atomic = []
 [dependencies]
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.4" }
+futures = { path = "../futures", version = "0.3.5" }
 
 [package.metadata.docs.rs]
 all-features = true
