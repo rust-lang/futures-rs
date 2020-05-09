@@ -1,7 +1,6 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use pin_project::{pin_project, pinned_drop};
-use std::marker::PhantomPinned;
 use std::pin::Pin;
 use std::ptr;
 use std::thread::panicking;
@@ -9,15 +8,13 @@ use std::thread::panicking;
 /// Combinator for the
 /// [`FutureTestExt::assert_unmoved`](super::FutureTestExt::assert_unmoved)
 /// method.
-#[pin_project(PinnedDrop)]
+#[pin_project(PinnedDrop, !Unpin)]
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct AssertUnmoved<Fut> {
     #[pin]
     future: Fut,
     this_ptr: *const AssertUnmoved<Fut>,
-    #[pin]
-    _pinned: PhantomPinned,
 }
 
 // Safety: having a raw pointer in a struct makes it `!Send`, however the
@@ -30,7 +27,6 @@ impl<Fut> AssertUnmoved<Fut> {
         Self {
             future,
             this_ptr: ptr::null(),
-            _pinned: PhantomPinned,
         }
     }
 }
