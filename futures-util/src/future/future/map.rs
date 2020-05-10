@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project, project_replace};
+use pin_project::{pin_project, project};
 
 use crate::fns::FnOnce1;
 
@@ -44,7 +44,6 @@ impl<Fut, F, T> Future for Map<Fut, F>
     type Output = T;
 
     #[project]
-    #[project_replace]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
         #[project]
         match self.as_mut().project() {
