@@ -44,7 +44,7 @@ delegate_all!(
 pub use fuse::Fuse;
 
 delegate_all!(
-    /// Future for the [`flatten`](super::FutureExt::flatten) method.
+    /// Future for the [`map`](super::FutureExt::map) method.
     Map<Fut, F>(
         map::Map<Fut, F>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, f)]
