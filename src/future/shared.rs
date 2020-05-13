@@ -59,9 +59,8 @@ struct Notifier {
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
-const REPOLL: usize = 2;
-const COMPLETE: usize = 3;
-const POISONED: usize = 4;
+const COMPLETE: usize = 2;
+const POISONED: usize = 3;
 
 pub fn new<F: Future>(future: F) -> Shared<F> {
     Shared {
@@ -133,7 +132,7 @@ impl<F> Future for Shared<F>
             IDLE => {
                 // Lock acquired, fall through
             }
-            POLLING | REPOLL => {
+            POLLING => {
                 // Another task is currently polling, at this point we just want
                 // to ensure that our task handle is currently registered
 
@@ -146,56 +145,45 @@ impl<F> Future for Shared<F>
             _ => unreachable!(),
         }
 
-        loop {
-            struct Reset<'a>(&'a AtomicUsize);
+        struct Reset<'a>(&'a AtomicUsize);
 
-            impl<'a> Drop for Reset<'a> {
-                fn drop(&mut self) {
-                    use std::thread;
+        impl<'a> Drop for Reset<'a> {
+            fn drop(&mut self) {
+                use std::thread;
 
-                    if thread::panicking() {
-                        self.0.store(POISONED, SeqCst);
-                    }
+                if thread::panicking() {
+                    self.0.store(POISONED, SeqCst);
                 }
             }
+        }
 
-            let _reset = Reset(&self.inner.notifier.state);
+        let _reset = Reset(&self.inner.notifier.state);
 
-            // Poll the future
-            let res = unsafe {
-                (*self.inner.future.get()).as_mut().unwrap()
-                    .poll_future_notify(&self.inner.notifier, 0)
-            };
-            match res {
-                Ok(Async::NotReady) => {
-                    // Not ready, try to release the handle
-                    match self.inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
-                        POLLING => {
-                            // Success
-                            return Ok(Async::NotReady);
-                        }
-                        REPOLL => {
-                            // Gotta poll again!
-                            let prev = self.inner.notifier.state.swap(POLLING, SeqCst);
-                            assert_eq!(prev, REPOLL);
-                        }
-                        _ => unreachable!(),
+        // Poll the future
+        let res = unsafe {
+            (*self.inner.future.get()).as_mut().unwrap()
+                .poll_future_notify(&self.inner.notifier, 0)
+        };
+        match res {
+            Ok(Async::NotReady) => {
+                // Not ready, try to release the handle
+                match self.inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
+                    POLLING => {
+                        // Success
+                        return Ok(Async::NotReady);
                     }
-
+                    _ => unreachable!(),
                 }
-                Ok(Async::Ready(i)) => {
-                    unsafe {
-                        (*self.inner.result.get()) = Some(Ok(SharedItem { item: Arc::new(i) }));
-                    }
 
-                    break;
+            }
+            Ok(Async::Ready(i)) => {
+                unsafe {
+                    (*self.inner.result.get()) = Some(Ok(SharedItem { item: Arc::new(i) }));
                 }
-                Err(e) => {
-                    unsafe {
-                        (*self.inner.result.get()) = Some(Err(SharedError { error: Arc::new(e) }));
-                    }
-
-                    break;
+            }
+            Err(e) => {
+                unsafe {
+                    (*self.inner.result.get()) = Some(Err(SharedError { error: Arc::new(e) }));
                 }
             }
         }
@@ -225,8 +213,6 @@ impl<F> Drop for Shared<F> where F: Future {
 
 impl Notify for Notifier {
     fn notify(&self, _id: usize) {
-        self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
-
         let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());
 
         for (_, waiter) in waiters {
