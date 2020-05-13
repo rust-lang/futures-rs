@@ -202,3 +202,33 @@ fn recursive_poll_with_unpark() {
     drop(tx0);
     core.run(f3).unwrap();
 }
+
+#[test]
+fn shared_future_that_wakes_itself_until_pending_is_returned() {
+    use futures::Async;
+    use std::cell::Cell;
+
+    let core = ::support::local_executor::Core::new();
+
+    let proceed = Cell::new(false);
+    let fut = futures::future::poll_fn(|| {
+        Ok::<_, ()>(if proceed.get() {
+            Async::Ready(())
+        } else {
+            futures::task::current().notify();
+            Async::NotReady
+        })
+    })
+    .shared()
+    .map(|_| ())
+    .map_err(|_| ());
+
+    // The join future can only complete if the second future gets a chance to run after the first
+    // has returned pending
+    let second = futures::future::lazy(|| {
+        proceed.set(true);
+        Ok::<_, ()>(())
+    });
+
+    core.run(fut.join(second)).unwrap();
+}
