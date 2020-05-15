@@ -377,6 +377,12 @@ impl<T> Sender<T> {
     pub fn is_canceled(&self) -> bool {
         self.inner.is_canceled()
     }
+
+    /// Tests to see whether this `Sender` is connected to the given `Receiver`. That is, whether
+    /// they were created by the same call to `channel`.
+    pub fn is_connected_to(&self, receiver: &Receiver<T>) -> bool {
+        Arc::ptr_eq(&self.inner, &receiver.inner)
+    }
 }
 
 impl<T> Drop for Sender<T> {
