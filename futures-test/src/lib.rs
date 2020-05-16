@@ -35,6 +35,10 @@ pub mod future;
 pub mod stream;
 
 #[cfg(feature = "std")]
+pub mod sink;
+
+#[cfg(feature = "std")]
 pub mod io;
 
 mod interleave_pending;
+mod track_closed;

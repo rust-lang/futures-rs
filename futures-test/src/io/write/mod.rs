@@ -1,12 +1,10 @@
 //! Additional combinators for testing async writers.
 
-mod track_closed;
-
 use futures_io::AsyncWrite;
 
 pub use super::limited::Limited;
 pub use crate::interleave_pending::InterleavePending;
-pub use track_closed::TrackClosed;
+pub use crate::track_closed::TrackClosed;
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
