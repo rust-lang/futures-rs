@@ -15,6 +15,7 @@ struct Block<Item> {
 #[pin_project]
 #[must_use = "sinks do nothing unless polled"]
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub struct IntoSink<W, Item> {
     #[pin]
     writer: W,

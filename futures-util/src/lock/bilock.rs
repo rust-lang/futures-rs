@@ -34,6 +34,7 @@ use alloc::sync::Arc;
 /// This type is only available when the `bilock` feature of this
 /// library is activated.
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLock<T> {
     arc: Arc<Inner<T>>,
 }
@@ -142,6 +143,7 @@ impl<T> BiLock<T> {
     ///
     /// Note that the returned future will never resolve to an error.
     #[cfg(feature = "bilock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
     pub fn lock(&self) -> BiLockAcquire<'_, T> {
         BiLockAcquire {
             bilock: self,
@@ -198,6 +200,7 @@ impl<T> Drop for Inner<T> {
 
 /// Error indicating two `BiLock<T>`s were not two halves of a whole, and
 /// thus could not be `reunite`d.
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
 impl<T> fmt::Debug for ReuniteError<T> {
@@ -223,6 +226,7 @@ impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 /// implementing `Deref` and `DerefMut` to `T`. When dropped, the lock will be
 /// unlocked.
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLockGuard<'a, T> {
     bilock: &'a BiLock<T>,
 }
@@ -258,6 +262,7 @@ impl<T> Drop for BiLockGuard<'_, T> {
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
 #[cfg(feature = "bilock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct BiLockAcquire<'a, T> {

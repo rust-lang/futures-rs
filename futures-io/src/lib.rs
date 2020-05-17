@@ -21,6 +21,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-io/0.3.5")]
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(all(feature = "read-initializer", not(feature = "unstable")))]
 compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
@@ -44,6 +46,7 @@ mod if_std {
     };
 
     #[cfg(feature = "read-initializer")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use io::Initializer as Initializer;
 
@@ -70,6 +73,7 @@ mod if_std {
         /// return a non-zeroing `Initializer` from another `AsyncRead` type
         /// without an `unsafe` block.
         #[cfg(feature = "read-initializer")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
         #[inline]
         unsafe fn initializer(&self) -> Initializer {
             Initializer::zeroing()

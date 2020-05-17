@@ -33,3 +33,4 @@ futures-test = { path = "../futures-test", version = "0.3.5", default-features =
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

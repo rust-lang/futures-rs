@@ -52,6 +52,7 @@ delegate_all!(
 #[cfg(feature = "sink")]
 delegate_all!(
     /// Sink for the [`flatten_sink`](TryFutureExt::flatten_sink) method.
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     FlattenSink<Fut, Si>(
         try_flatten::TryFlatten<Fut, Si>
     ): Debug + Sink + Stream + FusedStream + New[|x: Fut| try_flatten::TryFlatten::new(x)]
@@ -166,6 +167,7 @@ pub trait TryFutureExt: TryFuture {
     /// take_sink(fut.flatten_sink())
     /// ```
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn flatten_sink<Item>(self) -> FlattenSink<Self, Self::Ok>
     where
         Self::Ok: Sink<Item, Error = Self::Error>,
@@ -568,6 +570,7 @@ pub trait TryFutureExt: TryFuture {
     /// Wraps a [`TryFuture`] into a future compatable with libraries using
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
     #[cfg(feature = "compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
     fn compat(self) -> Compat<Self>
     where
         Self: Sized + Unpin,

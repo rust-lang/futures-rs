@@ -14,6 +14,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.3.5")]
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(feature = "std")]
 mod local_pool;
 #[cfg(feature = "std")]
@@ -23,9 +25,11 @@ pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool
 #[cfg(feature = "std")]
 mod unpark_mutex;
 #[cfg(feature = "thread-pool")]
+#[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 #[cfg(feature = "std")]
 mod thread_pool;
 #[cfg(feature = "thread-pool")]
+#[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 #[cfg(feature = "std")]
 pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 

@@ -100,9 +100,11 @@ mod catch_unwind;
 pub use self::catch_unwind::CatchUnwind;
 
 #[cfg(feature = "channel")]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
 mod remote_handle;
 #[cfg(feature = "channel")]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::remote_handle::{Remote, RemoteHandle};
@@ -495,6 +497,7 @@ pub trait FutureExt: Future {
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "channel")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
     #[cfg(feature = "std")]
     fn remote_handle(self) -> (Remote<Self>, RemoteHandle<Self::Output>)
     where
