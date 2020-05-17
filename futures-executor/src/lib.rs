@@ -12,7 +12,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.5")]
 
 #[cfg(feature = "std")]
 mod local_pool;

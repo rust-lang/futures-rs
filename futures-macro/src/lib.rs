@@ -8,7 +8,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-join-macro/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures-join-macro/0.3.5")]
 
 // Since https://github.com/rust-lang/cargo/pull/7700 `proc_macro` is part of the prelude for
 // proc-macro crates, but to support older compilers we still need this explicit `extern crate`.
@@ -23,24 +23,24 @@ mod select;
 
 /// The `join!` macro.
 #[proc_macro_hack]
-pub fn join(input: TokenStream) -> TokenStream {
+pub fn join_internal(input: TokenStream) -> TokenStream {
     crate::join::join(input)
 }
 
 /// The `try_join!` macro.
 #[proc_macro_hack]
-pub fn try_join(input: TokenStream) -> TokenStream {
+pub fn try_join_internal(input: TokenStream) -> TokenStream {
     crate::join::try_join(input)
 }
 
 /// The `select!` macro.
 #[proc_macro_hack]
-pub fn select(input: TokenStream) -> TokenStream {
+pub fn select_internal(input: TokenStream) -> TokenStream {
     crate::select::select(input)
 }
 
 /// The `select_biased!` macro.
 #[proc_macro_hack]
-pub fn select_biased(input: TokenStream) -> TokenStream {
+pub fn select_biased_internal(input: TokenStream) -> TokenStream {
     crate::select::select_biased(input)
 }

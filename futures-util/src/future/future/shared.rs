@@ -1,4 +1,4 @@
-use crate::task::{ArcWake, waker_ref};
+use crate::task::{waker_ref, ArcWake};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
@@ -54,19 +54,20 @@ unsafe impl<Fut> Send for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 unsafe impl<Fut> Sync for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
-const REPOLL: usize = 2;
-const COMPLETE: usize = 3;
-const POISONED: usize = 4;
+const COMPLETE: usize = 2;
+const POISONED: usize = 3;
 
 const NULL_WAKER_KEY: usize = usize::max_value();
 
@@ -125,27 +126,20 @@ where
     fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
         let mut wakers_guard = self.notifier.wakers.lock().unwrap();
 
-        let wakers = if let Some(wakers) = wakers_guard.as_mut() {
-            wakers
-        } else {
-            return;
+        let wakers = match wakers_guard.as_mut() {
+            Some(wakers) => wakers,
+            None => return,
         };
 
+        let new_waker = cx.waker();
+
         if *waker_key == NULL_WAKER_KEY {
-            *waker_key = wakers.insert(Some(cx.waker().clone()));
+            *waker_key = wakers.insert(Some(new_waker.clone()));
         } else {
-            let waker_slot = &mut wakers[*waker_key];
-            let needs_replacement = if let Some(_old_waker) = waker_slot {
-                // If there's still an unwoken waker in the slot, only replace
-                // if the current one wouldn't wake the same task.
-                // TODO: This API is currently not available, so replace always
-                // !waker.will_wake_nonlocal(old_waker)
-                true
-            } else {
-                true
-            };
-            if needs_replacement {
-                *waker_slot = Some(cx.waker().clone());
+            match wakers[*waker_key] {
+                Some(ref old_waker) if new_waker.will_wake(old_waker) => {}
+                // Could use clone_from here, but Waker doesn't specialize it.
+                ref mut slot => *slot = Some(new_waker.clone()),
             }
         }
         debug_assert!(*waker_key != NULL_WAKER_KEY);
@@ -184,7 +178,10 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
 
-        let inner = this.inner.take().expect("Shared future polled again after completion");
+        let inner = this
+            .inner
+            .take()
+            .expect("Shared future polled again after completion");
 
         // Fast path for when the wrapped future has already completed
         if inner.notifier.state.load(Acquire) == COMPLETE {
@@ -198,7 +195,7 @@ where
             IDLE => {
                 // Lock acquired, fall through
             }
-            POLLING | REPOLL => {
+            POLLING => {
                 // Another task is currently polling, at this point we just want
                 // to ensure that the waker for this task is registered
                 this.inner = Some(inner);
@@ -229,7 +226,7 @@ where
 
         let _reset = Reset(&inner.notifier.state);
 
-        let output = loop {
+        let output = {
             let future = unsafe {
                 match &mut *inner.future_or_output.get() {
                     FutureOrOutput::Future(fut) => Pin::new_unchecked(fut),
@@ -237,33 +234,24 @@ where
                 }
             };
 
-            let poll = future.poll(&mut cx);
-
-            match poll {
+            match future.poll(&mut cx) {
                 Poll::Pending => {
-                    let state = &inner.notifier.state;
-                    match state.compare_and_swap(POLLING, IDLE, SeqCst) {
+                    match inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
                         POLLING => {
                             // Success
                             drop(_reset);
                             this.inner = Some(inner);
                             return Poll::Pending;
                         }
-                        REPOLL => {
-                            // Was woken since: Gotta poll again!
-                            let prev = state.swap(POLLING, SeqCst);
-                            assert_eq!(prev, REPOLL);
-                        }
                         _ => unreachable!(),
                     }
                 }
-                Poll::Ready(output) => break output,
+                Poll::Ready(output) => output,
             }
         };
 
         unsafe {
-            *inner.future_or_output.get() =
-                FutureOrOutput::Output(output);
+            *inner.future_or_output.get() = FutureOrOutput::Output(output);
         }
 
         inner.notifier.state.store(COMPLETE, SeqCst);
@@ -316,8 +304,6 @@ where
 
 impl ArcWake for Notifier {
     fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
-
         let wakers = &mut *arc_self.wakers.lock().unwrap();
         if let Some(wakers) = wakers.as_mut() {
             for (_key, opt_waker) in wakers {

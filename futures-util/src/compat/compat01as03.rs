@@ -380,7 +380,6 @@ mod io {
         /// [`AsyncRead`](futures_io::AsyncRead).
         ///
         /// ```
-        /// # #![allow(incomplete_features)]
         /// # futures::executor::block_on(async {
         /// use futures::io::AsyncReadExt;
         /// use futures_util::compat::AsyncRead01CompatExt;
@@ -390,7 +389,8 @@ mod io {
         /// }
         ///
         /// let input = b"Hello World!";
-        /// let mut reader = create_async_read_cursor(input);
+        /// let reader /* : impl tokio_io::AsyncRead */ = std::io::Cursor::new(input);
+        /// let mut reader /* : impl futures::io::AsyncRead + Unpin */ = reader.compat();
         ///
         /// let mut output = Vec::with_capacity(12);
         /// reader.read_to_end(&mut output).await.unwrap();

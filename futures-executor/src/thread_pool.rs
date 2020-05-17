@@ -210,7 +210,7 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Set stack size of threads in the pool.
+    /// Set stack size of threads in the pool, in bytes.
     ///
     /// By default, worker threads use Rust's standard stack size.
     pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {

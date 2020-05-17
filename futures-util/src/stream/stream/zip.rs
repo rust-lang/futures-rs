@@ -3,33 +3,22 @@ use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_project::{pin_project, project};
 
 /// Stream for the [`zip`](super::StreamExt::zip) method.
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Zip<St1: Stream, St2: Stream> {
+    #[pin]
     stream1: Fuse<St1>,
+    #[pin]
     stream2: Fuse<St2>,
     queued1: Option<St1::Item>,
     queued2: Option<St2::Item>,
 }
 
-#[allow(clippy::type_repetition_in_bounds)] // https://github.com/rust-lang/rust-clippy/issues/4323
-impl<St1, St2> Unpin for Zip<St1, St2>
-where
-    St1: Stream,
-    Fuse<St1>: Unpin,
-    St2: Stream,
-    Fuse<St2>: Unpin,
-{}
-
 impl<St1: Stream, St2: Stream> Zip<St1, St2> {
-    unsafe_pinned!(stream1: Fuse<St1>);
-    unsafe_pinned!(stream2: Fuse<St2>);
-    unsafe_unpinned!(queued1: Option<St1::Item>);
-    unsafe_unpinned!(queued2: Option<St2::Item>);
-
     pub(super) fn new(stream1: St1, stream2: St2) -> Zip<St1, St2> {
         Zip {
             stream1: stream1.fuse(),
@@ -60,10 +49,8 @@ impl<St1: Stream, St2: Stream> Zip<St1, St2> {
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut St1>, Pin<&mut St2>) {
-        unsafe {
-            let Self { stream1, stream2, .. } = self.get_unchecked_mut();
-            (Pin::new_unchecked(stream1).get_pin_mut(), Pin::new_unchecked(stream2).get_pin_mut())
-        }
+        let this = self.project();
+        (this.stream1.get_pin_mut(), this.stream2.get_pin_mut())
     }
 
     /// Consumes this combinator, returning the underlying streams.
@@ -88,28 +75,31 @@ impl<St1, St2> Stream for Zip<St1, St2>
 {
     type Item = (St1::Item, St2::Item);
 
+    #[project]
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        if self.queued1.is_none() {
-            match self.as_mut().stream1().poll_next(cx) {
-                Poll::Ready(Some(item1)) => *self.as_mut().queued1() = Some(item1),
+        #[project]
+        let Zip { mut stream1, mut stream2, queued1, queued2 } = self.project();
+
+        if queued1.is_none() {
+            match stream1.as_mut().poll_next(cx) {
+                Poll::Ready(Some(item1)) => *queued1 = Some(item1),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
-        if self.queued2.is_none() {
-            match self.as_mut().stream2().poll_next(cx) {
-                Poll::Ready(Some(item2)) => *self.as_mut().queued2() = Some(item2),
+        if queued2.is_none() {
+            match stream2.as_mut().poll_next(cx) {
+                Poll::Ready(Some(item2)) => *queued2 = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
 
-        if self.queued1.is_some() && self.queued2.is_some() {
-            let pair = (self.as_mut().queued1().take().unwrap(),
-                        self.as_mut().queued2().take().unwrap());
+        if queued1.is_some() && queued2.is_some() {
+            let pair = (queued1.take().unwrap(), queued2.take().unwrap());
             Poll::Ready(Some(pair))
-        } else if self.stream1.is_done() || self.stream2.is_done() {
+        } else if stream1.is_done() || stream2.is_done() {
             Poll::Ready(None)
         } else {
             Poll::Pending

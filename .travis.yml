@@ -145,7 +145,8 @@ matrix:
     - name: cargo doc
       rust: nightly
       script:
-        - RUSTDOCFLAGS=-Dwarnings cargo doc --workspace --no-deps --all-features
+        # TODO: Remove -Aunused_braces once https://github.com/rust-lang/rust/issues/70814 is fixed
+        - RUSTDOCFLAGS="-Dwarnings -Aunused_braces" cargo doc --workspace --no-deps --all-features
 
 script:
   - cargo test --workspace --all-features

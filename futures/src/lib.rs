@@ -90,7 +90,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures/0.3.5")]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -118,9 +118,11 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
+#[cfg(feature = "async-await")]
+pub use futures_util::{pending, poll, join, try_join, select_biased}; // Async-await
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
-pub use futures_util::{pending, poll}; // Async-await
+pub use futures_util::select;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
@@ -332,7 +334,7 @@ pub mod io {
         BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
         empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
-        Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
+        Repeat, ReuniteError, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
         WriteVectored,
     };
 }
@@ -442,9 +444,10 @@ pub mod stream {
         try_unfold, TryUnfold,
 
         StreamExt,
-        Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
-        Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next, SelectNextSome,
-        Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeWhile, Then, Zip,
+        Chain, Collect, Concat, Enumerate, Filter, FilterMap, FlatMap, Flatten,
+        Fold, Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
+        SelectNextSome, Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeWhile,
+        Then, Zip,
 
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
@@ -457,7 +460,7 @@ pub mod stream {
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         // For StreamExt:
-        Chunks,
+        Chunks, ReadyChunks,
     };
 
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
@@ -468,7 +471,7 @@ pub mod stream {
 
         // For StreamExt:
         BufferUnordered, Buffered, ForEachConcurrent, SplitStream, SplitSink,
-        ReuniteError, FlatMapUnordered,
+        ReuniteError, FlatMapUnordered, FlattenUnordered,
 
         select_all, SelectAll,
     };
@@ -532,73 +535,4 @@ pub mod never {
     //! Values of this type can never be created and will never exist.
 
     pub use futures_util::never::Never;
-}
-
-// proc-macro re-export --------------------------------------
-
-// Not public API.
-#[doc(hidden)]
-pub use futures_core::core_reexport;
-
-// Not public API.
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub use futures_util::async_await;
-
-// Not public API.
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub mod inner_macro {
-    pub use futures_util::join;
-    pub use futures_util::try_join;
-    #[cfg(feature = "std")]
-    pub use futures_util::select;
-    pub use futures_util::select_biased;
-}
-
-#[cfg(feature = "async-await")]
-futures_util::document_join_macro! {
-    #[macro_export]
-    macro_rules! join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! try_join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::try_join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-}
-
-#[cfg(feature = "async-await")]
-futures_util::document_select_macro! {
-    #[cfg(feature = "std")]
-    #[macro_export]
-    macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! select_biased { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select_biased! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
 }

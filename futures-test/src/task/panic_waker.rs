@@ -1,6 +1,6 @@
 use futures_core::task::{Waker, RawWaker, RawWakerVTable};
-use core::cell::UnsafeCell;
 use core::ptr::null;
+use once_cell::sync::Lazy;
 
 unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
@@ -52,9 +52,16 @@ pub fn panic_waker() -> Waker {
 /// waker.wake_by_ref(); // Will panic
 /// ```
 pub fn panic_waker_ref() -> &'static Waker {
-    thread_local! {
-        static PANIC_WAKER_INSTANCE: UnsafeCell<Waker> =
-            UnsafeCell::new(panic_waker());
+    static PANIC_WAKER_INSTANCE: Lazy<Waker> = Lazy::new(panic_waker);
+    &*PANIC_WAKER_INSTANCE
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[should_panic(expected = "should not be woken")]
+    fn issue_2091_cross_thread_segfault() {
+        let waker = std::thread::spawn(super::panic_waker_ref).join().unwrap();
+        waker.wake_by_ref();
     }
-    PANIC_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

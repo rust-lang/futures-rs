@@ -1,12 +1,12 @@
 [package]
 name = "futures-channel"
 edition = "2018"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures-channel/0.3.0"
+documentation = "https://docs.rs/futures-channel/0.3.5"
 description = """
 Channels for asynchronous communication using futures-rs.
 """
@@ -24,12 +24,12 @@ unstable = ["futures-core/unstable"]
 cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.4", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.4", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.5", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.5", default-features = false, optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.4", default-features = true }
-futures-test = { path = "../futures-test", version = "0.3.4", default-features = true }
+futures = { path = "../futures", version = "0.3.5", default-features = true }
+futures-test = { path = "../futures-test", version = "0.3.5", default-features = true }
 
 [package.metadata.docs.rs]
 all-features = true

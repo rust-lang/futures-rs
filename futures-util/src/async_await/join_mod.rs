@@ -2,8 +2,6 @@
 
 use proc_macro_hack::proc_macro_hack;
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! document_join_macro {
     ($join:item $try_join:item) => {
         /// Polls multiple futures simultaneously, returning a tuple
@@ -73,10 +71,32 @@ macro_rules! document_join_macro {
     }
 }
 
-document_join_macro! {
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::join;
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::join_internal;
 
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::try_join;
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::try_join_internal;
+
+document_join_macro! {
+    #[macro_export]
+    macro_rules! join {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::join_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
+
+    #[macro_export]
+    macro_rules! try_join {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::try_join_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
 }

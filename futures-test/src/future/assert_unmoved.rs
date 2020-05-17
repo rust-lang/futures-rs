@@ -1,7 +1,6 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::marker::PhantomPinned;
+use pin_project::{pin_project, pinned_drop};
 use std::pin::Pin;
 use std::ptr;
 use std::thread::panicking;
@@ -9,23 +8,25 @@ use std::thread::panicking;
 /// Combinator for the
 /// [`FutureTestExt::assert_unmoved`](super::FutureTestExt::assert_unmoved)
 /// method.
+#[pin_project(PinnedDrop, !Unpin)]
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct AssertUnmoved<Fut> {
+    #[pin]
     future: Fut,
     this_ptr: *const AssertUnmoved<Fut>,
-    _pinned: PhantomPinned,
 }
 
-impl<Fut> AssertUnmoved<Fut> {
-    unsafe_pinned!(future: Fut);
-    unsafe_unpinned!(this_ptr: *const Self);
+// Safety: having a raw pointer in a struct makes it `!Send`, however the
+// pointer is never dereferenced so this is safe.
+unsafe impl<Fut: Send> Send for AssertUnmoved<Fut> {}
+unsafe impl<Fut: Sync> Sync for AssertUnmoved<Fut> {}
 
+impl<Fut> AssertUnmoved<Fut> {
     pub(super) fn new(future: Fut) -> Self {
         Self {
             future,
             this_ptr: ptr::null(),
-            _pinned: PhantomPinned,
         }
     }
 }
@@ -33,23 +34,21 @@ impl<Fut> AssertUnmoved<Fut> {
 impl<Fut: Future> Future for AssertUnmoved<Fut> {
     type Output = Fut::Output;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
             // First time being polled
-            *self.as_mut().this_ptr() = cur_this;
+            *self.as_mut().project().this_ptr = cur_this;
         } else {
             assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
         }
-        self.as_mut().future().poll(cx)
+        self.project().future.poll(cx)
     }
 }
 
-impl<Fut> Drop for AssertUnmoved<Fut> {
-    fn drop(&mut self) {
+#[pinned_drop]
+impl<Fut> PinnedDrop for AssertUnmoved<Fut> {
+    fn drop(self: Pin<&mut Self>) {
         // If the thread is panicking then we can't panic again as that will
         // cause the process to be aborted.
         if !panicking() && !self.this_ptr.is_null() {
@@ -68,6 +67,12 @@ mod tests {
     use std::pin::Pin;
 
     use super::AssertUnmoved;
+
+    #[test]
+    fn assert_send_sync() {
+        fn assert<T: Send + Sync>() {}
+        assert::<AssertUnmoved<()>>();
+    }
 
     #[test]
     fn dont_panic_when_not_polled() {

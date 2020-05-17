@@ -1,15 +1,12 @@
 #![recursion_limit="128"]
 
-use futures::{pending, pin_mut, poll, join, try_join, select};
-use futures::channel::{mpsc, oneshot};
-use futures::executor::block_on;
-use futures::future::{self, FutureExt, poll_fn};
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
-
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn poll_and_pending() {
+    use futures::{pending, pin_mut, poll};
+    use futures::executor::block_on;
+    use futures::task::Poll;
+
     let pending_once = async { pending!() };
     block_on(async {
         pin_mut!(pending_once);
@@ -18,8 +15,14 @@ fn poll_and_pending() {
     });
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn join() {
+    use futures::{pin_mut, poll, join};
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::task::Poll;
+
     let (tx1, rx1) = oneshot::channel::<i32>();
     let (tx2, rx2) = oneshot::channel::<i32>();
 
@@ -38,8 +41,14 @@ fn join() {
     });
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select() {
+    use futures::select;
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
     let (tx1, rx1) = oneshot::channel::<i32>();
     let (_tx2, rx2) = oneshot::channel::<i32>();
     tx1.send(1).unwrap();
@@ -56,8 +65,12 @@ fn select() {
     assert!(ran);
 }
 
+#[cfg(all(feature = "alloc", feature = "executor", feature = "async-await"))]
 #[test]
 fn select_biased() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
     use futures::select_biased;
 
     let (tx1, rx1) = oneshot::channel::<i32>();
@@ -76,8 +89,15 @@ fn select_biased() {
     assert!(ran);
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_streams() {
+    use futures::select;
+    use futures::channel::mpsc;
+    use futures::executor::block_on;
+    use futures::sink::SinkExt;
+    use futures::stream::StreamExt;
+
     let (mut tx1, rx1) = mpsc::channel::<i32>(1);
     let (mut tx2, rx2) = mpsc::channel::<i32>(1);
     let mut rx1 = rx1.fuse();
@@ -119,8 +139,14 @@ fn select_streams() {
     assert!(ran);
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_can_move_uncompleted_futures() {
+    use futures::select;
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
     let (tx1, rx1) = oneshot::channel::<i32>();
     let (tx2, rx2) = oneshot::channel::<i32>();
     tx1.send(1).unwrap();
@@ -145,8 +171,13 @@ fn select_can_move_uncompleted_futures() {
     assert!(ran);
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_nested() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future;
+
     let mut outer_fut = future::ready(1);
     let mut inner_fut = future::ready(2);
     let res = block_on(async {
@@ -161,8 +192,12 @@ fn select_nested() {
     assert_eq!(res, 3);
 }
 
+#[cfg(all(feature = "async-await", feature = "std"))]
 #[test]
 fn select_size() {
+    use futures::select;
+    use futures::future;
+
     let fut = async {
         let mut ready = future::ready(0i32);
         select! {
@@ -182,8 +217,13 @@ fn select_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 40);
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_non_unpin_expressions() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
     // The returned Future is !Unpin
     let make_non_unpin_fut = || { async {
         5
@@ -200,8 +240,13 @@ fn select_on_non_unpin_expressions() {
     assert_eq!(res, 5);
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_non_unpin_expressions_with_default() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
     // The returned Future is !Unpin
     let make_non_unpin_fut = || { async {
         5
@@ -219,8 +264,12 @@ fn select_on_non_unpin_expressions_with_default() {
     assert_eq!(res, 5);
 }
 
+#[cfg(all(feature = "async-await", feature = "std"))]
 #[test]
 fn select_on_non_unpin_size() {
+    use futures::select;
+    use futures::future::FutureExt;
+
     // The returned Future is !Unpin
     let make_non_unpin_fut = || { async {
         5
@@ -235,11 +284,16 @@ fn select_on_non_unpin_size() {
         select_res
     };
 
-    assert_eq!(48, std::mem::size_of_val(&fut));
+    assert_eq!(32, std::mem::size_of_val(&fut));
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_can_be_used_as_expression() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future;
+
     block_on(async {
         let res = select! {
             x = future::ready(7) => { x },
@@ -249,8 +303,14 @@ fn select_can_be_used_as_expression() {
     });
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_with_default_can_be_used_as_expression() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future::{FutureExt, poll_fn};
+    use futures::task::{Context, Poll};
+
     fn poll_always_pending<T>(_cx: &mut Context<'_>) -> Poll<T> {
         Poll::Pending
     }
@@ -265,8 +325,13 @@ fn select_with_default_can_be_used_as_expression() {
     });
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_with_complete_can_be_used_as_expression() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future;
+
     block_on(async {
         let res = select! {
             x = future::pending::<i32>() => { x },
@@ -278,11 +343,16 @@ fn select_with_complete_can_be_used_as_expression() {
     });
 }
 
-async fn require_mutable(_: &mut i32) {}
-async fn async_noop() {}
-
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
+    async fn require_mutable(_: &mut i32) {}
+    async fn async_noop() {}
+
     block_on(async {
         let mut value = 234;
         select! {
@@ -294,8 +364,16 @@ fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
     });
 }
 
+#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
+    use futures::select;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
+    async fn require_mutable(_: &mut i32) {}
+    async fn async_noop() {}
+
     block_on(async {
         let mut value = 234;
         select! {
@@ -310,8 +388,12 @@ fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
     });
 }
 
+#[cfg(feature = "async-await")]
 #[test]
 fn join_size() {
+    use futures::join;
+    use futures::future;
+
     let fut = async {
         let ready = future::ready(0i32);
         join!(ready)
@@ -326,8 +408,12 @@ fn join_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
+#[cfg(feature = "async-await")]
 #[test]
 fn try_join_size() {
+    use futures::try_join;
+    use futures::future;
+
     let fut = async {
         let ready = future::ready(Ok::<i32, i32>(0));
         try_join!(ready)
@@ -342,15 +428,21 @@ fn try_join_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
+#[cfg(feature = "async-await")]
 #[test]
 fn join_doesnt_require_unpin() {
+    use futures::join;
+
     let _ = async {
         join!(async {}, async {})
     };
 }
 
+#[cfg(feature = "async-await")]
 #[test]
 fn try_join_doesnt_require_unpin() {
+    use futures::try_join;
+
     let _ = async {
         try_join!(
             async { Ok::<(), ()>(()) },

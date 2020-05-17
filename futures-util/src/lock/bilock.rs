@@ -4,7 +4,6 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
 use core::cell::UnsafeCell;
-#[cfg(any(feature = "bilock", feature = "sink"))]
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
@@ -88,6 +87,7 @@ impl<T> BiLock<T> {
     /// This function will panic if called outside the context of a future's
     /// task.
     pub fn poll_lock(&self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
+        let mut waker = None;
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -99,12 +99,14 @@ impl<T> BiLock<T> {
                 // A task was previously blocked on this lock, likely our task,
                 // so we need to update that task.
                 n => unsafe {
-                    drop(Box::from_raw(n as *mut Waker));
+                    let mut prev = Box::from_raw(n as *mut Waker);
+                    *prev = cx.waker().clone();
+                    waker = Some(prev);
                 }
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(cx.waker().clone());
+            let me: Box<Waker> = waker.take().unwrap_or_else(||Box::new(cx.waker().clone()));
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -116,7 +118,7 @@ impl<T> BiLock<T> {
                 // and before the compare_exchange. Deallocate what we just
                 // allocated and go through the loop again.
                 Err(0) => unsafe {
-                    drop(Box::from_raw(me as *mut Waker));
+                    waker = Some(Box::from_raw(me as *mut Waker));
                 },
 
                 // The top of this loop set the previous state to 1, so if we
@@ -149,7 +151,6 @@ impl<T> BiLock<T> {
     /// Attempts to put the two "halves" of a `BiLock<T>` back together and
     /// recover the original value. Succeeds only if the two `BiLock<T>`s
     /// originated from the same call to `BiLock::new`.
-    #[cfg(any(feature = "bilock", feature = "sink"))]
     pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>>
     where
         T: Unpin,
@@ -183,7 +184,6 @@ impl<T> BiLock<T> {
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T: Unpin> Inner<T> {
     unsafe fn into_value(mut self) -> T {
         self.value.take().unwrap().into_inner()
@@ -198,10 +198,8 @@ impl<T> Drop for Inner<T> {
 
 /// Error indicating two `BiLock<T>`s were not two halves of a whole, and
 /// thus could not be `reunite`d.
-#[cfg(any(feature = "bilock", feature = "sink"))]
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T> fmt::Debug for ReuniteError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ReuniteError")
@@ -210,14 +208,12 @@ impl<T> fmt::Debug for ReuniteError<T> {
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 impl<T> fmt::Display for ReuniteError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "tried to reunite two BiLocks that don't form a pair")
     }
 }
 
-#[cfg(any(feature = "bilock", feature = "sink"))]
 #[cfg(feature = "std")]
 impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 

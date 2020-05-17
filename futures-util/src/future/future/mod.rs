@@ -7,6 +7,7 @@ use super::{assert_future, Either};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::pin::Pin;
+
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{
@@ -14,44 +15,83 @@ use futures_core::{
     stream::Stream,
     task::{Context, Poll},
 };
+use crate::never::Never;
+use crate::fns::{OkFn, ok_fn, IntoFn, into_fn, InspectFn, inspect_fn};
+use pin_utils::pin_mut;
 
 // Combinators
 
 mod flatten;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flatten::Flatten;
-
-mod flatten_stream;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flatten_stream::FlattenStream;
-
 mod fuse;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::fuse::Fuse;
-
-mod into_stream;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::into_stream::IntoStream;
-
 mod map;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::map::Map;
 
-mod then;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::then::Then;
+delegate_all!(
+    /// Future for the [`flatten`](super::FutureExt::flatten) method.
+    Flatten<F>(
+        flatten::Flatten<F, <F as Future>::Output>
+    ): Debug + Future + FusedFuture + New[|x: F| flatten::Flatten::new(x)]
+    where F: Future
+);
 
-mod inspect;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect::Inspect;
+delegate_all!(
+    /// Stream for the [`flatten_stream`](FutureExt::flatten_stream) method.
+    FlattenStream<F>(
+        flatten::Flatten<F, <F as Future>::Output>
+    ): Debug + Sink + Stream + FusedStream + New[|x: F| flatten::Flatten::new(x)]
+    where F: Future
+);
 
-mod unit_error;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::unit_error::UnitError;
+pub use fuse::Fuse;
 
-mod never_error;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::never_error::NeverError;
+delegate_all!(
+    /// Future for the [`map`](super::FutureExt::map) method.
+    Map<Fut, F>(
+        map::Map<Fut, F>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, f)]
+);
+
+delegate_all!(
+    /// Stream for the [`into_stream`](FutureExt::into_stream) method.
+    IntoStream<F>(
+        crate::stream::Once<F>
+    ): Debug + Stream + FusedStream + New[|x: F| crate::stream::Once::new(x)]
+);
+
+delegate_all!(
+    /// Future for the [`map_into`](FutureExt::map_into) combinator.
+    MapInto<Fut, T>(
+        Map<Fut, IntoFn<T>>
+    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, into_fn())]
+);
+
+delegate_all!(
+    /// Future for the [`then`](FutureExt::then) method.
+    Then<Fut1, Fut2, F>(
+        flatten::Flatten<Map<Fut1, F>, Fut2>
+    ): Debug + Future + FusedFuture + New[|x: Fut1, y: F| flatten::Flatten::new(Map::new(x, y))]
+);
+
+delegate_all!(
+    /// Future for the [`inspect`](FutureExt::inspect) method.
+    Inspect<Fut, F>(
+        map::Map<Fut, InspectFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, inspect_fn(f))]
+);
+
+delegate_all!(
+    /// Future for the [`never_error`](super::FutureExt::never_error) combinator.
+    NeverError<Fut>(
+        Map<Fut, OkFn<Never>>
+    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
+);
+
+delegate_all!(
+    /// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
+    UnitError<Fut>(
+        Map<Fut, OkFn<()>>
+    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
+);
 
 #[cfg(feature = "std")]
 mod catch_unwind;
@@ -72,11 +112,6 @@ mod shared;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::shared::Shared;
-
-// Implementation details
-
-mod chain;
-pub(crate) use self::chain::Chain;
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
 
@@ -111,6 +146,19 @@ pub trait FutureExt: Future {
         Self: Sized,
     {
         assert_future::<U, _>(Map::new(self, f))
+    }
+
+    /// Map this future's output to a different type, returning a new future of
+    /// the resulting type.
+    ///
+    /// This function is equivalent to calling `map(Into::into)` but allows naming
+    /// the return type.
+    fn map_into<U>(self) -> MapInto<Self, U>
+    where
+        Self::Output: Into<U>,
+        Self: Sized,
+    {
+        assert_future::<U, _>(MapInto::new(self))
     }
 
     /// Chain on a computation for when a future finished, passing the result of
@@ -538,19 +586,16 @@ pub trait FutureExt: Future {
     ///
     /// assert_eq!(future_ready.now_or_never().expect("Future not ready"), "foobar");
     /// ```
-    fn now_or_never(mut self) -> Option<Self::Output>
+    fn now_or_never(self) -> Option<Self::Output>
     where
         Self: Sized,
     {
         let noop_waker = crate::task::noop_waker();
         let mut cx = Context::from_waker(&noop_waker);
 
-        // SAFETY: This is safe because this method consumes the future, so `poll` is
-        //         only going to be called once. Thus it doesn't matter to us if the
-        //         future is `Unpin` or not.
-        let pinned = unsafe { Pin::new_unchecked(&mut self) };
-
-        match pinned.poll(&mut cx) {
+        let this = self;
+        pin_mut!(this);
+        match this.poll(&mut cx) {
             Poll::Ready(x) => Some(x),
             _ => None,
         }

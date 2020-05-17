@@ -1,3 +1,20 @@
+# 0.3.5 - 2020-05-08
+* Added `StreamExt::flat_map`.
+* Added `StreamExt::ready_chunks`.
+* Added `*_unpin` methods to `SinkExt`.
+* Added a `cancellation()` future to `oneshot::Sender`.
+* Added `reunite` method to `ReadHalf` and `WriteHalf`.
+* Added `Extend` implementations for `Futures(Un)Ordered` and `SelectAll`.
+* Added support for reexporting the `join!` and `select!` macros.
+* Added `no_std` support for the `pending!` and `poll!` macros.
+* Added `Send` and `Sync` support for `AssertUnmoved`.
+* Fixed a bug where `Shared` wasn't relinquishing control to the executor.
+* Removed the `Send` bound on the output of `RemoteHandle`.
+* Relaxed bounds on `FuturesUnordered`.
+* Reorganized internal tests to work under different `--feature`s.
+* Reorganized the bounds on `StreamExt::forward`.
+* Removed and replaced a large amount of internal `unsafe`.
+
 # 0.3.4 - 2020-02-06
 * Fixed missing `Drop` for `UnboundedReceiver` (#2064)
 
@@ -239,7 +256,7 @@
 * Improvements to `select!` and `join!` macros
 * Added `try_join!` macro
 * Added `StreamExt` combinator methods `try_join` and `for_each_concurrent`
-* Added `TryStreamExt` combinator methdos `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
+* Added `TryStreamExt` combinator methods `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
 * Fix stream termination bug in `StreamExt::buffered` and `StreamExt::buffer_unordered`
 * Added docs for `StreamExt::buffered`, `StreamExt::buffer_unordered`
 * Added `task::local_waker_ref_from_nonlocal` and `task::local_waker_ref` functions
