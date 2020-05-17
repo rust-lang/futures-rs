@@ -169,7 +169,7 @@ cfg_target_has_atomic! {
 
     #[cfg(feature = "alloc")]
     delegate_all!(
-        /// Stream for the [`inspect`](StreamExt::inspect) method.
+        /// Stream for the [`flatten_unordered`](StreamExt::flatten_unordered) method.
         FlattenUnordered<St>(
             flatten_unordered::FlattenUnordered<St, St::Item>
         ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, limit: Option<usize>| flatten_unordered::FlattenUnordered::new(x, limit)]
@@ -178,7 +178,7 @@ cfg_target_has_atomic! {
 
     #[cfg(feature = "alloc")]
     delegate_all!(
-        /// Stream for the [`flat_map`](StreamExt::flat_map) method.
+        /// Stream for the [`flat_map_unordered`](StreamExt::flat_map_unordered) method.
         FlatMapUnordered<St, U, F>(
             FlattenUnordered<Map<St, F>>
         ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, limit: Option<usize>, f: F| FlattenUnordered::new(Map::new(x, f), limit)]
