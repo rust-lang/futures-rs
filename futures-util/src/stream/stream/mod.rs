@@ -48,7 +48,7 @@ pub use self::filter_map::FilterMap;
 mod flatten;
 
 delegate_all!(
-    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    /// Stream for the [`flatten`](StreamExt::flatten) method.
     Flatten<St>(
         flatten::Flatten<St, St::Item>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| flatten::Flatten::new(x)]
