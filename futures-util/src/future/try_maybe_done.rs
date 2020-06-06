@@ -8,7 +8,7 @@ use pin_project::pin_project;
 /// A future that may have completed with an error.
 ///
 /// This is created by the [`try_maybe_done()`] function.
-#[pin_project(Replace, project = TryMaybeDoneProj, project_replace = TryMaybeDoneProjOwn)]
+#[pin_project(project = TryMaybeDoneProj, project_replace = TryMaybeDoneProjOwn)]
 #[derive(Debug)]
 pub enum TryMaybeDone<Fut: TryFuture> {
     /// A not-yet-completed future

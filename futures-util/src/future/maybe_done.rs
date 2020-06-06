@@ -8,7 +8,7 @@ use pin_project::pin_project;
 /// A future that may have completed.
 ///
 /// This is created by the [`maybe_done()`] function.
-#[pin_project(Replace, project = MaybeDoneProj, project_replace = MaybeDoneProjOwn)]
+#[pin_project(project = MaybeDoneProj, project_replace = MaybeDoneProjOwn)]
 #[derive(Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
