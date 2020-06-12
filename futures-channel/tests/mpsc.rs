@@ -528,6 +528,17 @@ fn same_receiver() {
 }
 
 #[test]
+fn is_receiver() {
+    let (txa, rxa) = mpsc::channel::<i32>(1);
+    let (txb, rxb) = mpsc::channel::<i32>(1);
+
+    assert!(txa.is_receiver(&rxa));
+    assert!(txb.is_receiver(&rxb));
+    assert!(!txa.is_receiver(&rxb));
+    assert!(!txb.is_receiver(&rxa));
+}
+
+#[test]
 fn hash_receiver() {
     use std::hash::Hasher;
     use std::collections::hash_map::DefaultHasher;
