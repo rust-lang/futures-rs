@@ -482,7 +482,7 @@ impl<T> UnboundedSenderInner<T> {
     }
 
     /// Returns whether the sender send to this receiver.
-    fn is_receiver(&self, inner: &Arc<UnboundedInner<T>>) -> bool {
+    fn is_connected_to(&self, inner: &Arc<UnboundedInner<T>>) -> bool {
         Arc::ptr_eq(&self.inner, &inner)
     }
 
@@ -663,7 +663,7 @@ impl<T> BoundedSenderInner<T> {
     }
 
     /// Returns whether the sender send to this receiver.
-    fn is_receiver(&self, receiver: &Arc<BoundedInner<T>>) -> bool {
+    fn is_connected_to(&self, receiver: &Arc<BoundedInner<T>>) -> bool {
         Arc::ptr_eq(&self.inner, &receiver)
     } 
 
@@ -790,9 +790,9 @@ impl<T> Sender<T> {
     }
 
     /// Returns whether the sender send to this receiver.
-    pub fn is_receiver(&self, receiver: &Receiver<T>) -> bool {
+    pub fn is_connected_to(&self, receiver: &Receiver<T>) -> bool {
         match (&self.0, &receiver.inner) {
-            (Some(inner), Some(receiver)) => inner.is_receiver(receiver),
+            (Some(inner), Some(receiver)) => inner.is_connected_to(receiver),
             _ => false,
         }
     }
@@ -879,9 +879,9 @@ impl<T> UnboundedSender<T> {
     }
 
     /// Returns whether the sender send to this receiver.
-    pub fn is_receiver(&self, receiver: &UnboundedReceiver<T>) -> bool {
+    pub fn is_connected_to(&self, receiver: &UnboundedReceiver<T>) -> bool {
         match (&self.0, &receiver.inner) {
-            (Some(inner), Some(receiver)) => inner.is_receiver(receiver),
+            (Some(inner), Some(receiver)) => inner.is_connected_to(receiver),
             _ => false,
         }
     }
