@@ -27,6 +27,39 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///
 /// # Examples
 ///
+/// A simple example
+///
+/// ```
+/// use futures::future::{self, Either};
+/// use futures::executor::block_on;
+///
+/// async fn foo() -> u32 {
+///     return 1;
+/// }
+///
+/// async fn bar() -> u64 {
+///     return 2;
+/// }
+///
+///
+/// fn main() {
+///     let future1 = foo();
+///     let future2 = bar();
+///
+///     futures::pin_mut!(future1);  // 'select' requires Future + Unpin
+///     futures::pin_mut!(future2);
+///
+///     let x = match block_on(future::select(future1, future2)) {
+///         Either::Left((foo_value, _)) => foo_value as u64,
+///         Either::Right((bar_value, _)) => bar_value,
+///     };
+///
+///     println!("x = {}", x); // will print "x = 1" in this example
+/// }
+/// ```
+///
+/// A more complex example
+///
 /// ```
 /// use futures::future::{self, Either, Future, FutureExt};
 ///
