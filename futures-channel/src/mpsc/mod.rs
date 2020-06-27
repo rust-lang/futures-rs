@@ -120,13 +120,13 @@ impl<T> Unpin for BoundedSenderInner<T> {}
 
 /// The transmission end of a bounded mpsc channel.
 ///
-/// This value is created by the [`channel`](channel) function.
+/// This value is created by the [`channel`](fn.channel.html) function.
 #[derive(Debug)]
 pub struct Sender<T>(Option<BoundedSenderInner<T>>);
 
 /// The transmission end of an unbounded mpsc channel.
 ///
-/// This value is created by the [`unbounded`](unbounded) function.
+/// This value is created by the [`unbounded`](fn.unbounded.html) function.
 #[derive(Debug)]
 pub struct UnboundedSender<T>(Option<UnboundedSenderInner<T>>);
 
@@ -135,7 +135,7 @@ impl AssertKinds for UnboundedSender<u32> {}
 
 /// The receiving end of a bounded mpsc channel.
 ///
-/// This value is created by the [`channel`](channel) function.
+/// This value is created by the [`channel`](fn.channel.html) function.
 #[derive(Debug)]
 pub struct Receiver<T> {
     inner: Option<Arc<BoundedInner<T>>>,
@@ -143,7 +143,7 @@ pub struct Receiver<T> {
 
 /// The receiving end of an unbounded mpsc channel.
 ///
-/// This value is created by the [`unbounded`](unbounded) function.
+/// This value is created by the [`unbounded`](fn.unbounded.html) function.
 #[derive(Debug)]
 pub struct UnboundedReceiver<T> {
     inner: Option<Arc<UnboundedInner<T>>>,
@@ -152,13 +152,13 @@ pub struct UnboundedReceiver<T> {
 // `Pin<&mut UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
 impl<T> Unpin for UnboundedReceiver<T> {}
 
-/// The error type for [`Sender`s](Sender) used as `Sink`s.
+/// The error type for [`Sender`s](struct.Sender.html) used as `Sink`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SendError {
     kind: SendErrorKind,
 }
 
-/// The error type returned from [`try_send`](Sender::try_send).
+/// The error type returned from [`try_send`](struct.Sender.html#method.try_send).
 #[derive(Clone, PartialEq, Eq)]
 pub struct TrySendError<T> {
     err: SendError,
@@ -171,7 +171,7 @@ enum SendErrorKind {
     Disconnected,
 }
 
-/// The error type returned from [`try_next`](Receiver::try_next).
+/// The error type returned from [`try_next`](struct.Receiver.html#method.try_next).
 pub struct TryRecvError {
     _priv: (),
 }
@@ -725,7 +725,7 @@ impl<T> Sender<T> {
     /// Send a message on the channel.
     ///
     /// This function should only be called after
-    /// [`poll_ready`](Sender::poll_ready) has reported that the channel is
+    /// [`poll_ready`](#method.poll_ready) has reported that the channel is
     /// ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
         self.try_send(msg)
