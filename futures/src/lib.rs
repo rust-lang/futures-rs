@@ -174,7 +174,6 @@ pub mod compat {
     };
 }
 
-#[cfg(feature = "executor")]
 pub mod executor {
     //! Task execution.
     //!
@@ -182,8 +181,9 @@ pub mod executor {
     //! capable of spawning futures as tasks. This module provides several
     //! built-in executors, as well as tools for building your own.
     //!
-    //! This module is only available when the `executor` feature of this
-    //! library is activated, and it is activated by default.
+    //! Except for [`custom_local_pool`], this module is only available when
+    //! the `executor` feature of this library is activated, and it is
+    //! activated by default.
     //!
     //! # Using a thread pool (M:N task scheduling)
     //!
@@ -217,6 +217,7 @@ pub mod executor {
     //! [`block_on`](crate::executor::block_on) for simply running a future to
     //! completion on the current thread.
 
+    #[cfg(feature = "executor")]
     pub use futures_executor::{
         BlockingStream,
         Enter, EnterError,
@@ -224,8 +225,18 @@ pub mod executor {
         block_on, block_on_stream, enter,
     };
 
+    #[cfg(feature = "executor")]
     #[cfg(feature = "thread-pool")]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
+
+    #[cfg(feature = "alloc")]
+    pub mod custom_local_pool {
+        //! `no_std` local task execution.
+        //!
+        //! This module is only available when the `alloc` feature of this library is
+        //! activated, and it is activated by default.
+        pub use futures_executor::custom_local_pool::{BlockingStream, LocalPool, LocalSpawner};
+    }
 }
 
 pub mod future {

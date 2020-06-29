@@ -38,7 +38,7 @@ pin-project = "0.4.20"
 [features]
 default = ["std", "async-await", "executor"]
 std = ["alloc", "futures-core/std", "futures-task/std", "futures-io/std", "futures-sink/std", "futures-util/std", "futures-util/io", "futures-util/channel"]
-alloc = ["futures-core/alloc", "futures-task/alloc", "futures-sink/alloc", "futures-channel/alloc", "futures-util/alloc"]
+alloc = ["futures-core/alloc", "futures-task/alloc", "futures-sink/alloc", "futures-channel/alloc", "futures-executor/alloc", "futures-util/alloc"]
 async-await = ["futures-util/async-await", "futures-util/async-await-macro"]
 compat = ["std", "futures-util/compat"]
 io-compat = ["compat", "futures-util/io-compat"]
