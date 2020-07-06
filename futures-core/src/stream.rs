@@ -134,6 +134,15 @@ where
     }
 }
 
+/// An owned dynamically typed [`FusedStream`] for use in cases where you can't
+/// statically type your result or need to add some indirection.
+#[cfg(feature = "alloc")]
+pub type BoxFusedStream<'a, T> = Pin<alloc::boxed::Box<dyn FusedStream<Item = T> + Send + 'a>>;
+
+/// `BoxFusedStream`, but without the `Send` requirement.
+#[cfg(feature = "alloc")]
+pub type LocalBoxFusedStream<'a, T> = Pin<alloc::boxed::Box<dyn FusedStream<Item = T> + 'a>>;
+
 /// A stream which tracks whether or not the underlying stream
 /// should no longer be polled.
 ///
