@@ -126,7 +126,7 @@ fn single_receiver_drop_closes_channel_and_drains() {
         let ref_count = Arc::new(0);
         let weak_ref = Arc::downgrade(&ref_count);
 
-        let (mut sender, receiver) = mpsc::channel(1);
+        let (sender, receiver) = mpsc::channel(1);
         sender.try_send(ref_count).expect("failed to send");
 
         // Verify that the sent message is still live.

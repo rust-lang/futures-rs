@@ -14,7 +14,7 @@ impl<T> Sink<T> for Sender<T> {
     }
 
     fn start_send(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         msg: T,
     ) -> Result<(), Self::Error> {
         (*self).start_send(msg)

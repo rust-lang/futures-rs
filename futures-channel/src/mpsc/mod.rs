@@ -84,7 +84,7 @@ use futures_core::task::__internal::AtomicWaker;
 use std::fmt;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::atomic::Ordering::SeqCst;
 
 use crate::mpsc::queue::Queue;
@@ -111,7 +111,7 @@ struct BoundedSenderInner<T> {
 
     // `true` if the sender might be blocked. This is an optimization to avoid
     // having to lock the mutex most of the time.
-    maybe_parked: bool,
+    maybe_parked: AtomicBool,
 }
 
 // We never project Pin<&mut SenderInner> to `Pin<&mut T>`
@@ -377,7 +377,7 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     let tx = BoundedSenderInner {
         inner: inner.clone(),
         sender_task: Arc::new(Mutex::new(SenderTask::new())),
-        maybe_parked: false,
+        maybe_parked: AtomicBool::new(false),
     };
 
     let rx = Receiver {
@@ -507,7 +507,7 @@ impl<T> UnboundedSenderInner<T> {
 impl<T> BoundedSenderInner<T> {
     /// Attempts to send a message on this `Sender`, returning the message
     /// if there was an error.
-    fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
+    fn try_send(&self, msg: T) -> Result<(), TrySendError<T>> {
         // If the sender is currently blocked, reject the message
         if !self.poll_unparked(None).is_ready() {
             return Err(TrySendError {
@@ -525,7 +525,7 @@ impl<T> BoundedSenderInner<T> {
     // Do the send without failing.
     // Can be called only by bounded sender.
     #[allow(clippy::debug_assert_with_mut_call)]
-    fn do_send_b(&mut self, msg: T)
+    fn do_send_b(&self, msg: T)
         -> Result<(), TrySendError<T>>
     {
         // Anyone callig do_send *should* make sure there is room first,
@@ -609,7 +609,7 @@ impl<T> BoundedSenderInner<T> {
         }
     }
 
-    fn park(&mut self) {
+    fn park(&self) {
         {
             let mut sender = self.sender_task.lock().unwrap();
             sender.task = None;
@@ -623,7 +623,7 @@ impl<T> BoundedSenderInner<T> {
         // Check to make sure we weren't closed after we sent our task on the
         // queue
         let state = decode_state(self.inner.state.load(SeqCst));
-        self.maybe_parked = state.is_open;
+        self.maybe_parked.store(state.is_open, SeqCst);
     }
 
     /// Polls the channel to determine if there is guaranteed capacity to send
@@ -679,15 +679,15 @@ impl<T> BoundedSenderInner<T> {
         self.inner.recv_task.wake();
     }
 
-    fn poll_unparked(&mut self, cx: Option<&mut Context<'_>>) -> Poll<()> {
+    fn poll_unparked(&self, cx: Option<&mut Context<'_>>) -> Poll<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
-        if self.maybe_parked {
+        if self.maybe_parked.load(SeqCst) {
             // Get a lock on the task handle
             let mut task = self.sender_task.lock().unwrap();
 
             if !task.is_parked {
-                self.maybe_parked = false;
+                self.maybe_parked.store(false, SeqCst);
                 return Poll::Ready(())
             }
 
@@ -709,8 +709,8 @@ impl<T> BoundedSenderInner<T> {
 impl<T> Sender<T> {
     /// Attempts to send a message on this `Sender`, returning the message
     /// if there was an error.
-    pub fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
-        if let Some(inner) = &mut self.0 {
+    pub fn try_send(&self, msg: T) -> Result<(), TrySendError<T>> {
+        if let Some(inner) = &self.0 {
             inner.try_send(msg)
         } else {
             Err(TrySendError {
@@ -727,7 +727,7 @@ impl<T> Sender<T> {
     /// This function should only be called after
     /// [`poll_ready`](Sender::poll_ready) has reported that the channel is
     /// ready to receive a message.
-    pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
+    pub fn start_send(&self, msg: T) -> Result<(), SendError> {
         self.try_send(msg)
             .map_err(|e| e.err)
     }
@@ -936,7 +936,7 @@ impl<T> Clone for BoundedSenderInner<T> {
                 return BoundedSenderInner {
                     inner: self.inner.clone(),
                     sender_task: Arc::new(Mutex::new(SenderTask::new())),
-                    maybe_parked: false,
+                    maybe_parked: AtomicBool::new(false),
                 };
             }
 
