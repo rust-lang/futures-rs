@@ -56,8 +56,10 @@ where
 ///
 /// This is purposefully a very simple API for basic use-cases. In a lot of
 /// cases you will want to use the more powerful
-/// [`FuturesUnordered`][crate::stream::FuturesUnordered] APIs, some
-/// examples of additional functionality that provides:
+/// [`FuturesOrdered`][crate::stream::FuturesOrdered] APIs, or, if order does
+/// not matter, [`FuturesUnordered`][crate::stream::FuturesUnordered].
+///
+/// Some examples for additional functionality provided by these are:
 ///
 ///  * Adding new futures to the set even after it has been started.
 ///
