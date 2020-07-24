@@ -38,7 +38,7 @@ impl<Fut: Future> Fuse<Fut> {
     /// sender.unbounded_send(()).unwrap();
     /// drop(sender);
     ///
-    /// // Use `Fuse::termianted()` to create an already-terminated future
+    /// // Use `Fuse::terminated()` to create an already-terminated future
     /// // which may be instantiated later.
     /// let foo_printer = Fuse::terminated();
     /// pin_mut!(foo_printer);
