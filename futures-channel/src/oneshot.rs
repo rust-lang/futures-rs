@@ -1,4 +1,6 @@
 //! A channel for sending a single message between asynchronous tasks.
+//!
+//! This is a single-producer, single-consumer channel.
 
 use alloc::sync::Arc;
 use core::fmt;
@@ -12,7 +14,7 @@ use crate::lock::Lock;
 
 /// A future for a value that will be provided by another asynchronous task.
 ///
-/// This is created by the [`channel`] function.
+/// This is created by the [`channel`](channel) function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct Receiver<T> {
@@ -21,7 +23,7 @@ pub struct Receiver<T> {
 
 /// A means of transmitting a single value to another task.
 ///
-/// This is created by the [`channel`] function.
+/// This is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
@@ -69,6 +71,8 @@ struct Inner<T> {
 }
 
 /// Creates a new one-shot channel for sending values across asynchronous tasks.
+///
+/// The channel works for a spsc (single-producer, single-consumer) scheme.
 ///
 /// This function is similar to Rust's channel constructor found in the standard
 /// library. Two halves are returned, the first of which is a `Sender` handle,
@@ -337,14 +341,13 @@ impl<T> Sender<T> {
     ///
     /// If the value is successfully enqueued for the remote end to receive,
     /// then `Ok(())` is returned. If the receiving end was dropped before
-    /// this function was called, however, then `Err` is returned with the value
-    /// provided.
+    /// this function was called, however, then `Err(t)` is returned.
     pub fn send(self, t: T) -> Result<(), T> {
         self.inner.send(t)
     }
 
     /// Polls this `Sender` half to detect whether its associated
-    /// [`Receiver`](Receiver) with has been dropped.
+    /// [`Receiver`](Receiver) has been dropped.
     ///
     /// # Return values
     ///
