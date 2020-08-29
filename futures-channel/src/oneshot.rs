@@ -70,7 +70,7 @@ struct Inner<T> {
     tx_task: Lock<Option<Waker>>,
 }
 
-/// Creates a new one-shot channel for sending values across asynchronous tasks.
+/// Creates a new one-shot channel for sending a single value across asynchronous tasks.
 ///
 /// The channel works for a spsc (single-producer, single-consumer) scheme.
 ///
