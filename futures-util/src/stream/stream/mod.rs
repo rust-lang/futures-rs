@@ -306,7 +306,7 @@ pub trait StreamExt: Stream {
     /// # Overflow Behavior
     ///
     /// The method does no guarding against overflows, so enumerating more than
-    /// [`usize::max_value()`] elements either produces the wrong result or panics. If
+    /// [`prim@usize::max_value()`] elements either produces the wrong result or panics. If
     /// debug assertions are enabled, a panic is guaranteed.
     ///
     /// # Panics
@@ -611,7 +611,7 @@ pub trait StreamExt: Stream {
         FlatMap::new(self, f)
     }
 
-    /// Combinator similar to [`StreamExt::fold`] that holds internal state 
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state
     /// and produces a new stream.
     ///
     /// Accepts initial state and closure which will be applied to each element
