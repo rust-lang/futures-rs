@@ -149,7 +149,7 @@ fn stress() {
 
             assert_eq!(rx.len(), n);
 
-            rx.sort();
+            rx.sort_unstable();
 
             for (i, x) in rx.into_iter().enumerate() {
                 assert_eq!(i, x);
