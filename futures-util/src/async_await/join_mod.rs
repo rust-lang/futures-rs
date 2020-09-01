@@ -54,12 +54,12 @@ macro_rules! document_join_macro {
         ///
         /// let a = async { Ok::<i32, i32>(1) };
         /// let b = async { Ok::<i32, i32>(2) };
+        /// assert_eq!(try_join!(a, b), Ok((1, 2)));
+        ///
+        /// // `try_join!` is variadic
         /// let c = async { Ok::<i32, i32>(3) };
         /// let d = async { Ok::<i32, i32>(4) };
         /// let e = async { Ok::<i32, i32>(5) };
-        ///
-        /// // `try_join!` is variadic
-        /// assert_eq!(try_join!(a, b), Ok((1, 2)));
         /// assert_eq!(try_join!(c, d, e), Ok((3, 4, 5)));
         /// # });
         /// ```
