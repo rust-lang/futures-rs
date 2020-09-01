@@ -24,7 +24,7 @@ macro_rules! document_join_macro {
         /// let b = async { 2 };
         /// assert_eq!(join!(a, b), (1, 2));
         ///
-        /// // `join!` is variadic
+        /// // `join!` is variadic, so you can pass any number of futures
         /// let c = async { 3 };
         /// let d = async { 4 };
         /// let e = async { 5 };
@@ -56,7 +56,7 @@ macro_rules! document_join_macro {
         /// let b = async { Ok::<i32, i32>(2) };
         /// assert_eq!(try_join!(a, b), Ok((1, 2)));
         ///
-        /// // `try_join!` is variadic
+        /// // `try_join!` is variadic, so you can pass any number of futures
         /// let c = async { Ok::<i32, i32>(3) };
         /// let d = async { Ok::<i32, i32>(4) };
         /// let e = async { Ok::<i32, i32>(5) };
