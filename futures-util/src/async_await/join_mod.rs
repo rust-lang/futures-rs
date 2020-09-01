@@ -22,12 +22,12 @@ macro_rules! document_join_macro {
         ///
         /// let a = async { 1 };
         /// let b = async { 2 };
+        /// assert_eq!(join!(a, b), (1, 2));
+        ///
+        /// // `join!` is variadic
         /// let c = async { 3 };
         /// let d = async { 4 };
         /// let e = async { 5 };
-        /// 
-        /// // `join!` is variadic
-        /// assert_eq!(join!(a, b), (1, 2));
         /// assert_eq!(join!(c, d, e), (3, 4, 5));
         /// # });
         /// ```
