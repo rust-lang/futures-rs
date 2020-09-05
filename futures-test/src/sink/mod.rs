@@ -2,10 +2,26 @@
 
 use futures_sink::Sink;
 
+pub use crate::assert_unmoved::AssertUnmoved;
 pub use crate::track_closed::TrackClosed;
 
 /// Additional combinators for testing sinks.
 pub trait SinkTestExt<Item>: Sink<Item> {
+    /// Asserts that the given is not moved after being polled.
+    ///
+    /// A check for movement is performed each time the sink is polled
+    /// and when `Drop` is called.
+    ///
+    /// Aside from keeping track of the location at which the sink was first
+    /// polled and providing assertions, this sink adds no runtime behavior
+    /// and simply delegates to the child sink.
+    fn assert_unmoved_sink(self) -> AssertUnmoved<Self>
+    where
+        Self: Sized,
+    {
+        AssertUnmoved::new(self)
+    }
+
     /// Track whether this sink has been closed and panics if it is used after closing.
     ///
     /// # Examples
@@ -29,7 +45,7 @@ pub trait SinkTestExt<Item>: Sink<Item> {
     /// Note: Unlike [`AsyncWriteTestExt::track_closed`] when
     /// used as a sink the adaptor will panic if closed too early as there's no easy way to
     /// integrate as an error.
-    /// 
+    ///
     /// [`AsyncWriteTestExt::track_closed`]: crate::io::AsyncWriteTestExt::track_closed
     ///
     /// ```

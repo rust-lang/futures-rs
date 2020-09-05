@@ -3,10 +3,26 @@
 use futures_io::AsyncRead;
 
 pub use super::limited::Limited;
+pub use crate::assert_unmoved::AssertUnmoved;
 pub use crate::interleave_pending::InterleavePending;
 
 /// Additional combinators for testing async readers.
 pub trait AsyncReadTestExt: AsyncRead {
+    /// Asserts that the given is not moved after being polled.
+    ///
+    /// A check for movement is performed each time the reader is polled
+    /// and when `Drop` is called.
+    ///
+    /// Aside from keeping track of the location at which the reader was first
+    /// polled and providing assertions, this reader adds no runtime behavior
+    /// and simply delegates to the child reader.
+    fn assert_unmoved(self) -> AssertUnmoved<Self>
+    where
+        Self: Sized,
+    {
+        AssertUnmoved::new(self)
+    }
+
     /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
     /// in between each read of the reader.
     ///
