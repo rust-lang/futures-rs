@@ -11,14 +11,16 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
-// The solution for this lint is not available on 1.39 which is the current minimum supported version.
-// Can be removed as of minimum supported 1.40 or if https://github.com/rust-lang/rust-clippy/issues/3941
+// mem::take requires Rust 1.40, matches! requires Rust 1.42
+// Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
 // get's implemented.
-#![allow(clippy::mem_replace_with_default)]
+#![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.5")]
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -310,6 +312,7 @@ pub mod stream;
 #[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
 
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub mod sink;
 #[cfg(feature = "sink")]
 #[doc(hidden)] pub use crate::sink::SinkExt;
@@ -319,9 +322,11 @@ pub mod task;
 pub mod never;
 
 #[cfg(feature = "compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat;
 
 #[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "io")]
