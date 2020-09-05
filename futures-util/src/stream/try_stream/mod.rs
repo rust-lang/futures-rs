@@ -121,6 +121,7 @@ cfg_target_has_atomic! {
 #[cfg(feature = "std")]
 mod into_async_read;
 #[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
@@ -831,6 +832,7 @@ pub trait TryStreamExt: TryStream {
     /// # assert_eq!(42, futures::executor::block_on(rx).unwrap());
     /// ```
     #[cfg(feature = "compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
     fn compat(self) -> Compat<Self>
     where
         Self: Sized + Unpin,
@@ -864,6 +866,7 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     #[cfg(feature = "io")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
     #[cfg(feature = "std")]
     fn into_async_read(self) -> IntoAsyncRead<Self>
     where

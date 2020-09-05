@@ -258,6 +258,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// Wraps a [`Sink`] into a sink compatible with libraries using
     /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
     fn compat(self) -> CompatSink<Self, Item>
         where Self: Sized + Unpin,
     {
