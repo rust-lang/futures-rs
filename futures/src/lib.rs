@@ -97,6 +97,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures/0.3.5")]
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
@@ -153,6 +155,7 @@ pub mod channel {
 }
 
 #[cfg(feature = "compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat {
     //! Interop between `futures` 0.1 and 0.3.
     //!
@@ -173,6 +176,7 @@ pub mod compat {
     };
 
     #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     pub use futures_util::compat::{
         AsyncRead01CompatExt,
         AsyncWrite01CompatExt,
@@ -230,6 +234,7 @@ pub mod executor {
     };
 
     #[cfg(feature = "thread-pool")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
@@ -332,6 +337,7 @@ pub mod io {
     };
 
     #[cfg(feature = "read-initializer")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
     pub use futures_io::Initializer;
 
     pub use futures_util::io::{
@@ -353,6 +359,7 @@ pub mod lock {
     //! library is activated, and it is activated by default.
 
     #[cfg(feature = "bilock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
     pub use futures_util::lock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
 
     #[cfg(feature = "std")]

@@ -15,6 +15,7 @@ use std::task::Context;
 use futures_sink::Sink as Sink03;
 
 #[cfg(feature = "io-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 
@@ -115,6 +116,7 @@ impl<St: Stream01> Stream01CompatExt for St {}
 
 /// Extension trait for futures 0.1 [`Sink`](futures_01::sink::Sink)
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub trait Sink01CompatExt: Sink01 {
     /// Converts a futures 0.1
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_01::sink::Sink)
@@ -180,6 +182,7 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
 
 /// Converts a futures 0.1 Sink object to a futures 0.3-compatible version
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Compat01As03Sink<S, SinkItem> {
@@ -366,6 +369,7 @@ unsafe impl UnsafeNotify01 for NotifyWaker {
 }
 
 #[cfg(feature = "io-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 mod io {
     use super::*;
     #[cfg(feature = "read-initializer")]
@@ -375,6 +379,7 @@ mod io {
     use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
 
     /// Extension trait for tokio-io [`AsyncRead`](tokio_io::AsyncRead)
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     pub trait AsyncRead01CompatExt: AsyncRead01 {
         /// Converts a tokio-io [`AsyncRead`](tokio_io::AsyncRead) into a futures-io 0.3
         /// [`AsyncRead`](futures_io::AsyncRead).
@@ -403,6 +408,7 @@ mod io {
     impl<R: AsyncRead01> AsyncRead01CompatExt for R {}
 
     /// Extension trait for tokio-io [`AsyncWrite`](tokio_io::AsyncWrite)
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     pub trait AsyncWrite01CompatExt: AsyncWrite01 {
         /// Converts a tokio-io [`AsyncWrite`](tokio_io::AsyncWrite) into a futures-io 0.3
         /// [`AsyncWrite`](futures_io::AsyncWrite).

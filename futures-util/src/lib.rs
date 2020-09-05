@@ -20,6 +20,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.5")]
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
@@ -310,6 +312,7 @@ pub mod stream;
 #[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
 
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub mod sink;
 #[cfg(feature = "sink")]
 #[doc(hidden)] pub use crate::sink::SinkExt;
@@ -319,9 +322,11 @@ pub mod task;
 pub mod never;
 
 #[cfg(feature = "compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat;
 
 #[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "io")]
