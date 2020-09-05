@@ -3,6 +3,7 @@
 use futures_sink::Sink;
 
 pub use crate::assert_unmoved::AssertUnmoved;
+pub use crate::interleave_pending::InterleavePending;
 pub use crate::track_closed::TrackClosed;
 
 /// Additional combinators for testing sinks.
@@ -20,6 +21,15 @@ pub trait SinkTestExt<Item>: Sink<Item> {
         Self: Sized,
     {
         AssertUnmoved::new(self)
+    }
+
+    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// in between each operation on the sink.
+    fn interleave_pending_sink(self) -> InterleavePending<Self>
+    where
+        Self: Sized,
+    {
+        InterleavePending::new(self)
     }
 
     /// Track whether this sink has been closed and panics if it is used after closing.
