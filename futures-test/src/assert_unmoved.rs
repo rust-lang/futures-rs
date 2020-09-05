@@ -40,7 +40,7 @@ impl<T> AssertUnmoved<T> {
         }
     }
 
-    fn poll_with<U>(mut self: Pin<&mut Self>, f: impl FnOnce(Pin<&mut T>) -> U) -> U {
+    fn poll_with<'a, U>(mut self: Pin<&'a mut Self>, f: impl FnOnce(Pin<&'a mut T>) -> U) -> U {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
             // First time being polled
@@ -158,19 +158,8 @@ impl<S: AsyncSeek> AsyncSeek for AssertUnmoved<S> {
 }
 
 impl<R: AsyncBufRead> AsyncBufRead for AssertUnmoved<R> {
-    fn poll_fill_buf(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
-        // FIXME: We cannot use `poll_with` here because it causes a lifetime error.
-        let cur_this = &*self as *const Self;
-        if self.this_ptr.is_null() {
-            // First time being polled
-            *self.as_mut().project().this_ptr = cur_this;
-        } else {
-            assert_eq!(
-                self.this_ptr, cur_this,
-                "AssertUnmoved moved between poll calls"
-            );
-        }
-        self.project().inner.poll_fill_buf(cx)
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+        self.poll_with(|r| r.poll_fill_buf(cx))
     }
 
     fn consume(self: Pin<&mut Self>, amt: usize) {

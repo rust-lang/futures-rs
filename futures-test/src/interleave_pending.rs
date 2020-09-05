@@ -57,10 +57,10 @@ impl<T> InterleavePending<T> {
         self.inner
     }
 
-    fn poll_with<U>(
-        self: Pin<&mut Self>,
+    fn poll_with<'a, U>(
+        self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
-        f: impl FnOnce(Pin<&mut T>, &mut Context<'_>) -> Poll<U>,
+        f: impl FnOnce(Pin<&'a mut T>, &mut Context<'_>) -> Poll<U>,
     ) -> Poll<U> {
         let this = self.project();
         if *this.pended {
@@ -185,19 +185,7 @@ impl<S: AsyncSeek> AsyncSeek for InterleavePending<S> {
 
 impl<R: AsyncBufRead> AsyncBufRead for InterleavePending<R> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
-        // FIXME: We cannot use `poll_with` here because it causes a lifetime error.
-        let this = self.project();
-        if *this.pended {
-            let next = this.inner.poll_fill_buf(cx);
-            if next.is_ready() {
-                *this.pended = false;
-            }
-            next
-        } else {
-            cx.waker().wake_by_ref();
-            *this.pended = true;
-            Poll::Pending
-        }
+        self.poll_with(cx, R::poll_fill_buf)
     }
 
     fn consume(self: Pin<&mut Self>, amount: usize) {
