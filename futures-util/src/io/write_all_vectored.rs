@@ -19,7 +19,7 @@ impl<W: ?Sized + Unpin> Unpin for WriteAllVectored<'_, W> {}
 
 impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAllVectored<'a, W> {
     pub(super) fn new(writer: &'a mut W, bufs: &'a mut [IoSlice<'a>]) -> Self {
-        WriteAllVectored { writer, bufs }
+        WriteAllVectored { writer, bufs: IoSlice::advance(bufs, 0) }
     }
 }
 
@@ -171,6 +171,7 @@ mod tests {
         #[rustfmt::skip] // Becomes unreadable otherwise.
         let tests: Vec<(_, &'static [u8])> = vec![
             (vec![], &[]),
+            (vec![IoSlice::new(&[]), IoSlice::new(&[])], &[]),
             (vec![IoSlice::new(&[1])], &[1]),
             (vec![IoSlice::new(&[1, 2])], &[1, 2]),
             (vec![IoSlice::new(&[1, 2, 3])], &[1, 2, 3]),

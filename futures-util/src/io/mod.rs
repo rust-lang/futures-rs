@@ -10,6 +10,7 @@
 //! library is activated, and it is activated by default.
 
 #[cfg(feature = "io-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 use crate::compat::Compat;
 use std::ptr;
 
@@ -18,6 +19,7 @@ pub use futures_io::{
     IoSlice, IoSliceMut, Result, SeekFrom,
 };
 #[cfg(feature = "read-initializer")]
+#[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
 pub use futures_io::Initializer;
 
 // used by `BufReader` and `BufWriter`
@@ -69,8 +71,10 @@ mod flush;
 pub use self::flush::Flush;
 
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 mod into_sink;
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::into_sink::IntoSink;
 
 mod lines;
@@ -124,9 +128,9 @@ pub use self::write_vectored::WriteVectored;
 mod write_all;
 pub use self::write_all::WriteAll;
 
-#[cfg(feature = "write_all_vectored")]
+#[cfg(feature = "write-all-vectored")]
 mod write_all_vectored;
-#[cfg(feature = "write_all_vectored")]
+#[cfg(feature = "write-all-vectored")]
 pub use self::write_all_vectored::WriteAllVectored;
 
 /// An extension trait which adds utility methods to `AsyncRead` types.
@@ -372,6 +376,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// Requires the `io-compat` feature to enable.
     #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     fn compat(self) -> Compat<Self>
         where Self: Sized + Unpin,
     {
@@ -493,9 +498,10 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// ```
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncWriteExt;
-    /// use std::io::{Cursor, IoSlice};
+    /// use futures_util::io::Cursor;
+    /// use std::io::IoSlice;
     ///
-    /// let mut writer = Cursor::new([0u8; 7]);
+    /// let mut writer = Cursor::new(Vec::new());
     /// let bufs = &mut [
     ///     IoSlice::new(&[1]),
     ///     IoSlice::new(&[2, 3]),
@@ -503,12 +509,12 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// ];
     ///
     /// writer.write_all_vectored(bufs).await?;
-    /// // Note: the contents of `bufs` is now undefined, see the Notes section.
+    /// // Note: the contents of `bufs` is now unspecified, see the Notes section.
     ///
-    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 5, 6, 0]);
+    /// assert_eq!(writer.into_inner(), &[1, 2, 3, 4, 5, 6]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    #[cfg(feature = "write_all_vectored")]
+    #[cfg(feature = "write-all-vectored")]
     fn write_all_vectored<'a>(
         &'a mut self,
         bufs: &'a mut [IoSlice<'a>],
@@ -523,6 +529,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// used as a futures 0.1 / tokio-io 0.1 `AsyncWrite`.
     /// Requires the `io-compat` feature to enable.
     #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     fn compat_write(self) -> Compat<Self>
         where Self: Sized + Unpin,
     {
@@ -556,6 +563,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn into_sink<Item: AsRef<[u8]>>(self) -> IntoSink<Self, Item>
         where Self: Sized,
     {

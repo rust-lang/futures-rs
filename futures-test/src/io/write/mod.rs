@@ -4,6 +4,7 @@ use futures_io::AsyncWrite;
 
 pub use super::limited::Limited;
 pub use crate::interleave_pending::InterleavePending;
+pub use crate::track_closed::TrackClosed;
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
@@ -79,6 +80,45 @@ pub trait AsyncWriteTestExt: AsyncWrite {
         Self: Sized,
     {
         Limited::new(self, limit)
+    }
+
+    /// Track whether this stream has been closed and errors if it is used after closing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::io::{AsyncWriteExt, Cursor};
+    /// use futures_test::io::AsyncWriteTestExt;
+    ///
+    /// let mut writer = Cursor::new(vec![0u8; 4]).track_closed();
+    ///
+    /// writer.write_all(&[1, 2]).await?;
+    /// assert!(!writer.is_closed());
+    /// writer.close().await?;
+    /// assert!(writer.is_closed());
+    ///
+    /// # Ok::<(), std::io::Error>(()) })?;
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::io::{AsyncWriteExt, Cursor};
+    /// use futures_test::io::AsyncWriteTestExt;
+    ///
+    /// let mut writer = Cursor::new(vec![0u8; 4]).track_closed();
+    ///
+    /// writer.close().await?;
+    /// assert!(writer.write_all(&[1, 2]).await.is_err());
+    /// # Ok::<(), std::io::Error>(()) })?;
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    fn track_closed(self) -> TrackClosed<Self>
+    where
+        Self: Sized,
+    {
+        TrackClosed::new(self)
     }
 }
 
