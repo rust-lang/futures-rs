@@ -37,6 +37,7 @@ use {
 /// will unwind.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 pub struct RemoteHandle<T> {
     rx: Receiver<thread::Result<T>>,
     keep_running: Arc<AtomicBool>,
@@ -72,6 +73,7 @@ type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'stati
 /// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
 #[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 pub struct Remote<Fut: Future> {
     tx: Option<Sender<SendMsg<Fut>>>,
     keep_running: Arc<AtomicBool>,
