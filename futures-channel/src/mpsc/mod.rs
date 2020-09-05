@@ -481,6 +481,11 @@ impl<T> UnboundedSenderInner<T> {
         Arc::ptr_eq(&self.inner, &other.inner)
     }
 
+    /// Returns whether the sender send to this receiver.
+    fn is_connected_to(&self, inner: &Arc<UnboundedInner<T>>) -> bool {
+        Arc::ptr_eq(&self.inner, &inner)
+    }
+
     /// Returns pointer to the Arc containing sender
     ///
     /// The returned pointer is not referenced and should be only used for hashing!
@@ -657,6 +662,11 @@ impl<T> BoundedSenderInner<T> {
         Arc::ptr_eq(&self.inner, &other.inner)
     }
 
+    /// Returns whether the sender send to this receiver.
+    fn is_connected_to(&self, receiver: &Arc<BoundedInner<T>>) -> bool {
+        Arc::ptr_eq(&self.inner, &receiver)
+    } 
+
     /// Returns pointer to the Arc containing sender
     ///
     /// The returned pointer is not referenced and should be only used for hashing!
@@ -779,6 +789,14 @@ impl<T> Sender<T> {
         }
     }
 
+    /// Returns whether the sender send to this receiver.
+    pub fn is_connected_to(&self, receiver: &Receiver<T>) -> bool {
+        match (&self.0, &receiver.inner) {
+            (Some(inner), Some(receiver)) => inner.is_connected_to(receiver),
+            _ => false,
+        }
+    }
+
     /// Hashes the receiver into the provided hasher
     pub fn hash_receiver<H>(&self, hasher: &mut H) where H: std::hash::Hasher {
         use std::hash::Hash;
@@ -856,6 +874,14 @@ impl<T> UnboundedSender<T> {
     pub fn same_receiver(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (Some(inner), Some(other)) => inner.same_receiver(other),
+            _ => false,
+        }
+    }
+
+    /// Returns whether the sender send to this receiver.
+    pub fn is_connected_to(&self, receiver: &UnboundedReceiver<T>) -> bool {
+        match (&self.0, &receiver.inner) {
+            (Some(inner), Some(receiver)) => inner.is_connected_to(receiver),
             _ => false,
         }
     }
