@@ -124,9 +124,9 @@ pub use self::write_vectored::WriteVectored;
 mod write_all;
 pub use self::write_all::WriteAll;
 
-#[cfg(feature = "write_all_vectored")]
+#[cfg(feature = "write-all-vectored")]
 mod write_all_vectored;
-#[cfg(feature = "write_all_vectored")]
+#[cfg(feature = "write-all-vectored")]
 pub use self::write_all_vectored::WriteAllVectored;
 
 /// An extension trait which adds utility methods to `AsyncRead` types.
@@ -493,9 +493,10 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// ```
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncWriteExt;
-    /// use std::io::{Cursor, IoSlice};
+    /// use futures_util::io::Cursor;
+    /// use std::io::IoSlice;
     ///
-    /// let mut writer = Cursor::new([0u8; 7]);
+    /// let mut writer = Cursor::new(Vec::new());
     /// let bufs = &mut [
     ///     IoSlice::new(&[1]),
     ///     IoSlice::new(&[2, 3]),
@@ -503,12 +504,12 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// ];
     ///
     /// writer.write_all_vectored(bufs).await?;
-    /// // Note: the contents of `bufs` is now undefined, see the Notes section.
+    /// // Note: the contents of `bufs` is now unspecified, see the Notes section.
     ///
-    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 5, 6, 0]);
+    /// assert_eq!(writer.into_inner(), &[1, 2, 3, 4, 5, 6]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    #[cfg(feature = "write_all_vectored")]
+    #[cfg(feature = "write-all-vectored")]
     fn write_all_vectored<'a>(
         &'a mut self,
         bufs: &'a mut [IoSlice<'a>],
