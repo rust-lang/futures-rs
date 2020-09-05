@@ -45,5 +45,6 @@ pub mod sink;
 #[cfg(feature = "std")]
 pub mod io;
 
+mod assert_unmoved;
 mod interleave_pending;
 mod track_closed;
