@@ -1,7 +1,7 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::{FusedStream, task::{Context, Poll}};
 use pin_project::pin_project;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
@@ -200,6 +200,12 @@ impl<Fut: Future> FromIterator<Fut> for FuturesOrdered<Fut> {
     {
         let acc = FuturesOrdered::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
+    }
+}
+
+impl<Fut: Future> FusedStream for FuturesOrdered<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.in_progress_queue.is_terminated() && self.queued_outputs.is_empty()
     }
 }
 
