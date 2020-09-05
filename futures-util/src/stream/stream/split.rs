@@ -9,6 +9,7 @@ use crate::lock::BiLock;
 /// A `Stream` part of the split pair
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub struct SplitStream<S>(BiLock<S>);
 
 impl<S> Unpin for SplitStream<S> {}
@@ -43,6 +44,7 @@ fn SplitSink<S: Sink<Item>, Item>(lock: BiLock<S>) -> SplitSink<S, Item> {
 /// A `Sink` part of the split pair
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub struct SplitSink<S, Item> {
     lock: BiLock<S>,
     slot: Option<Item>,
@@ -119,6 +121,7 @@ pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, 
 
 /// Error indicating a `SplitSink<S>` and `SplitStream<S>` were not two halves
 /// of a `Stream + Split`, and thus could not be `reunite`d.
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub struct ReuniteError<T, Item>(pub SplitSink<T, Item>, pub SplitStream<T>);
 
 impl<T, Item> fmt::Debug for ReuniteError<T, Item> {
