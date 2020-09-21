@@ -48,7 +48,7 @@ pub use self::filter_map::FilterMap;
 mod flatten;
 
 delegate_all!(
-    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    /// Stream for the [`flatten`](StreamExt::flatten) method.
     Flatten<St>(
         flatten::Flatten<St, St::Item>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| flatten::Flatten::new(x)]
@@ -65,6 +65,7 @@ mod forward;
 #[cfg(feature = "sink")]
 delegate_all!(
     /// Future for the [`forward`](super::StreamExt::forward) method.
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     Forward<St, Si>(
         forward::Forward<St, Si, St::Ok>
     ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
@@ -177,9 +178,11 @@ cfg_target_has_atomic! {
     pub use self::for_each_concurrent::ForEachConcurrent;
 
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg(feature = "alloc")]
     mod split;
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
@@ -306,7 +309,7 @@ pub trait StreamExt: Stream {
     /// # Overflow Behavior
     ///
     /// The method does no guarding against overflows, so enumerating more than
-    /// [`usize::max_value()`] elements either produces the wrong result or panics. If
+    /// [`prim@usize::max_value()`] elements either produces the wrong result or panics. If
     /// debug assertions are enabled, a panic is guaranteed.
     ///
     /// # Panics
@@ -611,7 +614,7 @@ pub trait StreamExt: Stream {
         FlatMap::new(self, f)
     }
 
-    /// Combinator similar to [`StreamExt::fold`] that holds internal state 
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state
     /// and produces a new stream.
     ///
     /// Accepts initial state and closure which will be applied to each element
@@ -1248,6 +1251,7 @@ pub trait StreamExt: Stream {
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
     /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
         S: Sink<Self::Ok, Error = Self::Error>,
@@ -1266,6 +1270,7 @@ pub trait StreamExt: Stream {
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)

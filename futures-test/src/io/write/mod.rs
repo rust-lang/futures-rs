@@ -3,10 +3,27 @@
 use futures_io::AsyncWrite;
 
 pub use super::limited::Limited;
+pub use crate::assert_unmoved::AssertUnmoved;
 pub use crate::interleave_pending::InterleavePending;
+pub use crate::track_closed::TrackClosed;
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
+    /// Asserts that the given is not moved after being polled.
+    ///
+    /// A check for movement is performed each time the writer is polled
+    /// and when `Drop` is called.
+    ///
+    /// Aside from keeping track of the location at which the writer was first
+    /// polled and providing assertions, this writer adds no runtime behavior
+    /// and simply delegates to the child writer.
+    fn assert_unmoved_write(self) -> AssertUnmoved<Self>
+    where
+        Self: Sized,
+    {
+        AssertUnmoved::new(self)
+    }
+
     /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
     /// in between each operation on the writer.
     ///
@@ -79,6 +96,45 @@ pub trait AsyncWriteTestExt: AsyncWrite {
         Self: Sized,
     {
         Limited::new(self, limit)
+    }
+
+    /// Track whether this stream has been closed and errors if it is used after closing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::io::{AsyncWriteExt, Cursor};
+    /// use futures_test::io::AsyncWriteTestExt;
+    ///
+    /// let mut writer = Cursor::new(vec![0u8; 4]).track_closed();
+    ///
+    /// writer.write_all(&[1, 2]).await?;
+    /// assert!(!writer.is_closed());
+    /// writer.close().await?;
+    /// assert!(writer.is_closed());
+    ///
+    /// # Ok::<(), std::io::Error>(()) })?;
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::io::{AsyncWriteExt, Cursor};
+    /// use futures_test::io::AsyncWriteTestExt;
+    ///
+    /// let mut writer = Cursor::new(vec![0u8; 4]).track_closed();
+    ///
+    /// writer.close().await?;
+    /// assert!(writer.write_all(&[1, 2]).await.is_err());
+    /// # Ok::<(), std::io::Error>(()) })?;
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    fn track_closed(self) -> TrackClosed<Self>
+    where
+        Self: Sized,
+    {
+        TrackClosed::new(self)
     }
 }
 

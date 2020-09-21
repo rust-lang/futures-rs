@@ -2,10 +2,26 @@
 
 use futures_core::stream::Stream;
 
+pub use crate::assert_unmoved::AssertUnmoved;
 pub use crate::interleave_pending::InterleavePending;
 
 /// Additional combinators for testing streams.
 pub trait StreamTestExt: Stream {
+    /// Asserts that the given is not moved after being polled.
+    ///
+    /// A check for movement is performed each time the stream is polled
+    /// and when `Drop` is called.
+    ///
+    /// Aside from keeping track of the location at which the stream was first
+    /// polled and providing assertions, this stream adds no runtime behavior
+    /// and simply delegates to the child stream.
+    fn assert_unmoved(self) -> AssertUnmoved<Self>
+    where
+        Self: Sized,
+    {
+        AssertUnmoved::new(self)
+    }
+
     /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
     /// in between each item of the stream.
     ///
