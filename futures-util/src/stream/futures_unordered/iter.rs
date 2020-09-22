@@ -2,6 +2,7 @@ use super::FuturesUnordered;
 use super::task::Task;
 use core::marker::PhantomData;
 use core::pin::Pin;
+use core::sync::atomic::Ordering::Relaxed;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
@@ -20,6 +21,7 @@ pub struct IterMut<'a, Fut: Unpin> (pub(super) IterPinMut<'a, Fut>);
 pub struct IterPinRef<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
+    pub(super) pending_next_all: *mut Task<Fut>,
     pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>
 }
 
@@ -36,7 +38,12 @@ impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
         }
         unsafe {
             let future = (*(*self.task).future.get()).as_mut().unwrap();
-            let next = *(*self.task).next_all.get();
+
+            // Mutable access to a previously shared `FuturesUnordered` implies
+            // that the other threads already released the object before the
+            // current thread acquired it, so relaxed ordering can be used and
+            // valid `next_all` checks can be skipped.
+            let next = (*self.task).next_all.load(Relaxed);
             self.task = next;
             self.len -= 1;
             Some(Pin::new_unchecked(future))
@@ -73,7 +80,15 @@ impl<'a, Fut> Iterator for IterPinRef<'a, Fut> {
         }
         unsafe {
             let future = (*(*self.task).future.get()).as_ref().unwrap();
-            let next = *(*self.task).next_all.get();
+
+            // Relaxed ordering can be used since acquire ordering when
+            // `head_all` was initially read for this iterator implies acquire
+            // ordering for all previously inserted nodes (and we don't need to
+            // read `len_all` again for any other nodes).
+            let next = (*self.task).spin_next_all(
+                self.pending_next_all,
+                Relaxed,
+            );
             self.task = next;
             self.len -= 1;
             Some(Pin::new_unchecked(future))

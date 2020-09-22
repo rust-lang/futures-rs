@@ -23,7 +23,7 @@ impl<'a, R: AsyncBufRead + ?Sized + Unpin> ReadLine<'a, R> {
     pub(super) fn new(reader: &'a mut R, buf: &'a mut String) -> Self {
         Self {
             reader,
-            bytes: unsafe { mem::replace(buf.as_mut_vec(), Vec::new()) },
+            bytes: mem::replace(buf, String::new()).into_bytes(),
             buf,
             read: 0,
         }

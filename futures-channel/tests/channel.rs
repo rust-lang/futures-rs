@@ -16,7 +16,7 @@ fn sequence() {
     });
     let list: Vec<_> = block_on(rx.collect());
     let mut list = list.into_iter();
-    for i in (1..amt + 1).rev() {
+    for i in (1..=amt).rev() {
         assert_eq!(list.next(), Some(i));
     }
     assert_eq!(list.next(), None);

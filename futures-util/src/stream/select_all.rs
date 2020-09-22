@@ -131,3 +131,11 @@ impl<St: Stream + Unpin> FromIterator<St> for SelectAll<St> {
         select_all(iter)
     }
 }
+
+impl<St: Stream + Unpin> Extend<St> for SelectAll<St> {
+    fn extend<T: IntoIterator<Item = St>>(&mut self, iter: T) {
+        for st in iter {
+            self.push(st)
+        }
+    }
+}

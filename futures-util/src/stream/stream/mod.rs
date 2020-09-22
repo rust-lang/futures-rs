@@ -19,6 +19,8 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
+use crate::fns::{InspectFn, inspect_fn};
+
 mod chain;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chain::Chain;
@@ -44,8 +46,14 @@ mod filter_map;
 pub use self::filter_map::FilterMap;
 
 mod flatten;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::flatten::Flatten;
+
+delegate_all!(
+    /// Stream for the [`flatten`](StreamExt::flatten) method.
+    Flatten<St>(
+        flatten::Flatten<St, St::Item>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| flatten::Flatten::new(x)]
+    where St: Stream
+);
 
 mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -53,9 +61,16 @@ pub use self::fold::Fold;
 
 #[cfg(feature = "sink")]
 mod forward;
+
 #[cfg(feature = "sink")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::forward::Forward;
+delegate_all!(
+    /// Future for the [`forward`](super::StreamExt::forward) method.
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    Forward<St, Si>(
+        forward::Forward<St, Si, St::Ok>
+    ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
+    where St: TryStream
+);
 
 mod for_each;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -69,14 +84,23 @@ mod into_future;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::StreamFuture;
 
-mod inspect;
-pub(crate) use self::inspect::inspect; // used by `TryStreamExt::{inspect_ok, inspect_err}`
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect::Inspect;
+delegate_all!(
+    /// Stream for the [`inspect`](StreamExt::inspect) method.
+    Inspect<St, F>(
+        map::Map<St, InspectFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, f: F| map::Map::new(x, inspect_fn(f))]
+);
 
 mod map;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map::Map;
+
+delegate_all!(
+    /// Stream for the [`flat_map`](StreamExt::flat_map) method.
+    FlatMap<St, U, F>(
+        flatten::Flatten<Map<St, F>, U>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| flatten::Flatten::new(Map::new(x, f))]
+);
 
 mod next;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -88,7 +112,7 @@ pub use self::select_next_some::SelectNextSome;
 
 mod peek;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::peek::Peekable;
+pub use self::peek::{Peek, Peekable};
 
 mod skip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -106,6 +130,10 @@ mod take_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::take_while::TakeWhile;
 
+mod take_until;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::take_until::TakeUntil;
+
 mod then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::then::Then;
@@ -119,6 +147,16 @@ mod chunks;
 #[cfg(feature = "alloc")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chunks::Chunks;
+
+#[cfg(feature = "alloc")]
+mod ready_chunks;
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::ready_chunks::ReadyChunks;
+
+mod scan;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::scan::Scan;
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
@@ -140,9 +178,11 @@ cfg_target_has_atomic! {
     pub use self::for_each_concurrent::ForEachConcurrent;
 
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg(feature = "alloc")]
     mod split;
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
@@ -270,7 +310,7 @@ pub trait StreamExt: Stream {
     /// # Overflow Behavior
     ///
     /// The method does no guarding against overflows, so enumerating more than
-    /// [`usize::max_value()`] elements either produces the wrong result or panics. If
+    /// [`prim@usize::max_value()`] elements either produces the wrong result or panics. If
     /// debug assertions are enabled, a panic is guaranteed.
     ///
     /// # Panics
@@ -541,12 +581,79 @@ pub trait StreamExt: Stream {
         assert_stream::<<Self::Item as Stream>::Item, _>(Flatten::new(self))
     }
 
+    /// Maps a stream like [`StreamExt::map`] but flattens nested `Stream`s.
+    ///
+    /// [`StreamExt::map`] is very useful, but if it produces a `Stream` instead,
+    /// you would have to chain combinators like `.map(f).flatten()` while this
+    /// combinator provides ability to write `.flat_map(f)` instead of chaining.
+    ///
+    /// The provided closure which produce inner streams is executed over all elements
+    /// of stream as last inner stream is terminated and next stream item is available.
+    ///
+    /// Note that this function consumes the stream passed into it and returns a
+    /// wrapped version of it, similar to the existing `flat_map` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let stream = stream.flat_map(|x| stream::iter(vec![x + 3; x]));
+    ///
+    /// assert_eq!(vec![4, 5, 5, 6, 6, 6], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn flat_map<U, F>(self, f: F) -> FlatMap<Self, U, F>
+    where
+        F: FnMut(Self::Item) -> U,
+        U: Stream,
+        Self: Sized,
+    {
+        FlatMap::new(self, f)
+    }
+
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state
+    /// and produces a new stream.
+    ///
+    /// Accepts initial state and closure which will be applied to each element
+    /// of the stream until provided closure returns `None`. Once `None` is
+    /// returned, stream will be terminated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.scan(0, |state, x| {
+    ///     *state += x;
+    ///     future::ready(if *state < 10 { Some(x) } else { None })
+    /// });
+    ///
+    /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn scan<S, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
+    where
+        F: FnMut(&mut S, Self::Item) -> Fut,
+        Fut: Future<Output = Option<B>>,
+        Self: Sized,
+    {
+        Scan::new(self, initial_state, f)
+    }
+
     /// Skip elements on this stream while the provided asynchronous predicate
     /// resolves to `true`.
     ///
     /// This function, like `Iterator::skip_while`, will skip elements on the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false all future elements will be returned from the underlying
+    /// returns `false`, all future elements will be returned from the underlying
     /// stream.
     ///
     /// # Examples
@@ -577,7 +684,7 @@ pub trait StreamExt: Stream {
     ///
     /// This function, like `Iterator::take_while`, will take elements from the
     /// stream until the predicate `f` resolves to `false`. Once one element
-    /// returns false it will always return that the stream is done.
+    /// returns `false`, it will always return that the stream is done.
     ///
     /// # Examples
     ///
@@ -600,6 +707,50 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_stream::<Self::Item, _>(TakeWhile::new(self, f))
+    }
+
+    /// Take elements from this stream until the provided future resolves.
+    ///
+    /// This function will take elements from the stream until the provided
+    /// stopping future `fut` resolves. Once the `fut` future becomes ready,
+    /// this stream combinator will always return that the stream is done.
+    ///
+    /// The stopping future may return any type. Once the stream is stopped
+    /// the result of the stopping future may be aceessed with `TakeUntil::take_result()`.
+    /// The stream may also be resumed with `TakeUntil::take_future()`.
+    /// See the documentation of [`TakeUntil`] for more information.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let mut i = 0;
+    /// let stop_fut = future::poll_fn(|_cx| {
+    ///     i += 1;
+    ///     if i <= 5 {
+    ///         Poll::Pending
+    ///     } else {
+    ///         Poll::Ready(())
+    ///     }
+    /// });
+    ///
+    /// let stream = stream.take_until(stop_fut);
+    ///
+    /// assert_eq!(vec![1, 2, 3, 4, 5], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn take_until<Fut>(self, fut: Fut) -> TakeUntil<Self, Fut>
+    where
+        Fut: Future,
+        Self: Sized,
+    {
+        TakeUntil::new(self, fut)
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
@@ -1064,6 +1215,32 @@ pub trait StreamExt: Stream {
         assert_stream::<alloc::vec::Vec<Self::Item>, _>(Chunks::new(self, capacity))
     }
 
+    /// An adaptor for chunking up ready items of the stream inside a vector.
+    ///
+    /// This combinator will attempt to pull ready items from this stream and
+    /// buffer them into a local vector. At most `capacity` items will get
+    /// buffered before they're yielded from the returned stream. If underlying
+    /// stream returns `Poll::Pending`, and collected chunk is not empty, it will
+    /// be immediately returned.
+    ///
+    /// If the underlying stream ended and only a partial vector was created,
+    /// it'll be returned. Additionally if an error happens from the underlying
+    /// stream then the currently buffered items will be yielded.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `capacity` is zero.
+    #[cfg(feature = "alloc")]
+    fn ready_chunks(self, capacity: usize) -> ReadyChunks<Self>
+        where
+            Self: Sized,
+    {
+        ReadyChunks::new(self, capacity)
+    }
+
     /// A future that completes after the given stream has been fully processed
     /// into the sink and the sink has been flushed and closed.
     ///
@@ -1075,15 +1252,16 @@ pub trait StreamExt: Stream {
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
     /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink<<Self as TryStream>::Ok>,
-        Self: TryStream<Error = S::Error> + Sized,
+        S: Sink<Self::Ok, Error = Self::Error>,
+        Self: TryStream + Sized,
     {
         Forward::new(self, sink)
     }
 
-    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
+    /// Splits this `Stream + Sink` object into separate `Sink` and `Stream`
     /// objects.
     ///
     /// This can be useful when you want to split ownership between tasks, or
@@ -1093,6 +1271,7 @@ pub trait StreamExt: Stream {
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)

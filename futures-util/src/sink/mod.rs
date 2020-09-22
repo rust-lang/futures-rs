@@ -6,8 +6,10 @@
 //! This module is only available when the `sink` feature of this
 //! library is activated, and it is activated by default.
 
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{Stream, TryStream};
+use futures_core::task::{Context, Poll};
 use crate::future::Either;
 
 #[cfg(feature = "compat")]
@@ -186,7 +188,7 @@ pub trait SinkExt<Item>: Sink<Item> {
         Fanout::new(self, other)
     }
 
-    /// Flush the sync, processing all pending items.
+    /// Flush the sink, processing all pending items.
     ///
     /// This adapter is intended to be used when you want to stop sending to the sink
     /// until all current requests are processed.
@@ -256,9 +258,42 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// Wraps a [`Sink`] into a sink compatible with libraries using
     /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
     fn compat(self) -> CompatSink<Self, Item>
         where Self: Sized + Unpin,
     {
         CompatSink::new(self)
+    }
+    
+    /// A convenience method for calling [`Sink::poll_ready`] on [`Unpin`]
+    /// sink types.
+    fn poll_ready_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>
+        where Self: Unpin
+    {
+        Pin::new(self).poll_ready(cx)
+    }
+
+    /// A convenience method for calling [`Sink::start_send`] on [`Unpin`]
+    /// sink types.
+    fn start_send_unpin(&mut self, item: Item) -> Result<(), Self::Error>
+        where Self: Unpin
+    {
+        Pin::new(self).start_send(item)
+    }
+
+    /// A convenience method for calling [`Sink::poll_flush`] on [`Unpin`]
+    /// sink types.
+    fn poll_flush_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>
+        where Self: Unpin
+    {
+        Pin::new(self).poll_flush(cx)
+    }
+
+    /// A convenience method for calling [`Sink::poll_close`] on [`Unpin`]
+    /// sink types.
+    fn poll_close_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>
+        where Self: Unpin
+    {
+        Pin::new(self).poll_close(cx)
     }
 }

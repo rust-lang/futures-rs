@@ -1,12 +1,11 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, Future, FutureExt, TryFutureExt};
-use futures::stream::{StreamExt, FuturesOrdered};
-use futures_test::task::noop_context;
-use std::any::Any;
-
+#[cfg(all(feature = "alloc", feature="executor"))]
 #[test]
 fn works_1() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on_stream;
+    use futures::stream::{StreamExt, FuturesOrdered};
+    use futures_test::task::noop_context;
+
     let (a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -26,8 +25,14 @@ fn works_1() {
     assert_eq!(None, iter.next());
 }
 
+#[cfg(feature = "alloc")]
 #[test]
 fn works_2() {
+    use futures::channel::oneshot;
+    use futures::future::{join, FutureExt};
+    use futures::stream::{StreamExt, FuturesOrdered};
+    use futures_test::task::noop_context;
+
     let (a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -46,8 +51,13 @@ fn works_2() {
     assert!(stream.poll_next_unpin(&mut cx).is_ready());
 }
 
+#[cfg(feature = "executor")]
 #[test]
 fn from_iterator() {
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::stream::{StreamExt, FuturesOrdered};
+
     let stream = vec![
         future::ready::<i32>(1),
         future::ready::<i32>(2),
@@ -57,8 +67,15 @@ fn from_iterator() {
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
 }
 
+#[cfg(feature = "alloc")]
 #[test]
 fn queue_never_unblocked() {
+    use futures::channel::oneshot;
+    use futures::future::{self, Future, TryFutureExt};
+    use futures::stream::{StreamExt, FuturesOrdered};
+    use futures_test::task::noop_context;
+    use std::any::Any;
+
     let (_a_tx, a_rx) = oneshot::channel::<Box<dyn Any + Send>>();
     let (b_tx, b_rx) = oneshot::channel::<Box<dyn Any + Send>>();
     let (c_tx, c_rx) = oneshot::channel::<Box<dyn Any + Send>>();

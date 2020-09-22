@@ -48,10 +48,10 @@ fn unbounded_100_tx(b: &mut Bencher) {
 
         // 1000 send/recv operations total, result should be divided by 1000
         for _ in 0..10 {
-            for i in 0..tx.len() {
+            for (i, x) in tx.iter().enumerate() {
                 assert_eq!(Poll::Pending, rx.poll_next_unpin(&mut cx));
 
-                UnboundedSender::unbounded_send(&tx[i], i).unwrap();
+                UnboundedSender::unbounded_send(x, i).unwrap();
 
                 assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(&mut cx));
             }
@@ -131,11 +131,11 @@ fn bounded_100_tx(b: &mut Bencher) {
         }).collect();
 
         for i in 0..10 {
-            for j in 0..tx.len() {
+            for x in &mut tx {
                 // Send an item
-                assert_eq!(Poll::Ready(Some(i + 1)), tx[j].poll_next_unpin(&mut cx));
+                assert_eq!(Poll::Ready(Some(i + 1)), x.poll_next_unpin(&mut cx));
                 // Then block
-                assert_eq!(Poll::Pending, tx[j].poll_next_unpin(&mut cx));
+                assert_eq!(Poll::Pending, x.poll_next_unpin(&mut cx));
                 // Recv the item
                 assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(&mut cx));
             }

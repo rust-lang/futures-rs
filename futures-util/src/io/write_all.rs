@@ -33,7 +33,7 @@ impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAll<'_, W> {
                 this.buf = rest;
             }
             if n == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
         }
 

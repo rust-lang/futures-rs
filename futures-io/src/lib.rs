@@ -17,9 +17,16 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
+// mem::take requires Rust 1.40, matches! requires Rust 1.42
+// Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
+// get's implemented.
+#![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
+
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-io/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures-io/0.3.5")]
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "read-initializer", not(feature = "unstable")))]
 compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -44,6 +51,7 @@ mod if_std {
     };
 
     #[cfg(feature = "read-initializer")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use io::Initializer as Initializer;
 
@@ -61,12 +69,16 @@ mod if_std {
         /// The default implementation returns an initializer which will zero
         /// buffers.
         ///
+        /// This method is only available when the `read-initializer` feature of this
+        /// library is activated.
+        ///
         /// # Safety
         ///
-        /// This method is `unsafe` because and `AsyncRead`er could otherwise
+        /// This method is `unsafe` because an `AsyncRead`er could otherwise
         /// return a non-zeroing `Initializer` from another `AsyncRead` type
         /// without an `unsafe` block.
         #[cfg(feature = "read-initializer")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
         #[inline]
         unsafe fn initializer(&self) -> Initializer {
             Initializer::zeroing()
@@ -130,7 +142,7 @@ mod if_std {
     /// This trait is analogous to the `std::io::Write` trait, but integrates
     /// with the asynchronous task system. In particular, the `poll_write`
     /// method, unlike `Write::write`, will automatically queue the current task
-    /// for wakeup and return if data is not yet available, rather than blocking
+    /// for wakeup and return if the writer cannot take more data, rather than blocking
     /// the calling thread.
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
@@ -148,6 +160,9 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        ///
+        /// `poll_write` must try to make progress by flushing the underlying object if
+        /// that is the only way the underlying object can become writable again.
         fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>;
 
@@ -202,6 +217,8 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        ///
+        /// It only makes sense to do anything here if you actually buffer data.
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>>;
 
         /// Attempt to close the object.

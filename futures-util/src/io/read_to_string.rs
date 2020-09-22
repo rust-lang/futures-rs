@@ -23,7 +23,7 @@ impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToString<'a, R> {
         let start_len = buf.len();
         Self {
             reader,
-            bytes: unsafe { mem::replace(buf.as_mut_vec(), Vec::new()) },
+            bytes: mem::replace(buf, String::new()).into_bytes(),
             buf,
             start_len,
         }

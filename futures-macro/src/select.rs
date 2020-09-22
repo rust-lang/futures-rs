@@ -3,16 +3,14 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
-use syn::{parenthesized, parse_quote, Expr, Ident, Pat, Token};
+use syn::{parse_quote, Expr, Ident, Pat, Token};
 use syn::parse::{Parse, ParseStream};
 
 mod kw {
     syn::custom_keyword!(complete);
-    syn::custom_keyword!(futures_crate_path);
 }
 
 struct Select {
-    futures_crate_path: Option<syn::Path>,
     // span of `complete`, then expression after `=> ...`
     complete: Option<Expr>,
     default: Option<Expr>,
@@ -30,22 +28,11 @@ enum CaseKind {
 impl Parse for Select {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut select = Select {
-            futures_crate_path: None,
             complete: None,
             default: None,
             normal_fut_exprs: vec![],
             normal_fut_handlers: vec![],
         };
-
-        // When `futures_crate_path(::path::to::futures::lib)` is provided,
-        // it sets the path through which futures library functions will be
-        // accessed.
-        if input.peek(kw::futures_crate_path) {
-            input.parse::<kw::futures_crate_path>()?;
-            let content;
-            parenthesized!(content in input);
-            select.futures_crate_path = Some(content.parse()?);
-        }
 
         while !input.is_empty() {
             let case_kind = if input.peek(kw::complete) {
@@ -147,8 +134,6 @@ pub(crate) fn select_biased(input: TokenStream) -> TokenStream {
 fn select_inner(input: TokenStream, random: bool) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Select);
 
-    let futures_crate: syn::Path = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
-
     // should be def_site, but that's unstable
     let span = Span::call_site();
 
@@ -175,8 +160,8 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                     // We check for this condition here in order to be able to
                     // safely use Pin::new_unchecked(&mut #path) later on.
                     future_let_bindings.push(quote! {
-                        #futures_crate::async_await::assert_fused_future(&#path);
-                        #futures_crate::async_await::assert_unpin(&#path);
+                        __futures_crate::async_await::assert_fused_future(&#path);
+                        __futures_crate::async_await::assert_unpin(&#path);
                     });
                     path
                 },
@@ -214,28 +199,28 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
             // 2. The Future is created in scope of the select! function and will
             //    not be moved for the duration of it. It is thereby stack-pinned
             quote! {
-                let mut #variant_name = |__cx: &mut #futures_crate::task::Context<'_>| {
+                let mut #variant_name = |__cx: &mut __futures_crate::task::Context<'_>| {
                     let mut #bound_future_name = unsafe {
                         ::core::pin::Pin::new_unchecked(&mut #bound_future_name)
                     };
-                    if #futures_crate::future::FusedFuture::is_terminated(&#bound_future_name) {
+                    if __futures_crate::future::FusedFuture::is_terminated(&#bound_future_name) {
                         None
                     } else {
-                        Some(#futures_crate::future::FutureExt::poll_unpin(
+                        Some(__futures_crate::future::FutureExt::poll_unpin(
                             &mut #bound_future_name,
                             __cx,
                         ).map(#enum_ident::#variant_name))
                     }
                 };
                 let #variant_name: &mut dyn FnMut(
-                    &mut #futures_crate::task::Context<'_>
-                ) -> Option<#futures_crate::task::Poll<_>> = &mut #variant_name;
+                    &mut __futures_crate::task::Context<'_>
+                ) -> Option<__futures_crate::task::Poll<_>> = &mut #variant_name;
             }
         });
 
     let none_polled = if parsed.complete.is_some() {
         quote! {
-            #futures_crate::task::Poll::Ready(#enum_ident::Complete)
+            __futures_crate::task::Poll::Ready(#enum_ident::Complete)
         }
     } else {
         quote! {
@@ -267,13 +252,13 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
     let await_select_fut = if parsed.default.is_some() {
         // For select! with default this returns the Poll result
         quote! {
-            __poll_fn(&mut #futures_crate::task::Context::from_waker(
-                #futures_crate::task::noop_waker_ref()
+            __poll_fn(&mut __futures_crate::task::Context::from_waker(
+                __futures_crate::task::noop_waker_ref()
             ))
         }
     } else {
         quote! {
-            #futures_crate::future::poll_fn(__poll_fn).await
+            __futures_crate::future::poll_fn(__poll_fn).await
         }
     };
 
@@ -281,7 +266,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
         // For select! with default __select_result is a Poll, otherwise not
         quote! {
             match __select_result {
-                #futures_crate::task::Poll::Ready(result) => match result {
+                __futures_crate::task::Poll::Ready(result) => match result {
                     #branches
                 },
                 _ => #default_expr
@@ -297,7 +282,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
 
     let shuffle = if random {
         quote! {
-            #futures_crate::async_await::shuffle(&mut __select_arr);
+            __futures_crate::async_await::shuffle(&mut __select_arr);
         }
     } else {
         quote!()
@@ -309,7 +294,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
         let __select_result = {
             #( #future_let_bindings )*
 
-            let mut __poll_fn = |__cx: &mut #futures_crate::task::Context<'_>| {
+            let mut __poll_fn = |__cx: &mut __futures_crate::task::Context<'_>| {
                 let mut __any_polled = false;
 
                 #( #poll_functions )*
@@ -318,12 +303,12 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                 #shuffle
                 for poller in &mut __select_arr {
                     let poller: &mut &mut dyn FnMut(
-                        &mut #futures_crate::task::Context<'_>
-                    ) -> Option<#futures_crate::task::Poll<_>> = poller;
+                        &mut __futures_crate::task::Context<'_>
+                    ) -> Option<__futures_crate::task::Poll<_>> = poller;
                     match poller(__cx) {
-                        Some(x @ #futures_crate::task::Poll::Ready(_)) =>
+                        Some(x @ __futures_crate::task::Poll::Ready(_)) =>
                             return x,
-                        Some(#futures_crate::task::Poll::Pending) => {
+                        Some(__futures_crate::task::Poll::Pending) => {
                             __any_polled = true;
                         }
                         None => {}
@@ -333,7 +318,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                 if !__any_polled {
                     #none_polled
                 } else {
-                    #futures_crate::task::Poll::Pending
+                    __futures_crate::task::Poll::Pending
                 }
             };
 

@@ -7,6 +7,14 @@ use futures_core::task::{Context, Poll};
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Ready<T>(Option<T>);
 
+impl<T> Ready<T> {
+    /// Unwraps the value from this immediately ready future.
+    #[inline]
+    pub fn into_inner(mut self) -> T {
+        self.0.take().unwrap()
+    }
+}
+
 impl<T> Unpin for Ready<T> {}
 
 impl<T> FusedFuture for Ready<T> {
@@ -20,11 +28,11 @@ impl<T> Future for Ready<T> {
 
     #[inline]
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<T> {
-        Poll::Ready(self.0.take().unwrap())
+        Poll::Ready(self.0.take().expect("Ready polled after completion"))
     }
 }
 
-/// Create a future that is immediately ready with a value.
+/// Creates a future that is immediately ready with a value.
 ///
 /// # Examples
 ///

@@ -1,11 +1,10 @@
-use futures::channel::oneshot;
-use futures::executor::block_on;
-use futures::future::{abortable, Aborted, FutureExt};
-use futures::task::{Context, Poll};
-use futures_test::task::new_count_waker;
-
+#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_works() {
+    use futures::channel::oneshot;
+    use futures::future::{abortable, Aborted};
+    use futures::executor::block_on;
+
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (abortable_rx, abort_handle) = abortable(a_rx);
 
@@ -13,8 +12,14 @@ fn abortable_works() {
     assert_eq!(Err(Aborted), block_on(abortable_rx));
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_awakens() {
+    use futures::channel::oneshot;
+    use futures::future::{abortable, Aborted, FutureExt};
+    use futures::task::{Context, Poll};
+    use futures_test::task::new_count_waker;
+
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
@@ -28,8 +33,12 @@ fn abortable_awakens() {
     assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(&mut cx));
 }
 
+#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_resolves() {
+    use futures::channel::oneshot;
+    use futures::future::abortable;
+    use futures::executor::block_on;
     let (tx, a_rx) = oneshot::channel::<()>();
     let (abortable_rx, _abort_handle) = abortable(a_rx);
 

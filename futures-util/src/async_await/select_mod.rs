@@ -2,10 +2,9 @@
 
 use proc_macro_hack::proc_macro_hack;
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! document_select_macro {
-    ($select:item $select_biased:item) => {
+    // This branch is required for `futures 0.3.1`, from before select_biased was introduced
+    ($select:item) => {
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. If multiple futures are ready,
         /// one will be pseudo-randomly selected at runtime. Futures directly
@@ -85,7 +84,7 @@ macro_rules! document_select_macro {
         ///     a_res = async_identity_fn(62).fuse() => a_res + 1,
         ///     b_res = async_identity_fn(13).fuse() => b_res,
         /// };
-        /// assert!(res == 63 || res == 12);
+        /// assert!(res == 63 || res == 13);
         /// # });
         /// ```
         ///
@@ -154,6 +153,10 @@ macro_rules! document_select_macro {
         /// more complex behavior such as timer resets or writing into the head of
         /// a stream.
         $select
+    };
+
+    ($select:item $select_biased:item) => {
+        document_select_macro!($select);
 
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. Unlike [`select!`], if multiple futures are ready,
@@ -302,13 +305,37 @@ macro_rules! document_select_macro {
         ///
         /// [`select!`]: macro.select.html
         $select_biased
-    }
+    };
 }
 
-document_select_macro! {
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::select;
+#[cfg(feature = "std")]
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::select_internal;
 
-    #[proc_macro_hack(support_nested)]
-    pub use futures_macro::select_biased;
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use futures_macro::select_biased_internal;
+
+document_select_macro! {
+    #[cfg(feature = "std")]
+    #[macro_export]
+    macro_rules! select {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::select_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
+
+    #[macro_export]
+    macro_rules! select_biased {
+        ($($tokens:tt)*) => {{
+            use $crate::__reexport as __futures_crate;
+            $crate::select_biased_internal! {
+                $( $tokens )*
+            }
+        }}
+    }
 }

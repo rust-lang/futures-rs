@@ -24,6 +24,7 @@ use std::thread;
 ///
 /// This type is only available when the `thread-pool` feature of this
 /// library is activated.
+#[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 pub struct ThreadPool {
     state: Arc<PoolState>,
 }
@@ -32,6 +33,7 @@ pub struct ThreadPool {
 ///
 /// This type is only available when the `thread-pool` feature of this
 /// library is activated.
+#[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 pub struct ThreadPoolBuilder {
     pool_size: usize,
     stack_size: usize,
@@ -210,7 +212,7 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Set stack size of threads in the pool.
+    /// Set stack size of threads in the pool, in bytes.
     ///
     /// By default, worker threads use Rust's standard stack size.
     pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {

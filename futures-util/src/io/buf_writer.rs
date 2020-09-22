@@ -1,6 +1,6 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
+use pin_project::pin_project;
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
@@ -27,16 +27,15 @@ use super::DEFAULT_BUF_SIZE;
 /// [`flush`]: super::AsyncWriteExt::flush
 ///
 // TODO: Examples
+#[pin_project]
 pub struct BufWriter<W> {
+    #[pin]
     inner: W,
     buf: Vec<u8>,
     written: usize,
 }
 
 impl<W: AsyncWrite> BufWriter<W> {
-    unsafe_pinned!(inner: W);
-    unsafe_unpinned!(buf: Vec<u8>);
-
     /// Creates a new `BufWriter` with a default buffer capacity. The default is currently 8 KB,
     /// but may change in the future.
     pub fn new(inner: W) -> Self {
@@ -53,13 +52,12 @@ impl<W: AsyncWrite> BufWriter<W> {
     }
 
     fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let Self { inner, buf, written } = unsafe { self.get_unchecked_mut() };
-        let mut inner = unsafe { Pin::new_unchecked(inner) };
+        let mut this = self.project();
 
-        let len = buf.len();
+        let len = this.buf.len();
         let mut ret = Ok(());
-        while *written < len {
-            match ready!(inner.as_mut().poll_write(cx, &buf[*written..])) {
+        while *this.written < len {
+            match ready!(this.inner.as_mut().poll_write(cx, &this.buf[*this.written..])) {
                 Ok(0) => {
                     ret = Err(io::Error::new(
                         io::ErrorKind::WriteZero,
@@ -67,45 +65,21 @@ impl<W: AsyncWrite> BufWriter<W> {
                     ));
                     break;
                 }
-                Ok(n) => *written += n,
+                Ok(n) => *this.written += n,
                 Err(e) => {
                     ret = Err(e);
                     break;
                 }
             }
         }
-        if *written > 0 {
-            buf.drain(..*written);
+        if *this.written > 0 {
+            this.buf.drain(..*this.written);
         }
-        *written = 0;
+        *this.written = 0;
         Poll::Ready(ret)
     }
 
-    /// Gets a reference to the underlying writer.
-    pub fn get_ref(&self) -> &W {
-        &self.inner
-    }
-
-    /// Gets a mutable reference to the underlying writer.
-    ///
-    /// It is inadvisable to directly write to the underlying writer.
-    pub fn get_mut(&mut self) -> &mut W {
-        &mut self.inner
-    }
-
-    /// Gets a pinned mutable reference to the underlying writer.
-    ///
-    /// It is inadvisable to directly write to the underlying writer.
-    pub fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut W> {
-        self.inner()
-    }
-
-    /// Consumes this `BufWriter`, returning the underlying writer.
-    ///
-    /// Note that any leftover data in the internal buffer is lost.
-    pub fn into_inner(self) -> W {
-        self.inner
-    }
+    delegate_access_inner!(inner, W, ());
 
     /// Returns a reference to the internally buffered data.
     pub fn buffer(&self) -> &[u8] {
@@ -123,9 +97,9 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
             ready!(self.as_mut().flush_buf(cx))?;
         }
         if buf.len() >= self.buf.capacity() {
-            self.inner().poll_write(cx, buf)
+            self.project().inner.poll_write(cx, buf)
         } else {
-            Poll::Ready(self.buf().write(buf))
+            Poll::Ready(self.project().buf.write(buf))
         }
     }
 
@@ -139,21 +113,29 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
             ready!(self.as_mut().flush_buf(cx))?;
         }
         if total_len >= self.buf.capacity() {
-            self.inner().poll_write_vectored(cx, bufs)
+            self.project().inner.poll_write_vectored(cx, bufs)
         } else {
-            Poll::Ready(self.buf().write_vectored(bufs))
+            Poll::Ready(self.project().buf.write_vectored(bufs))
         }
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         ready!(self.as_mut().flush_buf(cx))?;
-        self.inner().poll_flush(cx)
+        self.project().inner.poll_flush(cx)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         ready!(self.as_mut().flush_buf(cx))?;
-        self.inner().poll_close(cx)
+        self.project().inner.poll_close(cx)
     }
+}
+
+impl<W: AsyncRead> AsyncRead for BufWriter<W> {
+    delegate_async_read!(inner);
+}
+
+impl<W: AsyncBufRead> AsyncBufRead for BufWriter<W> {
+    delegate_async_buf_read!(inner);
 }
 
 impl<W: fmt::Debug> fmt::Debug for BufWriter<W> {
@@ -176,6 +158,6 @@ impl<W: AsyncWrite + AsyncSeek> AsyncSeek for BufWriter<W> {
         pos: SeekFrom,
     ) -> Poll<io::Result<u64>> {
         ready!(self.as_mut().flush_buf(cx))?;
-        self.inner().poll_seek(cx, pos)
+        self.project().inner.poll_seek(cx, pos)
     }
 }

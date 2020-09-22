@@ -11,34 +11,53 @@ use futures_core::{
     stream::TryStream,
     task::{Context, Poll},
 };
+use crate::fns::{
+    InspectOkFn, inspect_ok_fn, InspectErrFn, inspect_err_fn, MapErrFn, map_err_fn, IntoFn, into_fn, MapOkFn, map_ok_fn,
+};
+use crate::stream::{Map, Inspect};
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::and_then::AndThen;
 
-mod err_into;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::err_into::ErrInto;
+delegate_all!(
+    /// Stream for the [`err_into`](super::TryStreamExt::err_into) method.
+    ErrInto<St, E>(
+        MapErr<St, IntoFn<E>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| MapErr::new(x, into_fn())]
+);
 
-mod inspect_ok;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect_ok::InspectOk;
+delegate_all!(
+    /// Stream for the [`inspect_ok`](super::TryStreamExt::inspect_ok) method.
+    InspectOk<St, F>(
+        Inspect<IntoStream<St>, InspectOkFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_ok_fn(f))]
+);
 
-mod inspect_err;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::inspect_err::InspectErr;
+delegate_all!(
+    /// Stream for the [`inspect_err`](super::TryStreamExt::inspect_err) method.
+    InspectErr<St, F>(
+        Inspect<IntoStream<St>, InspectErrFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_err_fn(f))]
+);
 
 mod into_stream;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_stream::IntoStream;
 
-mod map_ok;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::map_ok::MapOk;
+delegate_all!(
+    /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) method.
+    MapOk<St, F>(
+        Map<IntoStream<St>, MapOkFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_ok_fn(f))]
+);
 
-mod map_err;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::map_err::MapErr;
+delegate_all!(
+    /// Stream for the [`map_err`](super::TryStreamExt::map_err) method.
+    MapErr<St, F>(
+        Map<IntoStream<St>, MapErrFn<F>>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Map::new(IntoStream::new(x), map_err_fn(f))]
+);
 
 mod or_else;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -84,6 +103,10 @@ mod try_skip_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_skip_while::TrySkipWhile;
 
+mod try_take_while;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_take_while::TryTakeWhile;
+
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod try_buffer_unordered;
@@ -102,6 +125,7 @@ cfg_target_has_atomic! {
 #[cfg(feature = "std")]
 mod into_async_read;
 #[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
@@ -387,8 +411,9 @@ pub trait TryStreamExt: TryStream {
     /// Skip elements on this stream while the provided asynchronous predicate
     /// resolves to `true`.
     ///
-    /// This function is similar to [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while)
-    /// but exits early if an error occurs.
+    /// This function is similar to
+    /// [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while) but exits
+    /// early if an error occurs.
     ///
     /// # Examples
     ///
@@ -411,6 +436,36 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_stream::<Result<Self::Ok, Self::Error>, _>(TrySkipWhile::new(self, f))
+    }
+
+    /// Take elements on this stream while the provided asynchronous predicate
+    /// resolves to `true`.
+    ///
+    /// This function is similar to
+    /// [`StreamExt::take_while`](crate::stream::StreamExt::take_while) but exits
+    /// early if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(2)]);
+    /// let stream = stream.try_take_while(|x| future::ready(Ok(*x < 3)));
+    ///
+    /// let output: Result<Vec<i32>, i32> = stream.try_collect().await;
+    /// assert_eq!(output, Ok(vec![1, 2]));
+    /// # })
+    /// ```
+    fn try_take_while<Fut, F>(self, f: F) -> TryTakeWhile<Self, Fut, F>
+    where
+        F: FnMut(&Self::Ok) -> Fut,
+        Fut: TryFuture<Ok = bool, Error = Self::Error>,
+        Self: Sized,
+    {
+        TryTakeWhile::new(self, f)
     }
 
     /// Attempts to run this stream to completion, executing the provided asynchronous
@@ -821,6 +876,7 @@ pub trait TryStreamExt: TryStream {
     /// # assert_eq!(42, futures::executor::block_on(rx).unwrap());
     /// ```
     #[cfg(feature = "compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
     fn compat(self) -> Compat<Self>
     where
         Self: Sized + Unpin,
@@ -854,6 +910,7 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     #[cfg(feature = "io")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
     #[cfg(feature = "std")]
     fn into_async_read(self) -> IntoAsyncRead<Self>
     where

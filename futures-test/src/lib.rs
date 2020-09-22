@@ -5,9 +5,14 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
+// mem::take requires Rust 1.40, matches! requires Rust 1.42
+// Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
+// get's implemented.
+#![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
+
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-test/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures-test/0.3.5")]
 
 #[cfg(not(feature = "std"))]
 compile_error!("`futures-test` must have the `std` feature activated, this is a default-active feature");
@@ -35,6 +40,11 @@ pub mod future;
 pub mod stream;
 
 #[cfg(feature = "std")]
+pub mod sink;
+
+#[cfg(feature = "std")]
 pub mod io;
 
+mod assert_unmoved;
 mod interleave_pending;
+mod track_closed;

@@ -10,17 +10,20 @@ pub use futures_core::future::{FusedFuture, Future, TryFuture};
 pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 // Extension traits and combinators
-
 #[allow(clippy::module_inception)]
 mod future;
 pub use self::future::{
-    Flatten, FlattenStream, Fuse, FutureExt, Inspect, IntoStream, Map, NeverError, Then, UnitError,
+    Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, NeverError, Then, UnitError, MapInto,
 };
+
+#[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
+pub use self::future::FlattenStream;
 
 #[cfg(feature = "std")]
 pub use self::future::CatchUnwind;
 
 #[cfg(feature = "channel")]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
 pub use self::future::{Remote, RemoteHandle};
 
@@ -29,11 +32,12 @@ pub use self::future::Shared;
 
 mod try_future;
 pub use self::try_future::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, OrElse, TryFlattenStream,
-    TryFutureExt, UnwrapOrElse,
+    AndThen, ErrInto, OkInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, OrElse, TryFlattenStream,
+    TryFutureExt, UnwrapOrElse, MapOkOrElse, TryFlatten,
 };
 
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::try_future::FlattenSink;
 
 // Primitive futures
@@ -46,6 +50,9 @@ pub use self::pending::{pending, Pending};
 
 mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};
+
+mod try_maybe_done;
+pub use self::try_maybe_done::{try_maybe_done, TryMaybeDone};
 
 mod option;
 pub use self::option::OptionFuture;

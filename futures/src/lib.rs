@@ -88,9 +88,16 @@
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
+// mem::take requires Rust 1.40, matches! requires Rust 1.42
+// Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
+// get's implemented.
+#![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
+
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures/0.3.5")]
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -118,9 +125,11 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
+#[cfg(feature = "async-await")]
+pub use futures_util::{pending, poll, join, try_join, select_biased}; // Async-await
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
-pub use futures_util::{pending, poll}; // Async-await
+pub use futures_util::select;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
@@ -146,6 +155,7 @@ pub mod channel {
 }
 
 #[cfg(feature = "compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat {
     //! Interop between `futures` 0.1 and 0.3.
     //!
@@ -166,6 +176,7 @@ pub mod compat {
     };
 
     #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     pub use futures_util::compat::{
         AsyncRead01CompatExt,
         AsyncWrite01CompatExt,
@@ -223,6 +234,7 @@ pub mod executor {
     };
 
     #[cfg(feature = "thread-pool")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
@@ -325,6 +337,7 @@ pub mod io {
     };
 
     #[cfg(feature = "read-initializer")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
     pub use futures_io::Initializer;
 
     pub use futures_util::io::{
@@ -332,7 +345,7 @@ pub mod io {
         BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
         empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
-        Repeat, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
+        Repeat, ReuniteError, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
         WriteVectored,
     };
 }
@@ -346,10 +359,11 @@ pub mod lock {
     //! library is activated, and it is activated by default.
 
     #[cfg(feature = "bilock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
     pub use futures_util::lock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
 
     #[cfg(feature = "std")]
-    pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
+    pub use futures_util::lock::{MappedMutexGuard, Mutex, MutexLockFuture, MutexGuard};
 }
 
 pub mod prelude {
@@ -420,7 +434,7 @@ pub mod stream {
     //!   asynchronously produce a sequence of values.
     //! - The [`StreamExt`](crate::stream::StreamExt) trait, which provides
     //!   adapters for chaining and composing streams.
-    //! - Top-level stream contructors like [`iter`](crate::stream::iter)
+    //! - Top-level stream constructors like [`iter`](crate::stream::iter)
     //!   which creates a stream from an iterator.
 
     pub use futures_core::stream::{
@@ -442,23 +456,23 @@ pub mod stream {
         try_unfold, TryUnfold,
 
         StreamExt,
-        Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
-        Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
-        SelectNextSome, Peekable, Skip, SkipWhile, Take, TakeWhile,
+        Chain, Collect, Concat, Enumerate, Filter, FilterMap, FlatMap, Flatten,
+        Fold, Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
+        SelectNextSome, Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeWhile,
         Then, Zip,
 
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
         InspectOk, InspectErr,
         TryNext, TryForEach, TryFilter, TryFilterMap, TryFlatten,
-        TryCollect, TryConcat, TryFold, TrySkipWhile,
+        TryCollect, TryConcat, TryFold, TrySkipWhile, TryTakeWhile,
         IntoStream,
     };
 
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         // For StreamExt:
-        Chunks,
+        Chunks, ReadyChunks,
     };
 
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
@@ -533,75 +547,4 @@ pub mod never {
     //! Values of this type can never be created and will never exist.
 
     pub use futures_util::never::Never;
-}
-
-// proc-macro re-export --------------------------------------
-
-// Not public API.
-#[doc(hidden)]
-pub use futures_core::core_reexport;
-
-// Not public API.
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub use futures_util::async_await;
-
-// Not public API.
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-#[doc(hidden)]
-pub mod inner_macro {
-    pub use futures_util::join;
-    pub use futures_util::try_join;
-    pub use futures_util::select;
-    pub use futures_util::select_biased;
-}
-
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-futures_util::document_join_macro! {
-    #[macro_export]
-    macro_rules! join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! try_join { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::try_join! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-futures_util::document_select_macro! {
-    #[macro_export]
-    macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
-
-    #[macro_export]
-    macro_rules! select_biased { // replace `::futures_util` with `::futures` as the crate path
-        ($($tokens:tt)*) => {
-            $crate::inner_macro::select_biased! {
-                futures_crate_path ( ::futures )
-                $( $tokens )*
-            }
-        }
-    }
 }

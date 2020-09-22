@@ -1,8 +1,9 @@
-use futures::executor::block_on;
-use futures::future::{self, FutureExt};
-
+#[cfg(feature = "executor")]
 #[test]
 fn smoke() {
+    use futures::executor::block_on;
+    use futures::future::{self, FutureExt};
+
     let mut counter = 0;
 
     {

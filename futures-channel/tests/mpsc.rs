@@ -116,8 +116,6 @@ fn recv_close_gets_none() {
             Poll::Ready(Err(e)) => assert!(e.is_disconnected()),
         };
 
-        drop(&tx);
-
         Poll::Ready(())
     }));
 }
@@ -258,6 +256,7 @@ fn stress_shared_bounded_hard() {
     t.join().unwrap();
 }
 
+#[allow(clippy::same_item_push)]
 #[test]
 fn stress_receiver_multi_task_bounded_hard() {
     const AMT: usize = 10_000;
@@ -357,7 +356,7 @@ fn stress_close_receiver_iter() {
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
     let th = thread::spawn(move || {
         for i in 1.. {
-            if let Err(_) = tx.unbounded_send(i) {
+            if tx.unbounded_send(i).is_err() {
                 unwritten_tx.send(i).expect("unwritten_tx");
                 return;
             }
@@ -396,6 +395,7 @@ async fn stress_poll_ready_sender(mut sender: mpsc::Sender<u32>, count: u32) {
 }
 
 /// Tests that after `poll_ready` indicates capacity a channel can always send without waiting.
+#[allow(clippy::same_item_push)]
 #[test]
 fn stress_poll_ready() {
     const AMT: u32 = 1000;
@@ -469,7 +469,7 @@ fn try_send_2() {
         block_on(tx.send("goodbye")).unwrap();
     });
 
-    drop(block_on(readyrx));
+    let _ = block_on(readyrx);
     assert_eq!(rx.next(), Some("hello"));
     assert_eq!(rx.next(), Some("goodbye"));
     assert_eq!(rx.next(), None);
@@ -527,6 +527,17 @@ fn same_receiver() {
 
     assert!(!txa1.same_receiver(&txa2));
     assert!(txb1.same_receiver(&txb2));
+}
+
+#[test]
+fn is_connected_to() {
+    let (txa, rxa) = mpsc::channel::<i32>(1);
+    let (txb, rxb) = mpsc::channel::<i32>(1);
+
+    assert!(txa.is_connected_to(&rxa));
+    assert!(txb.is_connected_to(&rxb));
+    assert!(!txa.is_connected_to(&rxb));
+    assert!(!txb.is_connected_to(&rxa));
 }
 
 #[test]

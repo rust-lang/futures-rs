@@ -1,0 +1,10 @@
+[package]
+name = "macro-tests"
+version = "0.1.0"
+authors = ["Taiki Endo <te316e89@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+futures03 = { path = "../..", package = "futures" }
+macro-reexport = { path = "../macro-reexport" }
