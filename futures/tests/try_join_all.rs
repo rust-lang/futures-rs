@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")] // executor::
 mod util {
     use std::future::Future;
     use futures::executor::block_on;
@@ -14,7 +13,6 @@ mod util {
     }
 }
 
-#[cfg(feature = "executor")] // assert_done
 #[test]
 fn collect_collects() {
     use futures_util::future::{err, ok, try_join_all};
@@ -30,7 +28,6 @@ fn collect_collects() {
     // TODO: needs more tests
 }
 
-#[cfg(feature = "executor")] // assert_done
 #[test]
 fn try_join_all_iter_lifetime() {
     use futures_util::future::{ok, try_join_all};
@@ -48,7 +45,6 @@ fn try_join_all_iter_lifetime() {
     assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), Ok(vec![3 as usize, 0, 1]));
 }
 
-#[cfg(feature = "executor")] // assert_done
 #[test]
 fn try_join_all_from_iter() {
     use futures_util::future::{ok, TryJoinAll};

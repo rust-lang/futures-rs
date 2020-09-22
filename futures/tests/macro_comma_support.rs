@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn ready() {
     use futures::{
@@ -14,7 +13,6 @@ fn ready() {
     }))
 }
 
-#[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn poll() {
     use futures::{
@@ -28,7 +26,6 @@ fn poll() {
     })
 }
 
-#[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn join() {
     use futures::{
@@ -43,7 +40,6 @@ fn join() {
     })
 }
 
-#[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn try_join() {
     use futures::{

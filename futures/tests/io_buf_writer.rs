@@ -1,4 +1,3 @@
-#[cfg(feature = "std")]
 mod maybe_pending {
     use futures::io::AsyncWrite;
     use futures::task::{Context, Poll};
@@ -41,7 +40,6 @@ mod maybe_pending {
     }
 }
 
-#[cfg(any(feature = "std", feature = "executor"))]
 mod util {
     use futures::future::Future;
 
@@ -59,7 +57,6 @@ mod util {
     }
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn buf_writer() {
     use futures::executor::block_on;
@@ -105,7 +102,6 @@ fn buf_writer() {
     assert_eq!(*writer.get_ref(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn buf_writer_inner_flushes() {
     use futures::executor::block_on;
@@ -119,7 +115,6 @@ fn buf_writer_inner_flushes() {
     assert_eq!(w, [0, 1]);
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn buf_writer_seek() {
     use futures::executor::block_on;
@@ -138,7 +133,6 @@ fn buf_writer_seek() {
     assert_eq!(&w.into_inner().into_inner()[..], &[0, 1, 8, 9, 4, 5, 6, 7]);
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending_buf_writer() {
     use futures::io::{AsyncWriteExt, BufWriter};
@@ -186,7 +180,6 @@ fn maybe_pending_buf_writer() {
     assert_eq!(&writer.get_ref().inner, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending_buf_writer_inner_flushes() {
     use futures::io::{AsyncWriteExt, BufWriter};
@@ -202,7 +195,6 @@ fn maybe_pending_buf_writer_inner_flushes() {
     assert_eq!(w, [0, 1]);
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending_buf_writer_seek() {
     use futures::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom};

@@ -1,6 +1,3 @@
-#![recursion_limit="128"]
-
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn poll_and_pending() {
     use futures::{pending, pin_mut, poll};
@@ -15,7 +12,6 @@ fn poll_and_pending() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn join() {
     use futures::{pin_mut, poll, join};
@@ -41,7 +37,6 @@ fn join() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select() {
     use futures::select;
@@ -65,7 +60,6 @@ fn select() {
     assert!(ran);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor", feature = "async-await"))]
 #[test]
 fn select_biased() {
     use futures::channel::oneshot;
@@ -89,7 +83,6 @@ fn select_biased() {
     assert!(ran);
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_streams() {
     use futures::select;
@@ -139,7 +132,6 @@ fn select_streams() {
     assert!(ran);
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_can_move_uncompleted_futures() {
     use futures::select;
@@ -171,7 +163,6 @@ fn select_can_move_uncompleted_futures() {
     assert!(ran);
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_nested() {
     use futures::select;
@@ -192,7 +183,6 @@ fn select_nested() {
     assert_eq!(res, 3);
 }
 
-#[cfg(all(feature = "async-await", feature = "std"))]
 #[test]
 fn select_size() {
     use futures::select;
@@ -217,7 +207,6 @@ fn select_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 40);
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_non_unpin_expressions() {
     use futures::select;
@@ -240,7 +229,6 @@ fn select_on_non_unpin_expressions() {
     assert_eq!(res, 5);
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_non_unpin_expressions_with_default() {
     use futures::select;
@@ -264,7 +252,6 @@ fn select_on_non_unpin_expressions_with_default() {
     assert_eq!(res, 5);
 }
 
-#[cfg(all(feature = "async-await", feature = "std"))]
 #[test]
 fn select_on_non_unpin_size() {
     use futures::select;
@@ -287,7 +274,6 @@ fn select_on_non_unpin_size() {
     assert_eq!(32, std::mem::size_of_val(&fut));
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_can_be_used_as_expression() {
     use futures::select;
@@ -303,7 +289,6 @@ fn select_can_be_used_as_expression() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_with_default_can_be_used_as_expression() {
     use futures::select;
@@ -325,7 +310,6 @@ fn select_with_default_can_be_used_as_expression() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_with_complete_can_be_used_as_expression() {
     use futures::select;
@@ -343,7 +327,6 @@ fn select_with_complete_can_be_used_as_expression() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
     use futures::select;
@@ -364,7 +347,6 @@ fn select_on_mutable_borrowing_future_with_same_borrow_in_block() {
     });
 }
 
-#[cfg(all(feature = "async-await", feature = "std", feature = "executor"))]
 #[test]
 fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
     use futures::select;
@@ -388,7 +370,6 @@ fn select_on_mutable_borrowing_future_with_same_borrow_in_block_and_default() {
     });
 }
 
-#[cfg(feature = "async-await")]
 #[test]
 fn join_size() {
     use futures::join;
@@ -408,7 +389,6 @@ fn join_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
-#[cfg(feature = "async-await")]
 #[test]
 fn try_join_size() {
     use futures::try_join;
@@ -428,7 +408,6 @@ fn try_join_size() {
     assert_eq!(::std::mem::size_of_val(&fut), 28);
 }
 
-#[cfg(feature = "async-await")]
 #[test]
 fn join_doesnt_require_unpin() {
     use futures::join;
@@ -438,7 +417,6 @@ fn join_doesnt_require_unpin() {
     };
 }
 
-#[cfg(feature = "async-await")]
 #[test]
 fn try_join_doesnt_require_unpin() {
     use futures::try_join;

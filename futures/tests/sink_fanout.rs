@@ -1,4 +1,3 @@
-#[cfg(all(feature = "alloc", feature="std", feature="executor"))] // channel::mpsc, executor::
 #[test]
 fn it_works() {
     use futures::channel::mpsc;

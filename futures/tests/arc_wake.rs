@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")]
 mod countingwaker {
     use futures::task::{self, ArcWake, Waker};
     use std::sync::{Arc, Mutex};
@@ -60,7 +59,6 @@ mod countingwaker {
     }
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn proper_refcount_on_wake_panic() {
     use futures::task::{self, ArcWake, Waker};

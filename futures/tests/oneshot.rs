@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_send1() {
     use futures::channel::oneshot;
@@ -16,7 +15,6 @@ fn oneshot_send1() {
     t.join().unwrap();
 }
 
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_send2() {
     use futures::channel::oneshot;
@@ -33,7 +31,6 @@ fn oneshot_send2() {
     assert_eq!(1, rx2.recv().unwrap());
 }
 
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_send3() {
     use futures::channel::oneshot;
@@ -50,7 +47,6 @@ fn oneshot_send3() {
     assert_eq!(1, rx2.recv().unwrap());
 }
 
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_drop_tx1() {
     use futures::channel::oneshot;
@@ -67,7 +63,6 @@ fn oneshot_drop_tx1() {
     assert_eq!(Err(oneshot::Canceled), rx2.recv().unwrap());
 }
 
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_drop_tx2() {
     use futures::channel::oneshot;
@@ -86,7 +81,6 @@ fn oneshot_drop_tx2() {
     assert_eq!(Err(oneshot::Canceled), rx2.recv().unwrap());
 }
 
-#[cfg(feature = "alloc")] // channel
 #[test]
 fn oneshot_drop_rx() {
     use futures::channel::oneshot;

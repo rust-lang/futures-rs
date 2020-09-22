@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn read_line() {
     use futures::executor::block_on;
@@ -21,7 +20,6 @@ fn read_line() {
     assert_eq!(v, "");
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending() {
     use futures::future::Future;

@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")] // FuturesUnordered
 mod assert_send_sync {
     use futures::stream::FuturesUnordered;
 
@@ -6,7 +5,6 @@ mod assert_send_sync {
     impl AssertSendSync for FuturesUnordered<()> {}
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn basic_usage() {
     use futures::channel::oneshot;
@@ -41,7 +39,6 @@ fn basic_usage() {
     }));
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn resolving_errors() {
     use futures::channel::oneshot;
@@ -76,7 +73,6 @@ fn resolving_errors() {
     }));
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dropping_ready_queue() {
     use futures::channel::oneshot;
@@ -110,7 +106,6 @@ fn dropping_ready_queue() {
     }));
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn stress() {
     use futures::channel::oneshot;
@@ -160,7 +155,6 @@ fn stress() {
     }
 }
 
-#[cfg(feature = "executor")] // executor
 #[test]
 fn panicking_future_dropped() {
     use futures::executor::block_on;

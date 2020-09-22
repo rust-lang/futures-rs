@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 mod sassert_next {
     use futures::stream::{Stream, StreamExt};
     use futures::task::Poll;
@@ -18,7 +17,6 @@ mod sassert_next {
     }
 }
 
-#[allow(dead_code)]
 mod unwrap {
     use futures::task::Poll;
     use std::fmt;
@@ -32,8 +30,6 @@ mod unwrap {
     }
 }
 
-#[allow(dead_code)]
-#[cfg(feature = "alloc")] // ArcWake
 mod flag_cx {
     use futures::task::{self, ArcWake, Context};
     use std::sync::Arc;
@@ -73,7 +69,6 @@ mod flag_cx {
     }
 }
 
-#[allow(dead_code)]
 mod start_send_fut {
     use futures::future::Future;
     use futures::ready;
@@ -105,7 +100,6 @@ mod start_send_fut {
     }
 }
 
-#[allow(dead_code)]
 mod manual_flush {
     use futures::sink::Sink;
     use futures::task::{Context, Poll, Waker};
@@ -166,7 +160,6 @@ mod manual_flush {
     }
 }
 
-#[allow(dead_code)]
 mod allowance {
     use futures::sink::Sink;
     use futures::task::{Context, Poll, Waker};
@@ -245,8 +238,6 @@ mod allowance {
     }
 }
 
-
-#[cfg(feature = "alloc")] // futures_sink::Sink satisfying for .left/right_sink
 #[test]
 fn either_sink() {
     use futures::sink::{Sink, SinkExt};
@@ -262,7 +253,6 @@ fn either_sink() {
     Pin::new(&mut s).start_send(0).unwrap();
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn vec_sink() {
     use futures::executor::block_on;
@@ -277,7 +267,6 @@ fn vec_sink() {
     assert_eq!(v, vec![0, 1]);
 }
 
-#[cfg(feature = "alloc")] //  futures_sink::Sink satisfying for .start_send()
 #[test]
 fn vecdeque_sink() {
     use futures::sink::Sink;
@@ -293,7 +282,6 @@ fn vecdeque_sink() {
     assert_eq!(deque.pop_front(), None);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn send() {
     use futures::executor::block_on;
@@ -311,7 +299,6 @@ fn send() {
     assert_eq!(v, vec![0, 1, 2]);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn send_all() {
     use futures::executor::block_on;
@@ -332,7 +319,6 @@ fn send_all() {
 
 // Test that `start_send` on an `mpsc` channel does indeed block when the
 // channel is full
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn mpsc_blocking_start_send() {
     use futures::channel::mpsc;
@@ -365,7 +351,6 @@ fn mpsc_blocking_start_send() {
 
 // test `flush` by using `with` to make the first insertion into a sink block
 // until a oneshot is completed
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn with_flush() {
     use futures::channel::oneshot;
@@ -403,7 +388,6 @@ fn with_flush() {
 }
 
 // test simple use of with to change data
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn with_as_map() {
     use futures::executor::block_on;
@@ -419,7 +403,6 @@ fn with_as_map() {
 }
 
 // test simple use of with_flat_map
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn with_flat_map() {
     use futures::executor::block_on;
@@ -436,7 +419,6 @@ fn with_flat_map() {
 
 // Check that `with` propagates `poll_ready` to the inner sink.
 // Regression test for the issue #1834.
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn with_propagates_poll_ready() {
     use futures::channel::mpsc;
@@ -473,7 +455,6 @@ fn with_propagates_poll_ready() {
 
 // test that the `with` sink doesn't require the underlying sink to flush,
 // but doesn't claim to be flushed until the underlying sink is
-#[cfg(feature = "alloc")] // flag_cx
 #[test]
 fn with_flush_propagate() {
     use futures::future::{self, FutureExt};
@@ -503,7 +484,6 @@ fn with_flush_propagate() {
 }
 
 // test that a buffer is a no-nop around a sink that always accepts sends
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn buffer_noop() {
     use futures::executor::block_on;
@@ -522,8 +502,6 @@ fn buffer_noop() {
 
 // test basic buffer functionality, including both filling up to capacity,
 // and writing out when the underlying sink is ready
-#[cfg(feature = "executor")] // executor::
-#[cfg(feature = "alloc")] // flag_cx
 #[test]
 fn buffer() {
     use futures::executor::block_on;
@@ -552,7 +530,6 @@ fn buffer() {
     })
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn fanout_smoke() {
     use futures::executor::block_on;
@@ -568,8 +545,6 @@ fn fanout_smoke() {
     assert_eq!(sink2, vec![1, 2, 3]);
 }
 
-#[cfg(feature = "executor")] // executor::
-#[cfg(feature = "alloc")] // flag_cx
 #[test]
 fn fanout_backpressure() {
     use futures::channel::mpsc;
@@ -612,7 +587,6 @@ fn fanout_backpressure() {
     })
 }
 
-#[cfg(all(feature = "alloc", feature = "std"))] // channel::mpsc
 #[test]
 fn sink_map_err() {
     use futures::channel::mpsc;
@@ -636,7 +610,6 @@ fn sink_map_err() {
     );
 }
 
-#[cfg(all(feature = "alloc", feature = "std"))] // channel::mpsc
 #[test]
 fn err_into() {
     use futures::channel::mpsc;

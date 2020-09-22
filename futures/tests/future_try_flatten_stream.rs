@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn successful_future() {
     use futures::executor::block_on_stream;
@@ -16,7 +15,6 @@ fn successful_future() {
     assert_eq!(None, iter.next());
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn failed_future() {
     use core::marker::PhantomData;

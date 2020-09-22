@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn ignore_err() {
     use futures::executor::block_on;
@@ -22,7 +21,6 @@ fn ignore_err() {
     assert!(v.is_empty());
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn last_err() {
     use futures::executor::block_on;

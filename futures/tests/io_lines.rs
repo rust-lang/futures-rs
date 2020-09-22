@@ -1,4 +1,3 @@
-#[cfg(any(feature = "std", feature = "executor"))]
 mod util {
     use futures::future::Future;
 
@@ -16,7 +15,6 @@ mod util {
     }
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn lines() {
     use futures::executor::block_on;
@@ -41,7 +39,6 @@ fn lines() {
     assert!(block_on(s.next()).is_none());
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending() {
     use futures::stream::{self, StreamExt, TryStreamExt};

@@ -1,4 +1,3 @@
-#[cfg(any(feature = "std", feature = "executor"))]
 macro_rules! run_fill_buf {
     ($reader:expr) => {{
         use futures_test::task::noop_context;
@@ -14,7 +13,6 @@ macro_rules! run_fill_buf {
     }};
 }
 
-#[cfg(any(feature = "std", feature = "executor"))]
 mod util {
     use futures::future::Future;
     pub fn run<F: Future + Unpin>(mut f: F) -> F::Output {
@@ -31,7 +29,6 @@ mod util {
     }
 }
 
-#[cfg(feature = "std")]
 mod maybe_pending {
     use futures::task::{Context,Poll};
     use std::{cmp,io};
@@ -85,7 +82,6 @@ mod maybe_pending {
     }
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn test_buffered_reader() {
     use futures::executor::block_on;
@@ -126,7 +122,6 @@ fn test_buffered_reader() {
     assert_eq!(block_on(reader.read(&mut buf)).unwrap(), 0);
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn test_buffered_reader_seek() {
     use futures::executor::block_on;
@@ -147,7 +142,6 @@ fn test_buffered_reader_seek() {
     assert_eq!(block_on(reader.seek(SeekFrom::Current(-2))).ok(), Some(3));
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn test_buffered_reader_seek_underflow() {
     use futures::executor::block_on;
@@ -198,7 +192,6 @@ fn test_buffered_reader_seek_underflow() {
     assert_eq!(reader.get_ref().get_ref().pos, expected);
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn test_short_reads() {
     use futures::executor::block_on;
@@ -232,7 +225,6 @@ fn test_short_reads() {
     assert_eq!(block_on(reader.read(&mut buf)).unwrap(), 0);
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending() {
     use futures::io::{AsyncReadExt, BufReader};
@@ -274,7 +266,6 @@ fn maybe_pending() {
     assert_eq!(run(reader.read(&mut buf)).unwrap(), 0);
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending_buf_read() {
     use futures::io::{AsyncBufReadExt, BufReader};
@@ -298,7 +289,6 @@ fn maybe_pending_buf_read() {
 }
 
 // https://github.com/rust-lang/futures-rs/pull/1573#discussion_r281162309
-#[cfg(feature = "std")]
 #[test]
 fn maybe_pending_seek() {
     use futures::io::{AsyncBufRead, AsyncSeek, AsyncSeekExt, AsyncRead, BufReader,

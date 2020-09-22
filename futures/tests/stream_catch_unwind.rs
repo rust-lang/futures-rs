@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn panic_in_the_middle_of_the_stream() {
     use futures::executor::block_on_stream;
@@ -15,7 +14,6 @@ fn panic_in_the_middle_of_the_stream() {
     assert!(iter.next().is_none());
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn no_panic() {
     use futures::executor::block_on_stream;

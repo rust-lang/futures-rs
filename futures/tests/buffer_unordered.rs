@@ -1,4 +1,3 @@
-#[cfg(all(feature = "alloc", feature = "std", feature = "executor"))]
 #[test]
 #[ignore] // FIXME: https://github.com/rust-lang/futures-rs/issues/1790
 fn works() {

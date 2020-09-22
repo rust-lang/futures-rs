@@ -1,4 +1,3 @@
-#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_works() {
     use futures::channel::oneshot;
@@ -12,7 +11,6 @@ fn abortable_works() {
     assert_eq!(Err(Aborted), block_on(abortable_rx));
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_awakens() {
     use futures::channel::oneshot;
@@ -33,7 +31,6 @@ fn abortable_awakens() {
     assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(&mut cx));
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn abortable_resolves() {
     use futures::channel::oneshot;

@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn lots() {
     use futures::executor::block_on;
