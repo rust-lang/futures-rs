@@ -14,13 +14,13 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-use super::assert_future;
-use crate::future::{Map, Inspect};
 use crate::fns::{
-    MapOkFn, map_ok_fn, MapErrFn, map_err_fn, MapOkOrElseFn,
-    map_ok_or_else_fn, IntoFn, UnwrapOrElseFn, unwrap_or_else_fn, InspectOkFn, inspect_ok_fn, InspectErrFn,
-    inspect_err_fn, into_fn
+    inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, map_ok_or_else_fn,
+    unwrap_or_else_fn, InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn,
+    UnwrapOrElseFn,
 };
+use crate::future::{assert_future, Inspect, Map};
+use crate::stream::assert_stream;
 
 // Combinators
 mod into_future;
@@ -230,7 +230,7 @@ pub trait TryFutureExt: TryFuture {
     /// The provided closure `f` will only be called if this future is resolved
     /// to an [`Ok`]. If it resolves to an [`Err`], panics, or is dropped, then
     /// the provided closure will never be invoked.
-    /// 
+    ///
     /// The provided closure `e` will only be called if this future is resolved
     /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
     /// the provided closure will never be invoked.
@@ -247,13 +247,13 @@ pub trait TryFutureExt: TryFuture {
     /// let future = async { Ok::<i32, i32>(5) };
     /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
     /// assert_eq!(future.await, 8);
-    /// 
+    ///
     /// let future = async { Err::<i32, i32>(5) };
     /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
     /// assert_eq!(future.await, 10);
     /// # });
     /// ```
-    /// 
+    ///
     fn map_ok_or_else<T, E, F>(self, e: E, f: F) -> MapOkOrElse<Self, F, E>
     where
         F: FnOnce(Self::Ok) -> T,
@@ -534,7 +534,9 @@ pub trait TryFutureExt: TryFuture {
         Self::Ok: TryStream<Error = Self::Error>,
         Self: Sized,
     {
-        TryFlattenStream::new(self)
+        assert_stream::<Result<<Self::Ok as TryStream>::Ok, Self::Error>, _>(TryFlattenStream::new(
+            self,
+        ))
     }
 
     /// Unwraps this future's ouput, producing a future with this future's
@@ -603,7 +605,7 @@ pub trait TryFutureExt: TryFuture {
     where
         Self: Sized,
     {
-        IntoFuture::new(self)
+        assert_future::<Result<Self::Ok, Self::Error>, _>(IntoFuture::new(self))
     }
 
     /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]

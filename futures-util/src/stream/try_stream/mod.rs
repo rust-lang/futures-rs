@@ -129,6 +129,8 @@ mod into_async_read;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
+use crate::future::assert_future;
+use crate::stream::assert_stream;
 
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
@@ -156,7 +158,7 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
         Self::Error: Into<E>,
     {
-        ErrInto::new(self)
+        assert_stream::<Result<Self::Ok, E>, _>(ErrInto::new(self))
     }
 
     /// Wraps the current stream in a new stream which maps the success value
@@ -181,7 +183,7 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
         F: FnMut(Self::Ok) -> T,
     {
-        MapOk::new(self, f)
+        assert_stream::<Result<T, Self::Error>, _>(MapOk::new(self, f))
     }
 
     /// Wraps the current stream in a new stream which maps the error value
@@ -206,7 +208,7 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
         F: FnMut(Self::Error) -> E,
     {
-        MapErr::new(self, f)
+        assert_stream::<Result<Self::Ok, E>, _>(MapErr::new(self, f))
     }
 
     /// Chain on a computation for when a value is ready, passing the successful
@@ -253,7 +255,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
-        AndThen::new(self, f)
+        assert_stream::<Result<Fut::Ok, Fut::Error>, _>(AndThen::new(self, f))
     }
 
     /// Chain on a computation for when an error happens, passing the
@@ -279,7 +281,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Ok = Self::Ok>,
         Self: Sized,
     {
-        OrElse::new(self, f)
+        assert_stream::<Result<Self::Ok, Fut::Error>, _>(OrElse::new(self, f))
     }
 
     /// Do something with the success value of this stream, afterwards passing
@@ -293,7 +295,7 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(&Self::Ok),
         Self: Sized,
     {
-        InspectOk::new(self, f)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(InspectOk::new(self, f))
     }
 
     /// Do something with the error value of this stream, afterwards passing it on.
@@ -306,7 +308,7 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(&Self::Error),
         Self: Sized,
     {
-        InspectErr::new(self, f)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(InspectErr::new(self, f))
     }
 
     /// Wraps a [`TryStream`] into a type that implements
@@ -334,7 +336,7 @@ pub trait TryStreamExt: TryStream {
     where
         Self: Sized,
     {
-        IntoStream::new(self)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(IntoStream::new(self))
     }
 
     /// Creates a future that attempts to resolve the next item in the stream.
@@ -361,7 +363,7 @@ pub trait TryStreamExt: TryStream {
     where
         Self: Unpin,
     {
-        TryNext::new(self)
+        assert_future::<Result<Option<Self::Ok>, Self::Error>, _>(TryNext::new(self))
     }
 
     /// Attempts to run this stream to completion, executing the provided
@@ -403,7 +405,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Ok = (), Error = Self::Error>,
         Self: Sized,
     {
-        TryForEach::new(self, f)
+        assert_future::<Result<(), Self::Error>, _>(TryForEach::new(self, f))
     }
 
     /// Skip elements on this stream while the provided asynchronous predicate
@@ -433,7 +435,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Ok = bool, Error = Self::Error>,
         Self: Sized,
     {
-        TrySkipWhile::new(self, f)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TrySkipWhile::new(self, f))
     }
 
     /// Take elements on this stream while the provided asynchronous predicate
@@ -519,7 +521,11 @@ pub trait TryStreamExt: TryStream {
         Fut: Future<Output = Result<(), Self::Error>>,
         Self: Sized,
     {
-        TryForEachConcurrent::new(self, limit.into(), f)
+        assert_future::<Result<(), Self::Error>, _>(TryForEachConcurrent::new(
+            self,
+            limit.into(),
+            f,
+        ))
     }
 
     /// Attempt to transform a stream into a collection,
@@ -556,7 +562,7 @@ pub trait TryStreamExt: TryStream {
     where
         Self: Sized,
     {
-        TryCollect::new(self)
+        assert_future::<Result<C, Self::Error>, _>(TryCollect::new(self))
     }
 
     /// Attempt to filter the values produced by this stream according to the
@@ -595,7 +601,7 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(&Self::Ok) -> Fut,
         Self: Sized,
     {
-        TryFilter::new(self, f)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TryFilter::new(self, f))
     }
 
     /// Attempt to filter the values produced by this stream while
@@ -636,7 +642,7 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(Self::Ok) -> Fut,
         Self: Sized,
     {
-        TryFilterMap::new(self, f)
+        assert_stream::<Result<T, Self::Error>, _>(TryFilterMap::new(self, f))
     }
 
     /// Flattens a stream of streams into just one continuous stream.
@@ -683,7 +689,9 @@ pub trait TryStreamExt: TryStream {
         <Self::Ok as TryStream>::Error: From<Self::Error>,
         Self: Sized,
     {
-        TryFlatten::new(self)
+        assert_stream::<Result<<Self::Ok as TryStream>::Ok, <Self::Ok as TryStream>::Error>, _>(
+            TryFlatten::new(self),
+        )
     }
 
     /// Attempt to execute an accumulating asynchronous computation over a
@@ -720,7 +728,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Ok = T, Error = Self::Error>,
         Self: Sized,
     {
-        TryFold::new(self, f, init)
+        assert_future::<Result<T, Self::Error>, _>(TryFold::new(self, f, init))
     }
 
     /// Attempt to concatenate all items of a stream into a single
@@ -762,7 +770,7 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
         Self::Ok: Extend<<<Self as TryStream>::Ok as IntoIterator>::Item> + IntoIterator + Default,
     {
-        TryConcat::new(self)
+        assert_future::<Result<Self::Ok, Self::Error>, _>(TryConcat::new(self))
     }
 
     /// Attempt to execute several futures from a stream concurrently.
@@ -829,7 +837,9 @@ pub trait TryStreamExt: TryStream {
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
-        TryBufferUnordered::new(self, n)
+        assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(
+            TryBufferUnordered::new(self, n),
+        )
     }
 
     // TODO: false positive warning from rustdoc. Verify once #43466 settles
