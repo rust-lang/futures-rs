@@ -23,7 +23,7 @@
 //! Test wakers:
 //! - [`noop_waker`](crate::task::noop_waker) creates a waker that ignores calls to
 //!   [`wake`](futures_core::task::Waker).
-//! - [`panic_waker`](crate::task::panic_waker::panic_waker) creates a waker that panics when
+//! - [`panic_waker`](crate::task::panic_waker) creates a waker that panics when
 //!   [`wake`](futures_core::task::Waker) is called.
 //! - [`new_count_waker`](crate::task::new_count_waker) creates a waker that increments a counter whenever
 //!   [`wake`](futures_core::task::Waker) is called.
