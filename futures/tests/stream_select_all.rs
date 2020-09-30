@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")] // stream::SelectAll
 #[test]
 fn is_terminated() {
     use futures::future::{self, FutureExt};
@@ -29,7 +28,6 @@ fn is_terminated() {
     assert_eq!(tasks.is_terminated(), true);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn issue_1626() {
     use futures::executor::block_on_stream;
@@ -51,8 +49,6 @@ fn issue_1626() {
     assert_eq!(s.next(), None);
 }
 
-#[cfg(all(feature = "alloc", feature = "std"))] // channel::mpsc
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn works_1() {
     use futures::channel::mpsc;

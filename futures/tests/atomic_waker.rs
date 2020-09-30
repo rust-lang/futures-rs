@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn basic() {
     use std::sync::atomic::AtomicUsize;

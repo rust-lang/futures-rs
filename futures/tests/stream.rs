@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn select() {
     use futures::executor::block_on;
@@ -16,7 +15,6 @@ fn select() {
     select_and_compare(vec![1, 2], vec![4, 5, 6], vec![1, 4, 2, 5, 6]);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn flat_map() {
     use futures::stream::{self, StreamExt};
@@ -37,7 +35,6 @@ fn flat_map() {
     });
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn scan() {
     use futures::stream::{self, StreamExt};
@@ -56,7 +53,6 @@ fn scan() {
     });
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn take_until() {
     use futures::future::{self, Future};
@@ -136,7 +132,6 @@ fn ready_chunks_panic_on_cap_zero() {
     let _ = rx1.ready_chunks(0);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn ready_chunks() {
     use futures::channel::mpsc;

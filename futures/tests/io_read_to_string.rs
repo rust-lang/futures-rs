@@ -1,4 +1,3 @@
-#[cfg(all(feature = "std", feature = "executor"))]
 #[test]
 fn read_to_string() {
     use futures::executor::block_on;
@@ -19,7 +18,6 @@ fn read_to_string() {
     assert!(block_on(c.read_to_string(&mut v)).is_err());
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn interleave_pending() {
     use futures::future::Future;

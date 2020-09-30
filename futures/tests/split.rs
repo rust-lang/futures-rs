@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn test_split() {
     use futures::executor::block_on;

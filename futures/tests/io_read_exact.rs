@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn read_exact() {
     use futures::executor::block_on;

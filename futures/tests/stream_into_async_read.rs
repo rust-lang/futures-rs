@@ -1,4 +1,3 @@
-#[cfg(feature = "std")] // io::
 #[test]
 fn test_into_async_read() {
     use core::pin::Pin;
@@ -52,7 +51,6 @@ fn test_into_async_read() {
     assert_read!(reader, &mut buf, 0);
 }
 
-#[cfg(feature = "std")] // io::
 #[test]
 fn test_into_async_bufread() -> std::io::Result<()> {
     use core::pin::Pin;

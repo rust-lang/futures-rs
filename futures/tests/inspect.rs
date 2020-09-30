@@ -1,4 +1,3 @@
-#[cfg(feature = "executor")]
 #[test]
 fn smoke() {
     use futures::executor::block_on;

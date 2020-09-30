@@ -12,7 +12,6 @@ mod count_clone {
     }
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     use futures::channel::oneshot;
     use futures::executor::block_on;
@@ -37,25 +36,21 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     }
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn one_thread() {
     send_shared_oneshot_and_wait_on_multiple_threads(1);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn two_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(2);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn many_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(1000);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn drop_on_one_task_ok() {
     use futures::channel::oneshot;
@@ -89,7 +84,6 @@ fn drop_on_one_task_ok() {
     t2.join().unwrap();
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn drop_in_poll() {
     use futures::executor::block_on;
@@ -112,7 +106,6 @@ fn drop_in_poll() {
     assert_eq!(block_on(future1), 1);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn peek() {
     use futures::channel::oneshot;
@@ -150,7 +143,6 @@ fn peek() {
     }
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dont_clone_in_single_owner_shared_future() {
     use futures::channel::oneshot;
@@ -171,7 +163,6 @@ fn dont_clone_in_single_owner_shared_future() {
     assert_eq!(block_on(rx).unwrap().0.get(), 0);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn dont_do_unnecessary_clones_on_output() {
     use futures::channel::oneshot;
@@ -194,7 +185,6 @@ fn dont_do_unnecessary_clones_on_output() {
     assert_eq!(block_on(rx).unwrap().0.get(), 2);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))] // channel:: + executor::
 #[test]
 fn shared_future_that_wakes_itself_until_pending_is_returned() {
     use futures::executor::block_on;

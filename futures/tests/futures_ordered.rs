@@ -1,4 +1,3 @@
-#[cfg(all(feature = "alloc", feature="executor"))]
 #[test]
 fn works_1() {
     use futures::channel::oneshot;
@@ -25,7 +24,6 @@ fn works_1() {
     assert_eq!(None, iter.next());
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn works_2() {
     use futures::channel::oneshot;
@@ -51,7 +49,6 @@ fn works_2() {
     assert!(stream.poll_next_unpin(&mut cx).is_ready());
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn from_iterator() {
     use futures::executor::block_on;
@@ -67,7 +64,6 @@ fn from_iterator() {
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn queue_never_unblocked() {
     use futures::channel::oneshot;

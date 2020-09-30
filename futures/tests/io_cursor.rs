@@ -1,4 +1,3 @@
-#[cfg(all(feature = "std", feature = "executor"))]
 #[test]
 fn cursor_asyncwrite_vec() {
     use assert_matches::assert_matches;
@@ -17,7 +16,6 @@ fn cursor_asyncwrite_vec() {
     assert_eq!(cursor.into_inner(), [1, 2, 3, 4, 5, 6, 6, 7]);
 }
 
-#[cfg(all(feature = "std", feature = "executor"))]
 #[test]
 fn cursor_asyncwrite_box() {
     use assert_matches::assert_matches;

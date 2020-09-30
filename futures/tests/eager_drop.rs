@@ -63,7 +63,6 @@ mod channelled {
         }
     }
 
-    #[cfg(feature = "alloc")]
     #[test]
     fn then_drops_eagerly() {
         use futures::channel::oneshot;
@@ -88,7 +87,6 @@ mod channelled {
         rx2.recv().unwrap();
     }
 
-    #[cfg(feature = "alloc")]
     #[test]
     fn and_then_drops_eagerly() {
         use futures::channel::oneshot;
@@ -113,7 +111,6 @@ mod channelled {
         rx2.recv().unwrap();
     }
 
-    #[cfg(feature = "alloc")]
     #[test]
     fn or_else_drops_eagerly() {
         use futures::channel::oneshot;

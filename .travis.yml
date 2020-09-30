@@ -38,10 +38,16 @@ matrix:
     # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
     - name: cargo build --features async-await (minimum required version)
       rust: 1.39.0
+      install:
+        # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+        # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+        - if ! cargo hack -V 2>/dev/null; then
+            cargo install cargo-hack;
+          fi
       script:
-        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         # async-await feature is activated by default.
-        - cargo build --workspace
+        - cargo hack build --workspace --no-dev-deps
+        - cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
 
     - name: cargo +stable build
       rust: stable

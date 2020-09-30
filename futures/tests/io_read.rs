@@ -1,4 +1,3 @@
-#[cfg(feature = "std")]
 mod mock_reader {
     use futures::io::AsyncRead;
     use std::io;
@@ -28,7 +27,6 @@ mod mock_reader {
 
 /// Verifies that the default implementation of `poll_read_vectored`
 /// calls `poll_read` with an empty slice if no buffers are provided.
-#[cfg(feature = "std")]
 #[test]
 fn read_vectored_no_buffers() {
     use futures::io::AsyncRead;
@@ -53,7 +51,6 @@ fn read_vectored_no_buffers() {
 
 /// Verifies that the default implementation of `poll_read_vectored`
 /// calls `poll_read` with the first non-empty buffer.
-#[cfg(feature = "std")]
 #[test]
 fn read_vectored_first_non_empty() {
     use futures::io::AsyncRead;
@@ -72,7 +69,7 @@ fn read_vectored_first_non_empty() {
     let cx = &mut panic_context();
     let mut buf = [0; 4];
     let bufs = &mut [
-        io::IoSliceMut::new(&mut []), 
+        io::IoSliceMut::new(&mut []),
         io::IoSliceMut::new(&mut []),
         io::IoSliceMut::new(&mut buf),
     ];
@@ -82,4 +79,3 @@ fn read_vectored_first_non_empty() {
     assert_eq!(res, Poll::Ready(Ok(4)));
     assert_eq!(buf, b"four"[..]);
 }
-

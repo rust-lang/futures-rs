@@ -1,4 +1,3 @@
-#[cfg(feature = "std")]
 mod mock_writer {
     use futures::io::AsyncWrite;
     use std::io;
@@ -36,7 +35,6 @@ mod mock_writer {
 
 /// Verifies that the default implementation of `poll_write_vectored`
 /// calls `poll_write` with an empty slice if no buffers are provided.
-#[cfg(feature = "std")]
 #[test]
 fn write_vectored_no_buffers() {
     use futures::io::AsyncWrite;
@@ -61,7 +59,6 @@ fn write_vectored_no_buffers() {
 
 /// Verifies that the default implementation of `poll_write_vectored`
 /// calls `poll_write` with the first non-empty buffer.
-#[cfg(feature = "std")]
 #[test]
 fn write_vectored_first_non_empty() {
     use futures::io::AsyncWrite;
@@ -78,7 +75,7 @@ fn write_vectored_first_non_empty() {
     });
     let cx = &mut panic_context();
     let bufs = &mut [
-        io::IoSlice::new(&[]), 
+        io::IoSlice::new(&[]),
         io::IoSlice::new(&[]),
         io::IoSlice::new(b"four")
     ];
@@ -87,4 +84,3 @@ fn write_vectored_first_non_empty() {
     let res = res.map_err(|e| e.kind());
     assert_eq!(res, Poll::Ready(Ok(4)));
 }
-

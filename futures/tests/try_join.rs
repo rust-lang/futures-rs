@@ -1,5 +1,3 @@
-#![cfg(feature = "executor")] // executor::
-#![cfg(feature = "async-await")] // try_join!
 #![deny(unreachable_code)]
 
 use futures::{try_join, executor::block_on};

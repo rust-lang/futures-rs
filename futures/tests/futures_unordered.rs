@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")]
 #[test]
 fn is_terminated() {
     use futures::future;
@@ -31,7 +30,6 @@ fn is_terminated() {
     assert_eq!(tasks.is_terminated(), true);
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn works_1() {
     use futures::channel::oneshot;
@@ -58,7 +56,6 @@ fn works_1() {
     assert_eq!(None, iter.next());
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn works_2() {
     use futures::channel::oneshot;
@@ -88,7 +85,6 @@ fn works_2() {
     assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(None));
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn from_iterator() {
     use futures::executor::block_on;
@@ -106,7 +102,6 @@ fn from_iterator() {
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1, 2, 3]);
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn finished_future() {
     use std::marker::Unpin;
@@ -138,7 +133,6 @@ fn finished_future() {
     assert!(stream.poll_next_unpin(cx).is_pending());
 }
 
-#[cfg(all(feature = "alloc", feature = "executor"))]
 #[test]
 fn iter_mut_cancel() {
     use futures::channel::oneshot;
@@ -169,7 +163,6 @@ fn iter_mut_cancel() {
     assert_eq!(iter.next(), None);
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn iter_mut_len() {
     use futures::future;
@@ -194,7 +187,6 @@ fn iter_mut_len() {
     assert!(iter_mut.next().is_none());
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn iter_cancel() {
     use std::marker::Unpin;
@@ -249,7 +241,6 @@ fn iter_cancel() {
     assert_eq!(iter.next(), None);
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn iter_len() {
     use futures::future;
@@ -274,7 +265,6 @@ fn iter_len() {
     assert!(iter.next().is_none());
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn futures_not_moved_after_poll() {
     use futures::future;
@@ -292,7 +282,6 @@ fn futures_not_moved_after_poll() {
     assert_stream_done!(stream);
 }
 
-#[cfg(feature = "alloc")]
 #[test]
 fn len_valid_during_out_of_order_completion() {
     use futures::channel::oneshot;

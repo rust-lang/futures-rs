@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")] // stream::FuturesUnordered
 #[test]
 fn is_terminated() {
     use futures::future;
@@ -29,8 +28,6 @@ fn is_terminated() {
     assert_eq!(select_next_some.is_terminated(), true);
 }
 
-#[cfg(all(feature = "async-await", feature = "std"))] // futures::select
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn select() {
     use futures::{future, select};
@@ -62,9 +59,6 @@ fn select() {
 }
 
 // Check that `select!` macro does not fail when importing from `futures_util`.
-#[cfg(feature = "alloc")] // stream::FuturesUnordered
-#[cfg(feature = "async-await")] // futures_util::select turned on
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn futures_util_select() {
     use futures::future;
