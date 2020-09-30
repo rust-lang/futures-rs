@@ -288,6 +288,7 @@ impl<E> fmt::Display for SharedError<E>
 impl<E> error::Error for SharedError<E>
     where E: error::Error,
 {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         self.error.description()
     }

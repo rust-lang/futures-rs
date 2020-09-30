@@ -1,3 +1,5 @@
+#![allow(bare_trait_objects, unknown_lints)]
+
 #[macro_use]
 extern crate futures;
 
