@@ -36,6 +36,7 @@
 
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
+#![allow(bare_trait_objects, unknown_lints)]
 
 extern crate futures;
 extern crate num_cpus;

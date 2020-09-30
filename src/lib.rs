@@ -157,6 +157,7 @@
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
+#![allow(bare_trait_objects, unknown_lints)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[macro_use]

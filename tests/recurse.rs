@@ -1,3 +1,5 @@
+#![allow(bare_trait_objects, unknown_lints)]
+
 extern crate futures;
 
 use std::sync::mpsc::channel;

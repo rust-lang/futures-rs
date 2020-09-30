@@ -5,7 +5,9 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
+use std::sync::{Arc, Mutex, Condvar, Once};
+#[allow(deprecated)]
+use std::sync::ONCE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
@@ -32,6 +34,7 @@ pub fn is_in_task() -> bool {
     CURRENT_TASK.with(|task| !task.get().is_null())
 }
 
+#[allow(deprecated)]
 static INIT: Once = ONCE_INIT;
 
 pub fn get_ptr() -> Option<*mut u8> {

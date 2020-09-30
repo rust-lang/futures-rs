@@ -4,6 +4,8 @@
 //! futures-aware inter-thread communications, and is not intended to be used to
 //! manage I/O. For futures that do I/O you'll likely want to use `tokio-core`.
 
+#![allow(bare_trait_objects, unknown_lints)]
+
 use std::cell::{Cell, RefCell};
 use std::sync::{Arc, Mutex, mpsc};
 
