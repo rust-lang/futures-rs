@@ -14,7 +14,7 @@ macro_rules! document_select_macro {
         /// (e.g. an `async fn` call) instead of a `Future` by name the `Unpin`
         /// requirement is relaxed, since the macro will pin the resulting `Future`
         /// on the stack. However the `Future` returned by the expression must
-        /// still implement `FusedFuture`. This difference is presented
+        /// still implement `FusedFuture`.
         ///
         /// Futures and streams which are not already fused can be fused using the
         /// `.fuse()` method. Note, though, that fusing a future or stream directly
@@ -167,7 +167,7 @@ macro_rules! document_select_macro {
         /// (e.g. an `async fn` call) instead of a `Future` by name the `Unpin`
         /// requirement is relaxed, since the macro will pin the resulting `Future`
         /// on the stack. However the `Future` returned by the expression must
-        /// still implement `FusedFuture`. This difference is presented
+        /// still implement `FusedFuture`.
         ///
         /// Futures and streams which are not already fused can be fused using the
         /// `.fuse()` method. Note, though, that fusing a future or stream directly
