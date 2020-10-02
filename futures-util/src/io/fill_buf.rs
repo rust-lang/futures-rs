@@ -11,7 +11,7 @@ pub struct FillBuf<'a, R: ?Sized> {
     reader: Option<&'a mut R>,
 }
 
-impl<R: ?Sized + Unpin> Unpin for FillBuf<'_, R> {}
+impl<R: ?Sized> Unpin for FillBuf<'_, R> {}
 
 impl<'a, R: AsyncBufRead + ?Sized + Unpin> FillBuf<'a, R> {
     pub(super) fn new(reader: &'a mut R) -> Self {
