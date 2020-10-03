@@ -12,7 +12,7 @@
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 use crate::compat::Compat;
-use std::ptr;
+use std::{ptr, pin::Pin};
 
 pub use futures_io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
@@ -66,6 +66,9 @@ pub use self::cursor::Cursor;
 
 mod empty;
 pub use self::empty::{empty, Empty};
+
+mod fill_buf;
+pub use self::fill_buf::FillBuf;
 
 mod flush;
 pub use self::flush::Flush;
@@ -591,6 +594,58 @@ impl<S: AsyncSeek + ?Sized> AsyncSeekExt for S {}
 
 /// An extension trait which adds utility methods to `AsyncBufRead` types.
 pub trait AsyncBufReadExt: AsyncBufRead {
+    /// Creates a future which will wait for a non-empty buffer to be available from this I/O
+    /// object or EOF to be reached.
+    ///
+    /// This method is the async equivalent to [`BufRead::fill_buf`](std::io::BufRead::fill_buf).
+    ///
+    /// ```rust
+    /// # futures::executor::block_on(async {
+    /// use futures::{io::AsyncBufReadExt as _, stream::{iter, TryStreamExt as _}};
+    ///
+    /// let mut stream = iter(vec![Ok(vec![1, 2, 3]), Ok(vec![4, 5, 6])]).into_async_read();
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![1, 2, 3]);
+    /// stream.consume_unpin(2);
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![3]);
+    /// stream.consume_unpin(1);
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![4, 5, 6]);
+    /// stream.consume_unpin(3);
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn fill_buf(&mut self) -> FillBuf<'_, Self>
+        where Self: Unpin,
+    {
+        FillBuf::new(self)
+    }
+
+    /// A convenience for calling [`AsyncBufRead::consume`] on [`Unpin`] IO types.
+    ///
+    /// ```rust
+    /// # futures::executor::block_on(async {
+    /// use futures::{io::AsyncBufReadExt as _, stream::{iter, TryStreamExt as _}};
+    ///
+    /// let mut stream = iter(vec![Ok(vec![1, 2, 3])]).into_async_read();
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![1, 2, 3]);
+    /// stream.consume_unpin(2);
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![3]);
+    /// stream.consume_unpin(1);
+    ///
+    /// assert_eq!(stream.fill_buf().await?, vec![]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn consume_unpin(&mut self, amt: usize)
+        where Self: Unpin,
+    {
+        Pin::new(self).consume(amt)
+    }
+
     /// Creates a future which will read all the bytes associated with this I/O
     /// object into `buf` until the delimiter `byte` or EOF is reached.
     /// This method is the async equivalent to [`BufRead::read_until`](std::io::BufRead::read_until).
