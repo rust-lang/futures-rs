@@ -24,7 +24,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-io/0.3.5")]
+#![doc(html_root_url = "https://docs.rs/futures-io/0.3.6")]
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
