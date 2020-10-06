@@ -95,7 +95,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures/0.3.5")]
+#![doc(html_root_url = "https://docs.rs/futures/0.3.6")]
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -343,7 +343,7 @@ pub mod io {
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
         BufReader, BufWriter, Cursor, Chain, Close, copy, Copy, copy_buf, CopyBuf,
-        empty, Empty, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
+        empty, Empty, FillBuf, Flush, IntoSink, Lines, Read, ReadExact, ReadHalf,
         ReadLine, ReadToEnd, ReadToString, ReadUntil, ReadVectored, repeat,
         Repeat, ReuniteError, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
         WriteVectored,

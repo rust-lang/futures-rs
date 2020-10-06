@@ -1,3 +1,16 @@
+# 0.3.6 - 2020-10-06
+* Fixed UB due to missing 'static on `task::waker` (#2206)
+* Added `AsyncBufReadExt::fill_buf` (#2225)
+* Added `TryStreamExt::try_take_while` (#2212)
+* Added `is_connected_to` method to `mpsc::{Sender, UnboundedSender}` (#2179)
+* Added `is_connected_to` method to `oneshot::Sender` (#2158)
+* Implement `FusedStream` for `FuturesOrdered` (#2205)
+* Fixed documentation links
+* Improved documentation
+* futures-test: Added `track_closed` method to `AsyncWriteTestExt` and `SinkTestExt` (#2159)
+* futures-test: Implemented more traits for `InterleavePending` (#2208)
+* futures-test: Implemented more traits for `AssertUnmoved` (#2208)
+
 # 0.3.5 - 2020-05-08
 * Added `StreamExt::flat_map`.
 * Added `StreamExt::ready_chunks`.
