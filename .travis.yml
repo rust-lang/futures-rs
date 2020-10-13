@@ -10,10 +10,33 @@ before_cache:
 
 matrix:
   include:
-    # This is the minimum Rust version supported by futures-rs.
+    # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task, futures-channel.
     # When updating this, the reminder to update the minimum required version in README.md.
-    - name: cargo check (minimum required version)
+    - name: cargo check (minimum required version of futures-{core, io, sink, task})
       rust: 1.36.0
+      install:
+        # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+        # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+        - if ! cargo hack -V 2>/dev/null; then
+            cargo install cargo-hack;
+          fi
+      script:
+        # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+        - cargo hack --remove-dev-deps --workspace
+        # Check no-default-features
+        - cargo hack check --workspace --ignore-private --no-default-features
+            --exclude futures --exclude futures-util --exclude futures-executor --exclude futures-test
+        # Check alloc feature
+        - cargo hack check --workspace --ignore-private --no-default-features --features alloc --ignore-unknown-features
+            --exclude futures --exclude futures-util --exclude futures-executor --exclude futures-test
+        # Check std feature
+        - cargo hack check --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
+            --exclude futures --exclude futures-util --exclude futures-executor --exclude futures-test
+
+    # This is the minimum Rust version supported by futures, futures-util, futures-executor, futures-test.
+    # When updating this, the reminder to update the minimum required version in README.md.
+    - name: cargo check (minimum required version of futures-{util, executor, test})
+      rust: 1.37.0
       install:
         # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
         # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
