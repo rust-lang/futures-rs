@@ -37,7 +37,7 @@ fn try_join_all_iter_lifetime() {
 
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `TryJoinAll`.
-    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<dyn Future<Output = Result<Vec<usize>, ()>> + Unpin> {
+    fn sizes(bufs: Vec<&[u8]>) -> Box<dyn Future<Output = Result<Vec<usize>, ()>> + Unpin> {
         let iter = bufs.into_iter().map(|b| ok::<usize, ()>(b.len()));
         Box::new(try_join_all(iter))
     }
