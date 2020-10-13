@@ -32,7 +32,7 @@ fn join_all_iter_lifetime() {
     use std::future::Future;
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `JoinAll`.
-    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<dyn Future<Output = Vec<usize>> + Unpin> {
+    fn sizes(bufs: Vec<&[u8]>) -> Box<dyn Future<Output = Vec<usize>> + Unpin> {
         let iter = bufs.into_iter().map(|b| ready::<usize>(b.len()));
         Box::new(join_all(iter))
     }
