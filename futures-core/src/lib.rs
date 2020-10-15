@@ -35,7 +35,6 @@ pub mod task;
 
 // Not public API.
 #[doc(hidden)]
-pub mod core_reexport {
-    #[doc(hidden)]
-    pub use core::*;
+pub mod __private {
+    pub use core::task::Poll;
 }

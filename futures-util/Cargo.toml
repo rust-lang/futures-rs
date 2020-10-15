@@ -38,7 +38,7 @@ futures-task = { path = "../futures-task", version = "0.3.6", default-features =
 futures-channel = { path = "../futures-channel", version = "0.3.6", default-features = false, features = ["std"], optional = true }
 futures-io = { path = "../futures-io", version = "0.3.6", default-features = false, features = ["std"], optional = true }
 futures-sink = { path = "../futures-sink", version = "0.3.6", default-features = false, optional = true }
-futures-macro = { path = "../futures-macro", version = "0.3.6", default-features = false, optional = true }
+futures-macro = { path = "../futures-macro", version = "=0.3.6", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5.9", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
 slab = { version = "0.4.2", optional = true }

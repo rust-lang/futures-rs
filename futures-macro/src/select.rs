@@ -201,12 +201,12 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
             quote! {
                 let mut #variant_name = |__cx: &mut __futures_crate::task::Context<'_>| {
                     let mut #bound_future_name = unsafe {
-                        ::core::pin::Pin::new_unchecked(&mut #bound_future_name)
+                        __futures_crate::Pin::new_unchecked(&mut #bound_future_name)
                     };
                     if __futures_crate::future::FusedFuture::is_terminated(&#bound_future_name) {
-                        None
+                        __futures_crate::None
                     } else {
-                        Some(__futures_crate::future::FutureExt::poll_unpin(
+                        __futures_crate::Some(__futures_crate::future::FutureExt::poll_unpin(
                             &mut #bound_future_name,
                             __cx,
                         ).map(#enum_ident::#variant_name))
@@ -214,7 +214,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                 };
                 let #variant_name: &mut dyn FnMut(
                     &mut __futures_crate::task::Context<'_>
-                ) -> Option<__futures_crate::task::Poll<_>> = &mut #variant_name;
+                ) -> __futures_crate::Option<__futures_crate::task::Poll<_>> = &mut #variant_name;
             }
         });
 
@@ -304,14 +304,14 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
                 for poller in &mut __select_arr {
                     let poller: &mut &mut dyn FnMut(
                         &mut __futures_crate::task::Context<'_>
-                    ) -> Option<__futures_crate::task::Poll<_>> = poller;
+                    ) -> __futures_crate::Option<__futures_crate::task::Poll<_>> = poller;
                     match poller(__cx) {
-                        Some(x @ __futures_crate::task::Poll::Ready(_)) =>
+                        __futures_crate::Some(x @ __futures_crate::task::Poll::Ready(_)) =>
                             return x,
-                        Some(__futures_crate::task::Poll::Pending) => {
+                        __futures_crate::Some(__futures_crate::task::Poll::Pending) => {
                             __any_polled = true;
                         }
-                        None => {}
+                        __futures_crate::None => {}
                     }
                 }
 
