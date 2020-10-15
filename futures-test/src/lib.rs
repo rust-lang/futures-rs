@@ -17,18 +17,25 @@
 #[cfg(not(feature = "std"))]
 compile_error!("`futures-test` must have the `std` feature activated, this is a default-active feature");
 
+// Not public API.
 #[doc(hidden)]
 #[cfg(feature = "std")]
-pub use std as std_reexport;
+pub mod __private {
+    pub use std::{
+        option::Option::{Some, None},
+        pin::Pin,
+        result::Result::{Err, Ok},
+    };
+    pub use futures_core::{future, stream, task};
 
-#[doc(hidden)]
-#[cfg(feature = "std")]
-pub extern crate futures_core as futures_core_reexport;
+    pub mod assert {
+        pub use crate::assert::*;
+    }
+}
 
 #[macro_use]
-#[doc(hidden)]
 #[cfg(feature = "std")]
-pub mod assert;
+mod assert;
 
 #[cfg(feature = "std")]
 pub mod task;

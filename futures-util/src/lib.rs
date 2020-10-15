@@ -41,25 +41,27 @@ extern crate futures_core;
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
-// Not public API.
 #[cfg(feature = "async-await")]
 #[macro_use]
-#[doc(hidden)]
-pub mod async_await;
+mod async_await;
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use self::async_await::*;
 
 // Not public API.
-#[doc(hidden)]
-pub use futures_core::core_reexport;
-
-// Not public API.
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
-pub mod __reexport {
-    #[doc(hidden)]
+pub mod __private {
     pub use crate::*;
+    pub use core::{
+        option::Option::{self, Some, None},
+        pin::Pin,
+        result::Result::{Err, Ok},
+    };
+
+    pub mod async_await {
+        pub use crate::async_await::*;
+    }
 }
 
 macro_rules! cfg_target_has_atomic {
@@ -74,8 +76,8 @@ macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {
         fn poll_ready(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_ready(cx)
         }
 
@@ -88,15 +90,15 @@ macro_rules! delegate_sink {
 
         fn poll_flush(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_flush(cx)
         }
 
         fn poll_close(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_close(cx)
         }
     }
@@ -106,8 +108,8 @@ macro_rules! delegate_future {
     ($field:ident) => {
         fn poll(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Self::Output> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Self::Output> {
             self.project().$field.poll(cx)
         }
     }
@@ -117,8 +119,8 @@ macro_rules! delegate_stream {
     ($field:ident) => {
         fn poll_next(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Option<Self::Item>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Option<Self::Item>> {
             self.project().$field.poll_next(cx)
         }
         fn size_hint(&self) -> (usize, Option<usize>) {
