@@ -20,8 +20,6 @@ pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
 }
 
 /// A stream which emits single element and then EOF.
-///
-/// This stream will never block and is always ready.
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
