@@ -9,7 +9,9 @@ unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
 unsafe fn noop(_data: *const ()) {}
 
 unsafe fn wake_panic(_data: *const ()) {
-    panic!("should not be woken");
+    if ! std::thread::panicking() {
+        panic!("should not be woken");
+    }
 }
 
 const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
