@@ -17,7 +17,7 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.6")]
+#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.7")]
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
