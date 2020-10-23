@@ -3,15 +3,16 @@ use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
 use std::{fmt, mem};
 use std::cell::UnsafeCell;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A futures-aware mutex.
-/// 
+///
 /// # Fairness
-/// 
+///
 /// This mutex provides no fairness guarantees. Tasks may not acquire the mutex
 /// in the order that they requested the lock, and it's possible for a single task
 /// which repeatedly takes the lock to starve other tasks, which may be left waiting
@@ -288,7 +289,7 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
         // Don't run the `drop` method for MutexGuard. The ownership of the underlying
         // locked state is being moved to the returned MappedMutexGuard.
         mem::forget(this);
-        MappedMutexGuard { mutex, value }
+        MappedMutexGuard { mutex, value, _marker: PhantomData }
     }
 }
 
@@ -325,6 +326,7 @@ impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
 pub struct MappedMutexGuard<'a, T: ?Sized, U: ?Sized> {
     mutex: &'a Mutex<T>,
     value: *mut U,
+    _marker: PhantomData<&'a mut U>,
 }
 
 impl<'a, T: ?Sized, U: ?Sized> MappedMutexGuard<'a, T, U> {
@@ -354,7 +356,7 @@ impl<'a, T: ?Sized, U: ?Sized> MappedMutexGuard<'a, T, U> {
         // Don't run the `drop` method for MappedMutexGuard. The ownership of the underlying
         // locked state is being moved to the returned MappedMutexGuard.
         mem::forget(this);
-        MappedMutexGuard { mutex, value }
+        MappedMutexGuard { mutex, value, _marker: PhantomData }
     }
 }
 
@@ -401,8 +403,8 @@ unsafe impl<T: ?Sized> Sync for MutexLockFuture<'_, T> {}
 // lock is essentially spinlock-equivalent (attempt to flip an atomic bool)
 unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
-unsafe impl<T: ?Sized + Send, U: ?Sized> Send for MappedMutexGuard<'_, T, U> {}
-unsafe impl<T: ?Sized + Sync, U: ?Sized> Sync for MappedMutexGuard<'_, T, U> {}
+unsafe impl<T: ?Sized + Send, U: ?Sized + Send> Send for MappedMutexGuard<'_, T, U> {}
+unsafe impl<T: ?Sized + Sync, U: ?Sized + Sync> Sync for MappedMutexGuard<'_, T, U> {}
 
 #[test]
 fn test_mutex_guard_debug_not_recurse() {
