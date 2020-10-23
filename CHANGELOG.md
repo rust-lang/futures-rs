@@ -1,3 +1,8 @@
+# 0.3.7 - 2020-10-23
+* Fixed unsoundness in `MappedMutexGuard` (#2240)
+* Re-exported `TakeUntil` (#2235)
+* futures-test: Prevent double panic in `panic_waker` (#2236)
+
 # 0.3.6 - 2020-10-06
 * Fixed UB due to missing 'static on `task::waker` (#2206)
 * Added `AsyncBufReadExt::fill_buf` (#2225)
