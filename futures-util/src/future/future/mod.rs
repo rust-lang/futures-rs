@@ -114,7 +114,7 @@ pub use self::remote_handle::{Remote, RemoteHandle};
 mod shared;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::shared::Shared;
+pub use self::shared::{Shared, WeakShared};
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
 

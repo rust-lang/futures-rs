@@ -28,7 +28,7 @@ pub use self::future::CatchUnwind;
 pub use self::future::{Remote, RemoteHandle};
 
 #[cfg(feature = "std")]
-pub use self::future::Shared;
+pub use self::future::{Shared, WeakShared};
 
 mod try_future;
 pub use self::try_future::{

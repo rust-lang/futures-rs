@@ -301,7 +301,7 @@ pub mod future {
     #[cfg(feature = "std")]
     pub use futures_util::future::{
         Remote, RemoteHandle,
-        CatchUnwind, Shared,
+        CatchUnwind, Shared, WeakShared,
     };
 }
 
