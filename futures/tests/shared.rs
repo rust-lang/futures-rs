@@ -144,6 +144,34 @@ fn peek() {
 }
 
 #[test]
+fn downgrade() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
+    let (tx, rx) = oneshot::channel::<i32>();
+    let shared = rx.shared();
+    // Since there are outstanding `Shared`s, we can get a `WeakShared`.
+    let weak = shared.downgrade().unwrap();
+    // It should upgrade fine right now.
+    let mut shared2 = weak.upgrade().unwrap();
+
+    tx.send(42).unwrap();
+    assert_eq!(block_on(shared).unwrap(), 42);
+
+    // We should still be able to get a new `WeakShared` and upgrade it
+    // because `shared2` is outstanding.
+    assert!(shared2.downgrade().is_some());
+    assert!(weak.upgrade().is_some());
+
+    assert_eq!(block_on(&mut shared2).unwrap(), 42);
+    // Now that all `Shared`s have been exhausted, we should not be able
+    // to get a new `WeakShared` or upgrade an existing one.
+    assert!(weak.upgrade().is_none());
+    assert!(shared2.downgrade().is_none());
+}
+
+#[test]
 fn dont_clone_in_single_owner_shared_future() {
     use futures::channel::oneshot;
     use futures::executor::block_on;
