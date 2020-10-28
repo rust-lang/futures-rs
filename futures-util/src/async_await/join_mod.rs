@@ -82,11 +82,11 @@ macro_rules! document_join_macro {
 }
 
 #[doc(hidden)]
-#[proc_macro_hack(support_nested)]
+#[proc_macro_hack(support_nested, only_hack_old_rustc)]
 pub use futures_macro::join_internal;
 
 #[doc(hidden)]
-#[proc_macro_hack(support_nested)]
+#[proc_macro_hack(support_nested, only_hack_old_rustc)]
 pub use futures_macro::try_join_internal;
 
 document_join_macro! {
