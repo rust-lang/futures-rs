@@ -74,9 +74,10 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 
         Poll::Ready(loop {
             if let Some(fut) = this.pending_fut.as_mut().as_pin_mut() {
-                let skipped = ready!(fut.try_poll(cx)?);
-                let item = this.pending_item.take();
+                let res = ready!(fut.try_poll(cx));
                 this.pending_fut.set(None);
+                let skipped = res?;
+                let item = this.pending_item.take();
                 if !skipped {
                     *this.done_skipping = true;
                     break item.map(Ok);
