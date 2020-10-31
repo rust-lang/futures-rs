@@ -37,7 +37,7 @@ fn join_all_iter_lifetime() {
         Box::new(join_all(iter))
     }
 
-    util::assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), vec![3 as usize, 0, 1]);
+    util::assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), vec![3_usize, 0, 1]);
 }
 
 #[test]
