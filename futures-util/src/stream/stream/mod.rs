@@ -33,6 +33,10 @@ mod concat;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::concat::Concat;
 
+mod cycle;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::cycle::Cycle;
+
 mod enumerate;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::enumerate::Enumerate;
@@ -511,6 +515,36 @@ pub trait StreamExt: Stream {
         Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
     {
         assert_future::<Self::Item, _>(Concat::new(self))
+    }
+
+    /// Repeats a stream endlessly.
+    ///
+    /// The stream never terminates. Note that you likely want to avoid
+    /// usage of `collect` or such on the returned stream as it will exhaust
+    /// available memory as it tries to just fill up all RAM.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    /// let a = [1, 2, 3];
+    /// let mut s = stream::iter(a.iter()).cycle();
+    ///
+    /// assert_eq!(s.next().await, Some(&1));
+    /// assert_eq!(s.next().await, Some(&2));
+    /// assert_eq!(s.next().await, Some(&3));
+    /// assert_eq!(s.next().await, Some(&1));
+    /// assert_eq!(s.next().await, Some(&2));
+    /// assert_eq!(s.next().await, Some(&3));
+    /// assert_eq!(s.next().await, Some(&1));
+    /// # });
+    /// ```
+    fn cycle(self) -> Cycle<Self>
+    where
+        Self: Sized + Clone,
+    {
+        assert_stream::<Self::Item, _>(Cycle::new(self))
     }
 
     /// Execute an accumulating asynchronous computation over a stream,
