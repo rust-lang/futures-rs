@@ -115,6 +115,12 @@ cfg_target_has_atomic! {
     pub use self::try_buffer_unordered::TryBufferUnordered;
 
     #[cfg(feature = "alloc")]
+    mod try_buffered;
+    #[cfg(feature = "alloc")]
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use self::try_buffered::TryBuffered;
+
+    #[cfg(feature = "alloc")]
     mod try_for_each_concurrent;
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -840,6 +846,81 @@ pub trait TryStreamExt: TryStream {
         assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(
             TryBufferUnordered::new(self, n),
         )
+    }
+
+    /// Attempt to execute several futures from a stream concurrently.
+    ///
+    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
+    /// that matches the stream's `Error` type.
+    ///
+    /// This adaptor will buffer up to `n` futures and then return their
+    /// outputs in the order. If the underlying stream returns an error, it will
+    /// be immediately propagated.
+    ///
+    /// The returned stream will be a stream of results, each containing either
+    /// an error or a future's output. An error can be produced either by the
+    /// underlying stream itself or by one of the futures it yielded.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// Results are returned in the order of addition:
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::future::lazy;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use futures::task::Poll;
+    ///
+    /// let (send_one, recv_one) = oneshot::channel();
+    /// let (send_two, recv_two) = oneshot::channel();
+    ///
+    /// let mut buffered = lazy(move |cx| {
+    ///     let stream_of_futures = stream::iter(vec![Ok(recv_one), Ok(recv_two)]);
+    ///
+    ///     let mut buffered = stream_of_futures.try_buffered(10);
+    ///
+    ///     assert_eq!(buffered.try_poll_next_unpin(cx), Poll::Pending);
+    ///
+    ///     send_two.send(2i32)?;
+    ///     assert_eq!(buffered.try_poll_next_unpin(cx), Poll::Pending);
+    ///     Ok::<_, i32>(buffered)
+    /// }).await?;
+    ///
+    /// send_one.send(1i32)?;
+    /// assert_eq!(buffered.next().await, Some(Ok(1i32)));
+    /// assert_eq!(buffered.next().await, Some(Ok(2i32)));
+    ///
+    /// assert_eq!(buffered.next().await, None);
+    /// # Ok::<(), i32>(()) }).unwrap();
+    /// ```
+    ///
+    /// Errors from the underlying stream itself are propagated:
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::stream::{StreamExt, TryStreamExt};
+    ///
+    /// let (sink, stream_of_futures) = mpsc::unbounded();
+    /// let mut buffered = stream_of_futures.try_buffered(10);
+    ///
+    /// sink.unbounded_send(Ok(async { Ok(7i32) }))?;
+    /// assert_eq!(buffered.next().await, Some(Ok(7i32)));
+    ///
+    /// sink.unbounded_send(Err("error in the stream"))?;
+    /// assert_eq!(buffered.next().await, Some(Err("error in the stream")));
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
+    fn try_buffered(self, n: usize) -> TryBuffered<Self>
+    where
+        Self::Ok: TryFuture<Error = Self::Error>,
+        Self: Sized,
+    {
+        TryBuffered::new(self, n)
     }
 
     // TODO: false positive warning from rustdoc. Verify once #43466 settles
