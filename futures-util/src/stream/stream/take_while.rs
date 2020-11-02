@@ -41,8 +41,8 @@ impl<St, Fut, F> TakeWhile<St, Fut, F>
           F: FnMut(&St::Item) -> Fut,
           Fut: Future<Output = bool>,
 {
-    pub(super) fn new(stream: St, f: F) -> TakeWhile<St, Fut, F> {
-        TakeWhile {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             pending_fut: None,

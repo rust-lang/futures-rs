@@ -44,8 +44,8 @@ where
     St: Stream,
     Fut: Future,
 {
-    pub(super) fn new(stream: St, fut: Fut) -> TakeUntil<St, Fut> {
-        TakeUntil {
+    pub(super) fn new(stream: St, fut: Fut) -> Self {
+        Self {
             stream,
             fut: Some(fut),
             fut_result: None,

@@ -13,8 +13,8 @@ use pin_project::pin_project;
 pub struct CatchUnwind<Fut>(#[pin] Fut);
 
 impl<Fut> CatchUnwind<Fut> where Fut: Future + UnwindSafe {
-    pub(super) fn new(future: Fut) -> CatchUnwind<Fut> {
-        CatchUnwind(future)
+    pub(super) fn new(future: Fut) -> Self {
+        Self(future)
     }
 }
 

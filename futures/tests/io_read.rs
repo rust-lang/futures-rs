@@ -10,7 +10,7 @@ mod mock_reader {
 
     impl MockReader {
         pub fn new(fun: impl FnMut(&mut [u8]) -> Poll<io::Result<usize>> + 'static) -> Self {
-            MockReader { fun: Box::new(fun) }
+            Self { fun: Box::new(fun) }
         }
     }
 

@@ -122,8 +122,8 @@ impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
 // run queue if it isn't inserted already.
 
 impl<Fut> Default for FuturesUnordered<Fut> {
-    fn default() -> FuturesUnordered<Fut> {
-        FuturesUnordered::new()
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -133,7 +133,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// The returned [`FuturesUnordered`] does not contain any futures.
     /// In this state, [`FuturesUnordered::poll_next`](Stream::poll_next) will
     /// return [`Poll::Ready(None)`](Poll::Ready).
-    pub fn new() -> FuturesUnordered<Fut> {
+    pub fn new() -> Self {
         let stub = Arc::new(Task {
             future: UnsafeCell::new(None),
             next_all: AtomicPtr::new(ptr::null_mut()),
@@ -151,7 +151,7 @@ impl<Fut> FuturesUnordered<Fut> {
             stub,
         });
 
-        FuturesUnordered {
+        Self {
             head_all: AtomicPtr::new(ptr::null_mut()),
             ready_to_run_queue,
             is_terminated: AtomicBool::new(false),
@@ -610,7 +610,7 @@ impl<Fut> FromIterator<Fut> for FuturesUnordered<Fut> {
     where
         I: IntoIterator<Item = Fut>,
     {
-        let acc = FuturesUnordered::new();
+        let acc = Self::new();
         iter.into_iter().fold(acc, |acc, item| { acc.push(item); acc })
     }
 }

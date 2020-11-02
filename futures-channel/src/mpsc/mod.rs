@@ -334,7 +334,7 @@ struct SenderTask {
 
 impl SenderTask {
     fn new() -> Self {
-        SenderTask {
+        Self {
             task: None,
             is_parked: false,
         }
@@ -665,7 +665,7 @@ impl<T> BoundedSenderInner<T> {
     /// Returns whether the sender send to this receiver.
     fn is_connected_to(&self, receiver: &Arc<BoundedInner<T>>) -> bool {
         Arc::ptr_eq(&self.inner, &receiver)
-    } 
+    }
 
     /// Returns pointer to the Arc containing sender
     ///
@@ -896,19 +896,19 @@ impl<T> UnboundedSender<T> {
 }
 
 impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Sender<T> {
-        Sender(self.0.clone())
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
 impl<T> Clone for UnboundedSender<T> {
-    fn clone(&self) -> UnboundedSender<T> {
-        UnboundedSender(self.0.clone())
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
 impl<T> Clone for UnboundedSenderInner<T> {
-    fn clone(&self) -> UnboundedSenderInner<T> {
+    fn clone(&self) -> Self {
         // Since this atomic op isn't actually guarding any memory and we don't
         // care about any orderings besides the ordering on the single atomic
         // variable, a relaxed ordering is acceptable.
@@ -928,7 +928,7 @@ impl<T> Clone for UnboundedSenderInner<T> {
             // The ABA problem doesn't matter here. We only care that the
             // number of senders never exceeds the maximum.
             if actual == curr {
-                return UnboundedSenderInner {
+                return Self {
                     inner: self.inner.clone(),
                 };
             }
@@ -939,7 +939,7 @@ impl<T> Clone for UnboundedSenderInner<T> {
 }
 
 impl<T> Clone for BoundedSenderInner<T> {
-    fn clone(&self) -> BoundedSenderInner<T> {
+    fn clone(&self) -> Self {
         // Since this atomic op isn't actually guarding any memory and we don't
         // care about any orderings besides the ordering on the single atomic
         // variable, a relaxed ordering is acceptable.
@@ -959,7 +959,7 @@ impl<T> Clone for BoundedSenderInner<T> {
             // The ABA problem doesn't matter here. We only care that the
             // number of senders never exceeds the maximum.
             if actual == curr {
-                return BoundedSenderInner {
+                return Self {
                     inner: self.inner.clone(),
                     sender_task: Arc::new(Mutex::new(SenderTask::new())),
                     maybe_parked: false,

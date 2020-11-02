@@ -118,8 +118,8 @@ fn poll_executor<T, F: FnMut(&mut Context<'_>) -> T>(mut f: F) -> T {
 
 impl LocalPool {
     /// Create a new, empty pool of tasks.
-    pub fn new() -> LocalPool {
-        LocalPool {
+    pub fn new() -> Self {
+        Self {
             pool: FuturesUnordered::new(),
             incoming: Default::default(),
         }

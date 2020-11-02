@@ -11,8 +11,8 @@ pub struct IntoFuture<Fut>(#[pin] Fut);
 
 impl<Fut> IntoFuture<Fut> {
     #[inline]
-    pub(crate) fn new(future: Fut) -> IntoFuture<Fut> {
-        IntoFuture(future)
+    pub(crate) fn new(future: Fut) -> Self {
+        Self(future)
     }
 }
 

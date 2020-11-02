@@ -32,8 +32,8 @@ impl<T> Unpin for Compat01As03<T> {}
 impl<T> Compat01As03<T> {
     /// Wraps a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
     /// object in a futures 0.3-compatible wrapper.
-    pub fn new(object: T) -> Compat01As03<T> {
-        Compat01As03 {
+    pub fn new(object: T) -> Self {
+        Self {
             inner: spawn01(object),
         }
     }
@@ -197,8 +197,8 @@ impl<S, SinkItem> Unpin for Compat01As03Sink<S, SinkItem> {}
 #[cfg(feature = "sink")]
 impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
     /// Wraps a futures 0.1 Sink object in a futures 0.3-compatible wrapper.
-    pub fn new(inner: S) -> Compat01As03Sink<S, SinkItem> {
-        Compat01As03Sink {
+    pub fn new(inner: S) -> Self {
+        Self {
             inner: spawn01(inner),
             buffer: None,
             close_started: false
@@ -344,10 +344,10 @@ struct NotifyWaker(task03::Waker);
 struct WakerToHandle<'a>(&'a task03::Waker);
 
 impl From<WakerToHandle<'_>> for NotifyHandle01 {
-    fn from(handle: WakerToHandle<'_>) -> NotifyHandle01 {
+    fn from(handle: WakerToHandle<'_>) -> Self {
         let ptr = Box::new(NotifyWaker(handle.0.clone()));
 
-        unsafe { NotifyHandle01::new(Box::into_raw(ptr)) }
+        unsafe { Self::new(Box::into_raw(ptr)) }
     }
 }
 

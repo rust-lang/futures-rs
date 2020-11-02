@@ -116,8 +116,8 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 }
 
 impl<T> Inner<T> {
-    fn new() -> Inner<T> {
-        Inner {
+    fn new() -> Self {
+        Self {
             complete: AtomicBool::new(false),
             data: Lock::new(None),
             rx_task: Lock::new(None),
@@ -366,7 +366,7 @@ impl<T> Sender<T> {
     /// [`Receiver`](Receiver) half has hung up.
     ///
     /// This is a utility wrapping [`poll_canceled`](Sender::poll_canceled)
-    /// to expose a [`Future`](core::future::Future). 
+    /// to expose a [`Future`](core::future::Future).
     pub fn cancellation(&mut self) -> Cancellation<'_, T> {
         Cancellation { inner: self }
     }

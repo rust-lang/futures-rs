@@ -27,7 +27,7 @@ impl<St> TryBufferUnordered<St>
           St::Ok: TryFuture,
 {
     pub(super) fn new(stream: St, n: usize) -> Self {
-        TryBufferUnordered {
+        Self {
             stream: IntoStream::new(stream).fuse(),
             in_progress_queue: FuturesUnordered::new(),
             max: n,

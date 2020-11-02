@@ -60,13 +60,13 @@ impl<T> BiLock<T> {
     /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
-    pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
+    pub fn new(t: T) -> (Self, Self) {
         let arc = Arc::new(Inner {
             state: AtomicUsize::new(0),
             value: Some(UnsafeCell::new(t)),
         });
 
-        (BiLock { arc: arc.clone() }, BiLock { arc })
+        (Self { arc: arc.clone() }, Self { arc })
     }
 
     /// Attempt to acquire this lock, returning `Pending` if it can't be

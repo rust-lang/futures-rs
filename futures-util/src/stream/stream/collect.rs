@@ -20,8 +20,8 @@ impl<St: Stream, C: Default> Collect<St, C> {
         mem::replace(self.project().collection, Default::default())
     }
 
-    pub(super) fn new(stream: St) -> Collect<St, C> {
-        Collect {
+    pub(super) fn new(stream: St) -> Self {
+        Self {
             stream,
             collection: Default::default(),
         }

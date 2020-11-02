@@ -16,8 +16,8 @@ pub struct CatchUnwind<St> {
 }
 
 impl<St: Stream + UnwindSafe> CatchUnwind<St> {
-    pub(super) fn new(stream: St) -> CatchUnwind<St> {
-        CatchUnwind { stream, caught_unwind: false }
+    pub(super) fn new(stream: St) -> Self {
+        Self { stream, caught_unwind: false }
     }
 
     delegate_access_inner!(stream, St, ());

@@ -39,7 +39,7 @@ where
     St::Ok: AsRef<[u8]>,
 {
     pub(super) fn new(stream: St) -> Self {
-        IntoAsyncRead {
+        Self {
             stream,
             state: ReadState::PendingChunk,
         }

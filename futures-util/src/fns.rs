@@ -75,7 +75,7 @@ pub struct OkFn<E>(PhantomData<fn(E)>);
 
 impl<E> Default for OkFn<E> {
     fn default() -> Self {
-        OkFn(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -344,7 +344,7 @@ pub struct IntoFn<T>(PhantomData<fn() -> T>);
 
 impl<T> Default for IntoFn<T> {
     fn default() -> Self {
-        IntoFn(PhantomData)
+        Self(PhantomData)
     }
 }
 impl<A, T> FnOnce1<A> for IntoFn<T> where A: Into<T> {

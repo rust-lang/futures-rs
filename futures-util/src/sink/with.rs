@@ -42,7 +42,7 @@ where Si: Sink<Item>,
             Fut: Future<Output = Result<Item, E>>,
             E: From<Si::Error>,
     {
-        With {
+        Self {
             state: None,
             sink,
             f,

@@ -52,6 +52,6 @@ impl<F: FusedFuture> FusedFuture for OptionFuture<F> {
 
 impl<T> From<Option<T>> for OptionFuture<T> {
     fn from(option: Option<T>) -> Self {
-        OptionFuture(option)
+        Self(option)
     }
 }

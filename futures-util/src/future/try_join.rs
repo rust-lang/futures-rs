@@ -46,8 +46,8 @@ macro_rules! generate {
                 $Fut: TryFuture<Error=Fut1::Error>
             ),*
         {
-            fn new(Fut1: Fut1, $($Fut: $Fut),*) -> $Join<Fut1, $($Fut),*> {
-                $Join {
+            fn new(Fut1: Fut1, $($Fut: $Fut),*) -> Self {
+                Self {
                     Fut1: try_maybe_done(Fut1),
                     $($Fut: try_maybe_done($Fut)),*
                 }

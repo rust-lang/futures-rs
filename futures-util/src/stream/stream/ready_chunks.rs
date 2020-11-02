@@ -20,10 +20,10 @@ pub struct ReadyChunks<St: Stream> {
 }
 
 impl<St: Stream> ReadyChunks<St> where St: Stream {
-    pub(super) fn new(stream: St, capacity: usize) -> ReadyChunks<St> {
+    pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 
-        ReadyChunks {
+        Self {
             stream: super::Fuse::new(stream),
             items: Vec::with_capacity(capacity),
             cap: capacity,

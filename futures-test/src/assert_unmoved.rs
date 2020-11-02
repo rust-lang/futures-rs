@@ -24,7 +24,7 @@ use std::thread::panicking;
 pub struct AssertUnmoved<T> {
     #[pin]
     inner: T,
-    this_ptr: *const AssertUnmoved<T>,
+    this_ptr: *const Self,
 }
 
 // Safety: having a raw pointer in a struct makes it `!Send`, however the

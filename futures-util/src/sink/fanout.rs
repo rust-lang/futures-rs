@@ -18,8 +18,8 @@ pub struct Fanout<Si1, Si2> {
 }
 
 impl<Si1, Si2> Fanout<Si1, Si2> {
-    pub(super) fn new(sink1: Si1, sink2: Si2) -> Fanout<Si1, Si2> {
-        Fanout { sink1, sink2 }
+    pub(super) fn new(sink1: Si1, sink2: Si2) -> Self {
+        Self { sink1, sink2 }
     }
 
     /// Get a shared reference to the inner sinks.

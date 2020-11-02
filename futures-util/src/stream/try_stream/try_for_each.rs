@@ -34,8 +34,8 @@ where St: TryStream,
       F: FnMut(St::Ok) -> Fut,
       Fut: TryFuture<Ok = (), Error = St::Error>,
 {
-    pub(super) fn new(stream: St, f: F) -> TryForEach<St, Fut, F> {
-        TryForEach {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             future: None,

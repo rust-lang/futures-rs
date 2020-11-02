@@ -37,8 +37,8 @@ where St: TryStream,
       F: FnMut(T, St::Ok) -> Fut,
       Fut: TryFuture<Ok = T, Error = St::Error>,
 {
-    pub(super) fn new(stream: St, f: F, t: T) -> TryFold<St, Fut, T, F> {
-        TryFold {
+    pub(super) fn new(stream: St, f: F, t: T) -> Self {
+        Self {
             stream,
             f,
             accum: Some(t),

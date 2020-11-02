@@ -16,8 +16,8 @@ pub struct TryCollect<St, C> {
 }
 
 impl<St: TryStream, C: Default> TryCollect<St, C> {
-    pub(super) fn new(s: St) -> TryCollect<St, C> {
-        TryCollect {
+    pub(super) fn new(s: St) -> Self {
+        Self {
             stream: s,
             items: Default::default(),
         }

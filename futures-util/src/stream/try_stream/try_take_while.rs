@@ -46,8 +46,8 @@ where
     F: FnMut(&St::Ok) -> Fut,
     Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
-    pub(super) fn new(stream: St, f: F) -> TryTakeWhile<St, Fut, F> {
-        TryTakeWhile {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             pending_fut: None,

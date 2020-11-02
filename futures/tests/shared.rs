@@ -7,7 +7,7 @@ mod count_clone {
     impl Clone for CountClone {
         fn clone(&self) -> Self {
             self.0.set(self.0.get() + 1);
-            CountClone(self.0.clone())
+            Self(self.0.clone())
         }
     }
 }
