@@ -779,7 +779,7 @@ pub trait TryStreamExt: TryStream {
         assert_future::<Result<Self::Ok, Self::Error>, _>(TryConcat::new(self))
     }
 
-    /// Attempt to execute several futures from a stream concurrently.
+    /// Attempt to execute several futures from a stream concurrently (unordered).
     ///
     /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
     /// that matches the stream's `Error` type.
@@ -872,7 +872,6 @@ pub trait TryStreamExt: TryStream {
     /// use futures::channel::oneshot;
     /// use futures::future::lazy;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
-    /// use futures::task::Poll;
     ///
     /// let (send_one, recv_one) = oneshot::channel();
     /// let (send_two, recv_two) = oneshot::channel();
@@ -882,10 +881,10 @@ pub trait TryStreamExt: TryStream {
     ///
     ///     let mut buffered = stream_of_futures.try_buffered(10);
     ///
-    ///     assert_eq!(buffered.try_poll_next_unpin(cx), Poll::Pending);
+    ///     assert!(buffered.try_poll_next_unpin(cx).is_pending());
     ///
     ///     send_two.send(2i32)?;
-    ///     assert_eq!(buffered.try_poll_next_unpin(cx), Poll::Pending);
+    ///     assert!(buffered.try_poll_next_unpin(cx).is_pending());
     ///     Ok::<_, i32>(buffered)
     /// }).await?;
     ///
