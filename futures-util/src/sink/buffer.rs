@@ -20,7 +20,7 @@ pub struct Buffer<Si, Item> {
 
 impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     pub(super) fn new(sink: Si, capacity: usize) -> Self {
-        Buffer {
+        Self {
             sink,
             buf: VecDeque::with_capacity(capacity),
             capacity,

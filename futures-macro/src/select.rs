@@ -27,7 +27,7 @@ enum CaseKind {
 
 impl Parse for Select {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let mut select = Select {
+        let mut select = Self {
             complete: None,
             default: None,
             normal_fut_exprs: vec![],

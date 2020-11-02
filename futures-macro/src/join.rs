@@ -13,7 +13,7 @@ struct Join {
 
 impl Parse for Join {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let mut join = Join::default();
+        let mut join = Self::default();
 
         while !input.is_empty() {
             join.fut_exprs.push(input.parse::<Expr>()?);

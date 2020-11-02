@@ -36,8 +36,8 @@ macro_rules! generate {
         }
 
         impl<$($Fut: Future),*> $Join<$($Fut),*> {
-            fn new($($Fut: $Fut),*) -> $Join<$($Fut),*> {
-                $Join {
+            fn new($($Fut: $Fut),*) -> Self {
+                Self {
                     $($Fut: maybe_done($Fut)),*
                 }
             }

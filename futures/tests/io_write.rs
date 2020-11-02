@@ -10,7 +10,7 @@ mod mock_writer {
 
     impl MockWriter {
         pub fn new(fun: impl FnMut(&[u8]) -> Poll<io::Result<usize>> + 'static) -> Self {
-            MockWriter { fun: Box::new(fun) }
+            Self { fun: Box::new(fun) }
         }
     }
 

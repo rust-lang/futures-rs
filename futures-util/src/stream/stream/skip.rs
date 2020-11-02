@@ -16,8 +16,8 @@ pub struct Skip<St> {
 }
 
 impl<St: Stream> Skip<St> {
-    pub(super) fn new(stream: St, n: usize) -> Skip<St> {
-        Skip {
+    pub(super) fn new(stream: St, n: usize) -> Self {
+        Self {
             stream,
             remaining: n,
         }

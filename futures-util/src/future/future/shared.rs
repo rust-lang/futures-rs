@@ -81,7 +81,7 @@ const POISONED: usize = 3;
 const NULL_WAKER_KEY: usize = usize::max_value();
 
 impl<Fut: Future> Shared<Fut> {
-    pub(super) fn new(future: Fut) -> Shared<Fut> {
+    pub(super) fn new(future: Fut) -> Self {
         let inner = Inner {
             future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
             notifier: Arc::new(Notifier {
@@ -90,7 +90,7 @@ impl<Fut: Future> Shared<Fut> {
             }),
         };
 
-        Shared {
+        Self {
             inner: Some(Arc::new(inner)),
             waker_key: NULL_WAKER_KEY,
         }
@@ -297,7 +297,7 @@ where
     Fut: Future,
 {
     fn clone(&self) -> Self {
-        Shared {
+        Self {
             inner: self.inner.clone(),
             waker_key: NULL_WAKER_KEY,
         }

@@ -16,7 +16,7 @@ pub enum TryFlatten<Fut1, Fut2> {
 
 impl<Fut1, Fut2> TryFlatten<Fut1, Fut2> {
     pub(crate) fn new(future: Fut1) -> Self {
-        TryFlatten::First(future)
+        Self::First(future)
     }
 }
 
@@ -26,7 +26,7 @@ impl<Fut> FusedFuture for TryFlatten<Fut, Fut::Ok>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            TryFlatten::Empty => true,
+            Self::Empty => true,
             _ => false,
         }
     }
@@ -43,16 +43,16 @@ impl<Fut> Future for TryFlatten<Fut, Fut::Ok>
             match self.as_mut().project() {
                 TryFlattenProj::First(f) => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(TryFlatten::Second(f)),
+                        Ok(f) => self.set(Self::Second(f)),
                         Err(e) => {
-                            self.set(TryFlatten::Empty);
+                            self.set(Self::Empty);
                             break Err(e);
                         }
                     }
                 },
                 TryFlattenProj::Second(f) => {
                     let output = ready!(f.try_poll(cx));
-                    self.set(TryFlatten::Empty);
+                    self.set(Self::Empty);
                     break output;
                 },
                 TryFlattenProj::Empty => panic!("TryFlatten polled after completion"),
@@ -67,7 +67,7 @@ impl<Fut> FusedStream for TryFlatten<Fut, Fut::Ok>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            TryFlatten::Empty => true,
+            Self::Empty => true,
             _ => false,
         }
     }
@@ -84,9 +84,9 @@ impl<Fut> Stream for TryFlatten<Fut, Fut::Ok>
             match self.as_mut().project() {
                 TryFlattenProj::First(f) => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(TryFlatten::Second(f)),
+                        Ok(f) => self.set(Self::Second(f)),
                         Err(e) => {
-                            self.set(TryFlatten::Empty);
+                            self.set(Self::Empty);
                             break Some(Err(e));
                         }
                     }
@@ -94,7 +94,7 @@ impl<Fut> Stream for TryFlatten<Fut, Fut::Ok>
                 TryFlattenProj::Second(f) => {
                     let output = ready!(f.try_poll_next(cx));
                     if output.is_none() {
-                        self.set(TryFlatten::Empty);
+                        self.set(Self::Empty);
                     }
                     break output;
                 },
@@ -121,9 +121,9 @@ where
             match self.as_mut().project() {
                 TryFlattenProj::First(f) => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(TryFlatten::Second(f)),
+                        Ok(f) => self.set(Self::Second(f)),
                         Err(e) => {
-                            self.set(TryFlatten::Empty);
+                            self.set(Self::Empty);
                             break Err(e);
                         }
                     }
@@ -161,7 +161,7 @@ where
             _ => Poll::Ready(Ok(())),
         };
         if res.is_ready() {
-            self.set(TryFlatten::Empty);
+            self.set(Self::Empty);
         }
         res
     }

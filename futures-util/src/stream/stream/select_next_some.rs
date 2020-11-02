@@ -14,7 +14,7 @@ pub struct SelectNextSome<'a, St: ?Sized> {
 
 impl<'a, St: ?Sized> SelectNextSome<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
-        SelectNextSome { stream }
+        Self { stream }
     }
 }
 

@@ -17,7 +17,7 @@ impl<W: ?Sized + Unpin> Unpin for WriteAll<'_, W> {}
 
 impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAll<'a, W> {
     pub(super) fn new(writer: &'a mut W, buf: &'a [u8]) -> Self {
-        WriteAll { writer, buf }
+        Self { writer, buf }
     }
 }
 

@@ -37,8 +37,8 @@ where St: Stream,
       F: FnMut(T, St::Item) -> Fut,
       Fut: Future<Output = T>,
 {
-    pub(super) fn new(stream: St, f: F, t: T) -> Fold<St, Fut, T, F> {
-        Fold {
+    pub(super) fn new(stream: St, f: F, t: T) -> Self {
+        Self {
             stream,
             f,
             accum: Some(t),

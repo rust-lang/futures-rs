@@ -29,8 +29,8 @@ where
 }
 
 impl<St, F> Map<St, F> {
-    pub(crate) fn new(stream: St, f: F) -> Map<St, F> {
-        Map { stream, f }
+    pub(crate) fn new(stream: St, f: F) -> Self {
+        Self { stream, f }
     }
 
     delegate_access_inner!(stream, St, ());

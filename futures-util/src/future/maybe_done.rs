@@ -59,10 +59,10 @@ impl<Fut: Future> MaybeDone<Fut> {
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Output> {
         match &*self {
-            MaybeDone::Done(_) => {}
-            MaybeDone::Future(_) | MaybeDone::Gone => return None,
+            Self::Done(_) => {}
+            Self::Future(_) | Self::Gone => return None,
         }
-        match self.project_replace(MaybeDone::Gone) {
+        match self.project_replace(Self::Gone) {
             MaybeDoneProjOwn::Done(output) => Some(output),
             _ => unreachable!(),
         }
@@ -72,8 +72,8 @@ impl<Fut: Future> MaybeDone<Fut> {
 impl<Fut: Future> FusedFuture for MaybeDone<Fut> {
     fn is_terminated(&self) -> bool {
         match self {
-            MaybeDone::Future(_) => false,
-            MaybeDone::Done(_) | MaybeDone::Gone => true,
+            Self::Future(_) => false,
+            Self::Done(_) | Self::Gone => true,
         }
     }
 }
@@ -85,7 +85,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
         match self.as_mut().project() {
             MaybeDoneProj::Future(f) => {
                 let res = ready!(f.poll(cx));
-                self.set(MaybeDone::Done(res));
+                self.set(Self::Done(res));
             }
             MaybeDoneProj::Done(_) => {}
             MaybeDoneProj::Gone => panic!("MaybeDone polled after value taken"),

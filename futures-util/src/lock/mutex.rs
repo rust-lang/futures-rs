@@ -40,8 +40,8 @@ impl<T> From<T> for Mutex<T> {
 }
 
 impl<T: Default> Default for Mutex<T> {
-    fn default() -> Mutex<T> {
-        Mutex::new(Default::default())
+    fn default() -> Self {
+        Self::new(Default::default())
     }
 }
 
@@ -53,15 +53,15 @@ enum Waiter {
 impl Waiter {
     fn register(&mut self, waker: &Waker) {
         match self {
-            Waiter::Waiting(w) if waker.will_wake(w) => {},
-            _ => *self = Waiter::Waiting(waker.clone()),
+            Self::Waiting(w) if waker.will_wake(w) => {},
+            _ => *self = Self::Waiting(waker.clone()),
         }
     }
 
     fn wake(&mut self) {
-        match mem::replace(self, Waiter::Woken) {
-            Waiter::Waiting(waker) => waker.wake(),
-            Waiter::Woken => {},
+        match mem::replace(self, Self::Woken) {
+            Self::Waiting(waker) => waker.wake(),
+            Self::Woken => {},
         }
     }
 }
@@ -72,8 +72,8 @@ const HAS_WAITERS: usize = 1 << 1;
 
 impl<T> Mutex<T> {
     /// Creates a new futures-aware mutex.
-    pub fn new(t: T) -> Mutex<T> {
-        Mutex {
+    pub fn new(t: T) -> Self {
+        Self {
             state: AtomicUsize::new(0),
             waiters: StdMutex::new(Slab::new()),
             value: UnsafeCell::new(t),

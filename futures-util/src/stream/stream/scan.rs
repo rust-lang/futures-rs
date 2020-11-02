@@ -53,8 +53,8 @@ where
     F: FnMut(&mut S, St::Item) -> Fut,
     Fut: Future<Output = Option<B>>,
 {
-    pub(super) fn new(stream: St, initial_state: S, f: F) -> Scan<St, S, Fut, F> {
-        Scan {
+    pub(super) fn new(stream: St, initial_state: S, f: F) -> Self {
+        Self {
             stream,
             state_f: Some(StateFn {
                 state: initial_state,

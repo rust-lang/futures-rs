@@ -20,8 +20,8 @@ pub struct TrackClosed<T> {
 }
 
 impl<T> TrackClosed<T> {
-    pub(crate) fn new(inner: T) -> TrackClosed<T> {
-        TrackClosed {
+    pub(crate) fn new(inner: T) -> Self {
+        Self {
             inner,
             closed: false,
         }

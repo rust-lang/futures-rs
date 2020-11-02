@@ -17,8 +17,8 @@ pub struct Take<St> {
 }
 
 impl<St: Stream> Take<St> {
-    pub(super) fn new(stream: St, n: usize) -> Take<St> {
-        Take {
+    pub(super) fn new(stream: St, n: usize) -> Self {
+        Self {
             stream,
             remaining: n,
         }

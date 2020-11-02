@@ -17,7 +17,7 @@ impl<Si, E, Item> SinkErrInto<Si, Item, E>
           Si::Error: Into<E>,
 {
     pub(super) fn new(sink: Si) -> Self {
-        SinkErrInto {
+        Self {
             sink: SinkExt::sink_map_err(sink, Into::into),
         }
     }

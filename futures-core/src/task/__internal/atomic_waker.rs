@@ -53,7 +53,7 @@ use core::task::Waker;
 ///
 /// impl Flag {
 ///     pub fn new() -> Self {
-///         Flag(Arc::new(Inner {
+///         Self(Arc::new(Inner {
 ///             waker: AtomicWaker::new(),
 ///             set: AtomicBool::new(false),
 ///         }))
@@ -202,7 +202,7 @@ impl AtomicWaker {
         trait AssertSync: Sync {}
         impl AssertSync for Waker {}
 
-        AtomicWaker {
+        Self {
             state: AtomicUsize::new(WAITING),
             waker: UnsafeCell::new(None),
         }
@@ -398,7 +398,7 @@ impl AtomicWaker {
 
 impl Default for AtomicWaker {
     fn default() -> Self {
-        AtomicWaker::new()
+        Self::new()
     }
 }
 

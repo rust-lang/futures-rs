@@ -38,8 +38,8 @@ where St: Stream,
       F: FnMut(St::Item) -> Fut,
       Fut: Future<Output = ()>,
 {
-    pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> ForEachConcurrent<St, Fut, F> {
-        ForEachConcurrent {
+    pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> Self {
+        Self {
             stream: Some(stream),
             // Note: `limit` = 0 gets ignored.
             limit: limit.and_then(NonZeroUsize::new),

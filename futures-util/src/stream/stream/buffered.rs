@@ -41,8 +41,8 @@ where
     St: Stream,
     St::Item: Future,
 {
-    pub(super) fn new(stream: St, n: usize) -> Buffered<St> {
-        Buffered {
+    pub(super) fn new(stream: St, n: usize) -> Self {
+        Self {
             stream: super::Fuse::new(stream),
             in_progress_queue: FuturesOrdered::new(),
             max: n,

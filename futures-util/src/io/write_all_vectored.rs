@@ -19,7 +19,7 @@ impl<W: ?Sized + Unpin> Unpin for WriteAllVectored<'_, W> {}
 
 impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAllVectored<'a, W> {
     pub(super) fn new(writer: &'a mut W, bufs: &'a mut [IoSlice<'a>]) -> Self {
-        WriteAllVectored { writer, bufs: IoSlice::advance(bufs, 0) }
+        Self { writer, bufs: IoSlice::advance(bufs, 0) }
     }
 }
 

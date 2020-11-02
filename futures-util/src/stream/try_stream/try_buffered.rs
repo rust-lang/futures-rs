@@ -28,8 +28,8 @@ where
     St: TryStream,
     St::Ok: TryFuture,
 {
-    pub(super) fn new(stream: St, n: usize) -> TryBuffered<St> {
-        TryBuffered {
+    pub(super) fn new(stream: St, n: usize) -> Self {
+        Self {
             stream: IntoStream::new(stream).fuse(),
             in_progress_queue: FuturesOrdered::new(),
             max: n,

@@ -21,8 +21,8 @@ pub struct Limited<Io> {
 }
 
 impl<Io> Limited<Io> {
-    pub(crate) fn new(io: Io, limit: usize) -> Limited<Io> {
-        Limited { io, limit }
+    pub(crate) fn new(io: Io, limit: usize) -> Self {
+        Self { io, limit }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is

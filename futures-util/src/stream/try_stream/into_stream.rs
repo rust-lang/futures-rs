@@ -17,7 +17,7 @@ pub struct IntoStream<St> {
 impl<St> IntoStream<St> {
     #[inline]
     pub(super) fn new(stream: St) -> Self {
-        IntoStream { stream }
+        Self { stream }
     }
 
     delegate_access_inner!(stream, St, ());

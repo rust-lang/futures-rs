@@ -10,8 +10,8 @@ use pin_project::pin_project;
 pub struct Fuse<Fut>(#[pin] Option<Fut>);
 
 impl<Fut> Fuse<Fut> {
-    pub(super) fn new(f: Fut) -> Fuse<Fut> {
-        Fuse(Some(f))
+    pub(super) fn new(f: Fut) -> Self {
+        Self(Some(f))
     }
 }
 
@@ -61,8 +61,8 @@ impl<Fut: Future> Fuse<Fut> {
     /// }
     /// # });
     /// ```
-    pub fn terminated() -> Fuse<Fut> {
-        Fuse(None)
+    pub fn terminated() -> Self {
+        Self(None)
     }
 }
 
