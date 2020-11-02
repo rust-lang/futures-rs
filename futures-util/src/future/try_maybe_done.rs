@@ -44,10 +44,10 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Ok> {
         match &*self {
-            TryMaybeDone::Done(_) => {},
-            TryMaybeDone::Future(_) | TryMaybeDone::Gone => return None,
+            Self::Done(_) => {},
+            Self::Future(_) | Self::Gone => return None,
         }
-        match self.project_replace(TryMaybeDone::Gone) {
+        match self.project_replace(Self::Gone) {
             TryMaybeDoneProjOwn::Done(output) => Some(output),
             _ => unreachable!()
         }
@@ -57,8 +57,8 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
 impl<Fut: TryFuture> FusedFuture for TryMaybeDone<Fut> {
     fn is_terminated(&self) -> bool {
         match self {
-            TryMaybeDone::Future(_) => false,
-            TryMaybeDone::Done(_) | TryMaybeDone::Gone => true,
+            Self::Future(_) => false,
+            Self::Done(_) | Self::Gone => true,
         }
     }
 }
@@ -70,9 +70,9 @@ impl<Fut: TryFuture> Future for TryMaybeDone<Fut> {
         match self.as_mut().project() {
             TryMaybeDoneProj::Future(f) => {
                 match ready!(f.try_poll(cx)) {
-                    Ok(res) => self.set(TryMaybeDone::Done(res)),
+                    Ok(res) => self.set(Self::Done(res)),
                     Err(e) => {
-                        self.set(TryMaybeDone::Gone);
+                        self.set(Self::Gone);
                         return Poll::Ready(Err(e));
                     }
                 }

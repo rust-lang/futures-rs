@@ -20,8 +20,8 @@ pub enum Map<Fut, F> {
 
 impl<Fut, F> Map<Fut, F> {
     /// Creates a new Map.
-    pub(crate) fn new(future: Fut, f: F) -> Map<Fut, F> {
-        Map::Incomplete { future, f }
+    pub(crate) fn new(future: Fut, f: F) -> Self {
+        Self::Incomplete { future, f }
     }
 }
 
@@ -31,8 +31,8 @@ impl<Fut, F, T> FusedFuture for Map<Fut, F>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            Map::Incomplete { .. } => false,
-            Map::Complete => true,
+            Self::Incomplete { .. } => false,
+            Self::Complete => true,
         }
     }
 }
@@ -47,7 +47,7 @@ impl<Fut, F, T> Future for Map<Fut, F>
         match self.as_mut().project() {
             MapProj::Incomplete { future, .. } => {
                 let output = ready!(future.poll(cx));
-                match self.project_replace(Map::Complete) {
+                match self.project_replace(Self::Complete) {
                     MapProjOwn::Incomplete { f, .. } => Poll::Ready(f.call_once(output)),
                     MapProjOwn::Complete => unreachable!(),
                 }

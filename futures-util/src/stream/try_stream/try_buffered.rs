@@ -1,4 +1,4 @@
-use crate::stream::{Fuse, FuturesUnordered, StreamExt, IntoStream};
+use crate::stream::{Fuse, FuturesOrdered, StreamExt, IntoStream};
 use crate::future::{IntoFuture, TryFutureExt};
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
@@ -8,28 +8,30 @@ use futures_sink::Sink;
 use pin_project::pin_project;
 use core::pin::Pin;
 
-/// Stream for the
-/// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered) method.
+/// Stream for the [`try_buffered`](super::TryStreamExt::try_buffered) method.
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TryBufferUnordered<St>
-    where St: TryStream
+pub struct TryBuffered<St>
+where
+    St: TryStream,
+    St::Ok: TryFuture,
 {
     #[pin]
     stream: Fuse<IntoStream<St>>,
-    in_progress_queue: FuturesUnordered<IntoFuture<St::Ok>>,
+    in_progress_queue: FuturesOrdered<IntoFuture<St::Ok>>,
     max: usize,
 }
 
-impl<St> TryBufferUnordered<St>
-    where St: TryStream,
-          St::Ok: TryFuture,
+impl<St> TryBuffered<St>
+where
+    St: TryStream,
+    St::Ok: TryFuture,
 {
     pub(super) fn new(stream: St, n: usize) -> Self {
         Self {
             stream: IntoStream::new(stream).fuse(),
-            in_progress_queue: FuturesUnordered::new(),
+            in_progress_queue: FuturesOrdered::new(),
             max: n,
         }
     }
@@ -37,9 +39,10 @@ impl<St> TryBufferUnordered<St>
     delegate_access_inner!(stream, St, (. .));
 }
 
-impl<St> Stream for TryBufferUnordered<St>
-    where St: TryStream,
-          St::Ok: TryFuture<Error = St::Error>,
+impl<St> Stream for TryBuffered<St>
+where
+    St: TryStream,
+    St::Ok: TryFuture<Error = St::Error>,
 {
     type Item = Result<<St::Ok as TryFuture>::Ok, St::Error>;
 
@@ -75,9 +78,10 @@ impl<St> Stream for TryBufferUnordered<St>
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, Item, E> Sink<Item> for TryBufferUnordered<S>
-    where S: TryStream + Sink<Item, Error = E>,
-          S::Ok: TryFuture<Error = E>,
+impl<S, Item, E> Sink<Item> for TryBuffered<S>
+where
+    S: TryStream + Sink<Item, Error = E>,
+    S::Ok: TryFuture<Error = E>,
 {
     type Error = E;
 

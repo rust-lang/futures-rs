@@ -15,8 +15,8 @@ pub struct SinkMapErr<Si, F> {
 }
 
 impl<Si, F> SinkMapErr<Si, F> {
-    pub(super) fn new(sink: Si, f: F) -> SinkMapErr<Si, F> {
-        SinkMapErr { sink, f: Some(f) }
+    pub(super) fn new(sink: Si, f: F) -> Self {
+        Self { sink, f: Some(f) }
     }
 
     delegate_access_inner!(sink, Si, ());

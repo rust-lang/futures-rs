@@ -16,7 +16,7 @@ pub enum Flatten<Fut1, Fut2> {
 
 impl<Fut1, Fut2> Flatten<Fut1, Fut2> {
     pub(crate) fn new(future: Fut1) -> Self {
-        Flatten::First(future)
+        Self::First(future)
     }
 }
 
@@ -26,7 +26,7 @@ impl<Fut> FusedFuture for Flatten<Fut, Fut::Output>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            Flatten::Empty => true,
+            Self::Empty => true,
             _ => false,
         }
     }
@@ -43,11 +43,11 @@ impl<Fut> Future for Flatten<Fut, Fut::Output>
             match self.as_mut().project() {
                 FlattenProj::First(f) => {
                     let f = ready!(f.poll(cx));
-                    self.set(Flatten::Second(f));
+                    self.set(Self::Second(f));
                 },
                 FlattenProj::Second(f) => {
                     let output = ready!(f.poll(cx));
-                    self.set(Flatten::Empty);
+                    self.set(Self::Empty);
                     break output;
                 },
                 FlattenProj::Empty => panic!("Flatten polled after completion"),
@@ -62,7 +62,7 @@ impl<Fut> FusedStream for Flatten<Fut, Fut::Output>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            Flatten::Empty => true,
+            Self::Empty => true,
             _ => false,
         }
     }
@@ -79,12 +79,12 @@ impl<Fut> Stream for Flatten<Fut, Fut::Output>
             match self.as_mut().project() {
                 FlattenProj::First(f) => {
                     let f = ready!(f.poll(cx));
-                    self.set(Flatten::Second(f));
+                    self.set(Self::Second(f));
                 },
                 FlattenProj::Second(f) => {
                     let output = ready!(f.poll_next(cx));
                     if output.is_none() {
-                        self.set(Flatten::Empty);
+                        self.set(Self::Empty);
                     }
                     break output;
                 },
@@ -111,7 +111,7 @@ where
             match self.as_mut().project() {
                 FlattenProj::First(f) => {
                     let f = ready!(f.poll(cx));
-                    self.set(Flatten::Second(f));
+                    self.set(Self::Second(f));
                 },
                 FlattenProj::Second(f) => {
                     break ready!(f.poll_ready(cx));
@@ -146,7 +146,7 @@ where
             _ => Poll::Ready(Ok(())),
         };
         if res.is_ready() {
-            self.set(Flatten::Empty);
+            self.set(Self::Empty);
         }
         res
     }

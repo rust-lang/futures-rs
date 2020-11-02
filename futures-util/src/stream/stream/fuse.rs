@@ -16,8 +16,8 @@ pub struct Fuse<St> {
 }
 
 impl<St> Fuse<St> {
-    pub(super) fn new(stream: St) -> Fuse<St> {
-        Fuse { stream, done: false }
+    pub(super) fn new(stream: St) -> Self {
+        Self { stream, done: false }
     }
 
     /// Returns whether the underlying stream has finished or not.

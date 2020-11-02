@@ -7,8 +7,8 @@ mod countingwaker {
     }
 
     impl CountingWaker {
-        fn new() -> CountingWaker {
-            CountingWaker {
+        fn new() -> Self {
+            Self {
                 nr_wake: Mutex::new(0),
             }
         }

@@ -23,8 +23,8 @@ pub struct Peekable<St: Stream> {
 }
 
 impl<St: Stream> Peekable<St> {
-    pub(super) fn new(stream: St) -> Peekable<St> {
-        Peekable {
+    pub(super) fn new(stream: St) -> Self {
+        Self {
             stream: stream.fuse(),
             peeked: None,
         }

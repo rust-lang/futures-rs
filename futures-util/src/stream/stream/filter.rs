@@ -43,8 +43,8 @@ where St: Stream,
       F: for<'a> FnMut1<&'a St::Item, Output=Fut>,
       Fut: Future<Output = bool>,
 {
-    pub(super) fn new(stream: St, f: F) -> Filter<St, Fut, F> {
-        Filter {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             pending_fut: None,

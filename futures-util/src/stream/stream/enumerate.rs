@@ -16,8 +16,8 @@ pub struct Enumerate<St> {
 }
 
 impl<St: Stream> Enumerate<St> {
-    pub(super) fn new(stream: St) -> Enumerate<St> {
-        Enumerate {
+    pub(super) fn new(stream: St) -> Self {
+        Self {
             stream,
             count: 0,
         }

@@ -70,7 +70,7 @@ impl<Fut> ArcWake for Task<Fut> {
 
 impl<Fut> Task<Fut> {
     /// Returns a waker reference for this task without cloning the Arc.
-    pub(super) fn waker_ref(this: &Arc<Task<Fut>>) -> WakerRef<'_> {
+    pub(super) fn waker_ref(this: &Arc<Self>) -> WakerRef<'_> {
         waker_ref(this)
     }
 

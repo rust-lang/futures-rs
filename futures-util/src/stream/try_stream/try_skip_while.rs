@@ -42,8 +42,8 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
           F: FnMut(&St::Ok) -> Fut,
           Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
-    pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
-        TrySkipWhile {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             pending_fut: None,

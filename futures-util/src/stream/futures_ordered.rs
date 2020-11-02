@@ -104,8 +104,8 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
     /// state, `FuturesOrdered::poll_next` will return `Poll::Ready(None)`.
-    pub fn new() -> FuturesOrdered<Fut> {
-        FuturesOrdered {
+    pub fn new() -> Self {
+        Self {
             in_progress_queue: FuturesUnordered::new(),
             queued_outputs: BinaryHeap::new(),
             next_incoming_index: 0,
@@ -144,8 +144,8 @@ impl<Fut: Future> FuturesOrdered<Fut> {
 }
 
 impl<Fut: Future> Default for FuturesOrdered<Fut> {
-    fn default() -> FuturesOrdered<Fut> {
-        FuturesOrdered::new()
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -198,7 +198,7 @@ impl<Fut: Future> FromIterator<Fut> for FuturesOrdered<Fut> {
     where
         T: IntoIterator<Item = Fut>,
     {
-        let acc = FuturesOrdered::new();
+        let acc = Self::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }

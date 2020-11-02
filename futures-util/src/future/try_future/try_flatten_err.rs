@@ -13,7 +13,7 @@ pub enum TryFlattenErr<Fut1, Fut2> {
 
 impl<Fut1, Fut2> TryFlattenErr<Fut1, Fut2> {
     pub(crate) fn new(future: Fut1) -> Self {
-        TryFlattenErr::First(future)
+        Self::First(future)
     }
 }
 
@@ -23,7 +23,7 @@ impl<Fut> FusedFuture for TryFlattenErr<Fut, Fut::Error>
 {
     fn is_terminated(&self) -> bool {
         match self {
-            TryFlattenErr::Empty => true,
+            Self::Empty => true,
             _ => false,
         }
     }
@@ -40,16 +40,16 @@ impl<Fut> Future for TryFlattenErr<Fut, Fut::Error>
             match self.as_mut().project() {
                 TryFlattenErrProj::First(f) => {
                     match ready!(f.try_poll(cx)) {
-                        Err(f) => self.set(TryFlattenErr::Second(f)),
+                        Err(f) => self.set(Self::Second(f)),
                         Ok(e) => {
-                            self.set(TryFlattenErr::Empty);
+                            self.set(Self::Empty);
                             break Ok(e);
                         }
                     }
                 },
                 TryFlattenErrProj::Second(f) => {
                     let output = ready!(f.try_poll(cx));
-                    self.set(TryFlattenErr::Empty);
+                    self.set(Self::Empty);
                     break output;
                 },
                 TryFlattenErrProj::Empty => panic!("TryFlattenErr polled after completion"),

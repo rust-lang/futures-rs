@@ -26,7 +26,7 @@ pub struct IntoSink<W, Item> {
 
 impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
     pub(super) fn new(writer: W) -> Self {
-        IntoSink { writer, buffer: None }
+        Self { writer, buffer: None }
     }
 
     /// If we have an outstanding block in `buffer` attempt to push it into the writer, does _not_

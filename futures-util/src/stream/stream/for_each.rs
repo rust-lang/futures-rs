@@ -34,8 +34,8 @@ where St: Stream,
       F: FnMut(St::Item) -> Fut,
       Fut: Future<Output = ()>,
 {
-    pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
-        ForEach {
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self {
             stream,
             f,
             future: None,

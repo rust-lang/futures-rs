@@ -498,7 +498,7 @@ pub mod stream {
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         // For TryStreamExt:
-        TryBufferUnordered, TryForEachConcurrent,
+        TryBufferUnordered, TryBuffered, TryForEachConcurrent,
     };
 
     #[cfg(feature = "std")]
