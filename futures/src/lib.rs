@@ -456,7 +456,7 @@ pub mod stream {
         try_unfold, TryUnfold,
 
         StreamExt,
-        Chain, Collect, Concat, Enumerate, Filter, FilterMap, FlatMap, Flatten,
+        Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
         Fold, Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
         SelectNextSome, Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeUntil,
         TakeWhile, Then, Zip,
