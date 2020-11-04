@@ -45,12 +45,8 @@ where
 {
     type Error = E;
 
-    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.future.is_some() {
-            Poll::Pending
-        } else {
-            Poll::Ready(Ok(()))
-        }
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.poll_flush(cx)
     }
 
     fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::Error> {
@@ -62,9 +58,11 @@ where
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if let Some(future) = self.project().future.as_pin_mut() {
+        let mut this = self.project();
+        if let Some(future) = this.future.as_mut().as_pin_mut() {
             ready!(future.poll(cx))?;
         }
+        this.future.set(None);
         Poll::Ready(Ok(()))
     }
 
