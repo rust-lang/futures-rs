@@ -1,3 +1,11 @@
+# 0.3.8 - 2020-11-04
+* Switch proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
+* Add `WeakShared` (#2169)
+* Add `TryStreamExt::try_buffered` (#2245)
+* Add `StreamExt::cycle` (#2252)
+* Implemented `Clone` for `stream::{Empty, Pending, Repeat, Iter}` (#2248, #2252)
+* Fix panic in some `TryStreamExt` combinators (#2250)
+
 # 0.3.7 - 2020-10-23
 * Fixed unsoundness in `MappedMutexGuard` (#2240)
 * Re-exported `TakeUntil` (#2235)
