@@ -29,6 +29,9 @@ pub use self::fanout::Fanout;
 mod flush;
 pub use self::flush::Flush;
 
+mod from_fn;
+pub use self::from_fn::{FromFn, from_fn};
+
 mod err_into;
 pub use self::err_into::SinkErrInto;
 
@@ -264,7 +267,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     {
         CompatSink::new(self)
     }
-    
+
     /// A convenience method for calling [`Sink::poll_ready`] on [`Unpin`]
     /// sink types.
     fn poll_ready_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>
