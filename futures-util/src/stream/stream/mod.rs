@@ -146,6 +146,10 @@ mod zip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::zip::Zip;
 
+mod unzip;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::unzip::{unzip, UnzipLeft, UnzipRight};
+
 #[cfg(feature = "alloc")]
 mod chunks;
 #[cfg(feature = "alloc")]
@@ -1180,6 +1184,40 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_stream::<(Self::Item, St::Item), _>(Zip::new(self, other))
+    }
+
+    /// An adapter for unzipping a stream of tuples (T1, T2).
+    ///
+    /// Returns two streams, left stream<Item = T1> and right stream<Item = T2>.
+    /// You can drop one of them and the other will still work. Underlying stream
+    /// Will be dropped only when both of the child streams are dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec![(1, 2), (3, 4), (5, 6), (7, 8)]);
+    ///
+    /// let (left, right) = stream.unzip();
+    /// let left = left.collect::<Vec<_>>().await;
+    /// let right = right.collect::<Vec<_>>().await;
+    /// assert_eq!(vec![1, 3, 5, 7], left);
+    /// assert_eq!(vec![2, 4, 6, 8], right);
+    /// # });
+    /// ```
+    ///
+    fn unzip<T1, T2>(self) -> (UnzipLeft<Self, T1, T2>, UnzipRight<Self, T1, T2>)
+    where
+        Self: Stream<Item = (T1, T2)>,
+        Self: Sized,
+    {
+        let (left, right) = unzip(self);
+        (
+            assert_stream::<T1, _>(left),
+            assert_stream::<T2, _>(right),
+        )
     }
 
     /// Adapter for chaining two streams.
