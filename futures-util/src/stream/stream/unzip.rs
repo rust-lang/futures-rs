@@ -106,6 +106,7 @@ where
     stream: Arc<S>,
     waker: Arc<AtomicWaker>,
     queue: mpsc::Receiver<Option<T2>>,
+    is_done: bool,
 }
 
 impl<S, T1, T2> FusedStream for UnzipRight<S, T1, T2>
@@ -113,7 +114,7 @@ where
     S: FusedStream<Item = (T1, T2)>,
 {
     fn is_terminated(&self) -> bool {
-        self.stream.as_ref().is_terminated()
+        self.is_done
     }
 }
 
@@ -132,6 +133,9 @@ where
                 // can't know if more items are in the queue so wake the task
                 // again while there are items. Will cause extra wake though.
                 cx.waker().clone().wake();
+                if value.is_none() {
+                    *this.is_done = true;
+                }
                 Poll::Ready(value)
             }
             Err(mpsc::TryRecvError::Disconnected) => {
@@ -141,6 +145,7 @@ where
                 if let Some(value) = ready!(unsafe { poll_unzipped(this.stream, cx) }) {
                     return Poll::Ready(Some(value.1));
                 }
+                *this.is_done = true;
                 Poll::Ready(None)
             }
             _ => Poll::Pending,
@@ -166,6 +171,7 @@ where
             stream: base_stream.clone(),
             waker: waker,
             queue: rx,
+            is_done: false,
         },
     )
 }
