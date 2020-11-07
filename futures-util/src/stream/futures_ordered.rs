@@ -214,7 +214,7 @@ impl<Fut: Future> Extend<Fut> for FuturesOrdered<Fut> {
     where
         I: IntoIterator<Item = Fut>,
     {
-        for item in iter.into_iter() {
+        for item in iter {
             self.push(item);
         }
     }

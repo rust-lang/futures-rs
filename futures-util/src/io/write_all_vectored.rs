@@ -186,7 +186,7 @@ mod tests {
             (vec![IoSlice::new(&[1, 1, 1]), IoSlice::new(&[2, 2, 2]), IoSlice::new(&[3, 3, 3])], &[1, 1, 1, 2, 2, 2, 3, 3, 3]),
         ];
 
-        for (mut input, wanted) in tests.into_iter() {
+        for (mut input, wanted) in tests {
             let mut dst = test_writer(2, 2);
             {
                 let mut future = dst.write_all_vectored(&mut *input);
