@@ -137,7 +137,7 @@ where
     /// is `COMPLETE`
     unsafe fn output(&self) -> &Fut::Output {
         match &*self.future_or_output.get() {
-            FutureOrOutput::Output(ref item) => &item,
+            FutureOrOutput::Output(ref item) => item,
             FutureOrOutput::Future(_) => unreachable!(),
         }
     }

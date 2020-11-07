@@ -38,7 +38,7 @@ fn read_to_string_internal<R: AsyncRead + ?Sized>(
     start_len: usize,
 ) -> Poll<io::Result<usize>> {
     let ret = ready!(read_to_end_internal(reader, cx, bytes, start_len));
-    if str::from_utf8(&bytes).is_err() {
+    if str::from_utf8(bytes).is_err() {
         Poll::Ready(ret.and_then(|_| {
             Err(io::Error::new(
                 io::ErrorKind::InvalidData,

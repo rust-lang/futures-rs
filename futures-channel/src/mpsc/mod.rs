@@ -483,7 +483,7 @@ impl<T> UnboundedSenderInner<T> {
 
     /// Returns whether the sender send to this receiver.
     fn is_connected_to(&self, inner: &Arc<UnboundedInner<T>>) -> bool {
-        Arc::ptr_eq(&self.inner, &inner)
+        Arc::ptr_eq(&self.inner, inner)
     }
 
     /// Returns pointer to the Arc containing sender
@@ -664,7 +664,7 @@ impl<T> BoundedSenderInner<T> {
 
     /// Returns whether the sender send to this receiver.
     fn is_connected_to(&self, receiver: &Arc<BoundedInner<T>>) -> bool {
-        Arc::ptr_eq(&self.inner, &receiver)
+        Arc::ptr_eq(&self.inner, receiver)
     }
 
     /// Returns pointer to the Arc containing sender
