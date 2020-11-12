@@ -59,13 +59,13 @@ where
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let mut this = self.project();
-        let result = if let Some(future) = this.future.as_mut().as_pin_mut() {
-            ready!(future.poll(cx))
+        Poll::Ready(if let Some(future) = this.future.as_mut().as_pin_mut() {
+            let result = ready!(future.poll(cx));
+            this.future.set(None);
+            result
         } else {
             Ok(())
-        };
-        this.future.set(None);
-        Poll::Ready(result)
+        })
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
