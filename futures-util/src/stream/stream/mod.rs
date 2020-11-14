@@ -29,6 +29,10 @@ mod collect;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::collect::Collect;
 
+mod unzip;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::unzip::Unzip;
+
 mod concat;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::concat::Concat;
@@ -475,6 +479,45 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<C, _>(Collect::new(self))
+    }
+
+    /// Converts a stream of pairs into a future, which
+    /// resolves to pair of containers.
+    ///
+    /// `unzip()` produces a future, which resolves to two
+    /// collections: one from the left elements of the pairs,
+    /// and one from the right elements.
+    ///
+    /// The returned future will be resolved when the stream terminates.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::stream::StreamExt;
+    /// use std::thread;
+    ///
+    /// let (tx, rx) = mpsc::unbounded();
+    ///
+    /// thread::spawn(move || {
+    ///     tx.unbounded_send((1, 2)).unwrap();
+    ///     tx.unbounded_send((3, 4)).unwrap();
+    ///     tx.unbounded_send((5, 6)).unwrap();
+    /// });
+    ///
+    /// let (o1, o2): (Vec<_>, Vec<_>) = rx.unzip().await;
+    /// assert_eq!(o1, vec![1, 3, 5]);
+    /// assert_eq!(o2, vec![2, 4, 6]);
+    /// # });
+    /// ```
+    fn unzip<A, B, FromA, FromB>(self) -> Unzip<Self, FromA, FromB>
+    where
+        FromA: Default + Extend<A>,
+        FromB: Default + Extend<B>,
+        Self: Sized + Stream<Item = (A, B)>,
+    {
+        assert_future::<(FromA, FromB), _>(Unzip::new(self))
     }
 
     /// Concatenate all items of a stream into a single extendable
