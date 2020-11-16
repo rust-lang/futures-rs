@@ -20,8 +20,8 @@ impl<St: Stream, FromA: Default, FromB: Default> Unzip<St, FromA, FromB> {
     fn finish(self: Pin<&mut Self>) -> (FromA, FromB) {
         let this = self.project();
         (
-            mem::take(this.left),
-            mem::take(this.right),
+            mem::replace(this.left, Default::default()),
+            mem::replace(this.right, Default::default()),
         )
     }
 
