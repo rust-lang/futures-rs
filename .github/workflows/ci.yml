@@ -1,0 +1,234 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 1 * * *'
+
+env:
+  RUSTFLAGS: -D warnings
+  RUST_BACKTRACE: 1
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: cargo +${{ matrix.rust }} test (${{ matrix.os }})
+    strategy:
+      matrix:
+        rust:
+          - nightly
+        os:
+         - ubuntu-latest
+         - macos-latest
+         - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+      - run: cargo test --workspace --all-features
+      - run: cargo test --workspace --all-features --release
+
+  core-msrv:
+    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task, channel})
+    strategy:
+      matrix:
+        rust:
+          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task, futures-channel.
+          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
+          - 1.36.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+      # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      # Check no-default-features
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+      # Check alloc feature
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features --features alloc --ignore-unknown-features \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+      # Check std feature
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features --features std \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+
+  util-msrv:
+    name: cargo +${{ matrix.rust }} build
+    strategy:
+      matrix:
+        rust:
+          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-test.
+          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
+          - 1.37.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      # Check no-default-features
+      - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features
+      # Check alloc feature
+      - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
+      # Check std feature
+      - run: cargo hack build --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
+      # Check compat feature (futures, futures-util)
+      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,io-compat
+      # Check thread-pool feature (futures, futures-executor)
+      - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
+
+  build:
+    name: cargo +${{ matrix.rust }} build
+    strategy:
+      matrix:
+        rust:
+          # This is the minimum Rust version supported by `async-await` feature.
+          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
+          - 1.39.0
+          - stable
+          - beta
+          - nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: cargo install cargo-hack
+      - run: cargo hack build --workspace --no-dev-deps
+      - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
+
+  minimal-versions:
+    name: cargo build -Z minimal-versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      - run: cargo update -Z minimal-versions
+      - run: cargo build --workspace --all-features
+
+  thumbv6m:
+    name: cargo build --target thumbv6m-none-eabi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: rustup target add thumbv6m-none-eabi
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv6m-none-eabi \
+            --no-default-features \
+            --features unstable,cfg-target-has-atomic
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv6m-none-eabi \
+            --no-default-features \
+            --features alloc,unstable,cfg-target-has-atomic
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv6m-none-eabi \
+            --no-default-features \
+            --features async-await,unstable,cfg-target-has-atomic
+
+  thumbv7m:
+    name: cargo build --target thumbv7m-none-eabi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: rustup target add thumbv7m-none-eabi
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv7m-none-eabi \
+            --no-default-features \
+            --features unstable,cfg-target-has-atomic
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv7m-none-eabi \
+            --no-default-features \
+            --features alloc
+      - run: |
+          cargo build --manifest-path futures/Cargo.toml \
+            --target thumbv7m-none-eabi \
+            --no-default-features \
+            --features async-await
+
+  bench:
+    name: cargo bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo bench --workspace
+      - run: cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
+
+  features:
+    name: cargo hack check --each-feature
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cargo-hack
+      # Check each specified feature works properly
+      # * `--each-feature` - run for each feature which includes --no-default-features and default features of package
+      # * `--no-dev-deps` - build without dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      # * `--exclude futures-test` - futures-test cannot be compiled with no-default features
+      # * `--features unstable` - some features cannot be compiled without this feature
+      # * `--ignore-unknown-features` - some crates doesn't have 'unstable' feature
+      - run: |
+          cargo hack check \
+            --each-feature --no-dev-deps \
+            --workspace --exclude futures-test \
+            --features unstable --ignore-unknown-features
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust and Clippy
+        run: |
+          toolchain=nightly-$(curl -sSf https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)
+          rustup set profile minimal
+          rustup default "$toolchain"
+          rustup component add clippy
+      - run: cargo clippy --workspace --all-features --all-targets
+
+  docs:
+    name: cargo doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features
