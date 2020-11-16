@@ -15,9 +15,6 @@ composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
 
-[badges]
-travis-ci = { repository = "rust-lang/futures-rs" }
-
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.3.8", default-features = false }
 futures-task = { path = "../futures-task", version = "0.3.8", default-features = false }
