@@ -459,7 +459,7 @@ pub mod stream {
         Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
         Fold, Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
         SelectNextSome, Peek, Peekable, Scan, Skip, SkipWhile, Take, TakeUntil,
-        TakeWhile, Then, Zip,
+        TakeWhile, Then, Unzip, Zip,
 
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
