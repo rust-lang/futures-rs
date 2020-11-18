@@ -15,7 +15,7 @@ mod stream;
 pub use self::stream::{
     Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, Fold, ForEach,
     Fuse, Inspect, Map, Next, Peek, Peekable, Scan, SelectNextSome, Skip, SkipWhile, StreamExt,
-    StreamFuture, Take, TakeWhile, TakeUntil, Then, Zip,
+    StreamFuture, Take, TakeUntil, TakeWhile, Then, Unzip, Zip,
 };
 
 #[cfg(feature = "std")]
