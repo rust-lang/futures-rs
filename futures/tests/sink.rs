@@ -611,6 +611,44 @@ fn sink_map_err() {
 }
 
 #[test]
+fn sink_unfold() {
+    use futures::channel::mpsc;
+    use futures::executor::block_on;
+    use futures::future::poll_fn;
+    use futures::sink::{self, Sink, SinkExt};
+    use futures::task::Poll;
+
+    block_on(poll_fn(|cx| {
+        let (tx, mut rx) = mpsc::channel(1);
+        let unfold = sink::unfold((), |(), i: i32| {
+            let mut tx = tx.clone();
+            async move {
+                tx.send(i).await.unwrap();
+                Ok::<_, String>(())
+            }
+        });
+        futures::pin_mut!(unfold);
+        assert_eq!(unfold.as_mut().start_send(1), Ok(()));
+        assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Ready(Ok(())));
+        assert_eq!(rx.try_next().unwrap(), Some(1));
+
+        assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
+        assert_eq!(unfold.as_mut().start_send(2), Ok(()));
+        assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
+        assert_eq!(unfold.as_mut().start_send(3), Ok(()));
+        assert_eq!(rx.try_next().unwrap(), Some(2));
+        assert!(rx.try_next().is_err());
+        assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
+        assert_eq!(unfold.as_mut().start_send(4), Ok(()));
+        assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Pending); // Channel full
+        assert_eq!(rx.try_next().unwrap(), Some(3));
+        assert_eq!(rx.try_next().unwrap(), Some(4));
+
+        Poll::Ready(())
+    }))
+}
+
+#[test]
 fn err_into() {
     use futures::channel::mpsc;
     use futures::sink::{Sink, SinkErrInto, SinkExt};
