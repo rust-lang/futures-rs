@@ -11,6 +11,7 @@ pub(crate) fn stream_select(input: TokenStream) -> TokenStream {
 
     TokenStream::from(quote! {
         {
+            #[derive(Debug)]
             struct StreamSelect<#(#generic_idents),*> (#(#generic_idents),*);
 
             enum StreamFutures<#(#generic_idents),*> {
