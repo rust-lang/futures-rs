@@ -46,13 +46,13 @@ use pin_project_lite::pin_project;
 /// # });
 /// ```
 pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     Unfold {
         f,
-        state: Some(init),
-        fut: None,
+        state: State::Value(init),
     }
 }
 
@@ -61,9 +61,40 @@ pin_project! {
     #[must_use = "streams do nothing unless polled"]
     pub struct Unfold<T, F, Fut> {
         f: F,
-        state: Option<T>,
         #[pin]
-        fut: Option<Fut>,
+        state: State<T, Fut>,
+    }
+}
+
+#[derive(Debug)]
+enum State<T, R> {
+    Value(T),
+    Future(/* #[pin] */ R),
+    Empty,
+}
+
+impl<T, R> State<T, R> {
+    fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut R>> {
+        // SAFETY Normal pin projection on the `Future` variant
+        unsafe {
+            match self.get_unchecked_mut() {
+                Self::Future(f) => Some(Pin::new_unchecked(f)),
+                _ => None,
+            }
+        }
+    }
+
+    fn take_value(self: Pin<&mut Self>) -> Option<T> {
+        // SAFETY We only move out of the `Value` variant which is not pinned
+        match *self {
+            Self::Value(_) => unsafe {
+                match std::mem::replace(self.get_unchecked_mut(), State::Empty) {
+                    State::Value(v) => Some(v),
+                    _ => std::hint::unreachable_unchecked(),
+                }
+            },
+            _ => None,
+        }
     }
 }
 
@@ -75,44 +106,48 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Unfold")
             .field("state", &self.state)
-            .field("fut", &self.fut)
             .finish()
     }
 }
 
 impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     fn is_terminated(&self) -> bool {
-        self.state.is_none() && self.fut.is_none()
+        if let State::Empty = self.state {
+            true
+        } else {
+            false
+        }
     }
 }
 
 impl<T, F, Fut, Item> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     type Item = Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.project();
 
-        if let Some(state) = this.state.take() {
-            this.fut.set(Some((this.f)(state)));
+        if let Some(state) = this.state.as_mut().take_value() {
+            this.state.set(State::Future((this.f)(state)));
         }
 
-        let step = ready!(this.fut.as_mut().as_pin_mut()
-            .expect("Unfold must not be polled after it returned `Poll::Ready(None)`").poll(cx));
-        this.fut.set(None);
+        let step = match this.state.as_mut().project_future() {
+            Some(fut) => ready!(fut.poll(cx)),
+            None => panic!("Unfold must not be polled after it returned `Poll::Ready(None)`"),
+        };
 
         if let Some((item, next_state)) = step {
-            *this.state = Some(next_state);
+            this.state.set(State::Value(next_state));
             Poll::Ready(Some(item))
         } else {
+            this.state.set(State::Empty);
             Poll::Ready(None)
         }
     }
