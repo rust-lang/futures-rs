@@ -63,7 +63,7 @@ mod iter;
 pub use self::iter::{iter, Iter};
 
 mod repeat;
-pub use self::repeat::{repeat, Repeat};
+pub use self::repeat::{repeat, Repeat, repeat_with, RepeatWith};
 
 mod empty;
 pub use self::empty::{empty, Empty};
