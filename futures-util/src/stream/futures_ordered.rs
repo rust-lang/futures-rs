@@ -2,6 +2,7 @@ use crate::stream::{FuturesUnordered, StreamExt};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::{FusedStream, task::{Context, Poll}};
+use futures_core::ready;
 use pin_project::pin_project;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
