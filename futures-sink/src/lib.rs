@@ -16,8 +16,6 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures-sink/0.3.8")]
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 

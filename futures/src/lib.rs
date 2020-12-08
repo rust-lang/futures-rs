@@ -95,8 +95,6 @@
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-#![doc(html_root_url = "https://docs.rs/futures/0.3.8")]
-
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
