@@ -1,39 +1,40 @@
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
 use super::DEFAULT_BUF_SIZE;
 
-/// Wraps a writer and buffers its output.
-///
-/// It can be excessively inefficient to work directly with something that
-/// implements [`AsyncWrite`]. A `BufWriter` keeps an in-memory buffer of data and
-/// writes it to an underlying writer in large, infrequent batches.
-///
-/// `BufWriter` can improve the speed of programs that make *small* and
-/// *repeated* write calls to the same file or network socket. It does not
-/// help when writing very large amounts at once, or writing just one or a few
-/// times. It also provides no advantage when writing to a destination that is
-/// in memory, like a `Vec<u8>`.
-///
-/// When the `BufWriter` is dropped, the contents of its buffer will be
-/// discarded. Creating multiple instances of a `BufWriter` on the same
-/// stream can cause data loss. If you need to write out the contents of its
-/// buffer, you must manually call flush before the writer is dropped.
-///
-/// [`AsyncWrite`]: futures_io::AsyncWrite
-/// [`flush`]: super::AsyncWriteExt::flush
-///
-// TODO: Examples
-#[pin_project]
-pub struct BufWriter<W> {
-    #[pin]
-    inner: W,
-    buf: Vec<u8>,
-    written: usize,
+pin_project! {
+    /// Wraps a writer and buffers its output.
+    ///
+    /// It can be excessively inefficient to work directly with something that
+    /// implements [`AsyncWrite`]. A `BufWriter` keeps an in-memory buffer of data and
+    /// writes it to an underlying writer in large, infrequent batches.
+    ///
+    /// `BufWriter` can improve the speed of programs that make *small* and
+    /// *repeated* write calls to the same file or network socket. It does not
+    /// help when writing very large amounts at once, or writing just one or a few
+    /// times. It also provides no advantage when writing to a destination that is
+    /// in memory, like a `Vec<u8>`.
+    ///
+    /// When the `BufWriter` is dropped, the contents of its buffer will be
+    /// discarded. Creating multiple instances of a `BufWriter` on the same
+    /// stream can cause data loss. If you need to write out the contents of its
+    /// buffer, you must manually call flush before the writer is dropped.
+    ///
+    /// [`AsyncWrite`]: futures_io::AsyncWrite
+    /// [`flush`]: super::AsyncWriteExt::flush
+    ///
+    // TODO: Examples
+    pub struct BufWriter<W> {
+        #[pin]
+        inner: W,
+        buf: Vec<u8>,
+        written: usize,
+    }
 }
 
 impl<W: AsyncWrite> BufWriter<W> {

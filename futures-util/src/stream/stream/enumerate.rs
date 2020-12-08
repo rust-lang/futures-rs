@@ -4,16 +4,17 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Enumerate<St> {
-    #[pin]
-    stream: St,
-    count: usize,
+pin_project! {
+    /// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Enumerate<St> {
+        #[pin]
+        stream: St,
+        count: usize,
+    }
 }
 
 impl<St: Stream> Enumerate<St> {

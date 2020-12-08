@@ -2,16 +2,17 @@ use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::{Sink};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Sink for the [`sink_map_err`](super::SinkExt::sink_map_err) method.
-#[pin_project]
-#[derive(Debug, Clone)]
-#[must_use = "sinks do nothing unless polled"]
-pub struct SinkMapErr<Si, F> {
-    #[pin]
-    sink: Si,
-    f: Option<F>,
+pin_project! {
+    /// Sink for the [`sink_map_err`](super::SinkExt::sink_map_err) method.
+    #[derive(Debug, Clone)]
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct SinkMapErr<Si, F> {
+        #[pin]
+        sink: Si,
+        f: Option<F>,
+    }
 }
 
 impl<Si, F> SinkMapErr<Si, F> {

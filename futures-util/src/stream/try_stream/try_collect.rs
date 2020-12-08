@@ -4,16 +4,17 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::ready;
 use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct TryCollect<St, C> {
-    #[pin]
-    stream: St,
-    items: C,
+pin_project! {
+    /// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct TryCollect<St, C> {
+        #[pin]
+        stream: St,
+        items: C,
+    }
 }
 
 impl<St: TryStream, C: Default> TryCollect<St, C> {

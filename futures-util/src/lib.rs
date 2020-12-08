@@ -284,10 +284,11 @@ macro_rules! delegate_all {
         }
     };
     ($(#[$attr:meta])* $name:ident<$($arg:ident),*>($t:ty) : $ftrait:ident $([$($targs:tt)*])* $({$($item:tt)*})* $(where $($bound:tt)*)*) => {
-        #[pin_project::pin_project]
-        #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
-        $(#[$attr])*
-        pub struct $name< $($arg),* > $(where $($bound)*)* { #[pin] inner:$t }
+        pin_project_lite::pin_project! {
+            #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
+            $(#[$attr])*
+            pub struct $name< $($arg),* > $(where $($bound)*)* { #[pin] inner: $t }
+        }
 
         impl<$($arg),*> $name< $($arg),* > $(where $($bound)*)* {
             $($($item)*)*

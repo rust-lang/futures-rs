@@ -5,22 +5,23 @@ use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use core::pin::Pin;
 
-/// Stream for the [`try_buffered`](super::TryStreamExt::try_buffered) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct TryBuffered<St>
-where
-    St: TryStream,
-    St::Ok: TryFuture,
-{
-    #[pin]
-    stream: Fuse<IntoStream<St>>,
-    in_progress_queue: FuturesOrdered<IntoFuture<St::Ok>>,
-    max: usize,
+pin_project! {
+    /// Stream for the [`try_buffered`](super::TryStreamExt::try_buffered) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TryBuffered<St>
+    where
+        St: TryStream,
+        St::Ok: TryFuture,
+    {
+        #[pin]
+        stream: Fuse<IntoStream<St>>,
+        in_progress_queue: FuturesOrdered<IntoFuture<St::Ok>>,
+        max: usize,
+    }
 }
 
 impl<St> TryBuffered<St>

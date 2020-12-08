@@ -5,19 +5,20 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 macro_rules! generate {
     ($(
         $(#[$doc:meta])*
         ($Join:ident, <Fut1, $($Fut:ident),*>),
     )*) => ($(
-        $(#[$doc])*
-        #[pin_project]
-        #[must_use = "futures do nothing unless you `.await` or poll them"]
-        pub struct $Join<Fut1: TryFuture, $($Fut: TryFuture),*> {
-            #[pin] Fut1: TryMaybeDone<Fut1>,
-            $(#[pin] $Fut: TryMaybeDone<$Fut>,)*
+        pin_project! {
+            $(#[$doc])*
+            #[must_use = "futures do nothing unless you `.await` or poll them"]
+            pub struct $Join<Fut1: TryFuture, $($Fut: TryFuture),*> {
+                #[pin] Fut1: TryMaybeDone<Fut1>,
+                $(#[pin] $Fut: TryMaybeDone<$Fut>,)*
+            }
         }
 
         impl<Fut1, $($Fut),*> fmt::Debug for $Join<Fut1, $($Fut),*>

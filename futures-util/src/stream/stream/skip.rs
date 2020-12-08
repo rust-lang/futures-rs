@@ -4,16 +4,17 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`skip`](super::StreamExt::skip) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Skip<St> {
-    #[pin]
-    stream: St,
-    remaining: usize,
+pin_project! {
+    /// Stream for the [`skip`](super::StreamExt::skip) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Skip<St> {
+        #[pin]
+        stream: St,
+        remaining: usize,
+    }
 }
 
 impl<St: Stream> Skip<St> {

@@ -6,20 +6,21 @@ use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
-/// method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    pending_fut: Option<Fut>,
-    pending_item: Option<St::Ok>,
-    done_skipping: bool,
+pin_project! {
+    /// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
+    /// method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        pending_fut: Option<Fut>,
+        pending_item: Option<St::Ok>,
+        done_skipping: bool,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for TrySkipWhile<St, Fut, F>

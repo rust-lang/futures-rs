@@ -5,16 +5,17 @@ use core::fmt;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
 use alloc::sync::Arc;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// A future which can be remotely short-circuited using an `AbortHandle`.
-#[pin_project]
-#[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Abortable<Fut> {
-    #[pin]
-    future: Fut,
-    inner: Arc<AbortInner>,
+pin_project! {
+    /// A future which can be remotely short-circuited using an `AbortHandle`.
+    #[derive(Debug, Clone)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Abortable<Fut> {
+        #[pin]
+        future: Fut,
+        inner: Arc<AbortInner>,
+    }
 }
 
 impl<Fut> Abortable<Fut> where Fut: Future {

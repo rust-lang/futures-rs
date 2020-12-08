@@ -6,23 +6,24 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`try_take_while`](super::TryStreamExt::try_take_while)
-/// method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TryTakeWhile<St, Fut, F>
-where
-    St: TryStream,
-{
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    pending_fut: Option<Fut>,
-    pending_item: Option<St::Ok>,
-    done_taking: bool,
+pin_project! {
+    /// Stream for the [`try_take_while`](super::TryStreamExt::try_take_while)
+    /// method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TryTakeWhile<St, Fut, F>
+    where
+        St: TryStream,
+    {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        pending_fut: Option<Fut>,
+        pending_item: Option<St::Ok>,
+        done_taking: bool,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for TryTakeWhile<St, Fut, F>

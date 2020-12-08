@@ -1,18 +1,19 @@
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::any::Any;
 use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
-/// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct CatchUnwind<St> {
-    #[pin]
-    stream: St,
-    caught_unwind: bool,
+pin_project! {
+    /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct CatchUnwind<St> {
+        #[pin]
+        stream: St,
+        caught_unwind: bool,
+    }
 }
 
 impl<St: Stream + UnwindSafe> CatchUnwind<St> {

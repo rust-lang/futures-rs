@@ -4,20 +4,21 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`try_flatten`](super::TryStreamExt::try_flatten) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct TryFlatten<St>
-where
-    St: TryStream,
-{
-    #[pin]
-    stream: St,
-    #[pin]
-    next: Option<St::Ok>,
+pin_project! {
+    /// Stream for the [`try_flatten`](super::TryStreamExt::try_flatten) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TryFlatten<St>
+    where
+        St: TryStream,
+    {
+        #[pin]
+        stream: St,
+        #[pin]
+        next: Option<St::Ok>,
+    }
 }
 
 impl<St> TryFlatten<St>

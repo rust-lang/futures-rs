@@ -2,18 +2,19 @@ use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`select()`] function.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Select<St1, St2> {
-    #[pin]
-    stream1: Fuse<St1>,
-    #[pin]
-    stream2: Fuse<St2>,
-    flag: bool,
+pin_project! {
+    /// Stream for the [`select()`] function.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Select<St1, St2> {
+        #[pin]
+        stream1: Fuse<St1>,
+        #[pin]
+        stream2: Fuse<St2>,
+        flag: bool,
+    }
 }
 
 /// This function will attempt to pull items from both streams. Each

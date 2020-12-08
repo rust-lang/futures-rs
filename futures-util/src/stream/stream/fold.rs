@@ -4,18 +4,19 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`fold`](super::StreamExt::fold) method.
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Fold<St, Fut, T, F> {
-    #[pin]
-    stream: St,
-    f: F,
-    accum: Option<T>,
-    #[pin]
-    future: Option<Fut>,
+pin_project! {
+    /// Future for the [`fold`](super::StreamExt::fold) method.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Fold<St, Fut, T, F> {
+        #[pin]
+        stream: St,
+        f: F,
+        accum: Option<T>,
+        #[pin]
+        future: Option<Fut>,
+    }
 }
 
 impl<St, Fut, T, F> fmt::Debug for Fold<St, Fut, T, F>

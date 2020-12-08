@@ -4,20 +4,21 @@ use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use core::mem;
 use core::pin::Pin;
 use alloc::vec::Vec;
 
-/// Stream for the [`chunks`](super::StreamExt::chunks) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Chunks<St: Stream> {
-    #[pin]
-    stream: Fuse<St>,
-    items: Vec<St::Item>,
-    cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
+pin_project! {
+    /// Stream for the [`chunks`](super::StreamExt::chunks) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Chunks<St: Stream> {
+        #[pin]
+        stream: Fuse<St>,
+        items: Vec<St::Item>,
+        cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
+    }
 }
 
 impl<St: Stream> Chunks<St> where St: Stream {

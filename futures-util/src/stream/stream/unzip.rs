@@ -4,17 +4,18 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`unzip`](super::StreamExt::unzip) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Unzip<St, FromA, FromB> {
-    #[pin]
-    stream: St,
-    left: FromA,
-    right: FromB,
+pin_project! {
+    /// Future for the [`unzip`](super::StreamExt::unzip) method.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Unzip<St, FromA, FromB> {
+        #[pin]
+        stream: St,
+        left: FromA,
+        right: FromB,
+    }
 }
 
 impl<St: Stream, FromA: Default, FromB: Default> Unzip<St, FromA, FromB> {

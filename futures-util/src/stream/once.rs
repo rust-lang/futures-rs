@@ -3,7 +3,7 @@ use futures_core::future::Future;
 use futures_core::ready;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Creates a stream of a single element.
 ///
@@ -20,13 +20,14 @@ pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
     Once::new(future)
 }
 
-/// A stream which emits single element and then EOF.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Once<Fut> {
-    #[pin]
-    future: Option<Fut>
+pin_project! {
+    /// A stream which emits single element and then EOF.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Once<Fut> {
+        #[pin]
+        future: Option<Fut>
+    }
 }
 
 impl<Fut> Once<Fut> {

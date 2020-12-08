@@ -2,21 +2,22 @@ use futures_core::ready;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use core::pin::Pin;
 use alloc::collections::VecDeque;
 
-/// Sink for the [`buffer`](super::SinkExt::buffer) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "sinks do nothing unless polled"]
-pub struct Buffer<Si, Item> {
-    #[pin]
-    sink: Si,
-    buf: VecDeque<Item>,
+pin_project! {
+    /// Sink for the [`buffer`](super::SinkExt::buffer) method.
+    #[derive(Debug)]
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct Buffer<Si, Item> {
+        #[pin]
+        sink: Si,
+        buf: VecDeque<Item>,
 
-    // Track capacity separately from the `VecDeque`, which may be rounded up
-    capacity: usize,
+        // Track capacity separately from the `VecDeque`, which may be rounded up
+        capacity: usize,
+    }
 }
 
 impl<Si: Sink<Item>, Item> Buffer<Si, Item> {

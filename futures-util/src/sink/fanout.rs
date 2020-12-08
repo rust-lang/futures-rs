@@ -2,19 +2,20 @@ use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Sink that clones incoming items and forwards them to two sinks at the same time.
-///
-/// Backpressure from any downstream sink propagates up, which means that this sink
-/// can only process items as fast as its _slowest_ downstream sink.
-#[pin_project]
-#[must_use = "sinks do nothing unless polled"]
-pub struct Fanout<Si1, Si2> {
-    #[pin]
-    sink1: Si1,
-    #[pin]
-    sink2: Si2
+pin_project! {
+    /// Sink that clones incoming items and forwards them to two sinks at the same time.
+    ///
+    /// Backpressure from any downstream sink propagates up, which means that this sink
+    /// can only process items as fast as its _slowest_ downstream sink.
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct Fanout<Si1, Si2> {
+        #[pin]
+        sink1: Si1,
+        #[pin]
+        sink2: Si2
+    }
 }
 
 impl<Si1, Si2> Fanout<Si1, Si2> {
