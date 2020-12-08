@@ -74,7 +74,7 @@ where
     /// This may be used to retrieve arbitrary data from the stopping
     /// future, for example a reason why the stream was stopped.
     ///
-    /// This method will return `None` if the future isn't resovled yet,
+    /// This method will return `None` if the future isn't resolved yet,
     /// or if the result was already taken out.
     ///
     /// # Examples
