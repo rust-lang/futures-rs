@@ -448,6 +448,7 @@ pub mod stream {
     pub use futures_util::stream::{
         iter, Iter,
         repeat, Repeat,
+        repeat_with,RepeatWith,
         empty, Empty,
         pending, Pending,
         once, Once,
