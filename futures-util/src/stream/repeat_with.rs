@@ -44,7 +44,7 @@ impl<A, F: FnMut() -> A> FusedStream for RepeatWith<F>
 ///
 /// If the element type of the stream you need implements [`Clone`], and
 /// it is OK to keep the source element in memory, you should instead use
-/// the [`repeat()`] function.
+/// the [`stream.repeat()`] function.
 ///
 /// # Examples
 ///
