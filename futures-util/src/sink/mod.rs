@@ -26,6 +26,9 @@ pub use self::drain::{drain, Drain};
 mod fanout;
 pub use self::fanout::Fanout;
 
+mod feed;
+pub use self::feed::Feed;
+
 mod flush;
 pub use self::flush::Flush;
 
@@ -212,13 +215,25 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// into the sink, including flushing.
     ///
     /// Note that, **because of the flushing requirement, it is usually better
-    /// to batch together items to send via `send_all`, rather than flushing
-    /// between each item.**
+    /// to batch together items to send via `feed` or `send_all`,
+    /// rather than flushing between each item.**
     fn send(&mut self, item: Item) -> Send<'_, Self, Item>
     where
         Self: Unpin,
     {
         Send::new(self, item)
+    }
+
+    /// A future that completes after the given item has been received
+    /// by the sink.
+    ///
+    /// Unlike `send`, the returned future does not flush the sink.
+    /// It is the caller's responsibility to ensure all pending items
+    /// are processed, which can be done via `flush` or `close`.
+    fn feed(&mut self, item: Item) -> Feed<'_, Self, Item>
+        where Self: Unpin,
+    {
+        Feed::new(self, item)
     }
 
     /// A future that completes after the given stream has been fully processed
