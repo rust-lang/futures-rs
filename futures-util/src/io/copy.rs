@@ -4,7 +4,7 @@ use futures_io::{AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 use super::{BufReader, copy_buf, CopyBuf};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Creates a future which copies all the bytes from one object to another.
 ///
@@ -41,13 +41,14 @@ where
     }
 }
 
-/// Future for the [`copy()`] function.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Copy<'a, R, W: ?Sized> {
-    #[pin]
-    inner: CopyBuf<'a, BufReader<R>, W>,
+pin_project! {
+    /// Future for the [`copy()`] function.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Copy<'a, R, W: ?Sized> {
+        #[pin]
+        inner: CopyBuf<'a, BufReader<R>, W>,
+    }
 }
 
 impl<R: AsyncRead, W: AsyncWrite + Unpin + ?Sized> Future for Copy<'_, R, W> {

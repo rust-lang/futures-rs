@@ -5,19 +5,21 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-#[pin_project(project = TryFlattenProj)]
-#[derive(Debug)]
-pub enum TryFlatten<Fut1, Fut2> {
-    First(#[pin] Fut1),
-    Second(#[pin] Fut2),
-    Empty,
+pin_project! {
+    #[project = TryFlattenProj]
+    #[derive(Debug)]
+    pub enum TryFlatten<Fut1, Fut2> {
+        First { #[pin] f: Fut1 },
+        Second { #[pin] f: Fut2 },
+        Empty,
+    }
 }
 
 impl<Fut1, Fut2> TryFlatten<Fut1, Fut2> {
     pub(crate) fn new(future: Fut1) -> Self {
-        Self::First(future)
+        Self::First { f: future }
     }
 }
 
@@ -42,16 +44,16 @@ impl<Fut> Future for TryFlatten<Fut, Fut::Ok>
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First(f) => {
+                TryFlattenProj::First { f } => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(Self::Second(f)),
+                        Ok(f) => self.set(Self::Second { f }),
                         Err(e) => {
                             self.set(Self::Empty);
                             break Err(e);
                         }
                     }
                 },
-                TryFlattenProj::Second(f) => {
+                TryFlattenProj::Second { f } => {
                     let output = ready!(f.try_poll(cx));
                     self.set(Self::Empty);
                     break output;
@@ -83,16 +85,16 @@ impl<Fut> Stream for TryFlatten<Fut, Fut::Ok>
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First(f) => {
+                TryFlattenProj::First { f } => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(Self::Second(f)),
+                        Ok(f) => self.set(Self::Second { f }),
                         Err(e) => {
                             self.set(Self::Empty);
                             break Some(Err(e));
                         }
                     }
                 },
-                TryFlattenProj::Second(f) => {
+                TryFlattenProj::Second { f } => {
                     let output = ready!(f.try_poll_next(cx));
                     if output.is_none() {
                         self.set(Self::Empty);
@@ -120,16 +122,16 @@ where
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First(f) => {
+                TryFlattenProj::First { f } => {
                     match ready!(f.try_poll(cx)) {
-                        Ok(f) => self.set(Self::Second(f)),
+                        Ok(f) => self.set(Self::Second { f }),
                         Err(e) => {
                             self.set(Self::Empty);
                             break Err(e);
                         }
                     }
                 },
-                TryFlattenProj::Second(f) => {
+                TryFlattenProj::Second { f } => {
                     break ready!(f.poll_ready(cx));
                 },
                 TryFlattenProj::Empty => panic!("poll_ready called after eof"),
@@ -139,16 +141,16 @@ where
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         match self.project() {
-            TryFlattenProj::First(_) => panic!("poll_ready not called first"),
-            TryFlattenProj::Second(f) => f.start_send(item),
+            TryFlattenProj::First { .. } => panic!("poll_ready not called first"),
+            TryFlattenProj::Second { f } => f.start_send(item),
             TryFlattenProj::Empty => panic!("start_send called after eof"),
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self.project() {
-            TryFlattenProj::First(_) => Poll::Ready(Ok(())),
-            TryFlattenProj::Second(f) => f.poll_flush(cx),
+            TryFlattenProj::First { .. } => Poll::Ready(Ok(())),
+            TryFlattenProj::Second { f } => f.poll_flush(cx),
             TryFlattenProj::Empty => panic!("poll_flush called after eof"),
         }
     }
@@ -158,7 +160,7 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
         let res = match self.as_mut().project() {
-            TryFlattenProj::Second(f) => f.poll_close(cx),
+            TryFlattenProj::Second { f } => f.poll_close(cx),
             _ => Poll::Ready(Ok(())),
         };
         if res.is_ready() {

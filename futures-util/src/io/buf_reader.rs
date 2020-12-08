@@ -3,38 +3,39 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::{cmp, fmt};
 use super::DEFAULT_BUF_SIZE;
 
-/// The `BufReader` struct adds buffering to any reader.
-///
-/// It can be excessively inefficient to work directly with a [`AsyncRead`]
-/// instance. A `BufReader` performs large, infrequent reads on the underlying
-/// [`AsyncRead`] and maintains an in-memory buffer of the results.
-///
-/// `BufReader` can improve the speed of programs that make *small* and
-/// *repeated* read calls to the same file or network socket. It does not
-/// help when reading very large amounts at once, or reading just one or a few
-/// times. It also provides no advantage when reading from a source that is
-/// already in memory, like a `Vec<u8>`.
-///
-/// When the `BufReader` is dropped, the contents of its buffer will be
-/// discarded. Creating multiple instances of a `BufReader` on the same
-/// stream can cause data loss.
-///
-/// [`AsyncRead`]: futures_io::AsyncRead
-///
-// TODO: Examples
-#[pin_project]
-pub struct BufReader<R> {
-    #[pin]
-    inner: R,
-    buffer: Box<[u8]>,
-    pos: usize,
-    cap: usize,
+pin_project! {
+    /// The `BufReader` struct adds buffering to any reader.
+    ///
+    /// It can be excessively inefficient to work directly with a [`AsyncRead`]
+    /// instance. A `BufReader` performs large, infrequent reads on the underlying
+    /// [`AsyncRead`] and maintains an in-memory buffer of the results.
+    ///
+    /// `BufReader` can improve the speed of programs that make *small* and
+    /// *repeated* read calls to the same file or network socket. It does not
+    /// help when reading very large amounts at once, or reading just one or a few
+    /// times. It also provides no advantage when reading from a source that is
+    /// already in memory, like a `Vec<u8>`.
+    ///
+    /// When the `BufReader` is dropped, the contents of its buffer will be
+    /// discarded. Creating multiple instances of a `BufReader` on the same
+    /// stream can cause data loss.
+    ///
+    /// [`AsyncRead`]: futures_io::AsyncRead
+    ///
+    // TODO: Examples
+    pub struct BufReader<R> {
+        #[pin]
+        inner: R,
+        buffer: Box<[u8]>,
+        pos: usize,
+        cap: usize,
+    }
 }
 
 impl<R: AsyncRead> BufReader<R> {

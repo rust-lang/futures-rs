@@ -6,19 +6,20 @@ use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`take_while`](super::StreamExt::take_while) method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TakeWhile<St: Stream, Fut, F> {
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    pending_fut: Option<Fut>,
-    pending_item: Option<St::Item>,
-    done_taking: bool,
+pin_project! {
+    /// Stream for the [`take_while`](super::StreamExt::take_while) method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TakeWhile<St: Stream, Fut, F> {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        pending_fut: Option<Fut>,
+        pending_item: Option<St::Item>,
+        done_taking: bool,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for TakeWhile<St, Fut, F>

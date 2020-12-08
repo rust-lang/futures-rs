@@ -4,7 +4,7 @@ use futures_core::future::Future;
 use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///
@@ -56,14 +56,15 @@ pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
     }
 }
 
-/// Stream for the [`unfold`] function.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct Unfold<T, F, Fut> {
-    f: F,
-    state: Option<T>,
-    #[pin]
-    fut: Option<Fut>,
+pin_project! {
+    /// Stream for the [`unfold`] function.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Unfold<T, F, Fut> {
+        f: F,
+        state: Option<T>,
+        #[pin]
+        fut: Option<Fut>,
+    }
 }
 
 impl<T, F, Fut> fmt::Debug for Unfold<T, F, Fut>

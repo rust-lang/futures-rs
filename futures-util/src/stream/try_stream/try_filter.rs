@@ -6,21 +6,22 @@ use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`try_filter`](super::TryStreamExt::try_filter)
-/// method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TryFilter<St, Fut, F>
-    where St: TryStream
-{
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    pending_fut: Option<Fut>,
-    pending_item: Option<St::Ok>,
+pin_project! {
+    /// Stream for the [`try_filter`](super::TryStreamExt::try_filter)
+    /// method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TryFilter<St, Fut, F>
+        where St: TryStream
+    {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        pending_fut: Option<Fut>,
+        pending_item: Option<St::Ok>,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for TryFilter<St, Fut, F>

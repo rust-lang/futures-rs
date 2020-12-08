@@ -3,20 +3,21 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncBufRead, AsyncRead, IoSliceMut};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::fmt;
 use std::io;
 use std::pin::Pin;
 
-/// Reader for the [`chain`](super::AsyncReadExt::chain) method.
-#[pin_project]
-#[must_use = "readers do nothing unless polled"]
-pub struct Chain<T, U> {
-    #[pin]
-    first: T,
-    #[pin]
-    second: U,
-    done_first: bool,
+pin_project! {
+    /// Reader for the [`chain`](super::AsyncReadExt::chain) method.
+    #[must_use = "readers do nothing unless polled"]
+    pub struct Chain<T, U> {
+        #[pin]
+        first: T,
+        #[pin]
+        second: U,
+        done_first: bool,
+    }
 }
 
 impl<T, U> Chain<T, U>

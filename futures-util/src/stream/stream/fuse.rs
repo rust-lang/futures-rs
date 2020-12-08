@@ -4,16 +4,17 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`fuse`](super::StreamExt::fuse) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Fuse<St> {
-    #[pin]
-    stream: St,
-    done: bool,
+pin_project! {
+    /// Stream for the [`fuse`](super::StreamExt::fuse) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Fuse<St> {
+        #[pin]
+        stream: St,
+        done: bool,
+    }
 }
 
 impl<St> Fuse<St> {

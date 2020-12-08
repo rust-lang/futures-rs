@@ -2,17 +2,18 @@ use core::pin::Pin;
 use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`chain`](super::StreamExt::chain) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Chain<St1, St2> {
-    #[pin]
-    first: Option<St1>,
-    #[pin]
-    second: St2,
+pin_project! {
+    /// Stream for the [`chain`](super::StreamExt::chain) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Chain<St1, St2> {
+        #[pin]
+        first: Option<St1>,
+        #[pin]
+        second: St2,
+    }
 }
 
 // All interactions with `Pin<&mut Chain<..>>` happen through these methods

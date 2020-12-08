@@ -5,22 +5,23 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use core::fmt;
 use core::pin::Pin;
 
-/// Stream for the [`buffered`](super::StreamExt::buffered) method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct Buffered<St>
-where
-    St: Stream,
-    St::Item: Future,
-{
-    #[pin]
-    stream: Fuse<St>,
-    in_progress_queue: FuturesOrdered<St::Item>,
-    max: usize,
+pin_project! {
+    /// Stream for the [`buffered`](super::StreamExt::buffered) method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Buffered<St>
+    where
+        St: Stream,
+        St::Item: Future,
+    {
+        #[pin]
+        stream: Fuse<St>,
+        in_progress_queue: FuturesOrdered<St::Item>,
+        max: usize,
+    }
 }
 
 impl<St> fmt::Debug for Buffered<St>

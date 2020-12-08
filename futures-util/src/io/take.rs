@@ -3,19 +3,20 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncRead, AsyncBufRead};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::{cmp, io};
 use std::pin::Pin;
 
-/// Reader for the [`take`](super::AsyncReadExt::take) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "readers do nothing unless you `.await` or poll them"]
-pub struct Take<R> {
-    #[pin]
-    inner: R,
-    // Add '_' to avoid conflicts with `limit` method.
-    limit_: u64,
+pin_project! {
+    /// Reader for the [`take`](super::AsyncReadExt::take) method.
+    #[derive(Debug)]
+    #[must_use = "readers do nothing unless you `.await` or poll them"]
+    pub struct Take<R> {
+        #[pin]
+        inner: R,
+        // Add '_' to avoid conflicts with `limit` method.
+        limit_: u64,
+    }
 }
 
 impl<R: AsyncRead> Take<R> {

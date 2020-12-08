@@ -4,7 +4,7 @@ use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Creates a future which copies all the bytes from one object to another.
 ///
@@ -43,15 +43,16 @@ where
     }
 }
 
-/// Future for the [`copy_buf()`] function.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyBuf<'a, R, W: ?Sized> {
-    #[pin]
-    reader: R,
-    writer: &'a mut W,
-    amt: u64,
+pin_project! {
+    /// Future for the [`copy_buf()`] function.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct CopyBuf<'a, R, W: ?Sized> {
+        #[pin]
+        reader: R,
+        writer: &'a mut W,
+        amt: u64,
+    }
 }
 
 impl<R, W> Future for CopyBuf<'_, R, W>

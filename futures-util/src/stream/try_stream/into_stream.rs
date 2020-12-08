@@ -3,15 +3,16 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`into_stream`](super::TryStreamExt::into_stream) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct IntoStream<St> {
-    #[pin]
-    stream: St,
+pin_project! {
+    /// Stream for the [`into_stream`](super::TryStreamExt::into_stream) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct IntoStream<St> {
+        #[pin]
+        stream: St,
+    }
 }
 
 impl<St> IntoStream<St> {

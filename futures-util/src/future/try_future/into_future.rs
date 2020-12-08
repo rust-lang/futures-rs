@@ -1,23 +1,27 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`into_future`](super::TryFutureExt::into_future) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct IntoFuture<Fut>(#[pin] Fut);
+pin_project! {
+    /// Future for the [`into_future`](super::TryFutureExt::into_future) method.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct IntoFuture<Fut> {
+        #[pin]
+        future: Fut,
+    }
+}
 
 impl<Fut> IntoFuture<Fut> {
     #[inline]
     pub(crate) fn new(future: Fut) -> Self {
-        Self(future)
+        Self { future }
     }
 }
 
 impl<Fut: TryFuture + FusedFuture> FusedFuture for IntoFuture<Fut> {
-    fn is_terminated(&self) -> bool { self.0.is_terminated() }
+    fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 
 impl<Fut: TryFuture> Future for IntoFuture<Fut> {
@@ -28,6 +32,6 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.project().0.try_poll(cx)
+        self.project().future.try_poll(cx)
     }
 }

@@ -1,15 +1,16 @@
 use crate::sink::{SinkExt, SinkMapErr};
 use futures_core::stream::{Stream, FusedStream};
 use futures_sink::{Sink};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "sinks do nothing unless polled"]
-pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
-    #[pin]
-    sink: SinkMapErr<Si, fn(Si::Error) -> E>,
+pin_project! {
+    /// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) method.
+    #[derive(Debug)]
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
+        #[pin]
+        sink: SinkMapErr<Si, fn(Si::Error) -> E>,
+    }
 }
 
 impl<Si, E, Item> SinkErrInto<Si, Item, E>

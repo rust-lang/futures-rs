@@ -5,18 +5,20 @@ use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`forward`](super::StreamExt::forward) method.
-#[pin_project(project = ForwardProj)]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Forward<St, Si, Item> {
-    #[pin]
-    sink: Option<Si>,
-    #[pin]
-    stream: Fuse<St>,
-    buffered_item: Option<Item>,
+pin_project! {
+    /// Future for the [`forward`](super::StreamExt::forward) method.
+    #[project = ForwardProj]
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Forward<St, Si, Item> {
+        #[pin]
+        sink: Option<Si>,
+        #[pin]
+        stream: Fuse<St>,
+        buffered_item: Option<Item>,
+    }
 }
 
 impl<St, Si, Item> Forward<St, Si, Item> {

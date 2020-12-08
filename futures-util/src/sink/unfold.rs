@@ -2,17 +2,18 @@ use core::{future::Future, pin::Pin};
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Sink for the [`unfold`] function.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "sinks do nothing unless polled"]
-pub struct Unfold<T, F, R> {
-    state: Option<T>,
-    function: F,
-    #[pin]
-    future: Option<R>,
+pin_project! {
+    /// Sink for the [`unfold`] function.
+    #[derive(Debug)]
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct Unfold<T, F, R> {
+        state: Option<T>,
+        function: F,
+        #[pin]
+        future: Option<R>,
+    }
 }
 
 /// Create a sink from a function which processes one item at a time.

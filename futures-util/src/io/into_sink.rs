@@ -4,7 +4,7 @@ use futures_io::AsyncWrite;
 use futures_sink::Sink;
 use std::io;
 use std::pin::Pin;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 #[derive(Debug)]
 struct Block<Item> {
@@ -12,17 +12,18 @@ struct Block<Item> {
     bytes: Item,
 }
 
-/// Sink for the [`into_sink`](super::AsyncWriteExt::into_sink) method.
-#[pin_project]
-#[must_use = "sinks do nothing unless polled"]
-#[derive(Debug)]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub struct IntoSink<W, Item> {
-    #[pin]
-    writer: W,
-    /// An outstanding block for us to push into the underlying writer, along with an offset of how
-    /// far into this block we have written already.
-    buffer: Option<Block<Item>>,
+pin_project! {
+    /// Sink for the [`into_sink`](super::AsyncWriteExt::into_sink) method.
+    #[must_use = "sinks do nothing unless polled"]
+    #[derive(Debug)]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    pub struct IntoSink<W, Item> {
+        #[pin]
+        writer: W,
+        // An outstanding block for us to push into the underlying writer, along with an offset of how
+        // far into this block we have written already.
+        buffer: Option<Block<Item>>,
+    }
 }
 
 impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {

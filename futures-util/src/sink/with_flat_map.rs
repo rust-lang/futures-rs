@@ -5,19 +5,20 @@ use futures_core::ready;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
-#[pin_project]
-#[must_use = "sinks do nothing unless polled"]
-pub struct WithFlatMap<Si, Item, U, St, F> {
-    #[pin]
-    sink: Si,
-    f: F,
-    #[pin]
-    stream: Option<St>,
-    buffer: Option<Item>,
-    _marker: PhantomData<fn(U)>,
+pin_project! {
+    /// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
+    #[must_use = "sinks do nothing unless polled"]
+    pub struct WithFlatMap<Si, Item, U, St, F> {
+        #[pin]
+        sink: Si,
+        f: F,
+        #[pin]
+        stream: Option<St>,
+        buffer: Option<Item>,
+        _marker: PhantomData<fn(U)>,
+    }
 }
 
 impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>

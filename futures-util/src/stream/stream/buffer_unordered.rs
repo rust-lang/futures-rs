@@ -4,22 +4,23 @@ use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use core::fmt;
 use core::pin::Pin;
 
-/// Stream for the [`buffer_unordered`](super::StreamExt::buffer_unordered)
-/// method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct BufferUnordered<St>
-where
-    St: Stream,
-{
-    #[pin]
-    stream: Fuse<St>,
-    in_progress_queue: FuturesUnordered<St::Item>,
-    max: usize,
+pin_project! {
+    /// Stream for the [`buffer_unordered`](super::StreamExt::buffer_unordered)
+    /// method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct BufferUnordered<St>
+    where
+        St: Stream,
+    {
+        #[pin]
+        stream: Fuse<St>,
+        in_progress_queue: FuturesUnordered<St::Item>,
+        max: usize,
+    }
 }
 
 impl<St> fmt::Debug for BufferUnordered<St>

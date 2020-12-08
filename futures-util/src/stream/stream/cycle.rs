@@ -3,16 +3,17 @@ use core::usize;
 use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`cycle`](super::StreamExt::cycle) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Cycle<St> {
-    orig: St,
-    #[pin]
-    stream: St,
+pin_project! {
+    /// Stream for the [`cycle`](super::StreamExt::cycle) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Cycle<St> {
+        orig: St,
+        #[pin]
+        stream: St,
+    }
 }
 
 impl<St> Cycle<St>

@@ -3,19 +3,20 @@ use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`zip`](super::StreamExt::zip) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Zip<St1: Stream, St2: Stream> {
-    #[pin]
-    stream1: Fuse<St1>,
-    #[pin]
-    stream2: Fuse<St2>,
-    queued1: Option<St1::Item>,
-    queued2: Option<St2::Item>,
+pin_project! {
+    /// Stream for the [`zip`](super::StreamExt::zip) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Zip<St1: Stream, St2: Stream> {
+        #[pin]
+        stream1: Fuse<St1>,
+        #[pin]
+        stream2: Fuse<St2>,
+        queued1: Option<St1::Item>,
+        queued2: Option<St2::Item>,
+    }
 }
 
 impl<St1: Stream, St2: Stream> Zip<St1, St2> {

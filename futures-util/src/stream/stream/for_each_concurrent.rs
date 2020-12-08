@@ -5,18 +5,19 @@ use core::num::NonZeroUsize;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`for_each_concurrent`](super::StreamExt::for_each_concurrent)
-/// method.
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct ForEachConcurrent<St, Fut, F> {
-    #[pin]
-    stream: Option<St>,
-    f: F,
-    futures: FuturesUnordered<Fut>,
-    limit: Option<NonZeroUsize>,
+pin_project! {
+    /// Future for the [`for_each_concurrent`](super::StreamExt::for_each_concurrent)
+    /// method.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct ForEachConcurrent<St, Fut, F> {
+        #[pin]
+        stream: Option<St>,
+        f: F,
+        futures: FuturesUnordered<Fut>,
+        limit: Option<NonZeroUsize>,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for ForEachConcurrent<St, Fut, F>

@@ -7,20 +7,21 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// A `Stream` that implements a `peek` method.
-///
-/// The `peek` method can be used to retrieve a reference
-/// to the next `Stream::Item` if available. A subsequent
-/// call to `poll` will return the owned item.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Peekable<St: Stream> {
-    #[pin]
-    stream: Fuse<St>,
-    peeked: Option<St::Item>,
+pin_project! {
+    /// A `Stream` that implements a `peek` method.
+    ///
+    /// The `peek` method can be used to retrieve a reference
+    /// to the next `Stream::Item` if available. A subsequent
+    /// call to `poll` will return the owned item.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Peekable<St: Stream> {
+        #[pin]
+        stream: Fuse<St>,
+        peeked: Option<St::Item>,
+    }
 }
 
 impl<St: Stream> Peekable<St> {
@@ -101,11 +102,12 @@ where
     delegate_sink!(stream, Item);
 }
 
-/// Future for the [`Peekable::peek()`](self::Peekable::peek) function from [`Peekable`]
-#[pin_project]
-#[must_use = "futures do nothing unless polled"]
-pub struct Peek<'a, St: Stream> {
-    inner: Option<Pin<&'a mut Peekable<St>>>,
+pin_project! {
+    /// Future for the [`Peekable::peek()`](self::Peekable::peek) function from [`Peekable`]
+    #[must_use = "futures do nothing unless polled"]
+    pub struct Peek<'a, St: Stream> {
+        inner: Option<Pin<&'a mut Peekable<St>>>,
+    }
 }
 
 impl<St> fmt::Debug for Peek<'_, St>

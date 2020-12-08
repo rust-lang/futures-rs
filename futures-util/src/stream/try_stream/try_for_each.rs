@@ -4,17 +4,18 @@ use futures_core::future::{Future, TryFuture};
 use futures_core::ready;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`try_for_each`](super::TryStreamExt::try_for_each) method.
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct TryForEach<St, Fut, F> {
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    future: Option<Fut>,
+pin_project! {
+    /// Future for the [`try_for_each`](super::TryStreamExt::try_for_each) method.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct TryForEach<St, Fut, F> {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        future: Option<Fut>,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for TryForEach<St, Fut, F>
