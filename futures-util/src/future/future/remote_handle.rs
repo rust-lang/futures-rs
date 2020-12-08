@@ -95,11 +95,11 @@ impl<Fut: Future> Future for Remote<Fut> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         let this = self.project();
 
-        if let Poll::Ready(_) = this.tx.as_mut().unwrap().poll_canceled(cx) {
-            if !this.keep_running.load(Ordering::SeqCst) {
-                // Cancelled, bail out
-                return Poll::Ready(())
-            }
+        if this.tx.as_mut().unwrap().poll_canceled(cx).is_ready()
+            && !this.keep_running.load(Ordering::SeqCst)
+        {
+            // Cancelled, bail out
+            return Poll::Ready(());
         }
 
         let output = ready!(this.future.poll(cx));

@@ -192,7 +192,7 @@ jobs:
       - run: cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
 
   features:
-    name: cargo hack check --each-feature
+    name: cargo hack check --feature-powerset
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -200,14 +200,15 @@ jobs:
         run: rustup update nightly && rustup default nightly
       - run: cargo install cargo-hack
       # Check each specified feature works properly
-      # * `--each-feature` - run for each feature which includes --no-default-features and default features of package
+      # * `--feature-powerset` - run for the feature powerset of the package
+      # * `--depth 2` - limit the max number of simultaneous feature flags of `--feature-powerset`
       # * `--no-dev-deps` - build without dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       # * `--exclude futures-test` - futures-test cannot be compiled with no-default features
       # * `--features unstable` - some features cannot be compiled without this feature
       # * `--ignore-unknown-features` - some crates doesn't have 'unstable' feature
       - run: |
           cargo hack check \
-            --each-feature --no-dev-deps \
+            --feature-powerset --depth 2 --no-dev-deps \
             --workspace --exclude futures-test \
             --features unstable --ignore-unknown-features
 

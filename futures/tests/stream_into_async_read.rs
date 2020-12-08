@@ -52,7 +52,7 @@ fn test_into_async_read() {
 }
 
 #[test]
-fn test_into_async_bufread() -> std::io::Result<()> {
+fn test_into_async_bufread() {
     use core::pin::Pin;
     use futures::io::AsyncBufRead;
     use futures::stream::{self, TryStreamExt};
@@ -97,6 +97,4 @@ fn test_into_async_bufread() -> std::io::Result<()> {
     reader.as_mut().consume(3);
 
     assert_fill_buf!(reader, &[][..]);
-
-    Ok(())
 }

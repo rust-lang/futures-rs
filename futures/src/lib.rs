@@ -280,8 +280,8 @@ pub mod future {
         NeverError,
 
         TryFutureExt,
-        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
-        InspectOk, InspectErr, TryFlattenStream, UnwrapOrElse,
+        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, MapOkOrElse, MapInto,
+        OrElse, OkInto, InspectOk, InspectErr, TryFlatten, TryFlattenStream, UnwrapOrElse,
     };
 
     #[cfg(feature = "alloc")]
@@ -348,6 +348,9 @@ pub mod io {
         Repeat, ReuniteError, Seek, sink, Sink, Take, Window, Write, WriteAll, WriteHalf,
         WriteVectored,
     };
+
+    #[cfg(feature = "write-all-vectored")]
+    pub use futures_util::io::WriteAllVectored;
 }
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
