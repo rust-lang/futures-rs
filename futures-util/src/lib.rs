@@ -34,9 +34,6 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[macro_use(ready)]
-extern crate futures_core;
-
 // Macro re-exports
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;

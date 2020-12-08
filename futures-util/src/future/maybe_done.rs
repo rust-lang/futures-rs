@@ -2,6 +2,7 @@
 
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use pin_project::pin_project;
 

@@ -1,4 +1,5 @@
 use core::pin::Pin;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project::pin_project;

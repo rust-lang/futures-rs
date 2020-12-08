@@ -1,5 +1,6 @@
 use core::fmt;
 use core::pin::Pin;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]

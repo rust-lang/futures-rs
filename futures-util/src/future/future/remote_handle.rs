@@ -4,6 +4,7 @@ use {
     futures_core::{
         future::Future,
         task::{Context, Poll},
+        ready,
     },
     std::{
         any::Any,

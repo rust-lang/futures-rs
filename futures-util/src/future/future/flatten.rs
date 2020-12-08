@@ -1,5 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
