@@ -1,9 +1,0 @@
-# TODO: CI has migrated to GitHub Actions, but branch protection requires the status of Travis.
-# Once branch protection settings updated, delete this file.
-
-language: minimal
-sudo: false
-
-notifications:
-  email:
-    on_success: never
