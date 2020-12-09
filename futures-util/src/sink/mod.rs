@@ -264,6 +264,8 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// This future will drive the stream to keep producing items until it is
     /// exhausted, sending each item to the sink. It will complete once the
     /// stream is exhausted and the sink has received all items.
+    /// While the stream is not ready to yield the next item, this future will
+    /// drive the sink to flush any pending items.
     /// Note that the sink is **not** closed.
     ///
     /// Unlike `send_all`, the returned future does not fully flush the sink
