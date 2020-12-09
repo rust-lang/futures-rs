@@ -1,3 +1,4 @@
+use crate::unfold_state::UnfoldState;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -52,7 +53,7 @@ where
 {
     Unfold {
         f,
-        state: State::Value(init),
+        state: UnfoldState::Value(init),
     }
 }
 
@@ -62,39 +63,7 @@ pin_project! {
     pub struct Unfold<T, F, Fut> {
         f: F,
         #[pin]
-        state: State<T, Fut>,
-    }
-}
-
-#[derive(Debug)]
-enum State<T, R> {
-    Value(T),
-    Future(/* #[pin] */ R),
-    Empty,
-}
-
-impl<T, R> State<T, R> {
-    fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut R>> {
-        // SAFETY Normal pin projection on the `Future` variant
-        unsafe {
-            match self.get_unchecked_mut() {
-                Self::Future(f) => Some(Pin::new_unchecked(f)),
-                _ => None,
-            }
-        }
-    }
-
-    fn take_value(self: Pin<&mut Self>) -> Option<T> {
-        // SAFETY We only move out of the `Value` variant which is not pinned
-        match *self {
-            Self::Value(_) => unsafe {
-                match std::mem::replace(self.get_unchecked_mut(), State::Empty) {
-                    State::Value(v) => Some(v),
-                    _ => std::hint::unreachable_unchecked(),
-                }
-            },
-            _ => None,
-        }
+        state: UnfoldState<T, Fut>,
     }
 }
 
@@ -116,7 +85,7 @@ where
     Fut: Future<Output = Option<(Item, T)>>,
 {
     fn is_terminated(&self) -> bool {
-        if let State::Empty = self.state {
+        if let UnfoldState::Empty = self.state {
             true
         } else {
             false
@@ -135,7 +104,7 @@ where
         let mut this = self.project();
 
         if let Some(state) = this.state.as_mut().take_value() {
-            this.state.set(State::Future((this.f)(state)));
+            this.state.set(UnfoldState::Future((this.f)(state)));
         }
 
         let step = match this.state.as_mut().project_future() {
@@ -144,10 +113,10 @@ where
         };
 
         if let Some((item, next_state)) = step {
-            this.state.set(State::Value(next_state));
+            this.state.set(UnfoldState::Value(next_state));
             Poll::Ready(Some(item))
         } else {
-            this.state.set(State::Empty);
+            this.state.set(UnfoldState::Empty);
             Poll::Ready(None)
         }
     }

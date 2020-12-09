@@ -1,3 +1,4 @@
+use crate::unfold_state::UnfoldState;
 use core::{future::Future, pin::Pin};
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
@@ -11,39 +12,7 @@ pin_project! {
     pub struct Unfold<T, F, R> {
         function: F,
         #[pin]
-        state: State<T, R>,
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum State<T, R> {
-    Value(T),
-    Future(/* #[pin] */ R),
-    Empty,
-}
-
-impl<T, R> State<T, R> {
-    pub(crate) fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut R>> {
-        // SAFETY Normal pin projection on the `Future` variant
-        unsafe {
-            match self.get_unchecked_mut() {
-                Self::Future(f) => Some(Pin::new_unchecked(f)),
-                _ => None,
-            }
-        }
-    }
-
-    pub(crate) fn take_value(self: Pin<&mut Self>) -> Option<T> {
-        // SAFETY We only move out of the `Value` variant which is not pinned
-        match *self {
-            Self::Value(_) => unsafe {
-                match std::mem::replace(self.get_unchecked_mut(), State::Empty) {
-                    State::Value(v) => Some(v),
-                    _ => std::hint::unreachable_unchecked(),
-                }
-            },
-            _ => None,
-        }
+        state: UnfoldState<T, R>,
     }
 }
 
@@ -69,7 +38,7 @@ impl<T, R> State<T, R> {
 pub fn unfold<T, F, R>(init: T, function: F) -> Unfold<T, F, R> {
     Unfold {
         function,
-        state: State::Value(init),
+        state: UnfoldState::Value(init),
     }
 }
 
@@ -92,7 +61,7 @@ where
                 panic!("start_send called without poll_ready being called first")
             }
         };
-        this.state.set(State::Future(future));
+        this.state.set(UnfoldState::Future(future));
         Ok(())
     }
 
@@ -101,7 +70,7 @@ where
         Poll::Ready(if let Some(future) = this.state.as_mut().project_future() {
             match ready!(future.poll(cx)) {
                 Ok(state) => {
-                    this.state.set(State::Value(state));
+                    this.state.set(UnfoldState::Value(state));
                     Ok(())
                 }
                 Err(err) => Err(err),
