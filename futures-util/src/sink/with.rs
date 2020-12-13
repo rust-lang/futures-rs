@@ -11,7 +11,6 @@ use pin_project_lite::pin_project;
 pin_project! {
     /// Sink for the [`with`](super::SinkExt::with) method.
     #[must_use = "sinks do nothing unless polled"]
-    #[derive(Clone)]
     pub struct With<Si, Item, U, Fut, F> {
         #[pin]
         sink: Si,
@@ -49,6 +48,22 @@ where Si: Sink<Item>,
             state: None,
             sink,
             f,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<Si, Item, U, Fut, F> Clone for With<Si, Item, U, Fut, F>
+where
+    Si: Clone,
+    F: Clone,
+    Fut: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            sink: self.sink.clone(),
+            f: self.f.clone(),
             _phantom: PhantomData,
         }
     }
