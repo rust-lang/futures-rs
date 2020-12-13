@@ -11,6 +11,7 @@ use pin_project_lite::pin_project;
 pin_project! {
     /// Sink for the [`with`](super::SinkExt::with) method.
     #[must_use = "sinks do nothing unless polled"]
+    #[derive(Clone)]
     pub struct With<Si, Item, U, Fut, F> {
         #[pin]
         sink: Si,
