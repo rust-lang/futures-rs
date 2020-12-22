@@ -483,6 +483,41 @@ fn with_flush_propagate() {
     })
 }
 
+// test that `Clone` is implemented on `with` sinks
+#[test]
+fn with_implements_clone() {
+    use futures::channel::mpsc;
+    use futures::executor::block_on;
+    use futures::future;
+    use futures::{SinkExt, StreamExt};
+
+    let (mut tx, rx) = mpsc::channel(5);
+
+    {
+        let mut is_positive = tx
+            .clone()
+            .with(|item| future::ok::<bool, mpsc::SendError>(item > 0));
+
+        let mut is_long = tx
+            .clone()
+            .with(|item: &str| future::ok::<bool, mpsc::SendError>(item.len() > 5));
+
+        block_on(is_positive.clone().send(-1)).unwrap();
+        block_on(is_long.clone().send("123456")).unwrap();
+        block_on(is_long.send("123")).unwrap();
+        block_on(is_positive.send(1)).unwrap();
+    }
+
+    block_on(tx.send(false)).unwrap();
+
+    block_on(tx.close()).unwrap();
+
+    assert_eq!(
+        block_on(rx.collect::<Vec<_>>()),
+        vec![false, true, false, true, false]
+    );
+}
+
 // test that a buffer is a no-nop around a sink that always accepts sends
 #[test]
 fn buffer_noop() {

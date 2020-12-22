@@ -53,6 +53,22 @@ where Si: Sink<Item>,
     }
 }
 
+impl<Si, Item, U, Fut, F> Clone for With<Si, Item, U, Fut, F>
+where
+    Si: Clone,
+    F: Clone,
+    Fut: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            sink: self.sink.clone(),
+            f: self.f.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
 // Forwarding impl of Stream from the underlying sink
 impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
     where S: Stream + Sink<Item>,
