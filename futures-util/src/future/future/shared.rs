@@ -210,7 +210,12 @@ where
 
         inner.record_waker(&mut this.waker_key, cx);
 
-        match inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
+        match inner
+            .notifier
+            .state
+            .compare_exchange(IDLE, POLLING, SeqCst, SeqCst)
+            .unwrap_or_else(|x| x)
+        {
             IDLE => {
                 // Lock acquired, fall through
             }
@@ -255,14 +260,18 @@ where
 
             match future.poll(&mut cx) {
                 Poll::Pending => {
-                    match inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
-                        POLLING => {
-                            // Success
-                            drop(_reset);
-                            this.inner = Some(inner);
-                            return Poll::Pending;
-                        }
-                        _ => unreachable!(),
+                    if inner
+                        .notifier
+                        .state
+                        .compare_exchange(POLLING, IDLE, SeqCst, SeqCst)
+                        .is_ok()
+                    {
+                        // Success
+                        drop(_reset);
+                        this.inner = Some(inner);
+                        return Poll::Pending;
+                    } else {
+                        unreachable!()
                     }
                 }
                 Poll::Ready(output) => output,
