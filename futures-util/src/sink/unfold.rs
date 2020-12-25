@@ -57,9 +57,7 @@ where
         let mut this = self.project();
         let future = match this.state.as_mut().take_value() {
             Some(value) => (this.function)(value, item),
-            None => {
-                panic!("start_send called without poll_ready being called first")
-            }
+            None => panic!("start_send called without poll_ready being called first"),
         };
         this.state.set(UnfoldState::Future(future));
         Ok(())

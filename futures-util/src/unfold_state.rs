@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use core::pin::Pin;
 
 /// UnfoldState used for stream and sink unfolds
 #[derive(Debug)]
@@ -23,9 +23,9 @@ impl<T, R> UnfoldState<T, R> {
         // SAFETY We only move out of the `Value` variant which is not pinned
         match *self {
             Self::Value(_) => unsafe {
-                match std::mem::replace(self.get_unchecked_mut(), UnfoldState::Empty) {
+                match core::mem::replace(self.get_unchecked_mut(), UnfoldState::Empty) {
                     UnfoldState::Value(v) => Some(v),
-                    _ => std::hint::unreachable_unchecked(),
+                    _ => core::hint::unreachable_unchecked(),
                 }
             },
             _ => None,
