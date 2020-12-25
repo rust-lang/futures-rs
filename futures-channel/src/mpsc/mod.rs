@@ -923,17 +923,16 @@ impl<T> Clone for UnboundedSenderInner<T> {
             debug_assert!(curr < MAX_BUFFER);
 
             let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
-
-            // The ABA problem doesn't matter here. We only care that the
-            // number of senders never exceeds the maximum.
-            if actual == curr {
-                return Self {
-                    inner: self.inner.clone(),
-                };
+            match self.inner.num_senders.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    // The ABA problem doesn't matter here. We only care that the
+                    // number of senders never exceeds the maximum.
+                    return Self {
+                        inner: self.inner.clone(),
+                    };
+                }
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 }
@@ -954,19 +953,18 @@ impl<T> Clone for BoundedSenderInner<T> {
             debug_assert!(curr < self.inner.max_senders());
 
             let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
-
-            // The ABA problem doesn't matter here. We only care that the
-            // number of senders never exceeds the maximum.
-            if actual == curr {
-                return Self {
-                    inner: self.inner.clone(),
-                    sender_task: Arc::new(Mutex::new(SenderTask::new())),
-                    maybe_parked: false,
-                };
+            match self.inner.num_senders.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    // The ABA problem doesn't matter here. We only care that the
+                    // number of senders never exceeds the maximum.
+                    return Self {
+                        inner: self.inner.clone(),
+                        sender_task: Arc::new(Mutex::new(SenderTask::new())),
+                        maybe_parked: false,
+                    };
+                }
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 }
