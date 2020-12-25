@@ -16,11 +16,13 @@ default = ["std"]
 std = ["alloc", "once_cell"]
 alloc = []
 
-# Unstable features
-# These features are outside of the normal semver guarantees and require the
-# `unstable` feature as an explicit opt-in to unstable API.
+# These features are no longer used.
+# TODO: remove in the next major version.
 unstable = []
 cfg-target-has-atomic = []
+
+[build-dependencies]
+autocfg = "1"
 
 [dependencies]
 once_cell = { version = "1.3.1", default-features = false, features = ["std"], optional = true }

@@ -16,11 +16,13 @@ default = ["std"]
 std = ["alloc"]
 alloc = []
 
-# Unstable features
-# These features are outside of the normal semver guarantees and require the
-# `unstable` feature as an explicit opt-in to unstable API.
+# These features are no longer used.
+# TODO: remove in the next major version.
 unstable = []
 cfg-target-has-atomic = []
+
+[build-dependencies]
+autocfg = "1"
 
 [dependencies]
 
