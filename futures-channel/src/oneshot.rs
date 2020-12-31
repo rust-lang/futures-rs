@@ -7,7 +7,7 @@ use core::fmt;
 use core::pin::Pin;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
-use futures_core::future::Future;
+use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll, Waker};
 
 use crate::lock::Lock;
@@ -458,6 +458,21 @@ impl<T> Future for Receiver<T> {
         cx: &mut Context<'_>,
     ) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
+    }
+}
+
+impl<T> FusedFuture for Receiver<T> {
+    fn is_terminated(&self) -> bool {
+        if self.inner.complete.load(SeqCst) {
+            if let Some(slot) = self.inner.data.try_lock() {
+                if slot.is_some() {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 }
 
