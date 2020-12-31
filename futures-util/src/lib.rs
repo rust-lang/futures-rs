@@ -343,10 +343,8 @@ pub mod io;
 #[doc(hidden)]
 pub use crate::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
+#[cfg(feature = "alloc")]
+pub mod lock;
+
 mod fns;
 mod unfold_state;
-
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    pub mod lock;
-}
