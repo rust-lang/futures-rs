@@ -29,6 +29,9 @@ pub use self::fanout::Fanout;
 mod feed;
 pub use self::feed::Feed;
 
+mod feed_all;
+pub use self::feed_all::FeedAll;
+
 mod flush;
 pub use self::flush::Flush;
 
@@ -215,7 +218,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// into the sink, including flushing.
     ///
     /// Note that, **because of the flushing requirement, it is usually better
-    /// to batch together items to send via `feed` or `send_all`,
+    /// to batch together items to send via `feed`, `feed_all`, or `send_all`,
     /// rather than flushing between each item.**
     fn send(&mut self, item: Item) -> Send<'_, Self, Item>
     where
@@ -253,6 +256,30 @@ pub trait SinkExt<Item>: Sink<Item> {
         Self: Unpin,
     {
         SendAll::new(self, stream)
+    }
+
+    /// A future that completes after the given stream has been fully received
+    /// by the sink.
+    ///
+    /// This future will drive the stream to keep producing items until it is
+    /// exhausted, sending each item to the sink. It will complete once the
+    /// stream is exhausted and the sink has received all items.
+    /// While the stream is not ready to yield the next item, this future will
+    /// drive the sink to flush any pending items.
+    /// Note that the sink is **not** closed.
+    ///
+    /// Unlike `send_all`, the returned future does not fully flush the sink
+    /// before completion.
+    /// It is the caller's responsibility to ensure all pending items
+    /// are processed, which can be done via `flush` or `close`.
+    fn feed_all<'a, St>(
+        &'a mut self,
+        stream: &'a mut St
+    ) -> FeedAll<'a, Self, St>
+        where St: TryStream<Ok = Item, Error = Self::Error> + Stream + Unpin + ?Sized,
+              Self: Unpin,
+    {
+        FeedAll::new(self, stream)
     }
 
     /// Wrap this sink in an `Either` sink, making it the left-hand variant
