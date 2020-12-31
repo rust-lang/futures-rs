@@ -54,7 +54,7 @@ pub mod __private {
 
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
-        #[cfg(has_atomic_cas)]
+        #[cfg(not(no_atomic_cas))]
         $item
     )*};
 }

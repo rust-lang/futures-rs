@@ -16,8 +16,12 @@ fn main() {
         }
     };
 
-    if cfg.probe_expression("core::sync::atomic::AtomicPtr::<()>::compare_exchange") {
-        println!("cargo:rustc-cfg=has_atomic_cas");
+    // Note that this is `no_atomic_cas`, not `has_atomic_cas`. This allows
+    // treating `cfg(target_has_atomic = "ptr")` as true when the build script
+    // doesn't run. This is needed for compatibility with non-cargo build
+    // systems that don't run build scripts.
+    if !cfg.probe_expression("core::sync::atomic::AtomicPtr::<()>::compare_exchange") {
+        println!("cargo:rustc-cfg=no_atomic_cas");
     }
     println!("cargo:rerun-if-changed=build.rs");
 }
