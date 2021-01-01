@@ -1,8 +1,13 @@
-//! Streams
+//! Asynchronous streams.
 //!
-//! This module contains a number of functions for working with `Stream`s,
-//! including the [`StreamExt`] trait and the [`TryStreamExt`] trait which add
-//! methods to `Stream` types
+//! This module contains:
+//!
+//! - The [`Stream`] trait, for objects that can asynchronously produce a
+//!   sequence of values.
+//! - The [`StreamExt`] and [`TryStreamExt`] trait, which provides adapters for
+//!   chaining and composing streams.
+//! - Top-level stream constructors like [`iter`](iter()) which creates a
+//!   stream from an iterator.
 
 #[cfg(feature = "alloc")]
 pub use futures_core::stream::{BoxStream, LocalBoxStream};

@@ -1,10 +1,10 @@
-//! Sinks
+//! Asynchronous sinks.
 //!
-//! This module contains a number of functions for working with `Sink`s,
-//! including the `SinkExt` trait which adds methods to `Sink` types.
+//! This module contains:
 //!
-//! This module is only available when the `sink` feature of this
-//! library is activated, and it is activated by default.
+//! - The [`Sink`] trait, which allows you to asynchronously write data.
+//! - The [`SinkExt`] trait, which provides adapters for chaining and composing
+//!   sinks.
 
 use crate::future::Either;
 use core::pin::Pin;

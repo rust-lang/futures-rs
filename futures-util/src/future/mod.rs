@@ -1,8 +1,13 @@
-//! Futures
+//! Asynchronous values.
 //!
-//! This module contains a number of functions for working with `Future`s,
-//! including the [`FutureExt`] trait and the [`TryFutureExt`] trait which add
-//! methods to `Future` types.
+//! This module contains:
+//!
+//! - The [`Future`] trait.
+//! - The [`FutureExt`] and [`TryFutureExt`] trait, which provides adapters for
+//!   chaining and composing futures.
+//! - Top-level future combinators like [`lazy`](lazy()) which creates a future
+//!   from a closure that defines its return value, and [`ready`](ready()),
+//!   which constructs a future with an immediate defined value.
 
 #[cfg(feature = "alloc")]
 pub use futures_core::future::{BoxFuture, LocalBoxFuture};
