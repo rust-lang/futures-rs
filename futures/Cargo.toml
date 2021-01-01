@@ -15,9 +15,6 @@ composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
 
-[build-dependencies]
-autocfg = "1"
-
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.3.8", default-features = false }
 futures-task = { path = "../futures-task", version = "0.3.8", default-features = false }
