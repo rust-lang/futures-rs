@@ -25,7 +25,7 @@ cfg-target-has-atomic = []
 [dependencies]
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.8" }
+futures = { path = "../futures" }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -26,8 +26,8 @@ futures-util = { path = "../futures-util", version = "0.3.8", default-features =
 
 [dev-dependencies]
 pin-utils = "0.1.0"
-futures-executor = { path = "../futures-executor", version = "0.3.8", features = ["thread-pool"] }
-futures-test = { path = "../futures-test", version = "0.3.8" }
+futures-executor = { path = "../futures-executor", features = ["thread-pool"] }
+futures-test = { path = "../futures-test" }
 tokio = "0.1.11"
 assert_matches = "1.3.0"
 pin-project = "1.0.1"
