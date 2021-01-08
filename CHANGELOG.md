@@ -1,10 +1,20 @@
+# 0.3.9 - 2021-01-08
+* Significantly improved compile time when `async-await` crate feature is disabled (#2273)
+* Added `stream::repeat_with` (#2279)
+* Added `StreamExt::unzip` (#2263)
+* Added `sink::unfold` (#2268)
+* Added `SinkExt::feed` (#2155)
+* Implemented `FusedFuture` for `oneshot::Receiver` (#2300)
+* Implemented `Clone` for `sink::With` (#2290)
+* Re-exported `MapOkOrElse`, `MapInto`, `OkInto`, `TryFlatten`, `WriteAllVectored` (#2275)
+
 # 0.3.8 - 2020-11-04
-* Switch proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
-* Add `WeakShared` (#2169)
-* Add `TryStreamExt::try_buffered` (#2245)
-* Add `StreamExt::cycle` (#2252)
+* Switched proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
+* Added `WeakShared` (#2169)
+* Added `TryStreamExt::try_buffered` (#2245)
+* Added `StreamExt::cycle` (#2252)
 * Implemented `Clone` for `stream::{Empty, Pending, Repeat, Iter}` (#2248, #2252)
-* Fix panic in some `TryStreamExt` combinators (#2250)
+* Fixed panic in some `TryStreamExt` combinators (#2250)
 
 # 0.3.7 - 2020-10-23
 * Fixed unsoundness in `MappedMutexGuard` (#2240)
