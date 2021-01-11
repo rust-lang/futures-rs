@@ -31,7 +31,7 @@ impl<T, R> UnfoldState<T, R> {
         match &*self {
             UnfoldState::Value { .. } => match self.project_replace(UnfoldState::Empty) {
                 UnfoldStateProjReplace::Value { value } => Some(value),
-                _ => None,
+                _ => unreachable!(),
             },
             _ => None,
         }
