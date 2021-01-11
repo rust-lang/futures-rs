@@ -53,7 +53,7 @@ where
 {
     Unfold {
         f,
-        state: UnfoldState::Value(init),
+        state: UnfoldState::Value { value: init },
     }
 }
 
@@ -104,7 +104,9 @@ where
         let mut this = self.project();
 
         if let Some(state) = this.state.as_mut().take_value() {
-            this.state.set(UnfoldState::Future((this.f)(state)));
+            this.state.set(UnfoldState::Future {
+                future: (this.f)(state),
+            });
         }
 
         let step = match this.state.as_mut().project_future() {
@@ -113,7 +115,7 @@ where
         };
 
         if let Some((item, next_state)) = step {
-            this.state.set(UnfoldState::Value(next_state));
+            this.state.set(UnfoldState::Value { value: next_state });
             Poll::Ready(Some(item))
         } else {
             this.state.set(UnfoldState::Empty);
