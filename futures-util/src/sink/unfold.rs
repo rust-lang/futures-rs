@@ -35,7 +35,11 @@ pin_project! {
 /// unfold.send(5).await?;
 /// # Ok::<(), futures::never::Never>(()) }).unwrap();
 /// ```
-pub fn unfold<T, F, R>(init: T, function: F) -> Unfold<T, F, R> {
+pub fn unfold<T, F, R, Item, E>(init: T, function: F) -> Unfold<T, F, R>
+where
+    F: FnMut(T, Item) -> R,
+    R: Future<Output = Result<T, E>>,
+{
     Unfold {
         function,
         state: UnfoldState::Value { value: init },
