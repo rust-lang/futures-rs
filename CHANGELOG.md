@@ -1,3 +1,6 @@
+# 0.3.10 - 2021-01-12
+* Fixed type-inference in `sink::unfold` by specifying more of its types (breaking change -- see #2311)
+
 # 0.3.9 - 2021-01-08
 * Significantly improved compile time when `async-await` crate feature is disabled (#2273)
 * Added `stream::repeat_with` (#2279)
