@@ -1,3 +1,6 @@
+# 0.3.12 - 2021-01-14
+* Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
+
 # 0.3.11 - 2021-01-14
 * Fixed heap buffer overflow in `AsyncReadExt::{read_to_end, read_to_string}` (#2314)
 
