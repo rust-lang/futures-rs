@@ -12,13 +12,15 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
-    Future(Fut),
+    Future(/* #[pin] */ Fut),
     /// The output of the completed future
     Done(Fut::Output),
     /// The empty variant after the result of a [`MaybeDone`] has been
     /// taken using the [`take_output`](MaybeDone::take_output) method.
     Gone,
 }
+
+impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
 /// Wraps a future into a `MaybeDone`
 ///

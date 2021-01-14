@@ -12,7 +12,7 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 pub enum TryMaybeDone<Fut: TryFuture> {
     /// A not-yet-completed future
-    Future(Fut),
+    Future(/* #[pin] */ Fut),
     /// The output of the completed future
     Done(Fut::Ok),
     /// The empty variant after the result of a [`TryMaybeDone`] has been
@@ -20,6 +20,8 @@ pub enum TryMaybeDone<Fut: TryFuture> {
     /// or if the future returned an error.
     Gone,
 }
+
+impl<Fut: TryFuture + Unpin> Unpin for TryMaybeDone<Fut> {}
 
 /// Wraps a future into a `TryMaybeDone`
 pub fn try_maybe_done<Fut: TryFuture>(future: Fut) -> TryMaybeDone<Fut> {

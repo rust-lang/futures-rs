@@ -10,9 +10,9 @@ use futures_sink::Sink;
 #[derive(Debug, Clone)]
 pub enum Either<A, B> {
     /// First branch of the type
-    Left(A),
+    Left(/* #[pin] */ A),
     /// Second branch of the type
-    Right(B),
+    Right(/* #[pin] */ B),
 }
 
 impl<A, B> Either<A, B> {
