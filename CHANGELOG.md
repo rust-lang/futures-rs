@@ -1,3 +1,6 @@
+# 0.3.11 - 2021-01-14
+* Fixed heap buffer overflow in `AsyncReadExt::{read_to_end, read_to_string}` (#2314)
+
 # 0.3.10 - 2021-01-13
 * Fixed type-inference in `sink::unfold` by specifying more of its types (breaking change -- see #2311)
 
