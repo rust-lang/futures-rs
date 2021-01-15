@@ -1,4 +1,4 @@
-# 0.3.12 - 2021-01-14
+# 0.3.12 - 2021-01-15
 * Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
 
 # 0.3.11 - 2021-01-14
