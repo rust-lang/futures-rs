@@ -870,8 +870,78 @@ pub mod io {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.
 pub mod lock {
-    // use super::*;
-    // use futures::lock::*;
+    use super::*;
+    use futures::lock::*;
+
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLock<()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLock<()>: Sync);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLock<PhantomPinned>: Unpin);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLock<*const ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLock<*const ()>: Sync);
+
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockAcquire<'_, ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockAcquire<'_, ()>: Sync);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockAcquire<'_, PhantomPinned>: Unpin);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLockAcquire<'_, *const ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLockAcquire<'_, *const ()>: Sync);
+
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockGuard<'_, ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockGuard<'_, ()>: Sync);
+    #[cfg(feature = "bilock")]
+    assert_impl!(BiLockGuard<'_, PhantomPinned>: Unpin);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLockGuard<'_, *const ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(BiLockGuard<'_, *const ()>: Sync);
+
+    assert_impl!(MappedMutexGuard<'_, (), ()>: Send);
+    assert_impl!(MappedMutexGuard<'_, (), ()>: Sync);
+    assert_impl!(MappedMutexGuard<'_, PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(MappedMutexGuard<'_, (), *const ()>: Send);
+    assert_not_impl!(MappedMutexGuard<'_, *const (), ()>: Send);
+    assert_not_impl!(MappedMutexGuard<'_, (), *const ()>: Sync);
+    assert_not_impl!(MappedMutexGuard<'_, *const (), ()>: Sync);
+
+    assert_impl!(Mutex<()>: Send);
+    assert_impl!(Mutex<()>: Sync);
+    assert_impl!(Mutex<()>: Unpin);
+    assert_not_impl!(Mutex<*const ()>: Send);
+    assert_not_impl!(Mutex<*const ()>: Sync);
+    assert_not_impl!(Mutex<PhantomPinned>: Unpin);
+
+    assert_impl!(MutexGuard<'_, ()>: Send);
+    assert_impl!(MutexGuard<'_, ()>: Sync);
+    assert_impl!(MutexGuard<'_, PhantomPinned>: Unpin);
+    assert_not_impl!(MutexGuard<'_, *const ()>: Send);
+    assert_not_impl!(MutexGuard<'_, *const ()>: Sync);
+
+    assert_impl!(MutexLockFuture<'_, ()>: Send);
+    assert_impl!(MutexLockFuture<'_, *const ()>: Sync);
+    assert_impl!(MutexLockFuture<'_, PhantomPinned>: Unpin);
+    assert_not_impl!(MutexLockFuture<'_, *const ()>: Send);
+
+    #[cfg(feature = "bilock")]
+    assert_impl!(ReuniteError<()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_impl!(ReuniteError<()>: Sync);
+    #[cfg(feature = "bilock")]
+    assert_impl!(ReuniteError<PhantomPinned>: Unpin);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(ReuniteError<*const ()>: Send);
+    #[cfg(feature = "bilock")]
+    assert_not_impl!(ReuniteError<*const ()>: Sync);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::sink`.
