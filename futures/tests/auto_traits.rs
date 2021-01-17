@@ -1081,6 +1081,26 @@ pub mod stream {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::task`.
 pub mod task {
-    // use super::*;
-    // use futures::task::*;
+    use super::*;
+    use futures::task::*;
+
+    assert_impl!(AtomicWaker: Send);
+    assert_impl!(AtomicWaker: Sync);
+    assert_impl!(AtomicWaker: Unpin);
+
+    assert_impl!(FutureObj<*const ()>: Send);
+    assert_impl!(FutureObj<PhantomPinned>: Unpin);
+    assert_not_impl!(FutureObj<()>: Sync);
+
+    assert_impl!(LocalFutureObj<PhantomPinned>: Unpin);
+    assert_not_impl!(LocalFutureObj<()>: Send);
+    assert_not_impl!(LocalFutureObj<()>: Sync);
+
+    assert_impl!(SpawnError: Send);
+    assert_impl!(SpawnError: Sync);
+    assert_impl!(SpawnError: Unpin);
+
+    assert_impl!(WakerRef<'_>: Send);
+    assert_impl!(WakerRef<'_>: Sync);
+    assert_impl!(WakerRef<'_>: Unpin);
 }
