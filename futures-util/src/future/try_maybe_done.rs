@@ -1,5 +1,6 @@
 //! Definition of the TryMaybeDone combinator
 
+use super::assert_future;
 use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
@@ -25,7 +26,7 @@ impl<Fut: TryFuture + Unpin> Unpin for TryMaybeDone<Fut> {}
 
 /// Wraps a future into a `TryMaybeDone`
 pub fn try_maybe_done<Fut: TryFuture>(future: Fut) -> TryMaybeDone<Fut> {
-    TryMaybeDone::Future(future)
+    assert_future::<Result<(), Fut::Error>, _>(TryMaybeDone::Future(future))
 }
 
 impl<Fut: TryFuture> TryMaybeDone<Fut> {

@@ -1,3 +1,4 @@
+use super::assert_future;
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Context, Poll};
@@ -75,7 +76,7 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 pub fn select<A, B>(future1: A, future2: B) -> Select<A, B>
     where A: Future + Unpin, B: Future + Unpin
 {
-    Select { inner: Some((future1, future2)) }
+    assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select { inner: Some((future1, future2)) })
 }
 
 impl<A, B> Future for Select<A, B>

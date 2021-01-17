@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
@@ -14,9 +15,9 @@ pub struct Empty<T> {
 ///
 /// The returned stream will always return `Ready(None)` when polled.
 pub fn empty<T>() -> Empty<T> {
-    Empty {
+    assert_stream::<T, _>(Empty {
         _phantom: PhantomData
-    }
+    })
 }
 
 impl<T> Unpin for Empty<T> {}

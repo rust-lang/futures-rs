@@ -173,7 +173,7 @@ pub trait TryFutureExt: TryFuture {
         Self::Ok: Sink<Item, Error = Self::Error>,
         Self: Sized,
     {
-        FlattenSink::new(self)
+        crate::sink::assert_sink::<Item, Self::Error, _>(FlattenSink::new(self))
     }
 
     /// Maps this future's success value to a different value.
@@ -501,7 +501,7 @@ pub trait TryFutureExt: TryFuture {
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
-        TryFlatten::new(self)
+        assert_future::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(TryFlatten::new(self))
     }
 
     /// Flatten the execution of this future when the successful result of this

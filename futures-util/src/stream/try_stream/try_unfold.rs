@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -60,11 +61,11 @@ where
     F: FnMut(T) -> Fut,
     Fut: TryFuture<Ok = Option<(Item, T)>>,
 {
-    TryUnfold {
+    assert_stream::<Result<Item, Fut::Error>, _>(TryUnfold {
         f,
         state: Some(init),
         fut: None,
-    }
+    })
 }
 
 pin_project! {

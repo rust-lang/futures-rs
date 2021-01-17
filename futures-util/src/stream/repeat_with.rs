@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
@@ -89,5 +90,5 @@ impl<A, F: FnMut() -> A> FusedStream for RepeatWith<F>
 /// # });
 /// ```
 pub fn repeat_with<A, F: FnMut() -> A>(repeater: F) -> RepeatWith<F> {
-    RepeatWith { repeater }
+    assert_stream::<A, _>(RepeatWith { repeater })
 }

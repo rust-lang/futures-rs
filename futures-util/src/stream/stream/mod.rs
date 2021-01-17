@@ -4,8 +4,11 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use crate::future::{assert_future, Either};
+use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::pin::Pin;
 #[cfg(feature = "sink")]
 use futures_core::stream::TryStream;
@@ -19,7 +22,7 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-use crate::fns::{InspectFn, inspect_fn};
+use crate::fns::{inspect_fn, InspectFn};
 
 mod chain;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -201,7 +204,6 @@ mod catch_unwind;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::catch_unwind::CatchUnwind;
-use crate::stream::assert_stream;
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 
@@ -689,7 +691,7 @@ pub trait StreamExt: Stream {
         U: Stream,
         Self: Sized,
     {
-        FlatMap::new(self, f)
+        assert_stream::<U::Item, _>(FlatMap::new(self, f))
     }
 
     /// Combinator similar to [`StreamExt::fold`] that holds internal state
@@ -722,7 +724,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = Option<B>>,
         Self: Sized,
     {
-        Scan::new(self, initial_state, f)
+        assert_stream::<B, _>(Scan::new(self, initial_state, f))
     }
 
     /// Skip elements on this stream while the provided asynchronous predicate
@@ -827,7 +829,7 @@ pub trait StreamExt: Stream {
         Fut: Future,
         Self: Sized,
     {
-        TakeUntil::new(self, fut)
+        assert_stream::<Self::Item, _>(TakeUntil::new(self, fut))
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
@@ -1289,7 +1291,7 @@ pub trait StreamExt: Stream {
     where
         Self: Sized,
     {
-        assert_stream::<alloc::vec::Vec<Self::Item>, _>(Chunks::new(self, capacity))
+        assert_stream::<Vec<Self::Item>, _>(Chunks::new(self, capacity))
     }
 
     /// An adaptor for chunking up ready items of the stream inside a vector.
@@ -1312,10 +1314,10 @@ pub trait StreamExt: Stream {
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
     fn ready_chunks(self, capacity: usize) -> ReadyChunks<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
-        ReadyChunks::new(self, capacity)
+        assert_stream::<Vec<Self::Item>, _>(ReadyChunks::new(self, capacity))
     }
 
     /// A future that completes after the given stream has been fully processed
@@ -1334,7 +1336,10 @@ pub trait StreamExt: Stream {
     where
         S: Sink<Self::Ok, Error = Self::Error>,
         Self: TryStream + Sized,
+        // Self: TryStream + Sized + Stream<Item = Result<<Self as TryStream>::Ok, <Self as TryStream>::Error>>,
     {
+        // TODO: type mismatch resolving `<Self as futures_core::Stream>::Item == std::result::Result<<Self as futures_core::TryStream>::Ok, <Self as futures_core::TryStream>::Error>`
+        // assert_future::<Result<(), Self::Error>, _>(Forward::new(self, sink))
         Forward::new(self, sink)
     }
 
@@ -1356,7 +1361,10 @@ pub trait StreamExt: Stream {
         Self: Sink<Item> + Sized,
     {
         let (sink, stream) = split::split(self);
-        (sink, assert_stream::<Self::Item, _>(stream))
+        (
+            crate::sink::assert_sink::<Item, Self::Error, _>(sink),
+            assert_stream::<Self::Item, _>(stream),
+        )
     }
 
     /// Do something with each item of this stream, afterwards passing it on.
@@ -1459,6 +1467,6 @@ pub trait StreamExt: Stream {
     where
         Self: Unpin + FusedStream,
     {
-        SelectNextSome::new(self)
+        assert_future::<Self::Item, _>(SelectNextSome::new(self))
     }
 }

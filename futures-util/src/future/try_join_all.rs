@@ -10,7 +10,7 @@ use core::task::{Context, Poll};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use super::{TryFuture, TryMaybeDone};
+use super::{assert_future, TryFuture, TryMaybeDone};
 
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
@@ -93,9 +93,9 @@ where
     I::Item: TryFuture,
 {
     let elems: Box<[_]> = i.into_iter().map(TryMaybeDone::Future).collect();
-    TryJoinAll {
+    assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(TryJoinAll {
         elems: elems.into(),
-    }
+    })
 }
 
 impl<F> Future for TryJoinAll<F>
