@@ -94,7 +94,7 @@ jobs:
       # Check thread-pool feature (futures, futures-executor)
       - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
 
-  build:
+  async-await-msrv:
     name: cargo +${{ matrix.rust }} build
     strategy:
       matrix:
@@ -102,6 +102,19 @@ jobs:
           # This is the minimum Rust version supported by `async-await` feature.
           # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
           - 1.39.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: cargo install cargo-hack
+      - run: cargo hack build --workspace --no-dev-deps
+
+  build:
+    name: cargo +${{ matrix.rust }} build
+    strategy:
+      matrix:
+        rust:
           - stable
           - beta
           - nightly

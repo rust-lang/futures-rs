@@ -638,8 +638,234 @@ pub mod future {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::io`.
 pub mod io {
-    // use super::*;
-    // use futures::io::*;
+    use super::*;
+    use futures::io::{Sink, *};
+
+    assert_impl!(AllowStdIo<()>: Send);
+    assert_impl!(AllowStdIo<()>: Sync);
+    assert_impl!(AllowStdIo<PhantomPinned>: Unpin);
+    assert_not_impl!(AllowStdIo<*const ()>: Send);
+    assert_not_impl!(AllowStdIo<*const ()>: Sync);
+
+    assert_impl!(BufReader<()>: Send);
+    assert_impl!(BufReader<()>: Sync);
+    assert_impl!(BufReader<()>: Unpin);
+    assert_not_impl!(BufReader<*const ()>: Send);
+    assert_not_impl!(BufReader<*const ()>: Sync);
+    assert_not_impl!(BufReader<PhantomPinned>: Unpin);
+
+    assert_impl!(BufWriter<()>: Send);
+    assert_impl!(BufWriter<()>: Sync);
+    assert_impl!(BufWriter<()>: Unpin);
+    assert_not_impl!(BufWriter<*const ()>: Send);
+    assert_not_impl!(BufWriter<*const ()>: Sync);
+    assert_not_impl!(BufWriter<PhantomPinned>: Unpin);
+
+    assert_impl!(Chain<(), ()>: Send);
+    assert_impl!(Chain<(), ()>: Sync);
+    assert_impl!(Chain<(), ()>: Unpin);
+    assert_not_impl!(Chain<(), *const ()>: Send);
+    assert_not_impl!(Chain<*const (), ()>: Send);
+    assert_not_impl!(Chain<(), *const ()>: Sync);
+    assert_not_impl!(Chain<*const (), ()>: Sync);
+    assert_not_impl!(Chain<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Chain<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Close<'_, ()>: Send);
+    assert_impl!(Close<'_, ()>: Sync);
+    assert_impl!(Close<'_, ()>: Unpin);
+    assert_not_impl!(Close<'_, *const ()>: Send);
+    assert_not_impl!(Close<'_, *const ()>: Sync);
+    assert_not_impl!(Close<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(Copy<(), ()>: Send);
+    assert_impl!(Copy<(), ()>: Sync);
+    assert_impl!(Copy<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Copy<(), *const ()>: Send);
+    assert_not_impl!(Copy<*const (), ()>: Send);
+    assert_not_impl!(Copy<(), *const ()>: Sync);
+    assert_not_impl!(Copy<*const (), ()>: Sync);
+    assert_not_impl!(Copy<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(CopyBuf<(), ()>: Send);
+    assert_impl!(CopyBuf<(), ()>: Sync);
+    assert_impl!(CopyBuf<(), PhantomPinned>: Unpin);
+    assert_not_impl!(CopyBuf<(), *const ()>: Send);
+    assert_not_impl!(CopyBuf<*const (), ()>: Send);
+    assert_not_impl!(CopyBuf<(), *const ()>: Sync);
+    assert_not_impl!(CopyBuf<*const (), ()>: Sync);
+    assert_not_impl!(CopyBuf<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Cursor<()>: Send);
+    assert_impl!(Cursor<()>: Sync);
+    assert_impl!(Cursor<()>: Unpin);
+    assert_not_impl!(Cursor<*const ()>: Send);
+    assert_not_impl!(Cursor<*const ()>: Sync);
+    assert_not_impl!(Cursor<PhantomPinned>: Unpin);
+
+    assert_impl!(Empty: Send);
+    assert_impl!(Empty: Sync);
+    assert_impl!(Empty: Unpin);
+
+    assert_impl!(FillBuf<'_, ()>: Send);
+    assert_impl!(FillBuf<'_, ()>: Sync);
+    assert_impl!(FillBuf<'_, PhantomPinned>: Unpin);
+    assert_not_impl!(FillBuf<'_, *const ()>: Send);
+    assert_not_impl!(FillBuf<'_, *const ()>: Sync);
+
+    assert_impl!(Flush<'_, ()>: Send);
+    assert_impl!(Flush<'_, ()>: Sync);
+    assert_impl!(Flush<'_, ()>: Unpin);
+    assert_not_impl!(Flush<'_, *const ()>: Send);
+    assert_not_impl!(Flush<'_, *const ()>: Sync);
+    assert_not_impl!(Flush<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(IntoSink<(), ()>: Send);
+    assert_impl!(IntoSink<(), ()>: Sync);
+    assert_impl!(IntoSink<(), PhantomPinned>: Unpin);
+    assert_not_impl!(IntoSink<(), *const ()>: Send);
+    assert_not_impl!(IntoSink<*const (), ()>: Send);
+    assert_not_impl!(IntoSink<(), *const ()>: Sync);
+    assert_not_impl!(IntoSink<*const (), ()>: Sync);
+    assert_not_impl!(IntoSink<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Lines<()>: Send);
+    assert_impl!(Lines<()>: Sync);
+    assert_impl!(Lines<()>: Unpin);
+    assert_not_impl!(Lines<*const ()>: Send);
+    assert_not_impl!(Lines<*const ()>: Sync);
+    assert_not_impl!(Lines<PhantomPinned>: Unpin);
+
+    assert_impl!(Read<'_, ()>: Send);
+    assert_impl!(Read<'_, ()>: Sync);
+    assert_impl!(Read<'_, ()>: Unpin);
+    assert_not_impl!(Read<'_, *const ()>: Send);
+    assert_not_impl!(Read<'_, *const ()>: Sync);
+    assert_not_impl!(Read<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadExact<'_, ()>: Send);
+    assert_impl!(ReadExact<'_, ()>: Sync);
+    assert_impl!(ReadExact<'_, ()>: Unpin);
+    assert_not_impl!(ReadExact<'_, *const ()>: Send);
+    assert_not_impl!(ReadExact<'_, *const ()>: Sync);
+    assert_not_impl!(ReadExact<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadHalf<()>: Send);
+    assert_impl!(ReadHalf<()>: Sync);
+    assert_impl!(ReadHalf<PhantomPinned>: Unpin);
+    assert_not_impl!(ReadHalf<*const ()>: Send);
+    assert_not_impl!(ReadHalf<*const ()>: Sync);
+
+    assert_impl!(ReadLine<'_, ()>: Send);
+    assert_impl!(ReadLine<'_, ()>: Sync);
+    assert_impl!(ReadLine<'_, ()>: Unpin);
+    assert_not_impl!(ReadLine<'_, *const ()>: Send);
+    assert_not_impl!(ReadLine<'_, *const ()>: Sync);
+    assert_not_impl!(ReadLine<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadToEnd<'_, ()>: Send);
+    assert_impl!(ReadToEnd<'_, ()>: Sync);
+    assert_impl!(ReadToEnd<'_, ()>: Unpin);
+    assert_not_impl!(ReadToEnd<'_, *const ()>: Send);
+    assert_not_impl!(ReadToEnd<'_, *const ()>: Sync);
+    assert_not_impl!(ReadToEnd<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadToString<'_, ()>: Send);
+    assert_impl!(ReadToString<'_, ()>: Sync);
+    assert_impl!(ReadToString<'_, ()>: Unpin);
+    assert_not_impl!(ReadToString<'_, *const ()>: Send);
+    assert_not_impl!(ReadToString<'_, *const ()>: Sync);
+    assert_not_impl!(ReadToString<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadUntil<'_, ()>: Send);
+    assert_impl!(ReadUntil<'_, ()>: Sync);
+    assert_impl!(ReadUntil<'_, ()>: Unpin);
+    assert_not_impl!(ReadUntil<'_, *const ()>: Send);
+    assert_not_impl!(ReadUntil<'_, *const ()>: Sync);
+    assert_not_impl!(ReadUntil<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(ReadVectored<'_, ()>: Send);
+    assert_impl!(ReadVectored<'_, ()>: Sync);
+    assert_impl!(ReadVectored<'_, ()>: Unpin);
+    assert_not_impl!(ReadVectored<'_, *const ()>: Send);
+    assert_not_impl!(ReadVectored<'_, *const ()>: Sync);
+    assert_not_impl!(ReadVectored<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(Repeat: Send);
+    assert_impl!(Repeat: Sync);
+    assert_impl!(Repeat: Unpin);
+
+    assert_impl!(ReuniteError<()>: Send);
+    assert_impl!(ReuniteError<()>: Sync);
+    assert_impl!(ReuniteError<PhantomPinned>: Unpin);
+    assert_not_impl!(ReuniteError<*const ()>: Send);
+    assert_not_impl!(ReuniteError<*const ()>: Sync);
+
+    assert_impl!(Seek<'_, ()>: Send);
+    assert_impl!(Seek<'_, ()>: Sync);
+    assert_impl!(Seek<'_, ()>: Unpin);
+    assert_not_impl!(Seek<'_, *const ()>: Send);
+    assert_not_impl!(Seek<'_, *const ()>: Sync);
+    assert_not_impl!(Seek<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(Sink: Send);
+    assert_impl!(Sink: Sync);
+    assert_impl!(Sink: Unpin);
+
+    assert_impl!(Take<()>: Send);
+    assert_impl!(Take<()>: Sync);
+    assert_impl!(Take<()>: Unpin);
+    assert_not_impl!(Take<*const ()>: Send);
+    assert_not_impl!(Take<*const ()>: Sync);
+    assert_not_impl!(Take<PhantomPinned>: Unpin);
+
+    assert_impl!(Window<()>: Send);
+    assert_impl!(Window<()>: Sync);
+    assert_impl!(Window<()>: Unpin);
+    assert_not_impl!(Window<*const ()>: Send);
+    assert_not_impl!(Window<*const ()>: Sync);
+    assert_not_impl!(Window<PhantomPinned>: Unpin);
+
+    assert_impl!(Write<'_, ()>: Send);
+    assert_impl!(Write<'_, ()>: Sync);
+    assert_impl!(Write<'_, ()>: Unpin);
+    assert_not_impl!(Write<'_, *const ()>: Send);
+    assert_not_impl!(Write<'_, *const ()>: Sync);
+    assert_not_impl!(Write<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(WriteAll<'_, ()>: Send);
+    assert_impl!(WriteAll<'_, ()>: Sync);
+    assert_impl!(WriteAll<'_, ()>: Unpin);
+    assert_not_impl!(WriteAll<'_, *const ()>: Send);
+    assert_not_impl!(WriteAll<'_, *const ()>: Sync);
+    assert_not_impl!(WriteAll<'_, PhantomPinned>: Unpin);
+
+    #[cfg(feature = "write-all-vectored")]
+    assert_impl!(WriteAllVectored<'_, ()>: Send);
+    #[cfg(feature = "write-all-vectored")]
+    assert_impl!(WriteAllVectored<'_, ()>: Sync);
+    #[cfg(feature = "write-all-vectored")]
+    assert_impl!(WriteAllVectored<'_, ()>: Unpin);
+    #[cfg(feature = "write-all-vectored")]
+    assert_not_impl!(WriteAllVectored<'_, *const ()>: Send);
+    #[cfg(feature = "write-all-vectored")]
+    assert_not_impl!(WriteAllVectored<'_, *const ()>: Sync);
+    // WriteAllVectored requires `W: Unpin`
+    // #[cfg(feature = "write-all-vectored")]
+    // assert_not_impl!(WriteAllVectored<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(WriteHalf<()>: Send);
+    assert_impl!(WriteHalf<()>: Sync);
+    assert_impl!(WriteHalf<PhantomPinned>: Unpin);
+    assert_not_impl!(WriteHalf<*const ()>: Send);
+    assert_not_impl!(WriteHalf<*const ()>: Sync);
+
+    assert_impl!(WriteVectored<'_, ()>: Send);
+    assert_impl!(WriteVectored<'_, ()>: Sync);
+    assert_impl!(WriteVectored<'_, ()>: Unpin);
+    assert_not_impl!(WriteVectored<'_, *const ()>: Send);
+    assert_not_impl!(WriteVectored<'_, *const ()>: Sync);
+    assert_not_impl!(WriteVectored<'_, PhantomPinned>: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.
