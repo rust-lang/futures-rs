@@ -176,8 +176,40 @@ pub mod compat {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::executor`.
 pub mod executor {
-    // use super::*;
-    // use futures::executor::*;
+    use super::*;
+    use futures::executor::*;
+
+    assert_impl!(BlockingStream<SendStream>: Send);
+    assert_impl!(BlockingStream<SyncStream>: Sync);
+    assert_impl!(BlockingStream<UnpinStream>: Unpin);
+    assert_not_impl!(BlockingStream<LocalStream>: Send);
+    assert_not_impl!(BlockingStream<LocalStream>: Sync);
+    // BlockingStream requires `S: Unpin`
+    // assert_not_impl!(BlockingStream<PinnedStream>: Unpin);
+
+    assert_impl!(Enter: Send);
+    assert_impl!(Enter: Sync);
+    assert_impl!(Enter: Unpin);
+
+    assert_impl!(EnterError: Send);
+    assert_impl!(EnterError: Sync);
+    assert_impl!(EnterError: Unpin);
+
+    assert_impl!(LocalPool: Unpin);
+    assert_not_impl!(LocalPool: Send);
+    assert_not_impl!(LocalPool: Sync);
+
+    assert_impl!(LocalSpawner: Unpin);
+    assert_not_impl!(LocalSpawner: Send);
+    assert_not_impl!(LocalSpawner: Sync);
+
+    assert_impl!(ThreadPool: Send);
+    assert_impl!(ThreadPool: Sync);
+    assert_impl!(ThreadPool: Unpin);
+
+    assert_impl!(ThreadPoolBuilder: Send);
+    assert_impl!(ThreadPoolBuilder: Sync);
+    assert_impl!(ThreadPoolBuilder: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::future`.
