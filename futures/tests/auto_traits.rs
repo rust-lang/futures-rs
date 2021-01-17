@@ -1,4 +1,4 @@
-//! Assert Send/Sync/Unpin for all public types
+//! Assert Send/Sync/Unpin for all public types.
 
 use futures::{
     future::Future,
@@ -65,7 +65,7 @@ impl<T, E> Sink<T> for PinnedSink<T, E> {
     }
 }
 
-/// Assert Send/Sync/Unpin for all public types in `futures::channel`
+/// Assert Send/Sync/Unpin for all public types in `futures::channel`.
 pub mod channel {
     use super::*;
     use futures::channel::*;
@@ -132,7 +132,55 @@ pub mod channel {
     assert_not_impl!(oneshot::Sender<*const ()>: Sync);
 }
 
-/// Assert Send/Sync/Unpin for all public types in `futures::future`
+/// Assert Send/Sync/Unpin for all public types in `futures::compat`.
+pub mod compat {
+    use super::*;
+    use futures::compat::*;
+
+    assert_impl!(Compat<()>: Send);
+    assert_impl!(Compat<()>: Sync);
+    assert_impl!(Compat<()>: Unpin);
+    assert_not_impl!(Compat<*const ()>: Send);
+    assert_not_impl!(Compat<*const ()>: Sync);
+    assert_not_impl!(Compat<PhantomPinned>: Unpin);
+
+    assert_impl!(Compat01As03<()>: Send);
+    assert_impl!(Compat01As03<PhantomPinned>: Unpin);
+    assert_not_impl!(Compat01As03<*const ()>: Send);
+    assert_not_impl!(Compat01As03<()>: Sync);
+
+    assert_impl!(Compat01As03Sink<(), ()>: Send);
+    assert_impl!(Compat01As03Sink<PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(Compat01As03Sink<(), *const ()>: Send);
+    assert_not_impl!(Compat01As03Sink<*const (), ()>: Send);
+    assert_not_impl!(Compat01As03Sink<(), ()>: Sync);
+
+    assert_impl!(CompatSink<(), *const ()>: Send);
+    assert_impl!(CompatSink<(), *const ()>: Sync);
+    assert_impl!(CompatSink<(), PhantomPinned>: Unpin);
+    assert_not_impl!(CompatSink<*const (), ()>: Send);
+    assert_not_impl!(CompatSink<*const (), ()>: Sync);
+    assert_not_impl!(CompatSink<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Executor01As03<()>: Send);
+    assert_impl!(Executor01As03<()>: Sync);
+    assert_impl!(Executor01As03<()>: Unpin);
+    assert_not_impl!(Executor01As03<*const ()>: Send);
+    assert_not_impl!(Executor01As03<*const ()>: Sync);
+    assert_not_impl!(Executor01As03<PhantomPinned>: Unpin);
+
+    assert_impl!(Executor01Future: Send);
+    assert_impl!(Executor01Future: Unpin);
+    assert_not_impl!(Executor01Future: Sync);
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::executor`.
+pub mod executor {
+    // use super::*;
+    // use futures::executor::*;
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::future`.
 pub mod future {
     use super::*;
     use futures::future::*;
@@ -554,4 +602,34 @@ pub mod future {
     assert_not_impl!(TryMaybeDone<SyncTryFuture>: Sync);
     assert_not_impl!(TryMaybeDone<LocalTryFuture>: Sync);
     assert_not_impl!(TryMaybeDone<PinnedTryFuture>: Unpin);
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::io`.
+pub mod io {
+    // use super::*;
+    // use futures::io::*;
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::lock`.
+pub mod lock {
+    // use super::*;
+    // use futures::lock::*;
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::sink`.
+pub mod sink {
+    // use super::*;
+    // use futures::sink::*;
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::stream`.
+pub mod stream {
+    // use super::*;
+    // use futures::stream::*;
+}
+
+/// Assert Send/Sync/Unpin for all public types in `futures::task`.
+pub mod task {
+    // use super::*;
+    // use futures::task::*;
 }
