@@ -10,7 +10,8 @@
 //! The remaining types and traits in the module are used for implementing
 //! executors or dealing with synchronization issues around task wakeup.
 
-pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+#[doc(no_inline)]
+pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
 
 pub use futures_task::{
     Spawn, LocalSpawn, SpawnError,

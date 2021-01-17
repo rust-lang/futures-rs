@@ -9,9 +9,12 @@
 //!   from a closure that defines its return value, and [`ready`](ready()),
 //!   which constructs a future with an immediate defined value.
 
+#[doc(no_inline)]
+pub use core::future::Future;
+
 #[cfg(feature = "alloc")]
 pub use futures_core::future::{BoxFuture, LocalBoxFuture};
-pub use futures_core::future::{FusedFuture, Future, TryFuture};
+pub use futures_core::future::{FusedFuture, TryFuture};
 pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 // Extension traits and combinators
