@@ -33,19 +33,13 @@ mod if_std {
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use io::{
-        Error as Error,
-        ErrorKind as ErrorKind,
-        Result as Result,
-        IoSlice as IoSlice,
-        IoSliceMut as IoSliceMut,
-        SeekFrom as SeekFrom,
-    };
-
+    #[doc(no_inline)]
+    pub use io::{Error, ErrorKind, Result, IoSlice, IoSliceMut, SeekFrom};
     #[cfg(feature = "read-initializer")]
     #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
+    #[doc(no_inline)]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use io::Initializer as Initializer;
+    pub use io::Initializer;
 
     /// Read bytes asynchronously.
     ///

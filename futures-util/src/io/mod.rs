@@ -23,13 +23,16 @@ use crate::future::assert_future;
 use crate::stream::assert_stream;
 use std::{ptr, pin::Pin};
 
-pub use futures_io::{
-    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
-    IoSlice, IoSliceMut, Result, SeekFrom,
-};
+// Re-export some types from `std::io` so that users don't have to deal
+// with conflicts when `use`ing `futures::io` and `std::io`.
+#[doc(no_inline)]
+pub use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
+#[doc(no_inline)]
 #[cfg(feature = "read-initializer")]
 #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
-pub use futures_io::Initializer;
+pub use std::io::Initializer;
+
+pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
 
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1

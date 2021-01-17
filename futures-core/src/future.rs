@@ -4,6 +4,7 @@ use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
+#[doc(no_inline)]
 pub use core::future::Future;
 
 /// An owned dynamically typed [`Future`] for use in cases where you can't
