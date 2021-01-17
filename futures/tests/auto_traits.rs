@@ -1075,8 +1075,728 @@ pub mod sink {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::stream`.
 pub mod stream {
-    // use super::*;
-    // use futures::stream::*;
+    use super::*;
+    use futures::{io, stream::*};
+
+    assert_impl!(AndThen<(), (), ()>: Send);
+    assert_impl!(AndThen<(), (), ()>: Sync);
+    assert_impl!(AndThen<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(AndThen<*const (), (), ()>: Send);
+    assert_not_impl!(AndThen<(), *const (), ()>: Send);
+    assert_not_impl!(AndThen<(), (), *const ()>: Send);
+    assert_not_impl!(AndThen<*const (), (), ()>: Sync);
+    assert_not_impl!(AndThen<(), *const (), ()>: Sync);
+    assert_not_impl!(AndThen<(), (), *const ()>: Sync);
+    assert_not_impl!(AndThen<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(AndThen<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(BufferUnordered<SendStream<()>>: Send);
+    assert_impl!(BufferUnordered<SyncStream<()>>: Sync);
+    assert_impl!(BufferUnordered<UnpinStream>: Unpin);
+    assert_not_impl!(BufferUnordered<SendStream>: Send);
+    assert_not_impl!(BufferUnordered<LocalStream>: Send);
+    assert_not_impl!(BufferUnordered<SyncStream>: Sync);
+    assert_not_impl!(BufferUnordered<LocalStream>: Sync);
+    assert_not_impl!(BufferUnordered<PinnedStream>: Unpin);
+
+    assert_impl!(Buffered<SendStream<SendFuture<()>>>: Send);
+    assert_impl!(Buffered<SyncStream<SyncFuture<()>>>: Sync);
+    assert_impl!(Buffered<UnpinStream<PinnedFuture>>: Unpin);
+    assert_not_impl!(Buffered<SendStream<SendFuture>>: Send);
+    assert_not_impl!(Buffered<SendStream<LocalFuture>>: Send);
+    assert_not_impl!(Buffered<LocalStream<SendFuture<()>>>: Send);
+    assert_not_impl!(Buffered<SyncStream<SyncFuture>>: Sync);
+    assert_not_impl!(Buffered<SyncStream<LocalFuture>>: Sync);
+    assert_not_impl!(Buffered<LocalStream<SyncFuture<()>>>: Sync);
+    assert_not_impl!(Buffered<PinnedStream<PinnedFuture>>: Unpin);
+
+    assert_impl!(CatchUnwind<SendStream>: Send);
+    assert_impl!(CatchUnwind<SyncStream>: Sync);
+    assert_impl!(CatchUnwind<UnpinStream>: Unpin);
+    assert_not_impl!(CatchUnwind<LocalStream>: Send);
+    assert_not_impl!(CatchUnwind<LocalStream>: Sync);
+    assert_not_impl!(CatchUnwind<PinnedStream>: Unpin);
+
+    assert_impl!(Chain<(), ()>: Send);
+    assert_impl!(Chain<(), ()>: Sync);
+    assert_impl!(Chain<(), ()>: Unpin);
+    assert_not_impl!(Chain<(), *const ()>: Send);
+    assert_not_impl!(Chain<*const (), ()>: Send);
+    assert_not_impl!(Chain<(), *const ()>: Sync);
+    assert_not_impl!(Chain<*const (), ()>: Sync);
+    assert_not_impl!(Chain<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Chain<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Chunks<SendStream<()>>: Send);
+    assert_impl!(Chunks<SyncStream<()>>: Sync);
+    assert_impl!(Chunks<UnpinStream>: Unpin);
+    assert_not_impl!(Chunks<SendStream>: Send);
+    assert_not_impl!(Chunks<LocalStream>: Send);
+    assert_not_impl!(Chunks<SyncStream>: Sync);
+    assert_not_impl!(Chunks<LocalStream>: Sync);
+    assert_not_impl!(Chunks<PinnedStream>: Unpin);
+
+    assert_impl!(Collect<(), ()>: Send);
+    assert_impl!(Collect<(), ()>: Sync);
+    assert_impl!(Collect<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Collect<*const (), ()>: Send);
+    assert_not_impl!(Collect<(), *const ()>: Send);
+    assert_not_impl!(Collect<*const (), ()>: Sync);
+    assert_not_impl!(Collect<(), *const ()>: Sync);
+    assert_not_impl!(Collect<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Concat<SendStream<()>>: Send);
+    assert_impl!(Concat<SyncStream<()>>: Sync);
+    assert_impl!(Concat<UnpinStream>: Unpin);
+    assert_not_impl!(Concat<SendStream>: Send);
+    assert_not_impl!(Concat<LocalStream>: Send);
+    assert_not_impl!(Concat<SyncStream>: Sync);
+    assert_not_impl!(Concat<LocalStream>: Sync);
+    assert_not_impl!(Concat<PinnedStream>: Unpin);
+
+    assert_impl!(Cycle<()>: Send);
+    assert_impl!(Cycle<()>: Sync);
+    assert_impl!(Cycle<()>: Unpin);
+    assert_not_impl!(Cycle<*const ()>: Send);
+    assert_not_impl!(Cycle<*const ()>: Sync);
+    assert_not_impl!(Cycle<PhantomPinned>: Unpin);
+
+    assert_impl!(Empty<()>: Send);
+    assert_impl!(Empty<()>: Sync);
+    assert_impl!(Empty<PhantomPinned>: Unpin);
+    assert_not_impl!(Empty<*const ()>: Send);
+    assert_not_impl!(Empty<*const ()>: Sync);
+
+    assert_impl!(Enumerate<()>: Send);
+    assert_impl!(Enumerate<()>: Sync);
+    assert_impl!(Enumerate<()>: Unpin);
+    assert_not_impl!(Enumerate<*const ()>: Send);
+    assert_not_impl!(Enumerate<*const ()>: Sync);
+    assert_not_impl!(Enumerate<PhantomPinned>: Unpin);
+
+    assert_impl!(ErrInto<(), *const ()>: Send);
+    assert_impl!(ErrInto<(), *const ()>: Sync);
+    assert_impl!(ErrInto<(), PhantomPinned>: Unpin);
+    assert_not_impl!(ErrInto<*const (), ()>: Send);
+    assert_not_impl!(ErrInto<*const (), ()>: Sync);
+    assert_not_impl!(ErrInto<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Filter<SendStream<()>, (), ()>: Send);
+    assert_impl!(Filter<SyncStream<()>, (), ()>: Sync);
+    assert_impl!(Filter<UnpinStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Filter<LocalStream<()>, (), ()>: Send);
+    assert_not_impl!(Filter<SendStream, (), ()>: Send);
+    assert_not_impl!(Filter<SendStream<()>, *const (), ()>: Send);
+    assert_not_impl!(Filter<SendStream<()>, (), *const ()>: Send);
+    assert_not_impl!(Filter<LocalStream<()>, (), ()>: Sync);
+    assert_not_impl!(Filter<SyncStream, (), ()>: Sync);
+    assert_not_impl!(Filter<SyncStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(Filter<SyncStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(Filter<PinnedStream, (), ()>: Unpin);
+    assert_not_impl!(Filter<UnpinStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(FilterMap<(), (), ()>: Send);
+    assert_impl!(FilterMap<(), (), ()>: Sync);
+    assert_impl!(FilterMap<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(FilterMap<*const (), (), ()>: Send);
+    assert_not_impl!(FilterMap<(), *const (), ()>: Send);
+    assert_not_impl!(FilterMap<(), (), *const ()>: Send);
+    assert_not_impl!(FilterMap<*const (), (), ()>: Sync);
+    assert_not_impl!(FilterMap<(), *const (), ()>: Sync);
+    assert_not_impl!(FilterMap<(), (), *const ()>: Sync);
+    assert_not_impl!(FilterMap<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(FilterMap<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(FlatMap<(), (), ()>: Send);
+    assert_impl!(FlatMap<(), (), ()>: Sync);
+    assert_impl!(FlatMap<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(FlatMap<*const (), (), ()>: Send);
+    assert_not_impl!(FlatMap<(), *const (), ()>: Send);
+    assert_not_impl!(FlatMap<(), (), *const ()>: Send);
+    assert_not_impl!(FlatMap<*const (), (), ()>: Sync);
+    assert_not_impl!(FlatMap<(), *const (), ()>: Sync);
+    assert_not_impl!(FlatMap<(), (), *const ()>: Sync);
+    assert_not_impl!(FlatMap<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(FlatMap<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Flatten<SendStream<()>>: Send);
+    assert_impl!(Flatten<SyncStream<()>>: Sync);
+    assert_impl!(Flatten<UnpinStream<()>>: Unpin);
+    assert_not_impl!(Flatten<SendStream>: Send);
+    assert_not_impl!(Flatten<SendStream>: Send);
+    assert_not_impl!(Flatten<LocalStream<()>>: Sync);
+    assert_not_impl!(Flatten<LocalStream<()>>: Sync);
+    assert_not_impl!(Flatten<UnpinStream>: Unpin);
+    assert_not_impl!(Flatten<PinnedStream>: Unpin);
+
+    assert_impl!(Fold<(), (), (), ()>: Send);
+    assert_impl!(Fold<(), (), (), ()>: Sync);
+    assert_impl!(Fold<(), (), PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(Fold<*const (), (), (), ()>: Send);
+    assert_not_impl!(Fold<(), *const (), (), ()>: Send);
+    assert_not_impl!(Fold<(), (), *const (), ()>: Send);
+    assert_not_impl!(Fold<(), (), (), *const ()>: Send);
+    assert_not_impl!(Fold<*const (), (), (), ()>: Sync);
+    assert_not_impl!(Fold<(), *const (), (), ()>: Sync);
+    assert_not_impl!(Fold<(), (), *const (), ()>: Sync);
+    assert_not_impl!(Fold<(), (), (), *const ()>: Sync);
+    assert_not_impl!(Fold<PhantomPinned, (), (), ()>: Unpin);
+    assert_not_impl!(Fold<(), PhantomPinned, (), ()>: Unpin);
+
+    assert_impl!(ForEach<(), (), ()>: Send);
+    assert_impl!(ForEach<(), (), ()>: Sync);
+    assert_impl!(ForEach<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(ForEach<*const (), (), ()>: Send);
+    assert_not_impl!(ForEach<(), *const (), ()>: Send);
+    assert_not_impl!(ForEach<(), (), *const ()>: Send);
+    assert_not_impl!(ForEach<*const (), (), ()>: Sync);
+    assert_not_impl!(ForEach<(), *const (), ()>: Sync);
+    assert_not_impl!(ForEach<(), (), *const ()>: Sync);
+    assert_not_impl!(ForEach<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(ForEach<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(ForEachConcurrent<(), (), ()>: Send);
+    assert_impl!(ForEachConcurrent<(), (), ()>: Sync);
+    assert_impl!(ForEachConcurrent<(), PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(ForEachConcurrent<*const (), (), ()>: Send);
+    assert_not_impl!(ForEachConcurrent<(), *const (), ()>: Send);
+    assert_not_impl!(ForEachConcurrent<(), (), *const ()>: Send);
+    assert_not_impl!(ForEachConcurrent<*const (), (), ()>: Sync);
+    assert_not_impl!(ForEachConcurrent<(), *const (), ()>: Sync);
+    assert_not_impl!(ForEachConcurrent<(), (), *const ()>: Sync);
+    assert_not_impl!(ForEachConcurrent<PhantomPinned, (), ()>: Unpin);
+
+    assert_impl!(Forward<SendTryStream<()>, ()>: Send);
+    assert_impl!(Forward<SyncTryStream<()>, ()>: Sync);
+    assert_impl!(Forward<UnpinTryStream, ()>: Unpin);
+    assert_not_impl!(Forward<SendTryStream, ()>: Send);
+    assert_not_impl!(Forward<SendTryStream<()>, *const ()>: Send);
+    assert_not_impl!(Forward<LocalTryStream, ()>: Send);
+    assert_not_impl!(Forward<SyncTryStream, ()>: Sync);
+    assert_not_impl!(Forward<SyncTryStream<()>, *const ()>: Sync);
+    assert_not_impl!(Forward<LocalTryStream, ()>: Sync);
+    assert_not_impl!(Forward<UnpinTryStream, PhantomPinned>: Unpin);
+    assert_not_impl!(Forward<PinnedTryStream, ()>: Unpin);
+
+    assert_impl!(Fuse<()>: Send);
+    assert_impl!(Fuse<()>: Sync);
+    assert_impl!(Fuse<()>: Unpin);
+    assert_not_impl!(Fuse<*const ()>: Sync);
+    assert_not_impl!(Fuse<*const ()>: Sync);
+    assert_not_impl!(Fuse<PhantomPinned>: Unpin);
+
+    assert_impl!(FuturesOrdered<SendFuture<()>>: Send);
+    assert_impl!(FuturesOrdered<SyncFuture<()>>: Sync);
+    assert_impl!(FuturesOrdered<PinnedFuture>: Unpin);
+    assert_not_impl!(FuturesOrdered<SendFuture>: Send);
+    assert_not_impl!(FuturesOrdered<SendFuture>: Send);
+    assert_not_impl!(FuturesOrdered<LocalFuture<()>>: Sync);
+    assert_not_impl!(FuturesOrdered<LocalFuture<()>>: Sync);
+
+    assert_impl!(FuturesUnordered<()>: Send);
+    assert_impl!(FuturesUnordered<()>: Sync);
+    assert_impl!(FuturesUnordered<PhantomPinned>: Unpin);
+    assert_not_impl!(FuturesUnordered<*const ()>: Send);
+    assert_not_impl!(FuturesUnordered<*const ()>: Sync);
+
+    assert_impl!(Inspect<(), ()>: Send);
+    assert_impl!(Inspect<(), ()>: Sync);
+    assert_impl!(Inspect<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Inspect<*const (), ()>: Send);
+    assert_not_impl!(Inspect<(), *const ()>: Send);
+    assert_not_impl!(Inspect<*const (), ()>: Sync);
+    assert_not_impl!(Inspect<(), *const ()>: Sync);
+    assert_not_impl!(Inspect<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(InspectErr<(), ()>: Send);
+    assert_impl!(InspectErr<(), ()>: Sync);
+    assert_impl!(InspectErr<(), PhantomPinned>: Unpin);
+    assert_not_impl!(InspectErr<*const (), ()>: Send);
+    assert_not_impl!(InspectErr<(), *const ()>: Send);
+    assert_not_impl!(InspectErr<*const (), ()>: Sync);
+    assert_not_impl!(InspectErr<(), *const ()>: Sync);
+    assert_not_impl!(InspectErr<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(InspectOk<(), ()>: Send);
+    assert_impl!(InspectOk<(), ()>: Sync);
+    assert_impl!(InspectOk<(), PhantomPinned>: Unpin);
+    assert_not_impl!(InspectOk<*const (), ()>: Send);
+    assert_not_impl!(InspectOk<(), *const ()>: Send);
+    assert_not_impl!(InspectOk<*const (), ()>: Sync);
+    assert_not_impl!(InspectOk<(), *const ()>: Sync);
+    assert_not_impl!(InspectOk<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(IntoAsyncRead<SendTryStream<Vec<u8>, io::Error>>: Send);
+    assert_impl!(IntoAsyncRead<SyncTryStream<Vec<u8>, io::Error>>: Sync);
+    assert_impl!(IntoAsyncRead<UnpinTryStream<Vec<u8>, io::Error>>: Unpin);
+    assert_not_impl!(IntoAsyncRead<LocalTryStream<Vec<u8>, io::Error>>: Send);
+    assert_not_impl!(IntoAsyncRead<LocalTryStream<Vec<u8>, io::Error>>: Sync);
+    // IntoAsyncRead requires `St: Unpin`
+    // assert_not_impl!(IntoAsyncRead<PinnedTryStream<Vec<u8>, io::Error>>: Unpin);
+
+    assert_impl!(IntoStream<()>: Send);
+    assert_impl!(IntoStream<()>: Sync);
+    assert_impl!(IntoStream<()>: Unpin);
+    assert_not_impl!(IntoStream<*const ()>: Send);
+    assert_not_impl!(IntoStream<*const ()>: Sync);
+    assert_not_impl!(IntoStream<PhantomPinned>: Unpin);
+
+    assert_impl!(Iter<()>: Send);
+    assert_impl!(Iter<()>: Sync);
+    assert_impl!(Iter<PhantomPinned>: Unpin);
+    assert_not_impl!(Iter<*const ()>: Send);
+    assert_not_impl!(Iter<*const ()>: Sync);
+
+    assert_impl!(Map<(), ()>: Send);
+    assert_impl!(Map<(), ()>: Sync);
+    assert_impl!(Map<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Map<*const (), ()>: Send);
+    assert_not_impl!(Map<(), *const ()>: Send);
+    assert_not_impl!(Map<*const (), ()>: Sync);
+    assert_not_impl!(Map<(), *const ()>: Sync);
+    assert_not_impl!(Map<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(MapErr<(), ()>: Send);
+    assert_impl!(MapErr<(), ()>: Sync);
+    assert_impl!(MapErr<(), PhantomPinned>: Unpin);
+    assert_not_impl!(MapErr<*const (), ()>: Send);
+    assert_not_impl!(MapErr<(), *const ()>: Send);
+    assert_not_impl!(MapErr<*const (), ()>: Sync);
+    assert_not_impl!(MapErr<(), *const ()>: Sync);
+    assert_not_impl!(MapErr<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(MapOk<(), ()>: Send);
+    assert_impl!(MapOk<(), ()>: Sync);
+    assert_impl!(MapOk<(), PhantomPinned>: Unpin);
+    assert_not_impl!(MapOk<*const (), ()>: Send);
+    assert_not_impl!(MapOk<(), *const ()>: Send);
+    assert_not_impl!(MapOk<*const (), ()>: Sync);
+    assert_not_impl!(MapOk<(), *const ()>: Sync);
+    assert_not_impl!(MapOk<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Next<'_, ()>: Send);
+    assert_impl!(Next<'_, ()>: Sync);
+    assert_impl!(Next<'_, ()>: Unpin);
+    assert_not_impl!(Next<'_, *const ()>: Send);
+    assert_not_impl!(Next<'_, *const ()>: Sync);
+    assert_not_impl!(Next<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(Once<()>: Send);
+    assert_impl!(Once<()>: Sync);
+    assert_impl!(Once<()>: Unpin);
+    assert_not_impl!(Once<*const ()>: Send);
+    assert_not_impl!(Once<*const ()>: Sync);
+    assert_not_impl!(Once<PhantomPinned>: Unpin);
+
+    assert_impl!(OrElse<(), (), ()>: Send);
+    assert_impl!(OrElse<(), (), ()>: Sync);
+    assert_impl!(OrElse<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(OrElse<*const (), (), ()>: Send);
+    assert_not_impl!(OrElse<(), *const (), ()>: Send);
+    assert_not_impl!(OrElse<(), (), *const ()>: Send);
+    assert_not_impl!(OrElse<*const (), (), ()>: Sync);
+    assert_not_impl!(OrElse<(), *const (), ()>: Sync);
+    assert_not_impl!(OrElse<(), (), *const ()>: Sync);
+    assert_not_impl!(OrElse<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(OrElse<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Peek<'_, SendStream<()>>: Send);
+    assert_impl!(Peek<'_, SyncStream<()>>: Sync);
+    assert_impl!(Peek<'_, PinnedStream>: Unpin);
+    assert_not_impl!(Peek<'_, SendStream>: Send);
+    assert_not_impl!(Peek<'_, LocalStream<()>>: Send);
+    assert_not_impl!(Peek<'_, SyncStream>: Sync);
+    assert_not_impl!(Peek<'_, LocalStream<()>>: Sync);
+
+    assert_impl!(Peekable<SendStream<()>>: Send);
+    assert_impl!(Peekable<SyncStream<()>>: Sync);
+    assert_impl!(Peekable<UnpinStream>: Unpin);
+    assert_not_impl!(Peekable<SendStream>: Send);
+    assert_not_impl!(Peekable<LocalStream>: Send);
+    assert_not_impl!(Peekable<SyncStream>: Sync);
+    assert_not_impl!(Peekable<LocalStream>: Sync);
+    assert_not_impl!(Peekable<PinnedStream>: Unpin);
+
+    assert_impl!(Pending<()>: Send);
+    assert_impl!(Pending<()>: Sync);
+    assert_impl!(Pending<PhantomPinned>: Unpin);
+    assert_not_impl!(Pending<*const ()>: Send);
+    assert_not_impl!(Pending<*const ()>: Sync);
+
+    assert_impl!(PollFn<()>: Send);
+    assert_impl!(PollFn<()>: Sync);
+    assert_impl!(PollFn<PhantomPinned>: Unpin);
+    assert_not_impl!(PollFn<*const ()>: Send);
+    assert_not_impl!(PollFn<*const ()>: Sync);
+
+    assert_impl!(ReadyChunks<SendStream<()>>: Send);
+    assert_impl!(ReadyChunks<SyncStream<()>>: Sync);
+    assert_impl!(ReadyChunks<UnpinStream>: Unpin);
+    assert_not_impl!(ReadyChunks<SendStream>: Send);
+    assert_not_impl!(ReadyChunks<LocalStream>: Send);
+    assert_not_impl!(ReadyChunks<SyncStream>: Sync);
+    assert_not_impl!(ReadyChunks<LocalStream>: Sync);
+    assert_not_impl!(ReadyChunks<PinnedStream>: Unpin);
+
+    assert_impl!(Repeat<()>: Send);
+    assert_impl!(Repeat<()>: Sync);
+    assert_impl!(Repeat<PhantomPinned>: Unpin);
+    assert_not_impl!(Repeat<*const ()>: Send);
+    assert_not_impl!(Repeat<*const ()>: Sync);
+
+    assert_impl!(RepeatWith<()>: Send);
+    assert_impl!(RepeatWith<()>: Sync);
+    // RepeatWith requires `F: FnMut() -> A`
+    assert_impl!(RepeatWith<fn() -> ()>: Unpin);
+    // assert_impl!(RepeatWith<PhantomPinned>: Unpin);
+    assert_not_impl!(RepeatWith<*const ()>: Send);
+    assert_not_impl!(RepeatWith<*const ()>: Sync);
+
+    assert_impl!(ReuniteError<(), ()>: Send);
+    assert_impl!(ReuniteError<(), ()>: Sync);
+    assert_impl!(ReuniteError<PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(ReuniteError<*const (), ()>: Send);
+    assert_not_impl!(ReuniteError<(), *const ()>: Send);
+    assert_not_impl!(ReuniteError<*const (), ()>: Sync);
+    assert_not_impl!(ReuniteError<(), *const ()>: Sync);
+
+    assert_impl!(Scan<SendStream, (), (), ()>: Send);
+    assert_impl!(Scan<SyncStream, (), (), ()>: Sync);
+    assert_impl!(Scan<UnpinStream, PhantomPinned, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Scan<LocalStream<()>, (), (), ()>: Send);
+    assert_not_impl!(Scan<SendStream<()>, *const (), (), ()>: Send);
+    assert_not_impl!(Scan<SendStream<()>, (), *const (), ()>: Send);
+    assert_not_impl!(Scan<SendStream<()>, (), (), *const ()>: Send);
+    assert_not_impl!(Scan<LocalStream<()>, (), (), ()>: Sync);
+    assert_not_impl!(Scan<SyncStream<()>, *const (), (), ()>: Sync);
+    assert_not_impl!(Scan<SyncStream<()>, (), *const (), ()>: Sync);
+    assert_not_impl!(Scan<SyncStream<()>, (), (), *const ()>: Sync);
+    assert_not_impl!(Scan<PinnedStream, (), (), ()>: Unpin);
+    assert_not_impl!(Scan<UnpinStream, (), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Select<(), ()>: Send);
+    assert_impl!(Select<(), ()>: Sync);
+    assert_impl!(Select<(), ()>: Unpin);
+    assert_not_impl!(Select<*const (), ()>: Send);
+    assert_not_impl!(Select<(), *const ()>: Send);
+    assert_not_impl!(Select<*const (), ()>: Sync);
+    assert_not_impl!(Select<(), *const ()>: Sync);
+    assert_not_impl!(Select<PhantomPinned, ()>: Unpin);
+    assert_not_impl!(Select<(), PhantomPinned>: Unpin);
+
+    assert_impl!(SelectAll<()>: Send);
+    assert_impl!(SelectAll<()>: Sync);
+    assert_impl!(SelectAll<PhantomPinned>: Unpin);
+    assert_not_impl!(SelectAll<*const ()>: Send);
+    assert_not_impl!(SelectAll<*const ()>: Sync);
+
+    assert_impl!(SelectNextSome<'_, ()>: Send);
+    assert_impl!(SelectNextSome<'_, ()>: Sync);
+    assert_impl!(SelectNextSome<'_, PhantomPinned>: Unpin);
+    assert_not_impl!(SelectNextSome<'_, *const ()>: Send);
+    assert_not_impl!(SelectNextSome<'_, *const ()>: Sync);
+
+    assert_impl!(Skip<()>: Send);
+    assert_impl!(Skip<()>: Sync);
+    assert_impl!(Skip<()>: Unpin);
+    assert_not_impl!(Skip<*const ()>: Send);
+    assert_not_impl!(Skip<*const ()>: Sync);
+    assert_not_impl!(Skip<PhantomPinned>: Unpin);
+
+    assert_impl!(SkipWhile<SendStream<()>, (), ()>: Send);
+    assert_impl!(SkipWhile<SyncStream<()>, (), ()>: Sync);
+    assert_impl!(SkipWhile<UnpinStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(SkipWhile<LocalStream<()>, (), ()>: Send);
+    assert_not_impl!(SkipWhile<SendStream, (), ()>: Send);
+    assert_not_impl!(SkipWhile<SendStream<()>, *const (), ()>: Send);
+    assert_not_impl!(SkipWhile<SendStream<()>, (), *const ()>: Send);
+    assert_not_impl!(SkipWhile<LocalStream<()>, (), ()>: Sync);
+    assert_not_impl!(SkipWhile<SyncStream, (), ()>: Sync);
+    assert_not_impl!(SkipWhile<SyncStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(SkipWhile<SyncStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(SkipWhile<PinnedStream, (), ()>: Unpin);
+    assert_not_impl!(SkipWhile<UnpinStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(SplitSink<(), ()>: Send);
+    assert_impl!(SplitSink<(), ()>: Sync);
+    assert_impl!(SplitSink<PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(SplitSink<*const (), ()>: Send);
+    assert_not_impl!(SplitSink<(), *const ()>: Send);
+    assert_not_impl!(SplitSink<*const (), ()>: Sync);
+    assert_not_impl!(SplitSink<(), *const ()>: Sync);
+
+    assert_impl!(SplitStream<()>: Send);
+    assert_impl!(SplitStream<()>: Sync);
+    assert_impl!(SplitStream<PhantomPinned>: Unpin);
+    assert_not_impl!(SplitStream<*const ()>: Send);
+    assert_not_impl!(SplitStream<*const ()>: Sync);
+
+    assert_impl!(StreamFuture<()>: Send);
+    assert_impl!(StreamFuture<()>: Sync);
+    assert_impl!(StreamFuture<()>: Unpin);
+    assert_not_impl!(StreamFuture<*const ()>: Send);
+    assert_not_impl!(StreamFuture<*const ()>: Sync);
+    assert_not_impl!(StreamFuture<PhantomPinned>: Unpin);
+
+    assert_impl!(Take<()>: Send);
+    assert_impl!(Take<()>: Sync);
+    assert_impl!(Take<()>: Unpin);
+    assert_not_impl!(Take<*const ()>: Send);
+    assert_not_impl!(Take<*const ()>: Sync);
+    assert_not_impl!(Take<PhantomPinned>: Unpin);
+
+    assert_impl!(TakeUntil<SendStream, SendFuture<()>>: Send);
+    assert_impl!(TakeUntil<SyncStream, SyncFuture<()>>: Sync);
+    assert_impl!(TakeUntil<UnpinStream, UnpinFuture>: Unpin);
+    assert_not_impl!(TakeUntil<SendStream, SendFuture>: Send);
+    assert_not_impl!(TakeUntil<SendStream, LocalFuture<()>>: Send);
+    assert_not_impl!(TakeUntil<LocalStream, SendFuture<()>>: Send);
+    assert_not_impl!(TakeUntil<SyncStream, SyncFuture>: Sync);
+    assert_not_impl!(TakeUntil<SyncStream, LocalFuture<()>>: Sync);
+    assert_not_impl!(TakeUntil<LocalStream, SyncFuture<()>>: Sync);
+    assert_not_impl!(TakeUntil<PinnedStream, UnpinFuture>: Unpin);
+    assert_not_impl!(TakeUntil<UnpinStream, PinnedFuture>: Unpin);
+
+    assert_impl!(TakeWhile<SendStream<()>, (), ()>: Send);
+    assert_impl!(TakeWhile<SyncStream<()>, (), ()>: Sync);
+    assert_impl!(TakeWhile<UnpinStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(TakeWhile<LocalStream<()>, (), ()>: Send);
+    assert_not_impl!(TakeWhile<SendStream, (), ()>: Send);
+    assert_not_impl!(TakeWhile<SendStream<()>, *const (), ()>: Send);
+    assert_not_impl!(TakeWhile<SendStream<()>, (), *const ()>: Send);
+    assert_not_impl!(TakeWhile<LocalStream<()>, (), ()>: Sync);
+    assert_not_impl!(TakeWhile<SyncStream, (), ()>: Sync);
+    assert_not_impl!(TakeWhile<SyncStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(TakeWhile<SyncStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(TakeWhile<PinnedStream, (), ()>: Unpin);
+    assert_not_impl!(TakeWhile<UnpinStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Then<SendStream, (), ()>: Send);
+    assert_impl!(Then<SyncStream, (), ()>: Sync);
+    assert_impl!(Then<UnpinStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Then<LocalStream<()>, (), ()>: Send);
+    assert_not_impl!(Then<SendStream<()>, *const (), ()>: Send);
+    assert_not_impl!(Then<SendStream<()>, (), *const ()>: Send);
+    assert_not_impl!(Then<LocalStream<()>, (), ()>: Sync);
+    assert_not_impl!(Then<SyncStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(Then<SyncStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(Then<PinnedStream, (), ()>: Unpin);
+    assert_not_impl!(Then<UnpinStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryBufferUnordered<SendTryStream<()>>: Send);
+    assert_impl!(TryBufferUnordered<SyncTryStream<()>>: Sync);
+    assert_impl!(TryBufferUnordered<UnpinTryStream>: Unpin);
+    assert_not_impl!(TryBufferUnordered<SendTryStream>: Send);
+    assert_not_impl!(TryBufferUnordered<LocalTryStream>: Send);
+    assert_not_impl!(TryBufferUnordered<SyncTryStream>: Sync);
+    assert_not_impl!(TryBufferUnordered<LocalTryStream>: Sync);
+    assert_not_impl!(TryBufferUnordered<PinnedTryStream>: Unpin);
+
+    assert_impl!(TryBuffered<SendTryStream<SendTryFuture<(), ()>>>: Send);
+    assert_impl!(TryBuffered<SyncTryStream<SyncTryFuture<(), ()>>>: Sync);
+    assert_impl!(TryBuffered<UnpinTryStream<PinnedTryFuture>>: Unpin);
+    assert_not_impl!(TryBuffered<SendTryStream<SendTryFuture<*const (), ()>>>: Send);
+    assert_not_impl!(TryBuffered<SendTryStream<SendTryFuture<(), *const ()>>>: Send);
+    assert_not_impl!(TryBuffered<SendTryStream<LocalTryFuture<(), ()>>>: Send);
+    assert_not_impl!(TryBuffered<LocalTryStream<SendTryFuture<(), ()>>>: Send);
+    assert_not_impl!(TryBuffered<SyncTryStream<SyncTryFuture<*const (), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<SyncTryFuture<(), *const ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<LocalTryFuture<(), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<LocalTryStream<SyncTryFuture<(), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<PinnedTryStream<UnpinTryFuture>>: Unpin);
+
+    assert_impl!(TryCollect<(), ()>: Send);
+    assert_impl!(TryCollect<(), ()>: Sync);
+    assert_impl!(TryCollect<(), PhantomPinned>: Unpin);
+    assert_not_impl!(TryCollect<*const (), ()>: Send);
+    assert_not_impl!(TryCollect<(), *const ()>: Send);
+    assert_not_impl!(TryCollect<*const (), ()>: Sync);
+    assert_not_impl!(TryCollect<(), *const ()>: Sync);
+    assert_not_impl!(TryCollect<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryConcat<SendTryStream<()>>: Send);
+    assert_impl!(TryConcat<SyncTryStream<()>>: Sync);
+    assert_impl!(TryConcat<UnpinTryStream>: Unpin);
+    assert_not_impl!(TryConcat<SendTryStream>: Send);
+    assert_not_impl!(TryConcat<LocalTryStream>: Send);
+    assert_not_impl!(TryConcat<SyncTryStream>: Sync);
+    assert_not_impl!(TryConcat<LocalTryStream>: Sync);
+    assert_not_impl!(TryConcat<PinnedTryStream>: Unpin);
+
+    assert_impl!(TryFilter<SendTryStream<()>, (), ()>: Send);
+    assert_impl!(TryFilter<SyncTryStream<()>, (), ()>: Sync);
+    assert_impl!(TryFilter<UnpinTryStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(TryFilter<LocalTryStream<()>, (), ()>: Send);
+    assert_not_impl!(TryFilter<SendTryStream, (), ()>: Send);
+    assert_not_impl!(TryFilter<SendTryStream<()>, *const (), ()>: Send);
+    assert_not_impl!(TryFilter<SendTryStream<()>, (), *const ()>: Send);
+    assert_not_impl!(TryFilter<LocalTryStream<()>, (), ()>: Sync);
+    assert_not_impl!(TryFilter<SyncTryStream, (), ()>: Sync);
+    assert_not_impl!(TryFilter<SyncTryStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(TryFilter<SyncTryStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(TryFilter<PinnedTryStream, (), ()>: Unpin);
+    assert_not_impl!(TryFilter<UnpinTryStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryFilterMap<(), (), ()>: Send);
+    assert_impl!(TryFilterMap<(), (), ()>: Sync);
+    assert_impl!(TryFilterMap<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(TryFilterMap<*const (), (), ()>: Send);
+    assert_not_impl!(TryFilterMap<(), *const (), ()>: Send);
+    assert_not_impl!(TryFilterMap<(), (), *const ()>: Send);
+    assert_not_impl!(TryFilterMap<*const (), (), ()>: Sync);
+    assert_not_impl!(TryFilterMap<(), *const (), ()>: Sync);
+    assert_not_impl!(TryFilterMap<(), (), *const ()>: Sync);
+    assert_not_impl!(TryFilterMap<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(TryFilterMap<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryFlatten<SendTryStream<()>>: Send);
+    assert_impl!(TryFlatten<SyncTryStream<()>>: Sync);
+    assert_impl!(TryFlatten<UnpinTryStream<()>>: Unpin);
+    assert_not_impl!(TryFlatten<SendTryStream>: Send);
+    assert_not_impl!(TryFlatten<SendTryStream>: Send);
+    assert_not_impl!(TryFlatten<LocalTryStream<()>>: Sync);
+    assert_not_impl!(TryFlatten<LocalTryStream<()>>: Sync);
+    assert_not_impl!(TryFlatten<UnpinTryStream>: Unpin);
+    assert_not_impl!(TryFlatten<PinnedTryStream>: Unpin);
+
+    assert_impl!(TryFold<(), (), (), ()>: Send);
+    assert_impl!(TryFold<(), (), (), ()>: Sync);
+    assert_impl!(TryFold<(), (), PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(TryFold<*const (), (), (), ()>: Send);
+    assert_not_impl!(TryFold<(), *const (), (), ()>: Send);
+    assert_not_impl!(TryFold<(), (), *const (), ()>: Send);
+    assert_not_impl!(TryFold<(), (), (), *const ()>: Send);
+    assert_not_impl!(TryFold<*const (), (), (), ()>: Sync);
+    assert_not_impl!(TryFold<(), *const (), (), ()>: Sync);
+    assert_not_impl!(TryFold<(), (), *const (), ()>: Sync);
+    assert_not_impl!(TryFold<(), (), (), *const ()>: Sync);
+    assert_not_impl!(TryFold<PhantomPinned, (), (), ()>: Unpin);
+    assert_not_impl!(TryFold<(), PhantomPinned, (), ()>: Unpin);
+
+    assert_impl!(TryForEach<(), (), ()>: Send);
+    assert_impl!(TryForEach<(), (), ()>: Sync);
+    assert_impl!(TryForEach<(), (), PhantomPinned>: Unpin);
+    assert_not_impl!(TryForEach<*const (), (), ()>: Send);
+    assert_not_impl!(TryForEach<(), *const (), ()>: Send);
+    assert_not_impl!(TryForEach<(), (), *const ()>: Send);
+    assert_not_impl!(TryForEach<*const (), (), ()>: Sync);
+    assert_not_impl!(TryForEach<(), *const (), ()>: Sync);
+    assert_not_impl!(TryForEach<(), (), *const ()>: Sync);
+    assert_not_impl!(TryForEach<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(TryForEach<(), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryForEachConcurrent<(), (), ()>: Send);
+    assert_impl!(TryForEachConcurrent<(), (), ()>: Sync);
+    assert_impl!(TryForEachConcurrent<(), PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(TryForEachConcurrent<*const (), (), ()>: Send);
+    assert_not_impl!(TryForEachConcurrent<(), *const (), ()>: Send);
+    assert_not_impl!(TryForEachConcurrent<(), (), *const ()>: Send);
+    assert_not_impl!(TryForEachConcurrent<*const (), (), ()>: Sync);
+    assert_not_impl!(TryForEachConcurrent<(), *const (), ()>: Sync);
+    assert_not_impl!(TryForEachConcurrent<(), (), *const ()>: Sync);
+    assert_not_impl!(TryForEachConcurrent<PhantomPinned, (), ()>: Unpin);
+
+    assert_impl!(TryNext<'_, ()>: Send);
+    assert_impl!(TryNext<'_, ()>: Sync);
+    assert_impl!(TryNext<'_, ()>: Unpin);
+    assert_not_impl!(TryNext<'_, *const ()>: Send);
+    assert_not_impl!(TryNext<'_, *const ()>: Sync);
+    assert_not_impl!(TryNext<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(TrySkipWhile<SendTryStream<()>, (), ()>: Send);
+    assert_impl!(TrySkipWhile<SyncTryStream<()>, (), ()>: Sync);
+    assert_impl!(TrySkipWhile<UnpinTryStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(TrySkipWhile<LocalTryStream<()>, (), ()>: Send);
+    assert_not_impl!(TrySkipWhile<SendTryStream, (), ()>: Send);
+    assert_not_impl!(TrySkipWhile<SendTryStream<()>, *const (), ()>: Send);
+    assert_not_impl!(TrySkipWhile<SendTryStream<()>, (), *const ()>: Send);
+    assert_not_impl!(TrySkipWhile<LocalTryStream<()>, (), ()>: Sync);
+    assert_not_impl!(TrySkipWhile<SyncTryStream, (), ()>: Sync);
+    assert_not_impl!(TrySkipWhile<SyncTryStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(TrySkipWhile<SyncTryStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(TrySkipWhile<PinnedTryStream, (), ()>: Unpin);
+    assert_not_impl!(TrySkipWhile<UnpinTryStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryTakeWhile<SendTryStream<()>, (), ()>: Send);
+    assert_impl!(TryTakeWhile<SyncTryStream<()>, (), ()>: Sync);
+    assert_impl!(TryTakeWhile<UnpinTryStream, (), PhantomPinned>: Unpin);
+    assert_not_impl!(TryTakeWhile<LocalTryStream<()>, (), ()>: Send);
+    assert_not_impl!(TryTakeWhile<SendTryStream, (), ()>: Send);
+    assert_not_impl!(TryTakeWhile<SendTryStream<()>, *const (), ()>: Send);
+    assert_not_impl!(TryTakeWhile<SendTryStream<()>, (), *const ()>: Send);
+    assert_not_impl!(TryTakeWhile<LocalTryStream<()>, (), ()>: Sync);
+    assert_not_impl!(TryTakeWhile<SyncTryStream, (), ()>: Sync);
+    assert_not_impl!(TryTakeWhile<SyncTryStream<()>, *const (), ()>: Sync);
+    assert_not_impl!(TryTakeWhile<SyncTryStream<()>, (), *const ()>: Sync);
+    assert_not_impl!(TryTakeWhile<PinnedTryStream, (), ()>: Unpin);
+    assert_not_impl!(TryTakeWhile<UnpinTryStream, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(TryUnfold<(), (), ()>: Send);
+    assert_impl!(TryUnfold<(), (), ()>: Sync);
+    assert_impl!(TryUnfold<PhantomPinned, PhantomPinned, ()>: Unpin);
+    assert_not_impl!(TryUnfold<*const (), (), ()>: Send);
+    assert_not_impl!(TryUnfold<(), *const (), ()>: Send);
+    assert_not_impl!(TryUnfold<(), (), *const ()>: Send);
+    assert_not_impl!(TryUnfold<*const (), (), ()>: Sync);
+    assert_not_impl!(TryUnfold<(), *const (), ()>: Sync);
+    assert_not_impl!(TryUnfold<(), (), *const ()>: Sync);
+    assert_not_impl!(TryUnfold<(), (), PhantomPinned>: Unpin);
+
+    assert_impl!(Unfold<(), (), ()>: Send);
+    assert_impl!(Unfold<(), (), ()>: Sync);
+    assert_impl!(Unfold<PhantomPinned, PhantomPinned, ()>: Unpin);
+    assert_not_impl!(Unfold<*const (), (), ()>: Send);
+    assert_not_impl!(Unfold<(), *const (), ()>: Send);
+    assert_not_impl!(Unfold<(), (), *const ()>: Send);
+    assert_not_impl!(Unfold<*const (), (), ()>: Sync);
+    assert_not_impl!(Unfold<(), *const (), ()>: Sync);
+    assert_not_impl!(Unfold<(), (), *const ()>: Sync);
+    assert_not_impl!(Unfold<(), (), PhantomPinned>: Unpin);
+
+    assert_impl!(Unzip<(), (), ()>: Send);
+    assert_impl!(Unzip<(), (), ()>: Sync);
+    assert_impl!(Unzip<(), PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(Unzip<*const (), (), ()>: Send);
+    assert_not_impl!(Unzip<(), *const (), ()>: Send);
+    assert_not_impl!(Unzip<(), (), *const ()>: Send);
+    assert_not_impl!(Unzip<*const (), (), ()>: Sync);
+    assert_not_impl!(Unzip<(), *const (), ()>: Sync);
+    assert_not_impl!(Unzip<(), (), *const ()>: Sync);
+    assert_not_impl!(Unzip<PhantomPinned, (), ()>: Unpin);
+
+    assert_impl!(Zip<SendStream<()>, SendStream<()>>: Send);
+    assert_impl!(Zip<SyncStream<()>, SyncStream<()>>: Sync);
+    assert_impl!(Zip<UnpinStream, UnpinStream>: Unpin);
+    assert_not_impl!(Zip<SendStream, SendStream<()>>: Send);
+    assert_not_impl!(Zip<SendStream<()>, SendStream>: Send);
+    assert_not_impl!(Zip<LocalStream, SendStream<()>>: Send);
+    assert_not_impl!(Zip<SendStream<()>, LocalStream>: Send);
+    assert_not_impl!(Zip<SyncStream, SyncStream<()>>: Sync);
+    assert_not_impl!(Zip<SyncStream<()>, SyncStream>: Sync);
+    assert_not_impl!(Zip<LocalStream, SyncStream<()>>: Sync);
+    assert_not_impl!(Zip<SyncStream<()>, LocalStream>: Sync);
+    assert_not_impl!(Zip<UnpinStream, PinnedStream>: Unpin);
+    assert_not_impl!(Zip<PinnedStream, UnpinStream>: Unpin);
+
+    assert_impl!(futures_unordered::Iter<()>: Unpin);
+    assert_not_impl!(futures_unordered::Iter<()>: Send);
+    assert_not_impl!(futures_unordered::Iter<()>: Sync);
+    // futures_unordered::Iter requires `Fut: Unpin`
+    // assert_not_impl!(futures_unordered::Iter<PhantomPinned>: Unpin);
+
+    assert_impl!(futures_unordered::IterMut<()>: Unpin);
+    assert_not_impl!(futures_unordered::IterMut<()>: Send);
+    assert_not_impl!(futures_unordered::IterMut<()>: Sync);
+    // futures_unordered::IterMut requires `Fut: Unpin`
+    // assert_not_impl!(futures_unordered::IterMut<PhantomPinned>: Unpin);
+
+    assert_impl!(futures_unordered::IterPinMut<PhantomPinned>: Unpin);
+    assert_not_impl!(futures_unordered::IterPinMut<()>: Send);
+    assert_not_impl!(futures_unordered::IterPinMut<()>: Sync);
+
+    assert_impl!(futures_unordered::IterPinRef<PhantomPinned>: Unpin);
+    assert_not_impl!(futures_unordered::IterPinRef<()>: Send);
+    assert_not_impl!(futures_unordered::IterPinRef<()>: Sync);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::task`.
