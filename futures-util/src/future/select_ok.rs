@@ -1,3 +1,4 @@
+use super::assert_future;
 use crate::future::TryFutureExt;
 use core::iter::FromIterator;
 use core::mem;
@@ -36,7 +37,7 @@ pub fn select_ok<I>(iter: I) -> SelectOk<I::Item>
         inner: iter.into_iter().collect()
     };
     assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
-    ret
+    assert_future::<Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>, _>(ret)
 }
 
 impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {

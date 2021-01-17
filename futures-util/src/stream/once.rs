@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::ready;
@@ -17,7 +18,7 @@ use pin_project_lite::pin_project;
 /// # });
 /// ```
 pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
-    Once::new(future)
+    assert_stream::<Fut::Output, _>(Once::new(future))
 }
 
 pin_project! {

@@ -1,3 +1,4 @@
+use super::assert_stream;
 use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
@@ -31,11 +32,11 @@ pub fn select<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
     where St1: Stream,
           St2: Stream<Item = St1::Item>
 {
-    Select {
+    assert_stream::<St1::Item, _>(Select {
         stream1: stream1.fuse(),
         stream2: stream2.fuse(),
         flag: false,
-    }
+    })
 }
 
 impl<St1, St2> Select<St1, St2> {

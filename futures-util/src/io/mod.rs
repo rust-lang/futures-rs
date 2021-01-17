@@ -19,6 +19,8 @@
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 use crate::compat::Compat;
+use crate::future::assert_future;
+use crate::stream::assert_stream;
 use std::{ptr, pin::Pin};
 
 pub use futures_io::{
@@ -173,7 +175,7 @@ pub trait AsyncReadExt: AsyncRead {
         Self: Sized,
         R: AsyncRead,
     {
-        Chain::new(self, next)
+        assert_read(Chain::new(self, next))
     }
 
     /// Tries to read some bytes directly into the given `buf` in asynchronous
@@ -203,7 +205,7 @@ pub trait AsyncReadExt: AsyncRead {
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
         where Self: Unpin,
     {
-        Read::new(self, buf)
+        assert_future::<Result<usize>, _>(Read::new(self, buf))
     }
 
     /// Creates a future which will read from the `AsyncRead` into `bufs` using vectored
@@ -214,7 +216,7 @@ pub trait AsyncReadExt: AsyncRead {
     fn read_vectored<'a>(&'a mut self, bufs: &'a mut [IoSliceMut<'a>]) -> ReadVectored<'a, Self>
         where Self: Unpin,
     {
-        ReadVectored::new(self, bufs)
+        assert_future::<Result<usize>, _>(ReadVectored::new(self, bufs))
     }
 
     /// Creates a future which will read exactly enough bytes to fill `buf`,
@@ -260,7 +262,7 @@ pub trait AsyncReadExt: AsyncRead {
     ) -> ReadExact<'a, Self>
         where Self: Unpin,
     {
-        ReadExact::new(self, buf)
+        assert_future::<Result<()>, _>(ReadExact::new(self, buf))
     }
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
@@ -288,7 +290,7 @@ pub trait AsyncReadExt: AsyncRead {
     ) -> ReadToEnd<'a, Self>
         where Self: Unpin,
     {
-        ReadToEnd::new(self, buf)
+        assert_future::<Result<usize>, _>(ReadToEnd::new(self, buf))
     }
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
@@ -316,7 +318,7 @@ pub trait AsyncReadExt: AsyncRead {
     ) -> ReadToString<'a, Self>
         where Self: Unpin,
     {
-        ReadToString::new(self, buf)
+        assert_future::<Result<usize>, _>(ReadToString::new(self, buf))
     }
 
     /// Helper method for splitting this read/write object into two halves.
@@ -351,7 +353,8 @@ pub trait AsyncReadExt: AsyncRead {
     fn split(self) -> (ReadHalf<Self>, WriteHalf<Self>)
         where Self: AsyncWrite + Sized,
     {
-        split::split(self)
+        let (r, w) = split::split(self);
+        (assert_read(r), assert_write(w))
     }
 
     /// Creates an AsyncRead adapter which will read at most `limit` bytes
@@ -376,7 +379,7 @@ pub trait AsyncReadExt: AsyncRead {
     fn take(self, limit: u64) -> Take<Self>
         where Self: Sized
     {
-        Take::new(self, limit)
+        assert_read(Take::new(self, limit))
     }
 
     /// Wraps an [`AsyncRead`] in a compatibility wrapper that allows it to be
@@ -423,14 +426,14 @@ pub trait AsyncWriteExt: AsyncWrite {
     fn flush(&mut self) -> Flush<'_, Self>
         where Self: Unpin,
     {
-        Flush::new(self)
+        assert_future::<Result<()>, _>(Flush::new(self))
     }
 
     /// Creates a future which will entirely close this `AsyncWrite`.
     fn close(&mut self) -> Close<'_, Self>
         where Self: Unpin,
     {
-        Close::new(self)
+        assert_future::<Result<()>, _>(Close::new(self))
     }
 
     /// Creates a future which will write bytes from `buf` into the object.
@@ -440,7 +443,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Write<'a, Self>
         where Self: Unpin,
     {
-        Write::new(self, buf)
+        assert_future::<Result<usize>, _>(Write::new(self, buf))
     }
 
     /// Creates a future which will write bytes from `bufs` into the object using vectored
@@ -451,7 +454,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     fn write_vectored<'a>(&'a mut self, bufs: &'a [IoSlice<'a>]) -> WriteVectored<'a, Self>
         where Self: Unpin,
     {
-        WriteVectored::new(self, bufs)
+        assert_future::<Result<usize>, _>(WriteVectored::new(self, bufs))
     }
 
     /// Write data into this object.
@@ -477,7 +480,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
         where Self: Unpin,
     {
-        WriteAll::new(self, buf)
+        assert_future::<Result<()>, _>(WriteAll::new(self, buf))
     }
 
     /// Attempts to write multiple buffers into this writer.
@@ -532,7 +535,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     where
         Self: Unpin,
     {
-        WriteAllVectored::new(self, bufs)
+        assert_future::<Result<()>, _>(WriteAllVectored::new(self, bufs))
     }
 
     /// Wraps an [`AsyncWrite`] in a compatibility wrapper that allows it to be
@@ -577,7 +580,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     fn into_sink<Item: AsRef<[u8]>>(self) -> IntoSink<Self, Item>
         where Self: Sized,
     {
-        IntoSink::new(self)
+        crate::sink::assert_sink::<Item, Error, _>(IntoSink::new(self))
     }
 }
 
@@ -593,7 +596,7 @@ pub trait AsyncSeekExt: AsyncSeek {
     fn seek(&mut self, pos: SeekFrom) -> Seek<'_, Self>
         where Self: Unpin,
     {
-        Seek::new(self, pos)
+        assert_future::<Result<u64>, _>(Seek::new(self, pos))
     }
 }
 
@@ -627,7 +630,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     fn fill_buf(&mut self) -> FillBuf<'_, Self>
         where Self: Unpin,
     {
-        FillBuf::new(self)
+        assert_future::<Result<&[u8]>, _>(FillBuf::new(self))
     }
 
     /// A convenience for calling [`AsyncBufRead::consume`] on [`Unpin`] IO types.
@@ -701,7 +704,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ) -> ReadUntil<'a, Self>
         where Self: Unpin,
     {
-        ReadUntil::new(self, byte, buf)
+        assert_future::<Result<usize>, _>(ReadUntil::new(self, byte, buf))
     }
 
     /// Creates a future which will read all the bytes associated with this I/O
@@ -758,7 +761,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     fn read_line<'a>(&'a mut self, buf: &'a mut String) -> ReadLine<'a, Self>
         where Self: Unpin,
     {
-        ReadLine::new(self, buf)
+        assert_future::<Result<usize>, _>(ReadLine::new(self, buf))
     }
 
     /// Returns a stream over the lines of this reader.
@@ -796,8 +799,25 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     fn lines(self) -> Lines<Self>
         where Self: Sized,
     {
-        Lines::new(self)
+        assert_stream::<Result<String>, _>(Lines::new(self))
     }
 }
 
 impl<R: AsyncBufRead + ?Sized> AsyncBufReadExt for R {}
+
+// Just a helper function to ensure the reader we're returning all have the
+// right implementations.
+pub(crate) fn assert_read<R>(reader: R) -> R
+where
+    R: AsyncRead,
+{
+    reader
+}
+// Just a helper function to ensure the writer we're returning all have the
+// right implementations.
+pub(crate) fn assert_write<W>(writer: W) -> W
+where
+    W: AsyncWrite,
+{
+    writer
+}

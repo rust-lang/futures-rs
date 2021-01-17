@@ -1,3 +1,4 @@
+use super::assert_stream;
 use crate::unfold_state::UnfoldState;
 use core::fmt;
 use core::pin::Pin;
@@ -51,10 +52,10 @@ where
     F: FnMut(T) -> Fut,
     Fut: Future<Output = Option<(Item, T)>>,
 {
-    Unfold {
+    assert_stream::<Item, _>(Unfold {
         f,
         state: UnfoldState::Value { value: init },
-    }
+    })
 }
 
 pin_project! {

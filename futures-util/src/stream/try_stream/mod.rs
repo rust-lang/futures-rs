@@ -14,7 +14,9 @@ use futures_core::{
 use crate::fns::{
     InspectOkFn, inspect_ok_fn, InspectErrFn, inspect_err_fn, MapErrFn, map_err_fn, IntoFn, into_fn, MapOkFn, map_ok_fn,
 };
+use crate::future::assert_future;
 use crate::stream::{Map, Inspect};
+use crate::stream::assert_stream;
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -135,8 +137,6 @@ mod into_async_read;
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
-use crate::future::assert_future;
-use crate::stream::assert_stream;
 
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
@@ -471,7 +471,7 @@ pub trait TryStreamExt: TryStream {
         Fut: TryFuture<Ok = bool, Error = Self::Error>,
         Self: Sized,
     {
-        TryTakeWhile::new(self, f)
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TryTakeWhile::new(self, f))
     }
 
     /// Attempts to run this stream to completion, executing the provided asynchronous
@@ -919,7 +919,7 @@ pub trait TryStreamExt: TryStream {
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
-        TryBuffered::new(self, n)
+        assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(TryBuffered::new(self, n))
     }
 
     // TODO: false positive warning from rustdoc. Verify once #43466 settles
@@ -997,6 +997,6 @@ pub trait TryStreamExt: TryStream {
         Self: Sized + TryStreamExt<Error = std::io::Error> + Unpin,
         Self::Ok: AsRef<[u8]>,
     {
-        IntoAsyncRead::new(self)
+        crate::io::assert_read(IntoAsyncRead::new(self))
     }
 }

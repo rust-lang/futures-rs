@@ -1,3 +1,4 @@
+use super::assert_future;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
@@ -34,7 +35,7 @@ impl<F> Unpin for Lazy<F> {}
 pub fn lazy<F, R>(f: F) -> Lazy<F>
     where F: FnOnce(&mut Context<'_>) -> R,
 {
-    Lazy { f: Some(f) }
+    assert_future::<R, _>(Lazy { f: Some(f) })
 }
 
 impl<F, R> FusedFuture for Lazy<F>

@@ -8,6 +8,7 @@ use futures_core::ready;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
 
+use super::assert_stream;
 use crate::stream::{StreamExt, StreamFuture, FuturesUnordered};
 
 /// An unbounded set of streams
@@ -124,7 +125,7 @@ pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
         set.push(stream);
     }
 
-    set
+    assert_stream::<<I::Item as Stream>::Item, _>(set)
 }
 
 impl<St: Stream + Unpin> FromIterator<St> for SelectAll<St> {

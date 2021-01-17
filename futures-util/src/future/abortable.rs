@@ -1,3 +1,4 @@
+use super::assert_future;
 use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
@@ -39,10 +40,10 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     /// # });
     /// ```
     pub fn new(future: Fut, reg: AbortRegistration) -> Self {
-        Self {
+        assert_future::<Result<Fut::Output, Aborted>, _>(Self {
             future,
             inner: reg.inner,
-        }
+        })
     }
 }
 

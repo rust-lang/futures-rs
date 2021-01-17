@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Context, Poll};
@@ -26,7 +27,7 @@ pub struct Repeat<T> {
 pub fn repeat<T>(item: T) -> Repeat<T>
     where T: Clone
 {
-    Repeat { item }
+    assert_stream::<T, _>(Repeat { item })
 }
 
 impl<T> Unpin for Repeat<T> {}
