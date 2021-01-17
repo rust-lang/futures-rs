@@ -946,8 +946,131 @@ pub mod lock {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::sink`.
 pub mod sink {
-    // use super::*;
-    // use futures::sink::*;
+    use super::*;
+    use futures::sink::{self, *};
+    use std::marker::Send;
+
+    assert_impl!(Buffer<(), ()>: Send);
+    assert_impl!(Buffer<(), ()>: Sync);
+    assert_impl!(Buffer<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Buffer<(), *const ()>: Send);
+    assert_not_impl!(Buffer<*const (), ()>: Send);
+    assert_not_impl!(Buffer<(), *const ()>: Sync);
+    assert_not_impl!(Buffer<*const (), ()>: Sync);
+    assert_not_impl!(Buffer<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Close<'_, (), *const ()>: Send);
+    assert_impl!(Close<'_, (), *const ()>: Sync);
+    assert_impl!(Close<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Close<'_, *const (), ()>: Send);
+    assert_not_impl!(Close<'_, *const (), ()>: Sync);
+    assert_not_impl!(Close<'_, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Drain<()>: Send);
+    assert_impl!(Drain<()>: Sync);
+    assert_impl!(Drain<PhantomPinned>: Unpin);
+    assert_not_impl!(Drain<*const ()>: Send);
+    assert_not_impl!(Drain<*const ()>: Sync);
+
+    assert_impl!(Fanout<(), ()>: Send);
+    assert_impl!(Fanout<(), ()>: Sync);
+    assert_impl!(Fanout<(), ()>: Unpin);
+    assert_not_impl!(Fanout<(), *const ()>: Send);
+    assert_not_impl!(Fanout<*const (), ()>: Send);
+    assert_not_impl!(Fanout<(), *const ()>: Sync);
+    assert_not_impl!(Fanout<*const (), ()>: Sync);
+    assert_not_impl!(Fanout<(), PhantomPinned>: Unpin);
+    assert_not_impl!(Fanout<PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Feed<'_, (), ()>: Send);
+    assert_impl!(Feed<'_, (), ()>: Sync);
+    assert_impl!(Feed<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Feed<'_, (), *const ()>: Send);
+    assert_not_impl!(Feed<'_, *const (), ()>: Send);
+    assert_not_impl!(Feed<'_, (), *const ()>: Sync);
+    assert_not_impl!(Feed<'_, *const (), ()>: Sync);
+    assert_not_impl!(Feed<'_, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(Flush<'_, (), *const ()>: Send);
+    assert_impl!(Flush<'_, (), *const ()>: Sync);
+    assert_impl!(Flush<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Flush<'_, *const (), ()>: Send);
+    assert_not_impl!(Flush<'_, *const (), ()>: Sync);
+    assert_not_impl!(Flush<'_, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(sink::Send<'_, (), ()>: Send);
+    assert_impl!(sink::Send<'_, (), ()>: Sync);
+    assert_impl!(sink::Send<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(sink::Send<'_, (), *const ()>: Send);
+    assert_not_impl!(sink::Send<'_, *const (), ()>: Send);
+    assert_not_impl!(sink::Send<'_, (), *const ()>: Sync);
+    assert_not_impl!(sink::Send<'_, *const (), ()>: Sync);
+    assert_not_impl!(sink::Send<'_, PhantomPinned, ()>: Unpin);
+
+    assert_impl!(SendAll<'_, (), SendTryStream<()>>: Send);
+    assert_impl!(SendAll<'_, (), SyncTryStream<()>>: Sync);
+    assert_impl!(SendAll<'_, (), UnpinTryStream>: Unpin);
+    assert_not_impl!(SendAll<'_, (), SendTryStream>: Send);
+    assert_not_impl!(SendAll<'_, (), LocalTryStream>: Send);
+    assert_not_impl!(SendAll<'_, *const (), SendTryStream<()>>: Send);
+    assert_not_impl!(SendAll<'_, (), SyncTryStream>: Sync);
+    assert_not_impl!(SendAll<'_, (), LocalTryStream>: Sync);
+    assert_not_impl!(SendAll<'_, *const (), SyncTryStream<()>>: Sync);
+    assert_not_impl!(SendAll<'_, PhantomPinned, UnpinTryStream>: Unpin);
+    assert_not_impl!(SendAll<'_, (), PinnedTryStream>: Unpin);
+
+    assert_impl!(SinkErrInto<SendSink, *const (), *const ()>: Send);
+    assert_impl!(SinkErrInto<SyncSink, *const (), *const ()>: Sync);
+    assert_impl!(SinkErrInto<UnpinSink, PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(SinkErrInto<LocalSink<()>, (), ()>: Send);
+    assert_not_impl!(SinkErrInto<LocalSink<()>, (), ()>: Sync);
+    assert_not_impl!(SinkErrInto<PinnedSink<()>, (), ()>: Unpin);
+
+    assert_impl!(SinkMapErr<SendSink, ()>: Send);
+    assert_impl!(SinkMapErr<SyncSink, ()>: Sync);
+    assert_impl!(SinkMapErr<UnpinSink, PhantomPinned>: Unpin);
+    assert_not_impl!(SinkMapErr<SendSink, *const ()>: Send);
+    assert_not_impl!(SinkMapErr<LocalSink<()>, ()>: Send);
+    assert_not_impl!(SinkMapErr<SyncSink, *const ()>: Sync);
+    assert_not_impl!(SinkMapErr<LocalSink<()>, ()>: Sync);
+    assert_not_impl!(SinkMapErr<PinnedSink<()>, ()>: Unpin);
+
+    assert_impl!(Unfold<(), (), ()>: Send);
+    assert_impl!(Unfold<(), (), ()>: Sync);
+    assert_impl!(Unfold<PhantomPinned, PhantomPinned, ()>: Unpin);
+    assert_not_impl!(Unfold<*const (), (), ()>: Send);
+    assert_not_impl!(Unfold<(), *const (), ()>: Send);
+    assert_not_impl!(Unfold<(), (), *const ()>: Send);
+    assert_not_impl!(Unfold<*const (), (), ()>: Sync);
+    assert_not_impl!(Unfold<(), *const (), ()>: Sync);
+    assert_not_impl!(Unfold<(), (), *const ()>: Sync);
+    assert_not_impl!(Unfold<PinnedSink<()>, (), PhantomPinned>: Unpin);
+
+    assert_impl!(With<(), *const (), *const (), (), ()>: Send);
+    assert_impl!(With<(), *const (), *const (), (), ()>: Sync);
+    assert_impl!(With<(), PhantomPinned, PhantomPinned, (), PhantomPinned>: Unpin);
+    assert_not_impl!(With<*const (), (), (), (), ()>: Send);
+    assert_not_impl!(With<(), (), (), *const (), ()>: Send);
+    assert_not_impl!(With<(), (), (), (), *const ()>: Send);
+    assert_not_impl!(With<*const (), (), (), (), ()>: Sync);
+    assert_not_impl!(With<(), (), (), *const (), ()>: Sync);
+    assert_not_impl!(With<(), (), (), (), *const ()>: Sync);
+    assert_not_impl!(With<PhantomPinned, (), (), (), ()>: Unpin);
+    assert_not_impl!(With<(), (), (), PhantomPinned, ()>: Unpin);
+
+    assert_impl!(WithFlatMap<(), (), *const (), (), ()>: Send);
+    assert_impl!(WithFlatMap<(), (), *const (), (), ()>: Sync);
+    assert_impl!(WithFlatMap<(), PhantomPinned, PhantomPinned, (), PhantomPinned>: Unpin);
+    assert_not_impl!(WithFlatMap<*const (), (), (), (), ()>: Send);
+    assert_not_impl!(WithFlatMap<(), *const (), (), (), ()>: Send);
+    assert_not_impl!(WithFlatMap<(), (), (), *const (), ()>: Send);
+    assert_not_impl!(WithFlatMap<(), (), (), (), *const ()>: Send);
+    assert_not_impl!(WithFlatMap<*const (), (), (), (), ()>: Sync);
+    assert_not_impl!(WithFlatMap<(), *const (), (), (), ()>: Sync);
+    assert_not_impl!(WithFlatMap<(), (), (), *const (), ()>: Sync);
+    assert_not_impl!(WithFlatMap<(), (), (), (), *const ()>: Sync);
+    assert_not_impl!(WithFlatMap<PhantomPinned, (), (), (), ()>: Unpin);
+    assert_not_impl!(WithFlatMap<(), (), (), PhantomPinned, ()>: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::stream`.
