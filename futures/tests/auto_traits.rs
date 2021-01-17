@@ -65,6 +65,73 @@ impl<T, E> Sink<T> for PinnedSink<T, E> {
     }
 }
 
+/// Assert Send/Sync/Unpin for all public types in `futures::channel`
+pub mod channel {
+    use super::*;
+    use futures::channel::*;
+
+    assert_impl!(mpsc::Receiver<()>: Send);
+    assert_impl!(mpsc::Receiver<()>: Sync);
+    assert_impl!(mpsc::Receiver<PhantomPinned>: Unpin);
+    assert_not_impl!(mpsc::Receiver<*const ()>: Send);
+    assert_not_impl!(mpsc::Receiver<*const ()>: Sync);
+
+    assert_impl!(mpsc::SendError: Send);
+    assert_impl!(mpsc::SendError: Sync);
+    assert_impl!(mpsc::SendError: Unpin);
+
+    assert_impl!(mpsc::Sender<()>: Send);
+    assert_impl!(mpsc::Sender<()>: Sync);
+    assert_impl!(mpsc::Sender<PhantomPinned>: Unpin);
+    assert_not_impl!(mpsc::Sender<*const ()>: Send);
+    assert_not_impl!(mpsc::Sender<*const ()>: Sync);
+
+    assert_impl!(mpsc::TryRecvError: Send);
+    assert_impl!(mpsc::TryRecvError: Sync);
+    assert_impl!(mpsc::TryRecvError: Unpin);
+
+    assert_impl!(mpsc::TrySendError<()>: Send);
+    assert_impl!(mpsc::TrySendError<()>: Sync);
+    assert_impl!(mpsc::TrySendError<()>: Unpin);
+    assert_not_impl!(mpsc::TrySendError<*const ()>: Send);
+    assert_not_impl!(mpsc::TrySendError<*const ()>: Sync);
+    assert_not_impl!(mpsc::TrySendError<PhantomPinned>: Unpin);
+
+    assert_impl!(mpsc::UnboundedReceiver<()>: Send);
+    assert_impl!(mpsc::UnboundedReceiver<()>: Sync);
+    assert_impl!(mpsc::UnboundedReceiver<PhantomPinned>: Unpin);
+    assert_not_impl!(mpsc::UnboundedReceiver<*const ()>: Send);
+    assert_not_impl!(mpsc::UnboundedReceiver<*const ()>: Sync);
+
+    assert_impl!(mpsc::UnboundedReceiver<()>: Send);
+    assert_impl!(mpsc::UnboundedReceiver<()>: Sync);
+    assert_impl!(mpsc::UnboundedReceiver<PhantomPinned>: Unpin);
+    assert_not_impl!(mpsc::UnboundedReceiver<*const ()>: Send);
+    assert_not_impl!(mpsc::UnboundedReceiver<*const ()>: Sync);
+
+    assert_impl!(oneshot::Canceled: Send);
+    assert_impl!(oneshot::Canceled: Sync);
+    assert_impl!(oneshot::Canceled: Unpin);
+
+    assert_impl!(oneshot::Cancellation<()>: Send);
+    assert_impl!(oneshot::Cancellation<()>: Sync);
+    assert_impl!(oneshot::Cancellation<PhantomPinned>: Unpin);
+    assert_not_impl!(oneshot::Cancellation<*const ()>: Send);
+    assert_not_impl!(oneshot::Cancellation<*const ()>: Sync);
+
+    assert_impl!(oneshot::Receiver<()>: Send);
+    assert_impl!(oneshot::Receiver<()>: Sync);
+    assert_impl!(oneshot::Receiver<PhantomPinned>: Unpin);
+    assert_not_impl!(oneshot::Receiver<*const ()>: Send);
+    assert_not_impl!(oneshot::Receiver<*const ()>: Sync);
+
+    assert_impl!(oneshot::Sender<()>: Send);
+    assert_impl!(oneshot::Sender<()>: Sync);
+    assert_impl!(oneshot::Sender<PhantomPinned>: Unpin);
+    assert_not_impl!(oneshot::Sender<*const ()>: Send);
+    assert_not_impl!(oneshot::Sender<*const ()>: Sync);
+}
+
 /// Assert Send/Sync/Unpin for all public types in `futures::future`
 pub mod future {
     use super::*;
