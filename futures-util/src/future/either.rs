@@ -101,6 +101,13 @@ where
             Either::Right(x) => x.poll_next(cx),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Either::Left(x) => x.size_hint(),
+            Either::Right(x) => x.size_hint(),
+        }
+    }
 }
 
 impl<A, B> FusedStream for Either<A, B>
