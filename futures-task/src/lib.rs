@@ -48,7 +48,6 @@ pub use crate::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 mod noop_waker;
 pub use crate::noop_waker::noop_waker;
-#[cfg(feature = "std")]
 pub use crate::noop_waker::noop_waker_ref;
 
 #[doc(no_inline)]
