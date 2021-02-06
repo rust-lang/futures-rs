@@ -1,6 +1,5 @@
-use futures_core::task::{Waker, RawWaker, RawWakerVTable};
 use core::ptr::null;
-use once_cell::sync::Lazy;
+use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 
 unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
@@ -9,19 +8,15 @@ unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
 unsafe fn noop(_data: *const ()) {}
 
 unsafe fn wake_panic(_data: *const ()) {
-    if ! std::thread::panicking() {
+    if !std::thread::panicking() {
         panic!("should not be woken");
     }
 }
 
-const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
-    clone_panic_waker,
-    wake_panic,
-    wake_panic,
-    noop,
-);
+const PANIC_WAKER_VTABLE: RawWakerVTable =
+    RawWakerVTable::new(clone_panic_waker, wake_panic, wake_panic, noop);
 
-fn raw_panic_waker() -> RawWaker {
+const fn raw_panic_waker() -> RawWaker {
     RawWaker::new(null(), &PANIC_WAKER_VTABLE)
 }
 
@@ -38,6 +33,7 @@ fn raw_panic_waker() -> RawWaker {
 /// waker.wake(); // Will panic
 /// ```
 pub fn panic_waker() -> Waker {
+    // FIXME: Since 1.46.0 we can use transmute in consts, allowing this function to be const.
     unsafe { Waker::from_raw(raw_panic_waker()) }
 }
 
@@ -54,8 +50,13 @@ pub fn panic_waker() -> Waker {
 /// waker.wake_by_ref(); // Will panic
 /// ```
 pub fn panic_waker_ref() -> &'static Waker {
-    static PANIC_WAKER_INSTANCE: Lazy<Waker> = Lazy::new(panic_waker);
-    &*PANIC_WAKER_INSTANCE
+    struct SyncRawWaker(RawWaker);
+    unsafe impl Sync for SyncRawWaker {}
+
+    static PANIC_WAKER_INSTANCE: SyncRawWaker = SyncRawWaker(raw_panic_waker());
+
+    // SAFETY: `Waker` is #[repr(transparent)] over its `RawWaker`.
+    unsafe { &*(&PANIC_WAKER_INSTANCE.0 as *const RawWaker as *const Waker) }
 }
 
 #[cfg(test)]
