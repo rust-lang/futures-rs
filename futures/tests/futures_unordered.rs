@@ -277,12 +277,13 @@ fn futures_not_moved_after_poll() {
     use futures::future;
     use futures::stream::FuturesUnordered;
     use futures_test::future::FutureTestExt;
-    use futures_test::{assert_stream_done, assert_stream_next};
+    use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
 
     // Future that will be ready after being polled twice,
     // asserting that it does not move.
     let fut = future::ready(()).pending_once().assert_unmoved();
     let mut stream = vec![fut; 3].into_iter().collect::<FuturesUnordered<_>>();
+    assert_stream_pending!(stream);
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
