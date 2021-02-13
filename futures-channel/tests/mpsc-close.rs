@@ -13,9 +13,7 @@ use std::time::{Duration, Instant};
 fn smoke() {
     let (mut sender, receiver) = mpsc::channel(1);
 
-    let t = thread::spawn(move || {
-        while let Ok(()) = block_on(sender.send(42)) {}
-    });
+    let t = thread::spawn(move || while let Ok(()) = block_on(sender.send(42)) {});
 
     // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
     block_on(receiver.take(3).for_each(|_| futures::future::ready(())));
@@ -166,7 +164,7 @@ fn stress_try_send_as_receiver_closes() {
     struct TestRx {
         rx: mpsc::Receiver<Arc<()>>,
         // The number of times to query `rx` before dropping it.
-        poll_count: usize
+        poll_count: usize,
     }
     struct TestTask {
         command_rx: mpsc::Receiver<TestRx>,
@@ -190,14 +188,11 @@ fn stress_try_send_as_receiver_closes() {
     impl Future for TestTask {
         type Output = ();
 
-        fn poll(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             // Poll the test channel, if one is present.
             if let Some(rx) = &mut self.test_rx {
                 if let Poll::Ready(v) = rx.poll_next_unpin(cx) {
-                   let _ = v.expect("test finished unexpectedly!");
+                    let _ = v.expect("test finished unexpectedly!");
                 }
                 self.countdown -= 1;
                 // Busy-poll until the countdown is finished.
@@ -209,9 +204,9 @@ fn stress_try_send_as_receiver_closes() {
                     self.test_rx = Some(rx);
                     self.countdown = poll_count;
                     cx.waker().wake_by_ref();
-                },
+                }
                 Poll::Ready(None) => return Poll::Ready(()),
-                Poll::Pending => {},
+                Poll::Pending => {}
             }
             if self.countdown == 0 {
                 // Countdown complete -- drop the Receiver.
@@ -255,10 +250,14 @@ fn stress_try_send_as_receiver_closes() {
                                 if prev_weak.upgrade().is_none() {
                                     break;
                                 }
-                                assert!(t0.elapsed() < Duration::from_secs(SPIN_TIMEOUT_S),
+                                assert!(
+                                    t0.elapsed() < Duration::from_secs(SPIN_TIMEOUT_S),
                                     "item not dropped on iteration {} after \
                                      {} sends ({} successful). spin=({})",
-                                    i, attempted_sends, successful_sends, spins
+                                    i,
+                                    attempted_sends,
+                                    successful_sends,
+                                    spins
                                 );
                                 spins += 1;
                                 thread::sleep(Duration::from_millis(SPIN_SLEEP_MS));
@@ -273,6 +272,5 @@ fn stress_try_send_as_receiver_closes() {
         }
     }
     drop(cmd_tx);
-    bg.join()
-        .expect("background thread join");
+    bg.join().expect("background thread join");
 }
