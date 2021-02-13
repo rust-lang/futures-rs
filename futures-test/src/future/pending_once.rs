@@ -20,10 +20,7 @@ pub struct PendingOnce<Fut> {
 
 impl<Fut: Future> PendingOnce<Fut> {
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            future,
-            polled_before: false,
-        }
+        Self { future, polled_before: false }
     }
 }
 

@@ -119,12 +119,7 @@ fn bounded_100_tx(b: &mut Bencher) {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = mpsc::channel(0);
 
-        let mut tx: Vec<_> = (0..100)
-            .map(|_| TestSender {
-                tx: tx.clone(),
-                last: 0,
-            })
-            .collect();
+        let mut tx: Vec<_> = (0..100).map(|_| TestSender { tx: tx.clone(), last: 0 }).collect();
 
         for i in 0..10 {
             for x in &mut tx {

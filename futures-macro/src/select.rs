@@ -98,18 +98,13 @@ fn declare_result_enum(
     span: Span,
 ) -> (Vec<Ident>, syn::ItemEnum) {
     // "_0", "_1", "_2"
-    let variant_names: Vec<Ident> = (0..variants)
-        .map(|num| format_ident!("_{}", num, span = span))
-        .collect();
+    let variant_names: Vec<Ident> =
+        (0..variants).map(|num| format_ident!("_{}", num, span = span)).collect();
 
     let type_parameters = &variant_names;
     let variants = &variant_names;
 
-    let complete_variant = if complete {
-        Some(quote!(Complete))
-    } else {
-        None
-    };
+    let complete_variant = if complete { Some(quote!(Complete)) } else { None };
 
     let enum_item = parse_quote! {
         enum #result_ident<#(#type_parameters,)*> {
@@ -234,15 +229,13 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
         }
     };
 
-    let branches = parsed
-        .normal_fut_handlers
-        .into_iter()
-        .zip(variant_names.iter())
-        .map(|((pat, expr), variant_name)| {
+    let branches = parsed.normal_fut_handlers.into_iter().zip(variant_names.iter()).map(
+        |((pat, expr), variant_name)| {
             quote! {
                 #enum_ident::#variant_name(#pat) => { #expr },
             }
-        });
+        },
+    );
     let branches = quote! { #( #branches )* };
 
     let complete_branch = parsed.complete.map(|complete_expr| {

@@ -248,16 +248,12 @@ fn run_until_stalled_returns_multiple_times() {
     let cnt = Rc::new(Cell::new(0));
 
     let cnt1 = cnt.clone();
-    spawn
-        .spawn_local_obj(Box::pin(lazy(move |_| cnt1.set(cnt1.get() + 1))).into())
-        .unwrap();
+    spawn.spawn_local_obj(Box::pin(lazy(move |_| cnt1.set(cnt1.get() + 1))).into()).unwrap();
     pool.run_until_stalled();
     assert_eq!(cnt.get(), 1);
 
     let cnt2 = cnt.clone();
-    spawn
-        .spawn_local_obj(Box::pin(lazy(move |_| cnt2.set(cnt2.get() + 1))).into())
-        .unwrap();
+    spawn.spawn_local_obj(Box::pin(lazy(move |_| cnt2.set(cnt2.get() + 1))).into()).unwrap();
     pool.run_until_stalled();
     assert_eq!(cnt.get(), 2);
 }
@@ -400,19 +396,9 @@ fn tasks_are_scheduled_fairly() {
     let mut pool = LocalPool::new();
     let spawn = pool.spawner();
 
-    spawn
-        .spawn_local_obj(
-            Box::pin(Spin {
-                state: state.clone(),
-                idx: 0,
-            })
-            .into(),
-        )
-        .unwrap();
+    spawn.spawn_local_obj(Box::pin(Spin { state: state.clone(), idx: 0 }).into()).unwrap();
 
-    spawn
-        .spawn_local_obj(Box::pin(Spin { state, idx: 1 }).into())
-        .unwrap();
+    spawn.spawn_local_obj(Box::pin(Spin { state, idx: 1 }).into()).unwrap();
 
     pool.run();
 }

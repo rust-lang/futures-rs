@@ -20,16 +20,11 @@ fn flat_map() {
     use futures::stream::{self, StreamExt};
 
     futures::executor::block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
-        let values: Vec<_> = st
-            .flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .collect()
-            .await;
+        let values: Vec<_> =
+            st.flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0))).collect().await;
 
         assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 0, 2]);
     });

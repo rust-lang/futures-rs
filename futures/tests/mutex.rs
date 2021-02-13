@@ -45,10 +45,7 @@ fn mutex_contested() {
     use std::sync::Arc;
 
     let (tx, mut rx) = mpsc::unbounded();
-    let pool = futures::executor::ThreadPool::builder()
-        .pool_size(16)
-        .create()
-        .unwrap();
+    let pool = futures::executor::ThreadPool::builder().pool_size(16).create().unwrap();
 
     let tx = Arc::new(tx);
     let mutex = Arc::new(Mutex::new(0));

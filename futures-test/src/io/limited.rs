@@ -56,8 +56,7 @@ impl<W: AsyncWrite> AsyncWrite for Limited<W> {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         let this = self.project();
-        this.io
-            .poll_write(cx, &buf[..cmp::min(*this.limit, buf.len())])
+        this.io.poll_write(cx, &buf[..cmp::min(*this.limit, buf.len())])
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {

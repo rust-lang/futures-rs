@@ -21,10 +21,7 @@ pub struct TrackClosed<T> {
 
 impl<T> TrackClosed<T> {
     pub(crate) fn new(inner: T) -> Self {
-        Self {
-            inner,
-            closed: false,
-        }
+        Self { inner, closed: false }
     }
 
     /// Check whether this object has been closed.

@@ -406,9 +406,7 @@ fn stress_poll_ready() {
         let mut threads = Vec::new();
         for _ in 0..NTHREADS {
             let sender = tx.clone();
-            threads.push(thread::spawn(move || {
-                block_on(stress_poll_ready_sender(sender, AMT))
-            }));
+            threads.push(thread::spawn(move || block_on(stress_poll_ready_sender(sender, AMT))));
         }
         drop(tx);
 

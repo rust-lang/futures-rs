@@ -43,11 +43,7 @@ mod maybe_pending {
 
     impl<'a> MaybePending<'a> {
         pub fn new(inner: &'a [u8]) -> Self {
-            Self {
-                inner,
-                ready_read: false,
-                ready_fill_buf: false,
-            }
+            Self { inner, ready_read: false, ready_fill_buf: false }
         }
     }
 
@@ -140,10 +136,7 @@ fn test_buffered_reader_seek() {
 
     assert_eq!(block_on(reader.seek(SeekFrom::Start(3))).ok(), Some(3));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert_eq!(
-        run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
-        None
-    );
+    assert_eq!(run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), None);
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
     assert_eq!(block_on(reader.seek(SeekFrom::Current(1))).ok(), Some(4));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[1, 2][..]));
@@ -190,23 +183,14 @@ fn test_buffered_reader_seek_underflow() {
 
     let mut reader = BufReader::with_capacity(5, AllowStdIo::new(PositionReader { pos: 0 }));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1, 2, 3, 4][..]));
-    assert_eq!(
-        block_on(reader.seek(SeekFrom::End(-5))).ok(),
-        Some(u64::max_value() - 5)
-    );
+    assert_eq!(block_on(reader.seek(SeekFrom::End(-5))).ok(), Some(u64::max_value() - 5));
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // the following seek will require two underlying seeks
     let expected = 9_223_372_036_854_775_802;
-    assert_eq!(
-        block_on(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
-        Some(expected)
-    );
+    assert_eq!(block_on(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), Some(expected));
     assert_eq!(run_fill_buf!(reader).ok().map(|s| s.len()), Some(5));
     // seeking to 0 should empty the buffer.
-    assert_eq!(
-        block_on(reader.seek(SeekFrom::Current(0))).ok(),
-        Some(expected)
-    );
+    assert_eq!(block_on(reader.seek(SeekFrom::Current(0))).ok(), Some(expected));
     assert_eq!(reader.get_ref().get_ref().pos, expected);
 }
 
@@ -231,9 +215,7 @@ fn test_short_reads() {
         }
     }
 
-    let inner = ShortReader {
-        lengths: vec![0, 1, 2, 0, 1, 0],
-    };
+    let inner = ShortReader { lengths: vec![0, 1, 2, 0, 1, 0] };
     let mut reader = BufReader::new(AllowStdIo::new(inner));
     let mut buf = [0, 0];
     assert_eq!(block_on(reader.read(&mut buf)).unwrap(), 0);
@@ -325,10 +307,7 @@ fn maybe_pending_seek() {
 
     impl<'a> MaybePendingSeek<'a> {
         pub fn new(inner: &'a [u8]) -> Self {
-            Self {
-                inner: Cursor::new(inner),
-                ready: true,
-            }
+            Self { inner: Cursor::new(inner), ready: true }
         }
     }
 
@@ -377,10 +356,7 @@ fn maybe_pending_seek() {
 
     assert_eq!(run(reader.seek(SeekFrom::Current(3))).ok(), Some(3));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
-    assert_eq!(
-        run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(),
-        None
-    );
+    assert_eq!(run(reader.seek(SeekFrom::Current(i64::min_value()))).ok(), None);
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[0, 1][..]));
     assert_eq!(run(reader.seek(SeekFrom::Current(1))).ok(), Some(4));
     assert_eq!(run_fill_buf!(reader).ok(), Some(&[1, 2][..]));
