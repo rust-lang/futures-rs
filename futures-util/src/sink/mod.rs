@@ -9,7 +9,7 @@
 use crate::future::{assert_future, Either};
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 
 #[cfg(feature = "compat")]
@@ -248,15 +248,12 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<'a, St>(&'a mut self, stream: &'a mut St) -> SendAll<'a, Self, St>
+    fn send_all<St>(&mut self, stream: St) -> SendAll<'_, Self, St>
     where
-        St: TryStream<Ok = Item, Error = Self::Error> + Stream + Unpin + ?Sized,
-        // St: Stream<Item = Result<Item, Self::Error>> + Unpin + ?Sized,
+        St: Stream<Item = Result<Item, Self::Error>>,
         Self: Unpin,
     {
-        // TODO: type mismatch resolving `<St as Stream>::Item == std::result::Result<Item, <Self as futures_sink::Sink<Item>>::Error>`
-        // assert_future::<Result<(), Self::Error>, _>(SendAll::new(self, stream))
-        SendAll::new(self, stream)
+        assert_future::<Result<(), Self::Error>, _>(SendAll::new(self, stream))
     }
 
     /// Wrap this sink in an `Either` sink, making it the left-hand variant
