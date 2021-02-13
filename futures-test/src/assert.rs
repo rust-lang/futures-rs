@@ -30,9 +30,7 @@ macro_rules! assert_stream_pending {
         $crate::__private::assert::assert_is_unpin_stream(stream);
         let stream = $crate::__private::Pin::new(stream);
         let mut cx = $crate::task::noop_context();
-        let poll = $crate::__private::stream::Stream::poll_next(
-            stream, &mut cx,
-        );
+        let poll = $crate::__private::stream::Stream::poll_next(stream, &mut cx);
         if poll.is_ready() {
             panic!("assertion failed: stream is not pending");
         }
@@ -71,13 +69,15 @@ macro_rules! assert_stream_next {
                 assert_eq!(x, $item);
             }
             $crate::__private::task::Poll::Ready($crate::__private::None) => {
-                panic!("assertion failed: expected stream to provide item but stream is at its end");
+                panic!(
+                    "assertion failed: expected stream to provide item but stream is at its end"
+                );
             }
             $crate::__private::task::Poll::Pending => {
                 panic!("assertion failed: expected stream to provide item but stream wasn't ready");
             }
         }
-    }}
+    }};
 }
 
 /// Assert that the next poll to the provided stream will return an empty
@@ -117,5 +117,5 @@ macro_rules! assert_stream_done {
                 panic!("assertion failed: expected stream to be done but was pending");
             }
         }
-    }}
+    }};
 }
