@@ -2,19 +2,9 @@
 
 use core::ops::DerefMut;
 use core::pin::Pin;
-use core::task::{Context, Poll};
 
 #[doc(no_inline)]
 pub use core::future::Future;
-
-/// An owned dynamically typed [`Future`] for use in cases where you can't
-/// statically type your result or need to add some indirection.
-#[cfg(feature = "alloc")]
-pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
-
-/// `BoxFuture`, but without the `Send` requirement.
-#[cfg(feature = "alloc")]
-pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
 /// A future which tracks whether or not the underlying future
 /// should no longer be polled.
@@ -42,46 +32,6 @@ where
 {
     fn is_terminated(&self) -> bool {
         <P::Target as FusedFuture>::is_terminated(&**self)
-    }
-}
-
-mod private_try_future {
-    use super::Future;
-
-    pub trait Sealed {}
-
-    impl<F, T, E> Sealed for F where F: ?Sized + Future<Output = Result<T, E>> {}
-}
-
-/// A convenience for futures that return `Result` values that includes
-/// a variety of adapters tailored to such futures.
-pub trait TryFuture: Future + private_try_future::Sealed {
-    /// The type of successful values yielded by this future
-    type Ok;
-
-    /// The type of failures yielded by this future
-    type Error;
-
-    /// Poll this `TryFuture` as if it were a `Future`.
-    ///
-    /// This method is a stopgap for a compiler limitation that prevents us from
-    /// directly inheriting from the `Future` trait; in the future it won't be
-    /// needed.
-    fn try_poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Error>>;
-}
-
-impl<F, T, E> TryFuture for F
-    where F: ?Sized + Future<Output = Result<T, E>>
-{
-    type Ok = T;
-    type Error = E;
-
-    #[inline]
-    fn try_poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.poll(cx)
     }
 }
 

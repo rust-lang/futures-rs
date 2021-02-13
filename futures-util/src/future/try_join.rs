@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 
-use crate::future::{assert_future, try_maybe_done, TryMaybeDone};
+use crate::future::{assert_future, try_maybe_done, Future, TryFuture, TryMaybeDone};
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 

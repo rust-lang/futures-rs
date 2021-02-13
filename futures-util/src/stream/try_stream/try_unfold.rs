@@ -1,9 +1,8 @@
-use super::assert_stream;
+use crate::future::TryFuture;
+use crate::stream::{assert_stream, Stream};
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::TryFuture;
 use futures_core::ready;
-use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 

@@ -17,10 +17,10 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feat
 extern crate alloc;
 
 pub mod future;
-#[doc(hidden)] pub use self::future::{Future, FusedFuture, TryFuture};
+#[doc(hidden)] pub use self::future::{Future, FusedFuture};
 
 pub mod stream;
-#[doc(hidden)] pub use self::stream::{Stream, FusedStream, TryStream};
+#[doc(hidden)] pub use self::stream::{Stream, FusedStream};
 
 #[macro_use]
 pub mod task;

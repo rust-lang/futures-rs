@@ -6,10 +6,9 @@
 //! - The [`SinkExt`] trait, which provides adapters for chaining and composing
 //!   sinks.
 
-use crate::future::{assert_future, Either};
+use crate::future::{assert_future, Either, Future};
+use crate::stream::{Stream, TryStream};
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};
 
 #[cfg(feature = "compat")]

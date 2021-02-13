@@ -4,15 +4,6 @@ use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-/// An owned dynamically typed [`Stream`] for use in cases where you can't
-/// statically type your result or need to add some indirection.
-#[cfg(feature = "alloc")]
-pub type BoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + Send + 'a>>;
-
-/// `BoxStream`, but without the `Send` requirement.
-#[cfg(feature = "alloc")]
-pub type LocalBoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + 'a>>;
-
 /// A stream of values produced asynchronously.
 ///
 /// If `Future<Output = T>` is an asynchronous version of `T`, then `Stream<Item
@@ -160,45 +151,6 @@ where
 {
     fn is_terminated(&self) -> bool {
         <P::Target as FusedStream>::is_terminated(&**self)
-    }
-}
-
-mod private_try_stream {
-    use super::Stream;
-
-    pub trait Sealed {}
-
-    impl<S, T, E> Sealed for S where S: ?Sized + Stream<Item = Result<T, E>> {}
-}
-
-/// A convenience for streams that return `Result` values that includes
-/// a variety of adapters tailored to such futures.
-pub trait TryStream: Stream + private_try_stream::Sealed {
-    /// The type of successful values yielded by this future
-    type Ok;
-
-    /// The type of failures yielded by this future
-    type Error;
-
-    /// Poll this `TryStream` as if it were a `Stream`.
-    ///
-    /// This method is a stopgap for a compiler limitation that prevents us from
-    /// directly inheriting from the `Stream` trait; in the future it won't be
-    /// needed.
-    fn try_poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<Result<Self::Ok, Self::Error>>>;
-}
-
-impl<S, T, E> TryStream for S
-    where S: ?Sized + Stream<Item = Result<T, E>>
-{
-    type Ok = T;
-    type Error = E;
-
-    fn try_poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<Result<Self::Ok, Self::Error>>>
-    {
-        self.poll_next(cx)
     }
 }
 

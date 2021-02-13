@@ -1,9 +1,8 @@
 //! Definition of the TryMaybeDone combinator
 
-use super::assert_future;
+use crate::future::{assert_future, FusedFuture, Future, TryFuture};
 use core::mem;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 

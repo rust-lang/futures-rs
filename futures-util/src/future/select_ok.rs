@@ -1,10 +1,9 @@
 use super::assert_future;
-use crate::future::TryFutureExt;
+use crate::future::{Future, TryFuture, TryFutureExt};
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use alloc::vec::Vec;
-use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 
 /// Future for the [`select_ok`] function.

@@ -1,7 +1,5 @@
-use crate::stream::{Fuse, FuturesUnordered, StreamExt, IntoStream};
-use crate::future::{IntoFuture, TryFutureExt};
-use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream};
+use crate::stream::{Fuse, FuturesUnordered, Stream, StreamExt, IntoStream, TryStream};
+use crate::future::{IntoFuture, TryFuture, TryFutureExt};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
