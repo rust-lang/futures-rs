@@ -429,7 +429,8 @@ fn park_unpark_independence() {
         }
         done = true;
         cx.waker().clone().wake(); // (*)
-                                   // some user-code that temporarily parks the thread
+
+        // some user-code that temporarily parks the thread
         let test = thread::current();
         let latch = Arc::new(AtomicBool::new(false));
         let signal = latch.clone();

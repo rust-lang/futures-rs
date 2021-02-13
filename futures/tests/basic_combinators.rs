@@ -26,8 +26,8 @@ fn basic_future_combinators() {
     assert!(rx.try_recv().is_err()); // Not started yet
     fut.run_in_background(); // Start it
     for i in 1..=5 {
-        assert_eq!(rx.recv(), Ok(i));
-    } // Check it
+        assert_eq!(rx.recv(), Ok(i)); // Check it
+    }
     assert!(rx.recv().is_err()); // Should be done
 }
 
@@ -98,7 +98,7 @@ fn basic_try_future_combinators() {
     assert!(rx.try_recv().is_err()); // Not started yet
     fut.run_in_background(); // Start it
     for i in 1..=12 {
-        assert_eq!(rx.recv(), Ok(i));
-    } // Check it
+        assert_eq!(rx.recv(), Ok(i)); // Check it
+    }
     assert!(rx.recv().is_err()); // Should be done
 }
