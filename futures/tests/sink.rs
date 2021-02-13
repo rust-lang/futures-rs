@@ -1,7 +1,6 @@
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
-use futures::never::Never;
 use futures::ready;
 use futures::sink::{self, Sink, SinkErrInto, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
@@ -9,6 +8,7 @@ use futures::task::{self, ArcWake, Context, Poll, Waker};
 use futures_test::task::panic_context;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::fmt;
 use std::mem;
 use std::pin::Pin;
@@ -307,7 +307,7 @@ fn with_flush() {
     let mut sink = Vec::new().with(|elem| {
         mem::replace(&mut block, future::ok(()).boxed())
             .map_ok(move |()| elem + 1)
-            .map_err(|_| -> Never { panic!() })
+            .map_err(|_| -> Infallible { panic!() })
     });
 
     assert_eq!(Pin::new(&mut sink).start_send(0).ok(), Some(()));
@@ -328,7 +328,7 @@ fn with_flush() {
 // test simple use of with to change data
 #[test]
 fn with_as_map() {
-    let mut sink = Vec::new().with(|item| future::ok::<i32, Never>(item * 2));
+    let mut sink = Vec::new().with(|item| future::ok::<i32, Infallible>(item * 2));
     block_on(sink.send(0)).unwrap();
     block_on(sink.send(1)).unwrap();
     block_on(sink.send(2)).unwrap();
