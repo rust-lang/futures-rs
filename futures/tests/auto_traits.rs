@@ -1018,7 +1018,7 @@ pub mod sink {
     assert_not_impl!(SendAll<'_, (), LocalTryStream>: Sync);
     assert_not_impl!(SendAll<'_, *const (), SyncTryStream<()>>: Sync);
     assert_impl!(SendAll<'_, (), UnpinTryStream>: Unpin);
-    assert_not_impl!(SendAll<'_, PhantomPinned, UnpinTryStream>: Unpin);
+    assert_impl!(SendAll<'_, PhantomPinned, UnpinTryStream>: Unpin);
     assert_not_impl!(SendAll<'_, (), PinnedTryStream>: Unpin);
 
     assert_impl!(SinkErrInto<SendSink, *const (), *const ()>: Send);
