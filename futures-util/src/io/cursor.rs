@@ -13,7 +13,7 @@ use std::pin::Pin;
 /// allowing these buffers to be used anywhere you might use a reader or writer
 /// that does actual I/O.
 ///
-/// The standard library implements some I/O traits on various types which
+/// This library implements some I/O traits on various types which
 /// are commonly used as a buffer, like `Cursor<`[`Vec`]`<u8>>` and
 /// `Cursor<`[`&[u8]`][bytes]`>`.
 ///
