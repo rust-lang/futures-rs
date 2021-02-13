@@ -29,12 +29,12 @@ pin_project! {
 ///     async move {
 ///         sum += i;
 ///         eprintln!("{}", i);
-///         Ok::<_, futures::never::Never>(sum)
+///         Ok::<_, std::convert::Infallible>(sum)
 ///     }
 /// });
 /// futures::pin_mut!(unfold);
 /// unfold.send(5).await?;
-/// # Ok::<(), futures::never::Never>(()) }).unwrap();
+/// # Ok::<(), std::convert::Infallible>(()) }).unwrap();
 /// ```
 pub fn unfold<T, F, R, Item, E>(init: T, function: F) -> Unfold<T, F, R>
 where

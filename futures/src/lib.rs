@@ -133,7 +133,7 @@ pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-a
 
 // Module reexports
 #[doc(inline)]
-pub use futures_util::{future, never, sink, stream, task};
+pub use futures_util::{future, sink, stream, task};
 
 #[cfg(feature = "alloc")]
 #[doc(inline)]

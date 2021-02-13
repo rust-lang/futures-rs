@@ -6,10 +6,10 @@
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::pin::Pin;
+use core::convert::Infallible;
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
-use crate::never::Never;
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
@@ -83,7 +83,7 @@ delegate_all!(
 delegate_all!(
     /// Future for the [`never_error`](super::FutureExt::never_error) combinator.
     NeverError<Fut>(
-        Map<Fut, OkFn<Never>>
+        Map<Fut, OkFn<Infallible>>
     ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
 );
 
@@ -551,7 +551,7 @@ pub trait FutureExt: Future {
     where
         Self: Sized,
     {
-        assert_future::<Result<Self::Output, Never>, _>(NeverError::new(self))
+        assert_future::<Result<Self::Output, Infallible>, _>(NeverError::new(self))
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.
