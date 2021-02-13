@@ -1,6 +1,6 @@
 use futures::channel::mpsc;
 use futures::executor::block_on;
-use futures::future::join3;
+use futures::join;
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 
@@ -15,7 +15,7 @@ fn it_works() {
 
     let collect_fut1 = rx1.collect::<Vec<_>>();
     let collect_fut2 = rx2.collect::<Vec<_>>();
-    let (_, vec1, vec2) = block_on(join3(fwd, collect_fut1, collect_fut2));
+    let (_, vec1, vec2) = block_on(async move { join!(fwd, collect_fut1, collect_fut2)});
 
     let expected = (0..10).collect::<Vec<_>>();
 

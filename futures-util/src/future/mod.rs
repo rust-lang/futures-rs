@@ -72,7 +72,7 @@ mod ready;
 pub use self::ready::{err, ok, ready, Ready};
 
 mod join;
-pub use self::join::{join, join3, join4, join5, Join, Join3, Join4, Join5};
+pub use self::join::{join, Join};
 
 #[cfg(feature = "alloc")]
 mod join_all;
@@ -88,9 +88,7 @@ mod select_all;
 pub use self::select_all::{select_all, SelectAll};
 
 mod try_join;
-pub use self::try_join::{
-    try_join, try_join3, try_join4, try_join5, TryJoin, TryJoin3, TryJoin4, TryJoin5,
-};
+pub use self::try_join::{try_join, TryJoin};
 
 #[cfg(feature = "alloc")]
 mod try_join_all;
