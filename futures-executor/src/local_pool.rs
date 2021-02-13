@@ -10,7 +10,10 @@ use futures_util::stream::StreamExt;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread::{self, Thread};
 
 /// A single-threaded task pool for polling futures to completion.
