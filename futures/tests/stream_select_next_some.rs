@@ -30,8 +30,8 @@ fn is_terminated() {
 
 #[test]
 fn select() {
-    use futures::{future, select};
     use futures::stream::{FuturesUnordered, StreamExt};
+    use futures::{future, select};
     use futures_test::future::FutureTestExt;
 
     // Checks that even though `async_tasks` will yield a `None` and return

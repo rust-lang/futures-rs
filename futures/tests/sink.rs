@@ -32,8 +32,8 @@ mod unwrap {
 
 mod flag_cx {
     use futures::task::{self, ArcWake, Context};
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     // An Unpark struct that records unpark events for inspection
     pub struct Flag(AtomicBool);
@@ -129,7 +129,10 @@ mod manual_flush {
             Ok(())
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_flush(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             if self.data.is_empty() {
                 Poll::Ready(Ok(()))
             } else {
@@ -325,9 +328,9 @@ fn mpsc_blocking_start_send() {
     use futures::executor::block_on;
     use futures::future::{self, FutureExt};
 
-    use start_send_fut::StartSendFut;
     use flag_cx::flag_cx;
     use sassert_next::sassert_next;
+    use start_send_fut::StartSendFut;
     use unwrap::unwrap;
 
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
@@ -461,8 +464,8 @@ fn with_flush_propagate() {
     use futures::sink::{Sink, SinkExt};
     use std::pin::Pin;
 
-    use manual_flush::ManualFlush;
     use flag_cx::flag_cx;
+    use manual_flush::ManualFlush;
     use unwrap::unwrap;
 
     let mut sink = ManualFlush::new().with(future::ok::<Option<i32>, ()>);
@@ -543,10 +546,10 @@ fn buffer() {
     use futures::future::FutureExt;
     use futures::sink::SinkExt;
 
-    use start_send_fut::StartSendFut;
-    use flag_cx::flag_cx;
-    use unwrap::unwrap;
     use allowance::manual_allow;
+    use flag_cx::flag_cx;
+    use start_send_fut::StartSendFut;
+    use unwrap::unwrap;
 
     let (sink, allow) = manual_allow::<i32>();
     let sink = sink.buffer(2);
@@ -588,8 +591,8 @@ fn fanout_backpressure() {
     use futures::sink::SinkExt;
     use futures::stream::StreamExt;
 
-    use start_send_fut::StartSendFut;
     use flag_cx::flag_cx;
+    use start_send_fut::StartSendFut;
     use unwrap::unwrap;
 
     let (left_send, mut left_recv) = mpsc::channel(0);

@@ -25,7 +25,7 @@ fn failed_future() {
     use futures::task::{Context, Poll};
 
     struct PanickingStream<T, E> {
-        _marker: PhantomData<(T, E)>
+        _marker: PhantomData<(T, E)>,
     }
 
     impl<T, E> Stream for PanickingStream<T, E> {
@@ -47,10 +47,10 @@ fn failed_future() {
 fn assert_impls() {
     use core::marker::PhantomData;
     use core::pin::Pin;
+    use futures::future::{ok, TryFutureExt};
     use futures::sink::Sink;
     use futures::stream::Stream;
     use futures::task::{Context, Poll};
-    use futures::future::{ok, TryFutureExt};
 
     struct StreamSink<T, E, Item>(PhantomData<(T, E, Item)>);
 

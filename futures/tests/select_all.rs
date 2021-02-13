@@ -4,11 +4,7 @@ fn smoke() {
     use futures::future::{ready, select_all};
     use std::collections::HashSet;
 
-    let v = vec![
-        ready(1),
-        ready(2),
-        ready(3),
-    ];
+    let v = vec![ready(1), ready(2), ready(3)];
 
     let mut c = vec![1, 2, 3].into_iter().collect::<HashSet<_>>();
 

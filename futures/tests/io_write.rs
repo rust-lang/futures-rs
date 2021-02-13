@@ -77,7 +77,7 @@ fn write_vectored_first_non_empty() {
     let bufs = &mut [
         io::IoSlice::new(&[]),
         io::IoSlice::new(&[]),
-        io::IoSlice::new(b"four")
+        io::IoSlice::new(b"four"),
     ];
 
     let res = Pin::new(&mut writer).poll_write_vectored(cx, bufs);

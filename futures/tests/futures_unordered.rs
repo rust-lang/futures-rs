@@ -104,11 +104,11 @@ fn from_iterator() {
 
 #[test]
 fn finished_future() {
-    use std::marker::Unpin;
     use futures::channel::oneshot;
     use futures::future::{self, Future, FutureExt};
     use futures::stream::{FuturesUnordered, StreamExt};
     use futures_test::task::noop_context;
+    use std::marker::Unpin;
 
     let (_a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
@@ -217,7 +217,10 @@ fn iter_cancel() {
 
     impl<F: Future + Unpin> AtomicCancel<F> {
         fn new(future: F) -> Self {
-            Self { future, cancel: AtomicBool::new(false) }
+            Self {
+                future,
+                cancel: AtomicBool::new(false),
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 #[test]
 #[ignore] // FIXME: https://github.com/rust-lang/futures-rs/issues/1790
 fn works() {
-    use futures::channel::{oneshot, mpsc};
+    use futures::channel::{mpsc, oneshot};
     use futures::executor::{block_on, block_on_stream};
     use futures::sink::SinkExt;
     use futures::stream::StreamExt;

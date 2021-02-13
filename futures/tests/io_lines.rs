@@ -2,9 +2,9 @@ mod util {
     use futures::future::Future;
 
     pub fn run<F: Future + Unpin>(mut f: F) -> F::Output {
-        use futures_test::task::noop_context;
-        use futures::task::Poll;
         use futures::future::FutureExt;
+        use futures::task::Poll;
+        use futures_test::task::noop_context;
 
         let mut cx = noop_context();
         loop {
@@ -18,8 +18,8 @@ mod util {
 #[test]
 fn lines() {
     use futures::executor::block_on;
-    use futures::stream::StreamExt;
     use futures::io::{AsyncBufReadExt, Cursor};
+    use futures::stream::StreamExt;
 
     macro_rules! block_on_next {
         ($expr:expr) => {
@@ -41,8 +41,8 @@ fn lines() {
 
 #[test]
 fn maybe_pending() {
-    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures::io::AsyncBufReadExt;
+    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures_test::io::AsyncReadTestExt;
 
     use util::run;

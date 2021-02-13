@@ -6,7 +6,9 @@ fn smoke() {
     let mut counter = 0;
 
     {
-        let work = future::ready::<i32>(40).inspect(|val| { counter += *val; });
+        let work = future::ready::<i32>(40).inspect(|val| {
+            counter += *val;
+        });
         assert_eq!(block_on(work), 40);
     }
 

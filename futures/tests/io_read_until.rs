@@ -26,8 +26,8 @@ fn maybe_pending() {
 
     fn run<F: Future + Unpin>(mut f: F) -> F::Output {
         use futures::future::FutureExt;
-        use futures_test::task::noop_context;
         use futures::task::Poll;
+        use futures_test::task::noop_context;
 
         let mut cx = noop_context();
         loop {
@@ -37,8 +37,8 @@ fn maybe_pending() {
         }
     }
 
-    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures::io::AsyncBufReadExt;
+    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures_test::io::AsyncReadTestExt;
 
     let mut buf = b"12".interleave_pending();

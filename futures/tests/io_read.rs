@@ -18,7 +18,7 @@ mod mock_reader {
         fn poll_read(
             self: Pin<&mut Self>,
             _cx: &mut Context<'_>,
-            buf: &mut [u8]
+            buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
             (self.get_mut().fun)(buf)
         }

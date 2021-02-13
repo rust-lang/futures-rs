@@ -21,14 +21,14 @@ fn read_to_string() {
 #[test]
 fn interleave_pending() {
     use futures::future::Future;
-    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures::io::AsyncReadExt;
+    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures_test::io::AsyncReadTestExt;
 
     fn run<F: Future + Unpin>(mut f: F) -> F::Output {
         use futures::future::FutureExt;
-        use futures_test::task::noop_context;
         use futures::task::Poll;
+        use futures_test::task::noop_context;
 
         let mut cx = noop_context();
         loop {

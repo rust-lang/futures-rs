@@ -1,8 +1,8 @@
 #[test]
 fn abortable_works() {
     use futures::channel::oneshot;
-    use futures::future::{abortable, Aborted};
     use futures::executor::block_on;
+    use futures::future::{abortable, Aborted};
 
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (abortable_rx, abort_handle) = abortable(a_rx);
@@ -34,8 +34,8 @@ fn abortable_awakens() {
 #[test]
 fn abortable_resolves() {
     use futures::channel::oneshot;
-    use futures::future::abortable;
     use futures::executor::block_on;
+    use futures::future::abortable;
     let (tx, a_rx) = oneshot::channel::<()>();
     let (abortable_rx, _abort_handle) = abortable(a_rx);
 

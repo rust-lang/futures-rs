@@ -4,7 +4,7 @@ fn test_into_async_read() {
     use futures::io::AsyncRead;
     use futures::stream::{self, TryStreamExt};
     use futures::task::Poll;
-    use futures_test::{task::noop_context, stream::StreamTestExt};
+    use futures_test::{stream::StreamTestExt, task::noop_context};
 
     macro_rules! assert_read {
         ($reader:expr, $buf:expr, $item:expr) => {
@@ -57,7 +57,7 @@ fn test_into_async_bufread() {
     use futures::io::AsyncBufRead;
     use futures::stream::{self, TryStreamExt};
     use futures::task::Poll;
-    use futures_test::{task::noop_context, stream::StreamTestExt};
+    use futures_test::{stream::StreamTestExt, task::noop_context};
 
     macro_rules! assert_fill_buf {
         ($reader:expr, $buf:expr) => {

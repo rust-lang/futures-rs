@@ -8,7 +8,7 @@ fn read_exact() {
 
     let res = block_on(reader.read_exact(&mut out)); // read 3 bytes out
     assert!(res.is_ok());
-    assert_eq!(out, [1,2,3]);
+    assert_eq!(out, [1, 2, 3]);
     assert_eq!(reader.len(), 2);
 
     let res = block_on(reader.read_exact(&mut out)); // read another 3 bytes, but only 2 bytes left

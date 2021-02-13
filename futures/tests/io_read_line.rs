@@ -37,8 +37,8 @@ fn maybe_pending() {
         }
     }
 
-    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures::io::AsyncBufReadExt;
+    use futures::stream::{self, StreamExt, TryStreamExt};
     use futures_test::io::AsyncReadTestExt;
 
     let mut buf = b"12".interleave_pending();

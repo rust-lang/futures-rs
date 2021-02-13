@@ -3,12 +3,7 @@ fn ignore_err() {
     use futures::executor::block_on;
     use futures::future::{err, ok, select_ok};
 
-    let v = vec![
-        err(1),
-        err(2),
-        ok(3),
-        ok(4),
-    ];
+    let v = vec![err(1), err(2), ok(3), ok(4)];
 
     let (i, v) = block_on(select_ok(v)).ok().unwrap();
     assert_eq!(i, 3);
@@ -26,11 +21,7 @@ fn last_err() {
     use futures::executor::block_on;
     use futures::future::{err, ok, select_ok};
 
-    let v = vec![
-        ok(1),
-        err(2),
-        err(3),
-    ];
+    let v = vec![ok(1), err(2), err(3)];
 
     let (i, v) = block_on(select_ok(v)).ok().unwrap();
     assert_eq!(i, 1);
