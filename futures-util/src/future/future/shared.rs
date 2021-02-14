@@ -126,6 +126,32 @@ where
         }
         None
     }
+
+    /// Gets the number of strong pointers to this allocation.
+    ///
+    /// Returns [`None`] if it has already been polled to completion.
+    ///
+    /// # Safety
+    ///
+    /// This method by itself is safe, but using it correctly requires extra care. Another thread
+    /// can change the strong count at any time, including potentially between calling this method
+    /// and acting on the result.
+    pub fn strong_count(&self) -> Option<usize> {
+        self.inner.as_ref().map(|arc| Arc::strong_count(arc))
+    }
+
+    /// Gets the number of weak pointers to this allocation.
+    ///
+    /// Returns [`None`] if it has already been polled to completion.
+    ///
+    /// # Safety
+    ///
+    /// This method by itself is safe, but using it correctly requires extra care. Another thread
+    /// can change the weak count at any time, including potentially between calling this method
+    /// and acting on the result.
+    pub fn weak_count(&self) -> Option<usize> {
+        self.inner.as_ref().map(|arc| Arc::weak_count(arc))
+    }
 }
 
 impl<Fut> Inner<Fut>
@@ -343,8 +369,7 @@ impl ArcWake for Notifier {
     }
 }
 
-impl<Fut: Future> WeakShared<Fut>
-{
+impl<Fut: Future> WeakShared<Fut> {
     /// Attempts to upgrade this [`WeakShared`] into a [`Shared`].
     ///
     /// Returns [`None`] if all clones of the [`Shared`] have been dropped or polled
@@ -354,5 +379,15 @@ impl<Fut: Future> WeakShared<Fut>
             inner: Some(self.0.upgrade()?),
             waker_key: NULL_WAKER_KEY,
         })
+    }
+
+    /// Gets the number of strong pointers to this allocation.
+    pub fn strong_count(&self) -> usize {
+        Weak::strong_count(&self.0)
+    }
+
+    /// Gets an approximation of the number of weak pointers pointing to this allocation.
+    pub fn weak_count(&self) -> usize {
+        Weak::weak_count(&self.0)
     }
 }
