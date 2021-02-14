@@ -40,7 +40,7 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// 
 /// // These two futures have different types even though their outputs have the same type.
 /// let future1 = async {
-///     let () = future::pending().await; // will never finish
+///     future::pending::<()>().await; // will never finish
 ///     1
 /// };
 /// let future2 = async { 
