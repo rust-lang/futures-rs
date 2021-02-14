@@ -52,10 +52,10 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// pin_mut!(future2);
 ///
 /// let value = match future::select(future1, future2).await {
-///     Either::Left((value1, _)) => value1, // `value1` is resolved from `future1`
-///     // `_` represents `future2`
+///     Either::Left((value1, _)) => value1,  // `value1` is resolved from `future1`
+///                                           // `_` represents `future2`
 ///     Either::Right((value2, _)) => value2, // `value2` is resolved from `future2`
-///     // `_` represents `future1`
+///                                           // `_` represents `future1`
 /// };
 ///
 /// assert!(value == 2);
