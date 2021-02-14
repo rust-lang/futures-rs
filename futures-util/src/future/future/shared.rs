@@ -126,6 +126,32 @@ where
         }
         None
     }
+
+    /// Gets the number of strong pointers to this allocation.
+    ///
+    /// Returns [`None`] if it has already been polled to completion.
+    ///
+    /// # Safety
+    ///
+    /// This method by itself is safe, but using it correctly requires extra care. Another thread
+    /// can change the strong count at any time, including potentially between calling this method
+    /// and acting on the result.
+    pub fn strong_count(&self) -> Option<usize> {
+        self.inner.as_ref().map(|arc| Arc::strong_count(arc))
+    }
+
+    /// Gets the number of weak pointers to this allocation.
+    ///
+    /// Returns [`None`] if it has already been polled to completion.
+    ///
+    /// # Safety
+    ///
+    /// This method by itself is safe, but using it correctly requires extra care. Another thread
+    /// can change the weak count at any time, including potentially between calling this method
+    /// and acting on the result.
+    pub fn weak_count(&self) -> Option<usize> {
+        self.inner.as_ref().map(|arc| Arc::weak_count(arc))
+    }
 }
 
 impl<Fut> Inner<Fut>
