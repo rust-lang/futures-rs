@@ -1,4 +1,4 @@
-# 0.3.12 - 2021-02-20
+# 0.3.13 - 2021-02-20
 - Mitigated starvation issues in `FuturesUnordered` (#2333)
 - Fixed race with dropping `mpsc::Receiver` (#2304)
 - Added `Shared::{strong_count, weak_count}` (#2346)
