@@ -1,3 +1,10 @@
+use futures::future::Future;
+use futures::stream::{FuturesUnordered, StreamExt};
+use futures::task::{Context, Poll};
+use futures_test::task::noop_context;
+use std::iter::FromIterator;
+use std::pin::Pin;
+
 #[test]
 fn is_terminated() {
     use futures::future;
@@ -270,12 +277,13 @@ fn futures_not_moved_after_poll() {
     use futures::future;
     use futures::stream::FuturesUnordered;
     use futures_test::future::FutureTestExt;
-    use futures_test::{assert_stream_done, assert_stream_next};
+    use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
 
     // Future that will be ready after being polled twice,
     // asserting that it does not move.
     let fut = future::ready(()).pending_once().assert_unmoved();
     let mut stream = vec![fut; 3].into_iter().collect::<FuturesUnordered<_>>();
+    assert_stream_pending!(stream);
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
@@ -325,4 +333,38 @@ fn len_valid_during_out_of_order_completion() {
     a_tx.send(7).unwrap();
     assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(7))));
     assert_eq!(stream.len(), 0);
+}
+
+#[test]
+fn polled_only_once_at_most_per_iteration() {
+    #[derive(Debug, Clone, Copy, Default)]
+    struct F {
+        polled: bool,
+    }
+
+    impl Future for F {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, _: &mut Context) -> Poll<Self::Output> {
+            if self.polled {
+                panic!("polled twice")
+            } else {
+                self.polled = true;
+                Poll::Pending
+            }
+        }
+    }
+
+    let cx = &mut noop_context();
+
+    let mut tasks = FuturesUnordered::from_iter(vec![F::default(); 10]);
+    assert!(tasks.poll_next_unpin(cx).is_pending());
+    assert_eq!(10, tasks.iter().filter(|f| f.polled).count());
+
+    let mut tasks = FuturesUnordered::from_iter(vec![F::default(); 33]);
+    assert!(tasks.poll_next_unpin(cx).is_pending());
+    assert_eq!(33, tasks.iter().filter(|f| f.polled).count());
+
+    let mut tasks = FuturesUnordered::<F>::new();
+    assert_eq!(Poll::Ready(None), tasks.poll_next_unpin(cx));
 }
