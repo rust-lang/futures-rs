@@ -1,3 +1,10 @@
+# 0.3.12 - 2021-02-20
+- Mitigated starvation issues in `FuturesUnordered` (#2333)
+- Fixed race with dropping `mpsc::Receiver` (#2304)
+- Added `Shared::{strong_count, weak_count}` (#2346)
+- Added `no_std` support for `task::noop_waker_ref` (#2332)
+- Implemented `Stream::size_hint` for `Either` (#2325)
+
 # 0.3.12 - 2021-01-15
 * Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
 
