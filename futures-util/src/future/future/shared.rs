@@ -313,10 +313,8 @@ where
         // Wake all tasks and drop the slab
         let mut wakers_guard = inner.notifier.wakers.lock().unwrap();
         let mut wakers = wakers_guard.take().unwrap();
-        for opt_waker in wakers.drain() {
-            if let Some(waker) = opt_waker {
-                waker.wake();
-            }
+        for waker in wakers.drain().flatten() {
+            waker.wake();
         }
 
         drop(_reset); // Make borrow checker happy
