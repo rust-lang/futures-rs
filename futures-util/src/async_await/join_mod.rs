@@ -8,7 +8,7 @@ macro_rules! document_join_macro {
         /// of all results once complete.
         ///
         /// While `join!(a, b)` is similar to `(a.await, b.await)`,
-        /// `join!` polls both futures concurrently and therefore is more efficent.
+        /// `join!` polls both futures concurrently and therefore is more efficient.
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
         /// It is also gated behind the `async-await` feature of this library, which is
