@@ -1,3 +1,5 @@
+#![cfg(feature = "compat")]
+
 //! Assert Send/Sync/Unpin for all public types.
 
 use futures::{
