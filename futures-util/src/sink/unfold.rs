@@ -1,4 +1,5 @@
 use super::assert_sink;
+use crate::fns::FnMut2;
 use crate::unfold_state::UnfoldState;
 use core::{future::Future, pin::Pin};
 use futures_core::ready;
@@ -47,9 +48,41 @@ where
     })
 }
 
+/// See [`unfold`].
+///
+/// # Examples
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures::sink::{self, SinkExt};
+///
+/// let unfold = sink::unfold_fns(0, |mut sum, i: i32| {
+///     async move {
+///         sum += i;
+///         eprintln!("{}", i);
+///         Ok::<_, futures::never::Never>(sum)
+///     }
+/// });
+/// futures::pin_mut!(unfold);
+/// unfold.send(5).await?;
+/// # Ok::<(), futures::never::Never>(()) }).unwrap();
+/// ```
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub fn unfold_fns<T, F, R, Item, E>(init: T, function: F) -> Unfold<T, F, R>
+where
+    F: FnMut2<T, Item, Output = R>,
+    R: Future<Output = Result<T, E>>,
+{
+    assert_sink::<Item, E, _>(Unfold {
+        function,
+        state: UnfoldState::Value { value: init },
+    })
+}
+
 impl<T, F, R, Item, E> Sink<Item> for Unfold<T, F, R>
 where
-    F: FnMut(T, Item) -> R,
+    F: FnMut2<T, Item, Output = R>,
     R: Future<Output = Result<T, E>>,
 {
     type Error = E;
@@ -61,7 +94,7 @@ where
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         let mut this = self.project();
         let future = match this.state.as_mut().take_value() {
-            Some(value) => (this.function)(value, item),
+            Some(value) => this.function.call_mut(value, item),
             None => panic!("start_send called without poll_ready being called first"),
         };
         this.state.set(UnfoldState::Future { future });

@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -42,10 +43,11 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> TryTakeWhile<St, Fut, F>
 where
     St: TryStream,
-    F: FnMut(&St::Ok) -> Fut,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
     Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
@@ -61,10 +63,11 @@ where
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for TryTakeWhile<St, Fut, F>
 where
     St: TryStream,
-    F: FnMut(&St::Ok) -> Fut,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
     Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     type Item = Result<St::Ok, St::Error>;
@@ -89,7 +92,7 @@ where
                     break None;
                 }
             } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                this.pending_fut.set(Some((this.f)(&item)));
+                this.pending_fut.set(Some(this.f.call_mut(&item)));
                 *this.pending_item = Some(item);
             } else {
                 break None;
@@ -112,10 +115,11 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for TryTakeWhile<St, Fut, F>
 where
     St: TryStream + FusedStream,
-    F: FnMut(&St::Ok) -> Fut,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
     Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {

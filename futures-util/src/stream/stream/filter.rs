@@ -57,10 +57,12 @@ where St: Stream,
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for Filter<St, Fut, F>
-    where St: Stream + FusedStream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream + FusedStream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
         self.pending_fut.is_none() && self.stream.is_terminated()
@@ -110,10 +112,12 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<S, Fut, F, Item> Sink<Item> for Filter<S, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    S: Stream + Sink<Item>,
+    F: for<'a> FnMut1<&'a S::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     type Error = S::Error;
 

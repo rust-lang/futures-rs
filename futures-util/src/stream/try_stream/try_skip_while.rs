@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -39,10 +40,12 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> TrySkipWhile<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self {
@@ -57,10 +60,12 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     type Item = Result<St::Ok, St::Error>;
 
@@ -85,7 +90,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
                     break item.map(Ok);
                 }
             } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                this.pending_fut.set(Some((this.f)(&item)));
+                this.pending_fut.set(Some(this.f.call_mut(&item)));
                 *this.pending_item = Some(item);
             } else {
                 break None;
@@ -104,10 +109,12 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for TrySkipWhile<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream + FusedStream,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.pending_item.is_none() && self.stream.is_terminated()

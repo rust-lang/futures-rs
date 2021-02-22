@@ -1,3 +1,4 @@
+use crate::fns::FnMut2;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -49,10 +50,11 @@ impl<St: Stream, S, Fut, F> Scan<St, S, Fut, F> {
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<B, St, S, Fut, F> Scan<St, S, Fut, F>
 where
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
+    F: for<'a> FnMut2<&'a mut S, St::Item, Output = Fut>,
     Fut: Future<Output = Option<B>>,
 {
     pub(super) fn new(stream: St, initial_state: S, f: F) -> Self {
@@ -69,10 +71,11 @@ where
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<B, St, S, Fut, F> Stream for Scan<St, S, Fut, F>
 where
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
+    F: for<'a> FnMut2<&'a mut S, St::Item, Output = Fut>,
     Fut: Future<Output = Option<B>>,
 {
     type Item = B;
@@ -96,7 +99,8 @@ where
                 break item;
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
                 let state_f = this.state_f.as_mut().unwrap();
-                this.future.set(Some((state_f.f)(&mut state_f.state, item)))
+                this.future
+                    .set(Some(state_f.f.call_mut(&mut state_f.state, item)))
             } else {
                 break None;
             }
@@ -112,10 +116,11 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<B, St, S, Fut, F> FusedStream for Scan<St, S, Fut, F>
 where
     St: FusedStream,
-    F: FnMut(&mut S, St::Item) -> Fut,
+    F: for<'a> FnMut2<&'a mut S, St::Item, Output = Fut>,
     Fut: Future<Output = Option<B>>,
 {
     fn is_terminated(&self) -> bool {

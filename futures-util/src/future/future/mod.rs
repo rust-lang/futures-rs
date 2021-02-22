@@ -8,6 +8,9 @@ use alloc::boxed::Box;
 use core::pin::Pin;
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
+#[cfg(feature = "fntraits")]
+use crate::fns::FnOnce1;
+use crate::fns::FnOnceRef1; // necessary for HRTB in `delegate_all` macro
 use crate::future::{assert_future, Either};
 use crate::never::Never;
 use crate::stream::assert_stream;
@@ -78,6 +81,7 @@ delegate_all!(
     Inspect<Fut, F>(
         map::Map<Fut, InspectFn<F>>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, inspect_fn(f))]
+    where Fut: Future, F: FnOnceRef1<Fut::Output>
 );
 
 delegate_all!(
@@ -606,5 +610,35 @@ pub trait FutureExt: Future {
             Poll::Ready(x) => Some(x),
             _ => None,
         }
+    }
+}
+
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+impl<T: ?Sized> FutureExtFns for T where T: FutureExt {}
+
+/// Like `FutureExt` but using internal Fn-traits being implementable.
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub trait FutureExtFns : FutureExt {
+    /// See [`FutureExt::map`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::future::FutureExtFns;
+    ///
+    /// let future = async { 1 };
+    /// let new_future = future.map(|x: u8| x + 3);
+    /// assert_eq!(new_future.await, 4);
+    /// # });
+    /// ```
+    fn map<U, F>(self, f: F) -> Map<Self, F>
+    where
+        F: FnOnce1<Self::Output, Output = U>,
+        Self: Sized,
+    {
+        assert_future::<U, _>(Map::new(self, f))
     }
 }

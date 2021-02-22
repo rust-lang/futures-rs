@@ -22,6 +22,10 @@ pub use self::stream::{
     Fuse, Inspect, Map, Next, Peek, Peekable, Scan, SelectNextSome, Skip, SkipWhile, StreamExt,
     StreamFuture, Take, TakeUntil, TakeWhile, Then, Unzip, Zip,
 };
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::stream::StreamExtFns;
 
 #[cfg(feature = "std")]
 pub use self::stream::CatchUnwind;
@@ -52,6 +56,10 @@ pub use self::try_stream::{
     TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
     TrySkipWhile, TryStreamExt, TryTakeWhile, TryUnfold,
 };
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::try_stream::{try_unfold_fns, TryStreamExtFns};
 
 #[cfg(feature = "io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
@@ -72,6 +80,10 @@ pub use self::repeat::{repeat, Repeat};
 
 mod repeat_with;
 pub use self::repeat_with::{repeat_with, RepeatWith};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::repeat_with::repeat_with_fns;
 
 mod empty;
 pub use self::empty::{empty, Empty};
@@ -84,12 +96,20 @@ pub use self::pending::{pending, Pending};
 
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::poll_fn::poll_fn_fns;
 
 mod select;
 pub use self::select::{select, Select};
 
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::unfold::unfold_fns;
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]

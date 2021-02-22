@@ -342,5 +342,10 @@ pub use crate::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 #[cfg(feature = "alloc")]
 pub mod lock;
 
+#[cfg(not(feature = "fntraits"))]
 mod fns;
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub mod fns;
+
 mod unfold_state;

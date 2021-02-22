@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
@@ -35,9 +36,10 @@ where
 }
 
 impl<Si, Item, U, Fut, F> With<Si, Item, U, Fut, F>
-where Si: Sink<Item>,
-      F: FnMut(U) -> Fut,
-      Fut: Future,
+where
+    Si: Sink<Item>,
+    F: FnMut1<U, Output = Fut>,
+    Fut: Future,
 {
     pub(super) fn new<E>(sink: Si, f: F) -> Self
         where
@@ -71,9 +73,10 @@ where
 
 // Forwarding impl of Stream from the underlying sink
 impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future
+where
+    S: Stream + Sink<Item>,
+    F: FnMut1<U, Output = Fut>,
+    Fut: Future,
 {
     type Item = S::Item;
 
@@ -81,10 +84,11 @@ impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
 }
 
 impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
-    where Si: Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<Item, E>>,
-          E: From<Si::Error>,
+where
+    Si: Sink<Item>,
+    F: FnMut1<U, Output = Fut>,
+    Fut: Future<Output = Result<Item, E>>,
+    E: From<Si::Error>,
 {
     delegate_access_inner!(sink, Si, ());
 
@@ -106,10 +110,11 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
 }
 
 impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
-    where Si: Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<Item, E>>,
-          E: From<Si::Error>,
+where
+    Si: Sink<Item>,
+    F: FnMut1<U, Output = Fut>,
+    Fut: Future<Output = Result<Item, E>>,
+    E: From<Si::Error>,
 {
     type Error = E;
 
@@ -129,7 +134,7 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
         let mut this = self.project();
 
         assert!(this.state.is_none());
-        this.state.set(Some((this.f)(item)));
+        this.state.set(Some(this.f.call_mut(item)));
         Ok(())
     }
 

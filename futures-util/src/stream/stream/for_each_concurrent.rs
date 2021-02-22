@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::fmt;
 use core::pin::Pin;
@@ -35,9 +36,10 @@ where
 }
 
 impl<St, Fut, F> ForEachConcurrent<St, Fut, F>
-where St: Stream,
-      F: FnMut(St::Item) -> Fut,
-      Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> Self {
         Self {
@@ -51,9 +53,10 @@ where St: Stream,
 }
 
 impl<St, Fut, F> FusedFuture for ForEachConcurrent<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_none() && self.futures.is_empty()
@@ -61,9 +64,10 @@ impl<St, Fut, F> FusedFuture for ForEachConcurrent<St, Fut, F>
 }
 
 impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     type Output = ();
 
@@ -94,7 +98,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                     this.stream.set(None);
                 }
                 if let Some(elem) = elem {
-                    this.futures.push((this.f)(elem));
+                    this.futures.push(this.f.call_mut(elem));
                 }
             }
 

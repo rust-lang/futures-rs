@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -34,9 +35,10 @@ where
 }
 
 impl<St, Fut, F> AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: TryFuture<Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
@@ -46,9 +48,10 @@ impl<St, Fut, F> AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: TryFuture<Error = St::Error>,
 {
     type Item = Result<Fut::Ok, St::Error>;
 
@@ -64,7 +67,7 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
                 this.future.set(None);
                 break Some(item);
             } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                this.future.set(Some((this.f)(item)));
+                this.future.set(Some(this.f.call_mut(item)));
             } else {
                 break None;
             }
@@ -84,9 +87,10 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: TryFuture<Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()

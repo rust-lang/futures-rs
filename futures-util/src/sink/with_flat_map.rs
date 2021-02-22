@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
@@ -39,7 +40,7 @@ where
 impl<Si, Item, U, St, F> WithFlatMap<Si, Item, U, St, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> St,
+    F: FnMut1<U, Output = St>,
     St: Stream<Item = Result<Item, Si::Error>>,
 {
     pub(super) fn new(sink: Si, f: F) -> Self {
@@ -85,7 +86,7 @@ where
 impl<S, Item, U, St, F> Stream for WithFlatMap<S, Item, U, St, F>
 where
     S: Stream + Sink<Item>,
-    F: FnMut(U) -> St,
+    F: FnMut1<U, Output = St>,
     St: Stream<Item = Result<Item, S::Error>>,
 {
     type Item = S::Item;
@@ -96,7 +97,7 @@ where
 impl<S, Item, U, St, F> FusedStream for WithFlatMap<S, Item, U, St, F>
 where
     S: FusedStream + Sink<Item>,
-    F: FnMut(U) -> St,
+    F: FnMut1<U, Output = St>,
     St: Stream<Item = Result<Item, S::Error>>,
 {
     fn is_terminated(&self) -> bool {
@@ -107,7 +108,7 @@ where
 impl<Si, Item, U, St, F> Sink<U> for WithFlatMap<Si, Item, U, St, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> St,
+    F: FnMut1<U, Output = St>,
     St: Stream<Item = Result<Item, Si::Error>>,
 {
     type Error = Si::Error;
@@ -126,7 +127,7 @@ where
         let mut this = self.project();
 
         assert!(this.stream.is_none());
-        this.stream.set(Some((this.f)(item)));
+        this.stream.set(Some(this.f.call_mut(item)));
         Ok(())
     }
 

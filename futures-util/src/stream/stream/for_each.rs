@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
@@ -32,9 +33,10 @@ where
 }
 
 impl<St, Fut, F> ForEach<St, Fut, F>
-where St: Stream,
-      F: FnMut(St::Item) -> Fut,
-      Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self {
@@ -46,9 +48,10 @@ where St: Stream,
 }
 
 impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: FusedStream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -56,9 +59,10 @@ impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
 }
 
 impl<St, Fut, F> Future for ForEach<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut1<St::Item, Output = Fut>,
+    Fut: Future<Output = ()>,
 {
     type Output = ();
 
@@ -69,7 +73,7 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
                 ready!(fut.poll(cx));
                 this.future.set(None);
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
-                this.future.set(Some((this.f)(item)));
+                this.future.set(Some(this.f.call_mut(item)));
             } else {
                 break;
             }

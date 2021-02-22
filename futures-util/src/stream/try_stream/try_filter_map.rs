@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{TryFuture};
@@ -43,9 +44,10 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
 }
 
 impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
-    where St: TryStream + FusedStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream + FusedStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut1<St::Ok, Output = Fut>,
 {
     fn is_terminated(&self) -> bool {
         self.pending.is_none() && self.stream.is_terminated()
@@ -53,9 +55,10 @@ impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
 }
 
 impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
-    where St: TryStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut1<St::Ok, Output = Fut>,
 {
     type Item = Result<T, St::Error>;
 
@@ -76,7 +79,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
                 }
             } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
                 // No item in progress, but the stream is still going
-                this.pending.set(Some((this.f)(item)));
+                this.pending.set(Some(this.f.call_mut(item)));
             } else {
                 // The stream is done
                 break None;

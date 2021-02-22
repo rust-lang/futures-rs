@@ -1,4 +1,5 @@
 use super::assert_stream;
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -68,6 +69,48 @@ where
     })
 }
 
+/// See [`try_unfold`].
+///
+/// # Example
+///
+/// ```
+/// # #[derive(Debug, PartialEq)]
+/// # struct SomeError;
+/// # futures::executor::block_on(async {
+/// use futures_util::stream::{self, TryStreamExt};
+///
+/// let stream = stream::try_unfold_fns(0, |state: i32| async move {
+///     if state < 0 {
+///         return Err(SomeError);
+///     }
+///
+///     if state <= 2 {
+///         let next_state = state + 1;
+///         let yielded = state * 2;
+///         Ok(Some((yielded, next_state)))
+///     } else {
+///         Ok(None)
+///     }
+/// });
+///
+/// let result: Result<Vec<i32>, _> = stream.try_collect().await;
+/// assert_eq!(result, Ok(vec![0, 2, 4]));
+/// # });
+/// ```
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub fn try_unfold_fns<T, F, Fut, Item>(init: T, f: F) -> TryUnfold<T, F, Fut>
+where
+    F: FnMut1<T, Output = Fut>,
+    Fut: TryFuture<Ok = Option<(Item, T)>>,
+{
+    assert_stream::<Result<Item, Fut::Error>, _>(TryUnfold {
+        f,
+        state: Some(init),
+        fut: None,
+    })
+}
+
 pin_project! {
     /// Stream for the [`try_unfold`] function.
     #[must_use = "streams do nothing unless polled"]
@@ -94,7 +137,7 @@ where
 
 impl<T, F, Fut, Item> Stream for TryUnfold<T, F, Fut>
 where
-    F: FnMut(T) -> Fut,
+    F: FnMut1<T, Output = Fut>,
     Fut: TryFuture<Ok = Option<(Item, T)>>,
 {
     type Item = Result<Item, Fut::Error>;
@@ -106,7 +149,7 @@ where
         let mut this = self.project();
 
         if let Some(state) = this.state.take() {
-            this.fut.set(Some((this.f)(state)));
+            this.fut.set(Some(this.f.call_mut(state)));
         }
 
         match this.fut.as_mut().as_pin_mut() {

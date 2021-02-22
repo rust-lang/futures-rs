@@ -1,3 +1,4 @@
+use crate::fns::FnMut2;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
@@ -35,9 +36,10 @@ where
 }
 
 impl<St, Fut, T, F> TryFold<St, Fut, T, F>
-where St: TryStream,
-      F: FnMut(T, St::Ok) -> Fut,
-      Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut2<T, St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F, t: T) -> Self {
         Self {
@@ -50,9 +52,10 @@ where St: TryStream,
 }
 
 impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut2<T, St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
@@ -60,9 +63,10 @@ impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
 }
 
 impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut2<T, St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     type Output = Result<T, St::Error>;
 
@@ -83,7 +87,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 let res = ready!(this.stream.as_mut().try_poll_next(cx));
                 let a = this.accum.take().unwrap();
                 match res {
-                    Some(Ok(item)) => this.future.set(Some((this.f)(a, item))),
+                    Some(Ok(item)) => this.future.set(Some(this.f.call_mut(a, item))),
                     Some(Err(e)) => break Err(e),
                     None => break Ok(a),
                 }

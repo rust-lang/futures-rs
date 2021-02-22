@@ -1,4 +1,5 @@
 use super::assert_future;
+use crate::fns::FnOnce1;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
@@ -38,18 +39,54 @@ pub fn lazy<F, R>(f: F) -> Lazy<F>
     assert_future::<R, _>(Lazy { f: Some(f) })
 }
 
+/// See [`lazy`].
+///
+/// # Examples
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures_util::future;
+/// use futures::task::Context;
+///
+/// let a = future::lazy_fns(|_: &mut Context<'_>| 1);
+/// assert_eq!(a.await, 1);
+///
+/// let b = future::lazy_fns(|_: &mut Context<'_>| -> i32 {
+///     panic!("oh no!")
+/// });
+/// drop(b); // closure is never run
+/// # });
+/// ```
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+pub fn lazy_fns<F, R>(f: F) -> Lazy<F>
+    where F: for<'a, 'b> FnOnce1<&'a mut Context<'b>, Output = R>,
+{
+    assert_future::<R, _>(Lazy { f: Some(f) })
+}
+
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<F, R> FusedFuture for Lazy<F>
-    where F: FnOnce(&mut Context<'_>) -> R,
+where
+    F: for<'a, 'b> FnOnce1<&'a mut Context<'b>, Output = R>,
 {
     fn is_terminated(&self) -> bool { self.f.is_none() }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<F, R> Future for Lazy<F>
-    where F: FnOnce(&mut Context<'_>) -> R,
+where
+    F: for<'a, 'b> FnOnce1<&'a mut Context<'b>, Output = R>,
 {
     type Output = R;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<R> {
-        Poll::Ready((self.f.take().expect("Lazy polled after completion"))(cx))
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(
+            self.f
+                .take()
+                .expect("Lazy polled after completion")
+                .call_once(cx),
+        )
     }
 }

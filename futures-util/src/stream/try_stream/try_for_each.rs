@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
@@ -32,9 +33,10 @@ where
 }
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self {
@@ -46,9 +48,10 @@ where St: TryStream,
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     type Output = Result<(), St::Error>;
 
@@ -60,7 +63,7 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
                 this.future.set(None);
             } else {
                 match ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                    Some(e) => this.future.set(Some((this.f)(e))),
+                    Some(e) => this.future.set(Some(this.f.call_mut(e))),
                     None => break,
                 }
             }

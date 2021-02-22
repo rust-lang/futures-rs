@@ -1,8 +1,127 @@
-use core::marker::PhantomData;
-use core::fmt::{self, Debug};
+#![cfg_attr(feature = "fntraits", doc = r#"
+Wrap `Fn`, `FnMut`, and `FnOnce` traits allowing for more concrete typed adapters.
+# This module contains
+## Fn-trait wrappers
+- [`FnOnce0`], [`FnMut0`], and [`Fn0`] traits mimicking `Fn*() -> Output`.
+- [`FnOnce1`], [`FnMut1`], and [`Fn1`] traits mimicking `Fn*(A) -> Output`.
+- [`FnOnce2`], [`FnMut2`], and [`Fn2`] traits mimicking `Fn*(A, B) -> Output`.
+## Dual adapters from other top-level modules
+The dual API using the above fn-traits is accessible in via [`future`], [`sink`], and [`stream`]
+module, analogously to the original version.
+Using the trait wrappers, for all combinators and utility functions taking closures into type
+parameters an adapted version is provided.
+This enables explicit typed versions when implementing corresponding fn-traits.
 
-pub trait FnOnce1<A> {
+# Example
+
+```
+use futures_util::fns::{FnOnce1, FnMut1, Fn1, stream::StreamExtFns};
+use futures_util::stream::{self, Stream, StreamExt};
+struct Adder(i32);
+
+impl FnOnce1<i32> for Adder {
+    type Output = i32;
+    fn call_once(self, val: i32) -> Self::Output {
+        self.0 + val
+    }
+}
+impl FnMut1<i32> for Adder {
+    fn call_mut(&mut self, val: i32) -> Self::Output {
+        self.0 + val
+    }
+}
+
+impl Fn1<i32> for Adder {
+    fn call(&self, val: i32) -> Self::Output {
+        self.0 + val
+    }
+}
+
+fn shift_stream<St>(stream: St, shift: i32) -> stream::Map<St, Adder>
+where
+    St: Stream<Item = i32>,
+{
+    StreamExtFns::map(stream, Adder(shift))
+}
+
+futures::executor::block_on(async {
+    let stream = shift_stream(stream::iter(0..4), -42);
+    assert_eq!(vec![-42, -41, -40, -39], stream.collect::<Vec<_>>().await);
+})
+```
+"#)]
+#![allow(missing_docs)]
+
+use core::fmt::{self, Debug};
+use core::marker::PhantomData;
+
+//--------------------------------------------------------------------
+// NO ARGUMENT
+//--------------------------------------------------------------------
+
+/// Like [`FnOnce`] taking no argument but implementable.
+pub trait FnOnce0 {
+    /// The returned type after the call operator is used.
     type Output;
+    /// Performs the call operation.
+    fn call_once(self) -> Self::Output;
+}
+
+impl<F, R> FnOnce0 for F
+where
+    F: FnOnce() -> R,
+{
+    type Output = R;
+    #[inline]
+    fn call_once(self) -> R {
+        self()
+    }
+}
+
+/// Like [`FnMut`] taking no argument but implementable.
+pub trait FnMut0: FnOnce0 {
+    /// Performs the call operation.
+    fn call_mut(&mut self) -> Self::Output;
+}
+
+impl<F, R> FnMut0 for F
+where
+    F: FnMut() -> R,
+{
+    #[inline]
+    fn call_mut(&mut self) -> R {
+        self()
+    }
+}
+
+// Not used, but present for completeness
+#[allow(unreachable_pub)]
+#[doc(hide)]
+/// Like [`Fn`] taking no argument but implementable.
+pub trait Fn0: FnMut0 {
+    /// Performs the call operation.
+    fn call(&self) -> Self::Output;
+}
+
+impl<F, R> Fn0 for F
+where
+    F: Fn() -> R,
+{
+    #[inline]
+    fn call(&self) -> R {
+        self()
+    }
+}
+
+//--------------------------------------------------------------------
+// SINGLE ARGUMENT
+//--------------------------------------------------------------------
+
+/// Like [`FnOnce`] taking exactly one argument but implementable.
+pub trait FnOnce1<A> {
+    /// The returned type after the call operator is used.
+    type Output;
+    /// Performs the call operation.
     fn call_once(self, arg: A) -> Self::Output;
 }
 
@@ -11,12 +130,15 @@ where
     T: FnOnce(A) -> R
 {
     type Output = R;
+    #[inline]
     fn call_once(self, arg: A) -> R {
         self(arg)
     }
 }
 
+/// Like [`FnMut`] taking exactly one argument but implementable.
 pub trait FnMut1<A>: FnOnce1<A> {
+    /// Performs the call operation.
     fn call_mut(&mut self, arg: A) -> Self::Output;
 }
 
@@ -24,6 +146,7 @@ impl<T, A, R> FnMut1<A> for T
 where
     T: FnMut(A) -> R
 {
+    #[inline]
     fn call_mut(&mut self, arg: A) -> R {
         self(arg)
     }
@@ -31,7 +154,10 @@ where
 
 // Not used, but present for completeness
 #[allow(unreachable_pub)]
+#[doc(hide)]
+/// Like [`Fn`] taking exactlyexactlyexactlyexactly one argument but implementable.
 pub trait Fn1<A>: FnMut1<A> {
+    /// Performs the call operation.
     fn call(&self, arg: A) -> Self::Output;
 }
 
@@ -39,6 +165,7 @@ impl<T, A, R> Fn1<A> for T
 where
     T: Fn(A) -> R
 {
+    #[inline]
     fn call(&self, arg: A) -> R {
         self(arg)
     }
@@ -71,6 +198,7 @@ macro_rules! trivial_fn_impls {
     }
 }
 
+#[doc(hidden)]
 pub struct OkFn<E>(PhantomData<fn(E)>);
 
 impl<E> Default for OkFn<E> {
@@ -88,6 +216,7 @@ impl<A, E> FnOnce1<A> for OkFn<E> {
 
 trivial_fn_impls!(ok_fn <T> OkFn<T> = "Ok");
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ChainFn<F, G>(F, G);
 
@@ -123,6 +252,7 @@ pub(crate) fn chain_fn<F, G>(f: F, g: G) -> ChainFn<F, G> {
     ChainFn(f, g)
 }
 
+#[doc(hidden)]
 #[derive(Default)]
 pub struct MergeResultFn;
 
@@ -137,6 +267,38 @@ impl<T> FnOnce1<Result<T, T>> for MergeResultFn {
 }
 trivial_fn_impls!(merge_result_fn <> MergeResultFn = "merge_result");
 
+//--------------------------------------
+
+// as the delgate macro fails with HRTBs use the following wrapper traits
+
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+pub trait FnOnceRef1<A>: for<'a> FnOnce1<&'a A, Output = ()> {}
+
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+impl<A, F: for<'a> FnOnce1<&'a A, Output = ()>> FnOnceRef1<A> for F {}
+
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+pub trait FnMutRef1<A>: for<'a> FnMut1<&'a A, Output = ()> + FnOnceRef1<A> {}
+
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+impl<A, F: for<'a> FnMut1<&'a A, Output = ()>> FnMutRef1<A> for F {}
+
+// Not used, but present for completeness
+#[allow(unreachable_pub)]
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+pub trait FnRef1<A>: for<'a> Fn1<&'a A, Output = ()> + FnMutRef1<A> {}
+
+#[doc(hidden)]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+impl<A, F: for<'a> Fn1<&'a A, Output = ()>> FnRef1<A> for F {}
+
+//--------------------------------------
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct InspectFn<F>(F);
 
@@ -175,6 +337,7 @@ pub(crate) fn inspect_fn<F>(f: F) -> InspectFn<F> {
     InspectFn(f)
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MapOkFn<F>(F);
 
@@ -207,6 +370,7 @@ pub(crate) fn map_ok_fn<F>(f: F) -> MapOkFn<F> {
     MapOkFn(f)
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MapErrFn<F>(F);
 
@@ -239,6 +403,7 @@ pub(crate) fn map_err_fn<F>(f: F) -> MapErrFn<F> {
     MapErrFn(f)
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone)]
 pub struct InspectOkFn<F>(F);
 
@@ -271,6 +436,7 @@ pub(crate) fn inspect_ok_fn<F>(f: F) -> InspectOkFn<F> {
     InspectOkFn(f)
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone)]
 pub struct InspectErrFn<F>(F);
 
@@ -308,6 +474,7 @@ pub(crate) fn map_ok_or_else_fn<F, G>(f: F, g: G) -> MapOkOrElseFn<F, G> {
     chain_fn(map_ok_fn(f), chain_fn(map_err_fn(g), merge_result_fn()))
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct UnwrapOrElseFn<F>(F);
 
@@ -340,6 +507,7 @@ pub(crate) fn unwrap_or_else_fn<F>(f: F) -> UnwrapOrElseFn<F> {
     UnwrapOrElseFn(f)
 }
 
+#[doc(hidden)]
 pub struct IntoFn<T>(PhantomData<fn() -> T>);
 
 impl<T> Default for IntoFn<T> {
@@ -355,3 +523,99 @@ impl<A, T> FnOnce1<A> for IntoFn<T> where A: Into<T> {
 }
 
 trivial_fn_impls!(into_fn <T> IntoFn<T> = "Into::into");
+//--------------------------------------------------------------------
+// TWO ARGUMENTS
+//--------------------------------------------------------------------
+
+/// Like [`FnOnce`] taking exactly two arguments but implementable.
+pub trait FnOnce2<A, B> {
+    /// The returned type after the call operator is used.
+    type Output;
+    /// Performs the call operation.
+    fn call_once(self, arg1: A, arg2: B) -> Self::Output;
+}
+
+impl<F, A, B, R> FnOnce2<A, B> for F
+where
+    F: FnOnce(A, B) -> R,
+{
+    type Output = R;
+    #[inline]
+    fn call_once(self, arg1: A, arg2: B) -> R {
+        self(arg1, arg2)
+    }
+}
+
+/// Like [`FnMut`] taking exactly two arguments but implementable.
+pub trait FnMut2<A, B>: FnOnce2<A, B> {
+    /// Performs the call operation.
+    fn call_mut(&mut self, arg1: A, arg2: B) -> Self::Output;
+}
+
+impl<F, A, B, R> FnMut2<A, B> for F
+where
+    F: FnMut(A, B) -> R,
+{
+    #[inline]
+    fn call_mut(&mut self, arg1: A, arg2: B) -> R {
+        self(arg1, arg2)
+    }
+}
+
+// Not used, but present for completeness
+#[allow(unreachable_pub)]
+#[doc(hide)]
+/// Like [`Fn`] taking no argument but implementable.
+pub trait Fn2<A, B>: FnMut2<A, B> {
+    /// Performs the call operation.
+    fn call(&self, arg1: A, arg2: B) -> Self::Output;
+}
+
+impl<F, A, B, R> Fn2<A, B> for F
+where
+    F: Fn(A, B) -> R,
+{
+    #[inline]
+    fn call(&self, arg1: A, arg2: B) -> R {
+        self(arg1, arg2)
+    }
+}
+
+//--------------------------------------------------------------------
+// provide uncluttered access to dual API
+//
+// note: for readability these are hidden from doc at there source modules
+
+#[cfg(feature = "fntraits")]
+pub mod future {
+    //! Adaptations for [`future`](crate::future) module using fn-trait wrappers.
+    #[doc(inline)]
+    pub use crate::future::{
+        FutureExtFns,
+        TryFutureExtFns,
+        lazy_fns as lazy,
+        poll_fn_fns as poll_fs,
+    };
+}
+#[cfg(feature = "fntraits")]
+pub mod sink {
+    //! Adaptations for [`sink`](crate::sink) module using fn-trait wrappers.
+    #[doc(inline)]
+    pub use crate::sink::{
+        SinkExtFns as SinkExt,
+        unfold_fns as unfold,
+    };
+}
+#[cfg(feature = "fntraits")]
+pub mod stream {
+    //! Adaptations for [`stream`](crate::stream) module using fn-trait wrappers.
+    #[doc(inline)]
+    pub use crate::stream::{
+        StreamExtFns,
+        TryStreamExtFns,
+        poll_fn_fns as poll_fs,
+        repeat_with_fns as repeat_with,
+        try_unfold_fns as try_unfold,
+        unfold_fns as unfold,
+    };
+}

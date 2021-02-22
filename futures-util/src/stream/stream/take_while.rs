@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -38,10 +39,12 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> TakeWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self {
@@ -56,10 +59,12 @@ impl<St, Fut, F> TakeWhile<St, Fut, F>
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     type Item = St::Item;
 
@@ -85,7 +90,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
                     break None;
                 }
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
-                this.pending_fut.set(Some((this.f)(&item)));
+                this.pending_fut.set(Some(this.f.call_mut(&item)));
                 *this.pending_item = Some(item);
             } else {
                 break None;
@@ -108,10 +113,12 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for TakeWhile<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: FusedStream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
         self.done_taking || self.pending_item.is_none() && self.stream.is_terminated()

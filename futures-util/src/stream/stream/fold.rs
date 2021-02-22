@@ -1,3 +1,4 @@
+use crate::fns::FnMut2;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
@@ -35,9 +36,10 @@ where
 }
 
 impl<St, Fut, T, F> Fold<St, Fut, T, F>
-where St: Stream,
-      F: FnMut(T, St::Item) -> Fut,
-      Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut2<T, St::Item, Output = Fut>,
+    Fut: Future<Output = T>,
 {
     pub(super) fn new(stream: St, f: F, t: T) -> Self {
         Self {
@@ -50,9 +52,10 @@ where St: Stream,
 }
 
 impl<St, Fut, T, F> FusedFuture for Fold<St, Fut, T, F>
-    where St: Stream,
-          F: FnMut(T, St::Item) -> Fut,
-          Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut2<T, St::Item, Output = Fut>,
+    Fut: Future<Output = T>,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
@@ -60,9 +63,10 @@ impl<St, Fut, T, F> FusedFuture for Fold<St, Fut, T, F>
 }
 
 impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
-    where St: Stream,
-          F: FnMut(T, St::Item) -> Fut,
-          Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut2<T, St::Item, Output = Fut>,
+    Fut: Future<Output = T>,
 {
     type Output = T;
 
@@ -78,7 +82,7 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
                 let res = ready!(this.stream.as_mut().poll_next(cx));
                 let a = this.accum.take().unwrap();
                 if let Some(item) = res {
-                    this.future.set(Some((this.f)(a, item)));
+                    this.future.set(Some(this.f.call_mut(a, item)));
                 } else {
                     break a;
                 }

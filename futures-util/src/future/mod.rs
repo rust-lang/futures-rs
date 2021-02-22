@@ -23,6 +23,10 @@ mod future;
 pub use self::future::{
     Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, NeverError, Then, UnitError, MapInto,
 };
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::future::FutureExtFns;
 
 #[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
 pub use self::future::FlattenStream;
@@ -43,6 +47,10 @@ pub use self::try_future::{
     AndThen, ErrInto, OkInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, OrElse, TryFlattenStream,
     TryFutureExt, UnwrapOrElse, MapOkOrElse, TryFlatten,
 };
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::try_future::TryFutureExtFns;
 
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
@@ -52,6 +60,10 @@ pub use self::try_future::FlattenSink;
 
 mod lazy;
 pub use self::lazy::{lazy, Lazy};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use lazy::lazy_fns;
 
 mod pending;
 pub use self::pending::{pending, Pending};
@@ -67,6 +79,10 @@ pub use self::option::OptionFuture;
 
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use poll_fn::poll_fn_fns;
 
 mod ready;
 pub use self::ready::{err, ok, ready, Ready};

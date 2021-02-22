@@ -16,9 +16,12 @@ use futures_sink::Sink;
 
 use crate::fns::{
     inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, map_ok_or_else_fn,
-    unwrap_or_else_fn, InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn,
-    UnwrapOrElseFn,
+    unwrap_or_else_fn, InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn,
+    MapOkOrElseFn, UnwrapOrElseFn
 };
+#[cfg(feature = "fntraits")]
+use crate::fns::FnOnce1;
+use crate::fns::FnOnceRef1;  // necessary for HRTB in `delegate_all` macro
 use crate::future::{assert_future, Inspect, Map};
 use crate::stream::assert_stream;
 
@@ -91,6 +94,7 @@ delegate_all!(
     InspectOk<Fut, F>(
         Inspect<IntoFuture<Fut>, InspectOkFn<F>>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_ok_fn(f))]
+    where Fut: TryFuture, F: FnOnceRef1<Fut::Ok>
 );
 
 delegate_all!(
@@ -98,6 +102,7 @@ delegate_all!(
     InspectErr<Fut, F>(
         Inspect<IntoFuture<Fut>, InspectErrFn<F>>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_err_fn(f))]
+    where Fut: TryFuture, F: FnOnceRef1<Fut::Error>
 );
 
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -615,5 +620,244 @@ pub trait TryFutureExt: TryFuture {
         Self: Unpin,
     {
         Pin::new(self).try_poll(cx)
+    }
+}
+
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+impl<T: ?Sized> TryFutureExtFns for T where T: TryFutureExt {}
+
+/// Like `TryFutureExt` but using internal Fn-traits being implementable.
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub trait TryFutureExtFns: TryFutureExt {
+    /// See [`TryFutureExt::map_ok`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(1) };
+    /// let future = future.map_ok(|x: i32| x + 3);
+    /// assert_eq!(future.await, Ok(4));
+    /// # });
+    /// ```
+    ///
+    /// Calling [`map_ok`](TryFutureExtFns::map_ok) on an errored future has no
+    /// effect:
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Err::<i32, i32>(1) };
+    /// let future = future.map_ok(|x: i32| x + 3);
+    /// assert_eq!(future.await, Err(1));
+    /// # });
+    /// ```
+    fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
+    where
+        F: FnOnce1<Self::Ok, Output = T>,
+        Self: Sized,
+    {
+        assert_future::<Result<T, Self::Error>, _>(MapOk::new(self, f))
+    }
+
+    /// See [`TryFutureExt::map_ok_or_else`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(5) };
+    /// let future = future.map_ok_or_else(|x: i32| x * 2, |x: i32| x + 3);
+    /// assert_eq!(future.await, 8);
+    ///
+    /// let future = async { Err::<i32, i32>(5) };
+    /// let future = future.map_ok_or_else(|x: i32| x * 2, |x: i32| x + 3);
+    /// assert_eq!(future.await, 10);
+    /// # });
+    /// ```
+    ///
+    fn map_ok_or_else<T, E, F>(self, e: E, f: F) -> MapOkOrElse<Self, F, E>
+    where
+        F: FnOnce1<Self::Ok, Output = T>,
+        E: FnOnce1<Self::Error, Output = T>,
+        Self: Sized,
+    {
+        assert_future::<T, _>(MapOkOrElse::new(self, f, e))
+    }
+
+    /// See [`TryFutureExt::map_err`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Err::<i32, i32>(1) };
+    /// let future = future.map_err(|x: i32| x + 3);
+    /// assert_eq!(future.await, Err(4));
+    /// # });
+    /// ```
+    ///
+    /// Calling [`map_err`](TryFutureExtFns::map_err) on a successful future has
+    /// no effect:
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(1) };
+    /// let future = future.map_err(|x: i32| x + 3);
+    /// assert_eq!(future.await, Ok(1));
+    /// # });
+    /// ```
+    fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
+    where
+        F: FnOnce1<Self::Error, Output = E>,
+        Self: Sized,
+    {
+        assert_future::<Result<Self::Ok, E>, _>(MapErr::new(self, f))
+    }
+
+    /// See [`TryFutureExt::and_then`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(1) };
+    /// let future = future.and_then(|x: i32| async move { Ok::<i32, i32>(x + 3) });
+    /// assert_eq!(future.await, Ok(4));
+    /// # });
+    /// ```
+    ///
+    /// Calling [`and_then`](TryFutureExt::and_then) on an errored future has no
+    /// effect:
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Err::<i32, i32>(1) };
+    /// let future = future.and_then(|x: i32| async move { Err::<i32, i32>(x + 3) });
+    /// assert_eq!(future.await, Err(1));
+    /// # });
+    /// ```
+    fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
+    where
+        F: FnOnce1<Self::Ok, Output = Fut>,
+        Fut: TryFuture<Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_future::<Result<Fut::Ok, Fut::Error>, _>(AndThen::new(self, f))
+    }
+
+    /// See [`TryFutureExt::or_else`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Err::<i32, i32>(1) };
+    /// let future = future.or_else(|x: i32| async move { Err::<i32, i32>(x + 3) });
+    /// assert_eq!(future.await, Err(4));
+    /// # });
+    /// ```
+    ///
+    /// Calling [`or_else`](TryFutureExtFns::or_else) on a successful future has
+    /// no effect:
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Ok::<i32, i32>(1) };
+    /// let future = future.or_else(|x: i32| async move { Ok::<i32, i32>(x + 3) });
+    /// assert_eq!(future.await, Ok(1));
+    /// # });
+    /// ```
+    fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
+    where
+        F: FnOnce1<Self::Error, Output = Fut>,
+        Fut: TryFuture<Ok = Self::Ok>,
+        Self: Sized,
+    {
+        assert_future::<Result<Fut::Ok, Fut::Error>, _>(OrElse::new(self, f))
+    }
+
+    /// See [`TryFutureExt::inspect_ok`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future::TryFutureExtFns;
+    ///
+    /// let future = async { Ok::<_, ()>(1) };
+    /// let new_future = future.inspect_ok(|x: &i32| println!("about to resolve: {}", x));
+    /// assert_eq!(new_future.await, Ok(1));
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
+    where
+        F: for<'a> FnOnce1<&'a Self::Ok, Output = ()>,
+        Self: Sized,
+    {
+        assert_future::<Result<Self::Ok, Self::Error>, _>(InspectOk::new(self, f))
+    }
+
+    /// See [`TryFutureExt::inspect_err`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// let future = async { Err::<(), _>(1) };
+    /// let new_future = future.inspect_err(|x: &i32| println!("about to error: {}", x));
+    /// assert_eq!(new_future.await, Err(1));
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+    where
+        F: for<'a> FnOnce1<&'a Self::Error, Output = ()>,
+        Self: Sized,
+    {
+        assert_future::<Result<Self::Ok, Self::Error>, _>(InspectErr::new(self, f))
+    }
+
+    /// See [`TryFutureExt::unwrap_or_else`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures_util::future::TryFutureExtFns;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = async { Err::<(), &str>("Boom!") };
+    /// let future = future.unwrap_or_else(|_: &str| ());
+    /// assert_eq!(future.await, ());
+    /// # });
+    /// ```
+    fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce1<Self::Error, Output = Self::Ok>,
+    {
+        assert_future::<Self::Ok, _>(UnwrapOrElse::new(self, f))
     }
 }

@@ -11,9 +11,10 @@ use futures_core::{
     stream::TryStream,
     task::{Context, Poll},
 };
-use crate::fns::{
-    InspectOkFn, inspect_ok_fn, InspectErrFn, inspect_err_fn, MapErrFn, map_err_fn, IntoFn, into_fn, MapOkFn, map_ok_fn,
-};
+use crate::fns::{InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn};
+#[cfg(feature = "fntraits")]
+use crate::fns::{FnMut1, FnMut2};
+use crate::fns::FnMutRef1; // necessary for HRTB in `delegate_all` macro
 use crate::future::assert_future;
 use crate::stream::{Map, Inspect};
 use crate::stream::assert_stream;
@@ -34,6 +35,7 @@ delegate_all!(
     InspectOk<St, F>(
         Inspect<IntoStream<St>, InspectOkFn<F>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_ok_fn(f))]
+    where St: TryStream, F: FnMutRef1<St::Ok>
 );
 
 delegate_all!(
@@ -41,6 +43,7 @@ delegate_all!(
     InspectErr<St, F>(
         Inspect<IntoStream<St>, InspectErrFn<F>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| Inspect::new(IntoStream::new(x), inspect_err_fn(f))]
+    where St: TryStream, F: FnMutRef1<St::Error>
 );
 
 mod into_stream;
@@ -100,6 +103,10 @@ pub use self::try_fold::TryFold;
 mod try_unfold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_unfold::{try_unfold, TryUnfold};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_unfold::try_unfold_fns;
 
 mod try_skip_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -998,5 +1005,336 @@ pub trait TryStreamExt: TryStream {
         Self::Ok: AsRef<[u8]>,
     {
         crate::io::assert_read(IntoAsyncRead::new(self))
+    }
+}
+
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+impl<S: ?Sized> TryStreamExtFns for S where S: TryStream {}
+
+/// Like `TryStreamExt` but using internal Fn-traits being implementable.
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub trait TryStreamExtFns: TryStreamExt {
+    /// See [`TryStreamExt::map_ok`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, TryStreamExt, TryStreamExtFns};
+    ///
+    /// let mut stream = TryStreamExtFns::map_ok(
+    ///     stream::iter(vec![Ok(5_u32), Err(0)]),
+    ///     |x: u32| x + 2,
+    /// );
+    ///
+    /// assert_eq!(stream.try_next().await, Ok(Some(7)));
+    /// assert_eq!(stream.try_next().await, Err(0));
+    /// # })
+    /// ```
+    fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
+    where
+        Self: Sized,
+        F: FnMut1<Self::Ok, Output = T>,
+    {
+        assert_stream::<Result<T, Self::Error>, _>(MapOk::new(self, f))
+    }
+
+    /// See [`TryStreamExt::map_err`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, TryStreamExt, TryStreamExtFns};
+    ///
+    /// let mut stream = TryStreamExtFns::map_err(
+    ///     stream::iter(vec![Ok(5), Err(0_u32)]),
+    ///     |x: u32| x + 2,
+    /// );
+    ///
+    /// assert_eq!(stream.try_next().await, Ok(Some(5)));
+    /// assert_eq!(stream.try_next().await, Err(2));
+    /// # })
+    /// ```
+    fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+        F: FnMut1<Self::Error, Output = E>,
+    {
+        assert_stream::<Result<Self::Ok, E>, _>(MapErr::new(self, f))
+    }
+
+    /// See [`TryStreamExt::and_then`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::channel::mpsc;
+    /// use futures::future;
+    /// use futures_util::stream::TryStreamExtFns;
+    ///
+    /// let (_tx, rx) = mpsc::channel::<Result<i32, ()>>(1);
+    ///
+    /// let rx = rx.and_then(|result| {
+    ///     future::ok(if result % 2 == 0 {
+    ///         Some(result)
+    ///     } else {
+    ///         None
+    ///     })
+    /// });
+    /// ```
+    fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
+    where
+        F: FnMut1<Self::Ok, Output = Fut>,
+        Fut: TryFuture<Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Fut::Ok, Fut::Error>, _>(AndThen::new(self, f))
+    }
+
+    /// See [`TryStreamExt::or_else`].
+    fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
+    where
+        F: FnMut1<Self::Error, Output = Fut>,
+        Fut: TryFuture<Ok = Self::Ok>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Fut::Error>, _>(OrElse::new(self, f))
+    }
+
+    /// See [`TryStreamExt::inspect_ok`].
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Ok, Output = ()>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(InspectOk::new(self, f))
+    }
+
+    /// See [`TryStreamExt::inspect_err`].
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Error, Output = ()>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(InspectErr::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_for_each`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, TryStreamExtFns};
+    ///
+    /// let mut x = 0i32;
+    ///
+    /// {
+    ///     let fut = stream::repeat(Ok(1)).try_for_each(|item: i32| {
+    ///         x += item;
+    ///         future::ready(if x == 3 { Err(()) } else { Ok(()) })
+    ///     });
+    ///     assert_eq!(fut.await, Err(()));
+    /// }
+    ///
+    /// assert_eq!(x, 3);
+    /// # })
+    /// ```
+    fn try_for_each<Fut, F>(self, f: F) -> TryForEach<Self, Fut, F>
+    where
+        F: FnMut1<Self::Ok, Output = Fut>,
+        Fut: TryFuture<Ok = (), Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), Self::Error>, _>(TryForEach::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_skip_while`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, TryStreamExt, TryStreamExtFns};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(3), Ok(2)]);
+    /// let stream = TryStreamExtFns::try_skip_while(stream, |x: &i32| future::ready(Ok(*x < 3)));
+    ///
+    /// let output: Result<Vec<i32>, i32> = stream.try_collect().await;
+    /// assert_eq!(output, Ok(vec![3, 2]));
+    /// # })
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn try_skip_while<Fut, F>(self, f: F) -> TrySkipWhile<Self, Fut, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Ok, Output = Fut>,
+        Fut: TryFuture<Ok = bool, Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TrySkipWhile::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_take_while`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, TryStreamExt, TryStreamExtFns};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(2)]);
+    /// let stream = TryStreamExtFns::try_take_while(stream, |x: &i32| future::ready(Ok(*x < 3)));
+    ///
+    /// let output: Result<Vec<i32>, i32> = stream.try_collect().await;
+    /// assert_eq!(output, Ok(vec![1, 2]));
+    /// # })
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn try_take_while<Fut, F>(self, f: F) -> TryTakeWhile<Self, Fut, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Ok, Output = Fut>,
+        Fut: TryFuture<Ok = bool, Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TryTakeWhile::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_for_each_concurrent`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures_util::stream::{self, StreamExt, TryStreamExtFns};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (_tx3, rx3) = oneshot::channel();
+    ///
+    /// let stream = stream::iter(vec![rx1, rx2, rx3]);
+    /// let fut = stream.map(Ok).try_for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     |rx: oneshot::Receiver<()>| async move {
+    ///         let res: Result<(), oneshot::Canceled> = rx.await;
+    ///         res
+    ///     }
+    /// );
+    ///
+    /// tx1.send(()).unwrap();
+    /// // Drop the second sender so that `rx2` resolves to `Canceled`.
+    /// drop(tx2);
+    ///
+    /// // The final result is an error because the second future
+    /// // resulted in an error.
+    /// assert_eq!(Err(oneshot::Canceled), fut.await);
+    /// # })
+    /// ```
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
+    fn try_for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> TryForEachConcurrent<Self, Fut, F>
+    where
+        F: FnMut1<Self::Ok, Output = Fut>,
+        Fut: Future<Output = Result<(), Self::Error>>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), Self::Error>, _>(TryForEachConcurrent::new(
+            self,
+            limit.into(),
+            f,
+        ))
+    }
+
+    /// See [`TryStreamExt::try_filter`].
+    ///
+    /// # Examples
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, TryStreamExtFns};
+    ///
+    /// let stream = stream::iter(vec![Ok(1i32), Ok(2i32), Ok(3i32), Err("error")]);
+    /// let mut evens = stream.try_filter(|x: &i32| {
+    ///     future::ready(x % 2 == 0)
+    /// });
+    ///
+    /// assert_eq!(evens.next().await, Some(Ok(2)));
+    /// assert_eq!(evens.next().await, Some(Err("error")));
+    /// # })
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn try_filter<Fut, F>(self, f: F) -> TryFilter<Self, Fut, F>
+    where
+        Fut: Future<Output = bool>,
+        F: for<'a> FnMut1<&'a Self::Ok, Output = Fut>,
+        Self: Sized,
+    {
+        assert_stream::<Result<Self::Ok, Self::Error>, _>(TryFilter::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_filter_map`].
+    ///
+    /// # Examples
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExt, TryStreamExtFns};
+    /// use futures::pin_mut;
+    ///
+    /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
+    /// let halves = stream.try_filter_map(|x: i32| async move {
+    ///     let ret = if x % 2 == 0 { Some(x / 2) } else { None };
+    ///     Ok(ret)
+    /// });
+    ///
+    /// pin_mut!(halves);
+    /// assert_eq!(halves.next().await, Some(Ok(3)));
+    /// assert_eq!(halves.next().await, Some(Err("error")));
+    /// # })
+    /// ```
+    fn try_filter_map<Fut, F, T>(self, f: F) -> TryFilterMap<Self, Fut, F>
+    where
+        Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
+        F: FnMut1<Self::Ok, Output = Fut>,
+        Self: Sized,
+    {
+        assert_stream::<Result<T, Self::Error>, _>(TryFilterMap::new(self, f))
+    }
+
+    /// See [`TryStreamExt::try_fold`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, TryStreamExtFns};
+    ///
+    /// let number_stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2)]);
+    /// let sum = number_stream.try_fold(0, |acc: i32, x: i32| async move { Ok(acc + x) });
+    /// assert_eq!(sum.await, Ok(3));
+    ///
+    /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(1)]);
+    /// let sum = number_stream_with_err.try_fold(0, |acc: i32, x: i32| async move { Ok(acc + x) });
+    /// assert_eq!(sum.await, Err(2));
+    /// # })
+    /// ```
+    fn try_fold<T, Fut, F>(self, init: T, f: F) -> TryFold<Self, Fut, T, F>
+    where
+        F: FnMut2<T, Self::Ok, Output = Fut>,
+        Fut: TryFuture<Ok = T, Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_future::<Result<T, Self::Error>, _>(TryFold::new(self, f, init))
     }
 }

@@ -7,6 +7,8 @@
 //!   sinks.
 
 use crate::future::{assert_future, Either};
+#[cfg(feature = "fntraits")]
+use crate::fns::{FnOnce1, FnMut1};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{Stream, TryStream};
@@ -46,6 +48,10 @@ pub use self::send_all::SendAll;
 
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::unfold::unfold_fns;
 
 mod with;
 pub use self::with::With;
@@ -340,4 +346,65 @@ where
     S: Sink<T, Error = E>,
 {
     sink
+}
+
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+impl<T: ?Sized, Item> SinkExtFns<Item> for T where T: SinkExt<Item> {}
+
+/// Like `SinkExt` but using internal Fn-traits being implementable.
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub trait SinkExtFns<Item>: SinkExt<Item> {
+    /// See [`SinkExt::with`].
+    fn with<U, Fut, F, E>(self, f: F) -> With<Self, Item, U, Fut, F>
+    where
+        F: FnMut1<U, Output = Fut>,
+        Fut: Future<Output = Result<Item, E>>,
+        E: From<Self::Error>,
+        Self: Sized,
+    {
+        assert_sink::<U, E, _>(With::new(self, f))
+    }
+
+    /// See [`SinkExt::with_flat_map`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures_util::sink::{SinkExt, SinkExtFns};
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let (tx, rx) = mpsc::channel(5);
+    ///
+    /// let mut tx = SinkExtFns::with_flat_map(tx, |x: usize| {
+    ///     stream::iter(vec![Ok(42_i32); x])
+    /// });
+    ///
+    /// tx.send(5).await.unwrap();
+    /// drop(tx);
+    /// let received: Vec<i32> = rx.collect().await;
+    /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
+    /// # });
+    /// ```
+    fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, Item, U, St, F>
+    where
+        F: FnMut1<U, Output = St>,
+        St: Stream<Item = Result<Item, Self::Error>>,
+        Self: Sized,
+    {
+        assert_sink::<U, Self::Error, _>(WithFlatMap::new(self, f))
+    }
+
+    /// See [`SinkExt::sink_map_err`].
+    fn sink_map_err<E, F>(self, f: F) -> SinkMapErr<Self, F>
+    where
+        F: FnOnce1<Self::Error, Output = E>,
+        Self: Sized,
+    {
+        assert_sink::<Item, E, _>(SinkMapErr::new(self, f))
+    }
 }

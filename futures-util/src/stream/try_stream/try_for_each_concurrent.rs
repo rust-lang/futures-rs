@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::fmt;
 use core::mem;
@@ -37,9 +38,10 @@ where
 }
 
 impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: Future<Output = Result<(), St::Error>>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: Future<Output = Result<(), St::Error>>,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_none() && self.futures.is_empty()
@@ -47,9 +49,10 @@ impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F>
 }
 
 impl<St, Fut, F> TryForEachConcurrent<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: Future<Output = Result<(), St::Error>>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: Future<Output = Result<(), St::Error>>,
 {
     pub(super) fn new(stream: St, limit: Option<usize>, f: F) -> Self {
         Self {
@@ -63,9 +66,10 @@ where St: TryStream,
 }
 
 impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: Future<Output = Result<(), St::Error>>,
+where
+    St: TryStream,
+    F: FnMut1<St::Ok, Output = Fut>,
+    Fut: Future<Output = Result<(), St::Error>>,
 {
     type Output = Result<(), St::Error>;
 
@@ -101,7 +105,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
                 };
 
                 if let Some(elem) = elem {
-                    this.futures.push((this.f)(elem));
+                    this.futures.push(this.f.call_mut(elem));
                 }
             }
 

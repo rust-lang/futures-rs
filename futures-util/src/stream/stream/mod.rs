@@ -4,6 +4,8 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use crate::future::{assert_future, Either};
+#[cfg(feature = "fntraits")]
+use crate::fns::{FnMut1, FnMut2};
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -23,6 +25,7 @@ use futures_core::{
 use futures_sink::Sink;
 
 use crate::fns::{inspect_fn, InspectFn};
+use crate::fns::FnMutRef1; // necessary for HRTB in `delegate_all` macro
 
 mod chain;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -100,6 +103,7 @@ delegate_all!(
     Inspect<St, F>(
         map::Map<St, InspectFn<F>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, f: F| map::Map::new(x, inspect_fn(f))]
+    where St: Stream, F: FnMutRef1<St::Item>
 );
 
 mod map;
@@ -1468,5 +1472,317 @@ pub trait StreamExt: Stream {
         Self: Unpin + FusedStream,
     {
         assert_future::<Self::Item, _>(SelectNextSome::new(self))
+    }
+}
+
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+impl<T: ?Sized> StreamExtFns for T where T: StreamExt {}
+
+/// Like `StreamExt` but using internal Fn-traits being implementable.
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+pub trait StreamExtFns: StreamExt {
+    /// See [`StreamExt::map`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let stream = StreamExtFns::map(stream, |x: u8| x + 3);
+    ///
+    /// assert_eq!(vec![4, 5, 6], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn map<T, F>(self, f: F) -> Map<Self, F>
+    where
+        F: FnMut1<Self::Item, Output = T>,
+        Self: Sized,
+    {
+        assert_stream::<T, _>(Map::new(self, f))
+    }
+
+
+    /// See [`StreamExt::filter`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=10);
+    /// let evens = StreamExtFns::filter(stream, |x: &u32| future::ready(x % 2 == 0));
+    ///
+    /// assert_eq!(vec![2, 4, 6, 8, 10], evens.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn filter<Fut, F>(self, f: F) -> Filter<Self, Fut, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Item, Output = Fut>,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_stream::<Self::Item, _>(Filter::new(self, f))
+    }
+
+    /// See [`StreamExt::filter_map`].
+    ///
+    /// # Examples
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=10);
+    /// let evens = StreamExtFns::filter_map(stream, |x| async move {
+    ///     if x % 2 == 0 { Some(x + 1) } else { None }
+    /// });
+    ///
+    /// assert_eq!(vec![3, 5, 7, 9, 11], evens.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn filter_map<Fut, T, F>(self, f: F) -> FilterMap<Self, Fut, F>
+    where
+        F: FnMut1<Self::Item, Output = Fut>,
+        Fut: Future<Output = Option<T>>,
+        Self: Sized,
+    {
+        assert_stream::<T, _>(FilterMap::new(self, f))
+    }
+
+    /// See [`StreamExt::then`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let stream = StreamExtFns::then(stream, |x: u32| async move { x + 3 });
+    ///
+    /// assert_eq!(vec![4, 5, 6], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
+    where
+        F: FnMut1<Self::Item, Output = Fut>,
+        Fut: Future,
+        Self: Sized,
+    {
+        assert_stream::<Fut::Output, _>(Then::new(self, f))
+    }
+
+    /// See [`StreamExt::fold`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExtFns};
+    ///
+    /// let number_stream = stream::iter(0..6);
+    /// let sum = number_stream.fold(0, |acc: u32, x: u32| async move { acc + x });
+    /// assert_eq!(sum.await, 15);
+    /// # });
+    /// ```
+    fn fold<T, Fut, F>(self, init: T, f: F) -> Fold<Self, Fut, T, F>
+    where
+        F: FnMut2<T, Self::Item, Output = Fut>,
+        Fut: Future<Output = T>,
+        Self: Sized,
+    {
+        assert_future::<T, _>(Fold::new(self, f, init))
+    }
+
+    /// See [`StreamExt::flat_map`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let stream = StreamExtFns::flat_map(stream, |x: usize| stream::iter(vec![x + 3; x]));
+    ///
+    /// assert_eq!(vec![4, 5, 5, 6, 6, 6], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn flat_map<U, F>(self, f: F) -> FlatMap<Self, U, F>
+    where
+        F: FnMut1<Self::Item, Output = U>,
+        U: Stream,
+        Self: Sized,
+    {
+        assert_stream::<U::Item, _>(FlatMap::new(self, f))
+    }
+
+    /// See [`StreamExt::scan`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = StreamExtFns::scan(stream, 0, |state: &mut i32, x: i32| {
+    ///     *state += x;
+    ///     future::ready(if *state < 10 { Some(x) } else { None })
+    /// });
+    ///
+    /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn scan<S, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
+    where
+        F: for<'a> FnMut2<&'a mut S, Self::Item, Output = Fut>,
+        Fut: Future<Output = Option<B>>,
+        Self: Sized,
+    {
+        assert_stream::<B, _>(Scan::new(self, initial_state, f))
+    }
+
+    /// See [`StreamExt::skip_while`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = StreamExtFns::skip_while(stream, |x: &i32| future::ready(*x <= 5));
+    ///
+    /// assert_eq!(vec![6, 7, 8, 9, 10], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058   
+    fn skip_while<Fut, F>(self, f: F) -> SkipWhile<Self, Fut, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Item, Output = Fut>,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_stream::<Self::Item, _>(SkipWhile::new(self, f))
+    }
+
+    /// See [`StreamExt::take_while`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = StreamExtFns::take_while(stream, |x: &u32| future::ready(*x <= 5));
+    ///
+    /// assert_eq!(vec![1, 2, 3, 4, 5], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn take_while<Fut, F>(self, f: F) -> TakeWhile<Self, Fut, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Item, Output = Fut>,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_stream::<Self::Item, _>(TakeWhile::new(self, f))
+    }
+
+
+    /// See [`StreamExt::for_each`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures_util::stream::{self, StreamExt, StreamExtFns};
+    ///
+    /// let mut x = 0;
+    ///
+    /// {
+    ///     let fut = StreamExtFns::for_each(stream::repeat(1).take(3), |item: u32| {
+    ///         x += item;
+    ///         future::ready(())
+    ///     });
+    ///     fut.await;
+    /// }
+    ///
+    /// assert_eq!(x, 3);
+    /// # });
+    /// ```
+    fn for_each<Fut, F>(self, f: F) -> ForEach<Self, Fut, F>
+    where
+        F: FnMut1<Self::Item, Output = Fut>,
+        Fut: Future<Output = ()>,
+        Self: Sized,
+    {
+        assert_future::<(), _>(ForEach::new(self, f))
+    }
+
+    /// See [`StreamExt::for_each_concurrent`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures_util::stream::{self, StreamExtFns};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (tx3, rx3) = oneshot::channel();
+    ///
+    /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     |rx: oneshot::Receiver<()>| async move {
+    ///         rx.await.unwrap();
+    ///     }
+    /// );
+    /// tx1.send(()).unwrap();
+    /// tx2.send(()).unwrap();
+    /// tx3.send(()).unwrap();
+    /// fut.await;
+    /// # })
+    /// ```
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
+    fn for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> ForEachConcurrent<Self, Fut, F>
+    where
+        F: FnMut1<Self::Item, Output = Fut>,
+        Fut: Future<Output = ()>,
+        Self: Sized,
+    {
+        assert_future::<(), _>(ForEachConcurrent::new(self, limit.into(), f))
+    }
+
+    /// See [`StreamExt::inspect`].
+    #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+    where
+        F: for<'a> FnMut1<&'a Self::Item, Output = ()>,
+        Self: Sized,
+    {
+        assert_stream::<Self::Item, _>(Inspect::new(self, f))
     }
 }
