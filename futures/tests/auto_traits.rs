@@ -8,6 +8,7 @@ use futures::{
     stream::Stream,
     task::{Context, Poll},
 };
+
 use static_assertions::{assert_impl_all as assert_impl, assert_not_impl_all as assert_not_impl};
 use std::marker::PhantomPinned;
 use std::{marker::PhantomData, pin::Pin};
@@ -312,25 +313,25 @@ pub mod future {
     assert_not_impl!(Inspect<SyncFuture, *const ()>: Sync);
     assert_not_impl!(Inspect<LocalFuture, ()>: Sync);
     assert_impl!(Inspect<UnpinFuture, PhantomPinned>: Unpin);
-    assert_not_impl!(Inspect<PhantomPinned, PhantomPinned>: Unpin);
+    assert_not_impl!(Inspect<PinnedFuture, PhantomPinned>: Unpin);
 
-    assert_impl!(InspectErr<SendFuture, ()>: Send);
-    assert_not_impl!(InspectErr<SendFuture, *const ()>: Send);
-    assert_not_impl!(InspectErr<LocalFuture, ()>: Send);
-    assert_impl!(InspectErr<SyncFuture, ()>: Sync);
-    assert_not_impl!(InspectErr<SyncFuture, *const ()>: Sync);
-    assert_not_impl!(InspectErr<LocalFuture, ()>: Sync);
-    assert_impl!(InspectErr<UnpinFuture, PhantomPinned>: Unpin);
-    assert_not_impl!(InspectErr<PhantomPinned, PhantomPinned>: Unpin);
+    assert_impl!(InspectErr<SendTryFuture, ()>: Send);
+    assert_not_impl!(InspectErr<SendTryFuture, *const ()>: Send);
+    assert_not_impl!(InspectErr<LocalTryFuture, ()>: Send);
+    assert_impl!(InspectErr<SyncTryFuture, ()>: Sync);
+    assert_not_impl!(InspectErr<SyncTryFuture, *const ()>: Sync);
+    assert_not_impl!(InspectErr<LocalTryFuture, ()>: Sync);
+    assert_impl!(InspectErr<UnpinTryFuture, PhantomPinned>: Unpin);
+    assert_not_impl!(InspectErr<PinnedTryFuture, PhantomPinned>: Unpin);
 
-    assert_impl!(InspectOk<SendFuture, ()>: Send);
-    assert_not_impl!(InspectOk<SendFuture, *const ()>: Send);
-    assert_not_impl!(InspectOk<LocalFuture, ()>: Send);
-    assert_impl!(InspectOk<SyncFuture, ()>: Sync);
-    assert_not_impl!(InspectOk<SyncFuture, *const ()>: Sync);
-    assert_not_impl!(InspectOk<LocalFuture, ()>: Sync);
-    assert_impl!(InspectOk<UnpinFuture, PhantomPinned>: Unpin);
-    assert_not_impl!(InspectOk<PhantomPinned, PhantomPinned>: Unpin);
+    assert_impl!(InspectOk<SendTryFuture, ()>: Send);
+    assert_not_impl!(InspectOk<SendTryFuture, *const ()>: Send);
+    assert_not_impl!(InspectOk<LocalTryFuture, ()>: Send);
+    assert_impl!(InspectOk<SyncTryFuture, ()>: Sync);
+    assert_not_impl!(InspectOk<SyncTryFuture, *const ()>: Sync);
+    assert_not_impl!(InspectOk<LocalTryFuture, ()>: Sync);
+    assert_impl!(InspectOk<UnpinTryFuture, PhantomPinned>: Unpin);
+    assert_not_impl!(InspectOk<PinnedTryFuture, PhantomPinned>: Unpin);
 
     assert_impl!(IntoFuture<SendFuture>: Send);
     assert_not_impl!(IntoFuture<LocalFuture>: Send);
@@ -1301,32 +1302,39 @@ pub mod stream {
     assert_not_impl!(FuturesUnordered<*const ()>: Sync);
     assert_impl!(FuturesUnordered<PhantomPinned>: Unpin);
 
-    assert_impl!(Inspect<(), ()>: Send);
-    assert_not_impl!(Inspect<*const (), ()>: Send);
-    assert_not_impl!(Inspect<(), *const ()>: Send);
-    assert_impl!(Inspect<(), ()>: Sync);
-    assert_not_impl!(Inspect<*const (), ()>: Sync);
-    assert_not_impl!(Inspect<(), *const ()>: Sync);
-    assert_impl!(Inspect<(), PhantomPinned>: Unpin);
-    assert_not_impl!(Inspect<PhantomPinned, ()>: Unpin);
+    assert_impl!(Inspect<SendStream, ()>: Send);
+    assert_not_impl!(Inspect<LocalStream, ()>: Send);
+    assert_not_impl!(Inspect<SendStream, *const ()>: Send);
+    assert_impl!(Inspect<SyncStream, ()>: Sync);
+    assert_not_impl!(Inspect<SendStream, ()>: Sync);
+    assert_not_impl!(Inspect<LocalStream, ()>: Sync);
+    assert_not_impl!(Inspect<SyncStream, *const ()>: Sync);
+    assert_impl!(Inspect<SendStream, PhantomPinned>: Unpin);
+    assert_impl!(Inspect<SyncStream, PhantomPinned>: Unpin);
+    assert_impl!(Inspect<LocalStream, PhantomPinned>: Unpin);
+    assert_not_impl!(Inspect<PinnedStream, ()>: Unpin);
 
-    assert_impl!(InspectErr<(), ()>: Send);
-    assert_not_impl!(InspectErr<*const (), ()>: Send);
-    assert_not_impl!(InspectErr<(), *const ()>: Send);
-    assert_impl!(InspectErr<(), ()>: Sync);
-    assert_not_impl!(InspectErr<*const (), ()>: Sync);
-    assert_not_impl!(InspectErr<(), *const ()>: Sync);
-    assert_impl!(InspectErr<(), PhantomPinned>: Unpin);
-    assert_not_impl!(InspectErr<PhantomPinned, ()>: Unpin);
+    assert_impl!(InspectErr<SendTryStream, ()>: Send);
+    assert_not_impl!(InspectErr<LocalTryStream, ()>: Send);
+    assert_not_impl!(InspectErr<SendTryStream, *const ()>: Send);
+    assert_impl!(InspectErr<SyncTryStream, ()>: Sync);
+    assert_not_impl!(InspectErr<LocalTryStream, ()>: Sync);
+    assert_not_impl!(InspectErr<SyncTryStream, *const ()>: Sync);
+    assert_impl!(InspectErr<SendTryStream, PhantomPinned>: Unpin);
+    assert_impl!(InspectErr<SyncTryStream, PhantomPinned>: Unpin);
+    assert_impl!(InspectErr<LocalTryStream, PhantomPinned>: Unpin);
+    assert_not_impl!(InspectErr<PinnedTryStream, ()>: Unpin);
 
-    assert_impl!(InspectOk<(), ()>: Send);
-    assert_not_impl!(InspectOk<*const (), ()>: Send);
-    assert_not_impl!(InspectOk<(), *const ()>: Send);
-    assert_impl!(InspectOk<(), ()>: Sync);
-    assert_not_impl!(InspectOk<*const (), ()>: Sync);
-    assert_not_impl!(InspectOk<(), *const ()>: Sync);
-    assert_impl!(InspectOk<(), PhantomPinned>: Unpin);
-    assert_not_impl!(InspectOk<PhantomPinned, ()>: Unpin);
+    assert_impl!(InspectOk<SendTryStream, ()>: Send);
+    assert_not_impl!(InspectOk<LocalTryStream, ()>: Send);
+    assert_not_impl!(InspectOk<SendTryStream, *const ()>: Send);
+    assert_impl!(InspectOk<SyncTryStream, ()>: Sync);
+    assert_not_impl!(InspectOk<LocalTryStream, ()>: Sync);
+    assert_not_impl!(InspectOk<SyncTryStream, *const ()>: Sync);
+    assert_impl!(InspectOk<SendTryStream, PhantomPinned>: Unpin);
+    assert_impl!(InspectOk<SyncTryStream, PhantomPinned>: Unpin);
+    assert_impl!(InspectOk<LocalTryStream, PhantomPinned>: Unpin);
+    assert_not_impl!(InspectOk<PinnedTryStream, ()>: Unpin);
 
     assert_impl!(IntoAsyncRead<SendTryStream<Vec<u8>, io::Error>>: Send);
     assert_not_impl!(IntoAsyncRead<LocalTryStream<Vec<u8>, io::Error>>: Send);
