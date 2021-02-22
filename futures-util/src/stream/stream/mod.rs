@@ -795,7 +795,7 @@ pub trait StreamExt: Stream {
     /// this stream combinator will always return that the stream is done.
     ///
     /// The stopping future may return any type. Once the stream is stopped
-    /// the result of the stopping future may be aceessed with `TakeUntil::take_result()`.
+    /// the result of the stopping future may be accessed with `TakeUntil::take_result()`.
     /// The stream may also be resumed with `TakeUntil::take_future()`.
     /// See the documentation of [`TakeUntil`] for more information.
     ///

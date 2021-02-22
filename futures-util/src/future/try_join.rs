@@ -108,7 +108,7 @@ generate! {
 ///
 /// This function will return a new future which awaits both futures to
 /// complete. If successful, the returned future will finish with a tuple of
-/// both results. If unsuccesful, it will complete with the first error
+/// both results. If unsuccessful, it will complete with the first error
 /// encountered.
 ///
 /// Note that this function consumes the passed futures and returns a
