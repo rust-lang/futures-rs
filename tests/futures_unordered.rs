@@ -5,7 +5,8 @@ extern crate futures;
 use std::any::Any;
 
 use futures::sync::oneshot;
-use futures::stream::futures_unordered;
+use std::iter::FromIterator;
+use futures::stream::{futures_unordered, FuturesUnordered};
 use futures::prelude::*;
 
 mod support;
@@ -126,4 +127,41 @@ fn iter_mut_len() {
     assert!(iter_mut.next().is_some());
     assert_eq!(iter_mut.len(), 0);
     assert!(iter_mut.next().is_none());
+}
+
+#[test]
+fn polled_only_once_at_most_per_iteration() {
+    #[derive(Debug, Clone, Copy, Default)]
+    struct F {
+        polled: bool,
+    }
+
+    impl Future for F {
+        type Item = ();
+        type Error = ();
+
+        fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+            if self.polled {
+                panic!("polled twice")
+            } else {
+                self.polled = true;
+                Ok(Async::NotReady)
+            }
+        }
+    }
+
+
+    let tasks = FuturesUnordered::from_iter(vec![F::default(); 10]);
+    let mut tasks = futures::executor::spawn(tasks);
+    assert!(tasks.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert_eq!(10, tasks.get_mut().iter_mut().filter(|f| f.polled).count());
+
+    let tasks = FuturesUnordered::from_iter(vec![F::default(); 33]);
+    let mut tasks = futures::executor::spawn(tasks);
+    assert!(tasks.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert_eq!(33, tasks.get_mut().iter_mut().filter(|f| f.polled).count());
+
+    let tasks = FuturesUnordered::<F>::new();
+    let mut tasks = futures::executor::spawn(tasks);
+    assert!(tasks.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_ready());
 }
