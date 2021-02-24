@@ -14,10 +14,6 @@ composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
 
-[badges]
-travis-ci = { repository = "rust-lang-nursery/futures-rs" }
-appveyor = { repository = "rust-lang-nursery/futures-rs" }
-
 [dependencies]
 
 [features]
