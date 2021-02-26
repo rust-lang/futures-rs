@@ -15,7 +15,7 @@ use futures_core::stream::TryStream;
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
 use futures_core::{
-    future::Future,
+    future::{Future, TryFuture},
     stream::{FusedStream, Stream},
     task::{Context, Poll},
 };
@@ -149,6 +149,14 @@ mod then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::then::Then;
 
+mod try_for_each;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_for_each::TryForEach;
+
+mod try_fold;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_fold::TryFold;
+
 mod zip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::zip::Zip;
@@ -197,6 +205,12 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
+
+    #[cfg(feature = "alloc")]
+    mod try_for_each_concurrent;
+    #[cfg(feature = "alloc")]
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use self::try_for_each_concurrent::TryForEachConcurrent;
 }
 
 #[cfg(feature = "std")]
@@ -932,6 +946,143 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<(), _>(ForEachConcurrent::new(self, limit.into(), f))
+    }
+
+    /// Attempt to execute an accumulating asynchronous computation over a
+    /// stream, collecting all the values into one final result.
+    ///
+    /// This combinator will accumulate all values returned by this stream
+    /// according to the closure provided. The initial state is also provided to
+    /// this method and then is returned again by each execution of the closure.
+    /// Once the entire stream has been exhausted the returned future will
+    /// resolve to this value.
+    ///
+    /// This method is similar to [`fold`](crate::stream::StreamExt::fold), but
+    /// will exit early if an error is encountered in the provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(vec![1, 2]);
+    /// let sum = number_stream.try_fold(0, |acc, x| async move { Ok::<i32, i32>(acc + x) });
+    /// assert_eq!(sum.await, Ok(3));
+    ///
+    /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(1)]);
+    /// let sum = number_stream_with_err.try_fold(0, |acc, x| async move { Ok(acc + x?) });
+    /// assert_eq!(sum.await, Err(2));
+    /// # })
+    /// ```
+    fn try_fold<T, Fut, F>(self, init: T, f: F) -> TryFold<Self, Fut, T, F>
+    where
+        F: FnMut(T, Self::Item) -> Fut,
+        Fut: TryFuture<Ok = T>,
+        Self: Sized,
+    {
+        assert_future::<Result<T, Fut::Error>, _>(TryFold::new(self, f, init))
+    }
+
+    /// Attempts to run this stream to completion, executing the provided
+    /// asynchronous closure for each element on the stream.
+    ///
+    /// The provided closure will be called for each item this stream produces,
+    /// yielding a future. That future will then be executed to completion
+    /// before moving on to the next item.
+    ///
+    /// The returned value is a [`Future`](futures_core::future::Future) where
+    /// the [`Output`](futures_core::future::Future::Output) type is
+    /// `Result<(), Fut::Error>`. If any of the intermediate futures returns
+    /// an error, this future will return immediately with an error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let mut x = 0i32;
+    ///
+    /// {
+    ///     let fut = stream::repeat(1).try_for_each(|item| {
+    ///         x += item;
+    ///         future::ready(if x == 3 { Err(()) } else { Ok(()) })
+    ///     });
+    ///     assert_eq!(fut.await, Err(()));
+    /// }
+    ///
+    /// assert_eq!(x, 3);
+    /// # })
+    /// ```
+    fn try_for_each<Fut, F>(self, f: F) -> TryForEach<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: TryFuture<Ok = ()>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), Fut::Error>, _>(TryForEach::new(self, f))
+    }
+
+    /// Attempts to run this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream concurrently as elements become
+    /// available, exiting as soon as an error occurs.
+    ///
+    /// This is similar to
+    /// [`StreamExt::for_each_concurrent`](crate::stream::StreamExt::for_each_concurrent),
+    /// but will resolve to an error immediately if the provided closure returns
+    /// an error.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (_tx3, rx3) = oneshot::channel();
+    ///
+    /// let stream = stream::iter(vec![rx1, rx2, rx3]);
+    /// let fut = stream.try_for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     |rx| async move {
+    ///         let res: Result<(), oneshot::Canceled> = rx.await;
+    ///         res
+    ///     }
+    /// );
+    ///
+    /// tx1.send(()).unwrap();
+    /// // Drop the second sender so that `rx2` resolves to `Canceled`.
+    /// drop(tx2);
+    ///
+    /// // The final result is an error because the second future
+    /// // resulted in an error.
+    /// assert_eq!(Err(oneshot::Canceled), fut.await);
+    /// # })
+    /// ```
+    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(feature = "alloc")]
+    fn try_for_each_concurrent<Fut, F, E>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> TryForEachConcurrent<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = Result<(), E>>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), E>, _>(TryForEachConcurrent::new(
+            self,
+            limit.into(),
+            f,
+        ))
     }
 
     /// Creates a new stream of at most `n` items of the underlying stream.
