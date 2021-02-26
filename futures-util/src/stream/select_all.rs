@@ -61,7 +61,7 @@ impl<St: Stream + Unpin> SelectAll<St> {
     /// function will not call `poll` on the submitted stream. The caller must
     /// ensure that `SelectAll::poll` is called in order to receive task
     /// notifications.
-    pub fn push(&mut self, stream: St) {
+    pub fn push(&self, stream: St) {
         self.inner.push(stream.into_future());
     }
 }
@@ -119,7 +119,7 @@ pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
     where I: IntoIterator,
           I::Item: Stream + Unpin
 {
-    let mut set = SelectAll::new();
+    let set = SelectAll::new();
 
     for stream in streams {
         set.push(stream);
