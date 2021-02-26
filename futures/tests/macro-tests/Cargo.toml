@@ -6,5 +6,5 @@ edition = "2018"
 publish = false
 
 [dependencies]
-futures03 = { path = "../..", package = "futures" }
+futures04 = { path = "../..", package = "futures" }
 macro-reexport = { path = "../macro-reexport" }

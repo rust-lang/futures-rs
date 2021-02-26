@@ -1,23 +1,23 @@
 [package]
 name = "futures-test"
 edition = "2018"
-version = "0.3.13"
+version = "0.4.0-alpha.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures-test/0.3"
+documentation = "https://docs.rs/futures-test/0.4.0-alpha.0"
 description = """
 Common utilities for testing components built off futures-rs.
 """
 
 [dependencies]
-futures-core = { version = "0.3.13", path = "../futures-core", default-features = false }
-futures-task = { version = "0.3.13", path = "../futures-task", default-features = false }
+futures-core = { version = "=1.0.0-alpha.0", path = "../futures-core", default-features = false }
+futures-task = { version = "=0.4.0-alpha.0", path = "../futures-task", default-features = false }
 futures-io = { version = "0.3.13", path = "../futures-io", default-features = false }
-futures-util = { version = "0.3.13", path = "../futures-util", default-features = false }
-futures-executor = { version = "0.3.13", path = "../futures-executor", default-features = false }
-futures-sink = { version = "0.3.13", path = "../futures-sink", default-features = false }
+futures-util = { version = "=0.4.0-alpha.0", path = "../futures-util", default-features = false }
+futures-executor = { version = "=0.4.0-alpha.0", path = "../futures-executor", default-features = false }
+futures-sink = { version = "=0.4.0-alpha.0", path = "../futures-sink", default-features = false }
 pin-utils = { version = "0.1.0", default-features = false }
 pin-project = "1.0.1"
 
