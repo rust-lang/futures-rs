@@ -1,17 +1,17 @@
-use futures::future::Future;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::channel::oneshot;
+use futures::executor::{block_on, block_on_stream};
+use futures::future::{self, join, Future, FutureExt};
+use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
 use futures::task::{Context, Poll};
+use futures_test::future::FutureTestExt;
 use futures_test::task::noop_context;
+use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
 use std::iter::FromIterator;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[test]
 fn is_terminated() {
-    use futures::future;
-    use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
-    use futures::task::Poll;
-    use futures_test::task::noop_context;
-
     let mut cx = noop_context();
     let mut tasks = FuturesUnordered::new();
 
@@ -39,10 +39,6 @@ fn is_terminated() {
 
 #[test]
 fn works_1() {
-    use futures::channel::oneshot;
-    use futures::executor::block_on_stream;
-    use futures::stream::FuturesUnordered;
-
     let (a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -65,12 +61,6 @@ fn works_1() {
 
 #[test]
 fn works_2() {
-    use futures::channel::oneshot;
-    use futures::future::{join, FutureExt};
-    use futures::stream::{FuturesUnordered, StreamExt};
-    use futures::task::Poll;
-    use futures_test::task::noop_context;
-
     let (a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -94,10 +84,6 @@ fn works_2() {
 
 #[test]
 fn from_iterator() {
-    use futures::executor::block_on;
-    use futures::future;
-    use futures::stream::{FuturesUnordered, StreamExt};
-
     let stream = vec![
         future::ready::<i32>(1),
         future::ready::<i32>(2),
@@ -111,12 +97,6 @@ fn from_iterator() {
 
 #[test]
 fn finished_future() {
-    use std::marker::Unpin;
-    use futures::channel::oneshot;
-    use futures::future::{self, Future, FutureExt};
-    use futures::stream::{FuturesUnordered, StreamExt};
-    use futures_test::task::noop_context;
-
     let (_a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -142,10 +122,6 @@ fn finished_future() {
 
 #[test]
 fn iter_mut_cancel() {
-    use futures::channel::oneshot;
-    use futures::executor::block_on_stream;
-    use futures::stream::FuturesUnordered;
-
     let (a_tx, a_rx) = oneshot::channel::<i32>();
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
@@ -172,9 +148,6 @@ fn iter_mut_cancel() {
 
 #[test]
 fn iter_mut_len() {
-    use futures::future;
-    use futures::stream::FuturesUnordered;
-
     let mut stream = vec![
         future::pending::<()>(),
         future::pending::<()>(),
@@ -196,15 +169,6 @@ fn iter_mut_len() {
 
 #[test]
 fn iter_cancel() {
-    use std::marker::Unpin;
-    use std::pin::Pin;
-    use std::sync::atomic::{AtomicBool, Ordering};
-
-    use futures::executor::block_on_stream;
-    use futures::future::{self, Future, FutureExt};
-    use futures::stream::FuturesUnordered;
-    use futures::task::{Context, Poll};
-
     struct AtomicCancel<F> {
         future: F,
         cancel: AtomicBool,
@@ -224,7 +188,10 @@ fn iter_cancel() {
 
     impl<F: Future + Unpin> AtomicCancel<F> {
         fn new(future: F) -> Self {
-            Self { future, cancel: AtomicBool::new(false) }
+            Self {
+                future,
+                cancel: AtomicBool::new(false),
+            }
         }
     }
 
@@ -250,9 +217,6 @@ fn iter_cancel() {
 
 #[test]
 fn iter_len() {
-    use futures::future;
-    use futures::stream::FuturesUnordered;
-
     let stream = vec![
         future::pending::<()>(),
         future::pending::<()>(),
@@ -274,11 +238,6 @@ fn iter_len() {
 
 #[test]
 fn futures_not_moved_after_poll() {
-    use futures::future;
-    use futures::stream::FuturesUnordered;
-    use futures_test::future::FutureTestExt;
-    use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
-
     // Future that will be ready after being polled twice,
     // asserting that it does not move.
     let fut = future::ready(()).pending_once().assert_unmoved();
@@ -292,11 +251,6 @@ fn futures_not_moved_after_poll() {
 
 #[test]
 fn len_valid_during_out_of_order_completion() {
-    use futures::channel::oneshot;
-    use futures::stream::{FuturesUnordered, StreamExt};
-    use futures::task::Poll;
-    use futures_test::task::noop_context;
-
     // Complete futures out-of-order and add new futures afterwards to ensure
     // length values remain correct.
     let (a_tx, a_rx) = oneshot::channel::<i32>();
