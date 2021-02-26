@@ -42,6 +42,13 @@ pub fn select_all<I>(iter: I) -> SelectAll<I::Item>
     assert_future::<(<I::Item as Future>::Output, usize, Vec<I::Item>), _>(ret)
 }
 
+impl<Fut> SelectAll<Fut> {
+    /// Consumes this combinator, returning the underlying futures.
+    pub fn into_inner(self) -> Vec<Fut> {
+        self.inner
+    }
+}
+
 impl<Fut: Future + Unpin> Future for SelectAll<Fut> {
     type Output = (Fut::Output, usize, Vec<Fut>);
 
