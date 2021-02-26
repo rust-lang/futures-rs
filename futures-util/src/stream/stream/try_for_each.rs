@@ -2,12 +2,12 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::ready;
-use futures_core::stream::TryStream;
+use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {
-    /// Future for the [`try_for_each`](super::TryStreamExt::try_for_each) method.
+    /// Future for the [`try_for_each`](super::StreamExt::try_for_each) method.
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct TryForEach<St, Fut, F> {
         #[pin]
@@ -32,9 +32,9 @@ where
 }
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: TryFuture<Ok = (), Error = St::Error>,
+where St: Stream,
+      F: FnMut(St::Item) -> Fut,
+      Fut: TryFuture<Ok = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self {
@@ -46,11 +46,11 @@ where St: TryStream,
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Ok = (), Error = St::Error>,
+    where St: Stream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: TryFuture<Ok = ()>,
 {
-    type Output = Result<(), St::Error>;
+    type Output = Result<(), Fut::Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
@@ -59,7 +59,7 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
                 ready!(fut.try_poll(cx))?;
                 this.future.set(None);
             } else {
-                match ready!(this.stream.as_mut().try_poll_next(cx)?) {
+                match ready!(this.stream.as_mut().poll_next(cx)) {
                     Some(e) => this.future.set(Some((this.f)(e))),
                     None => break,
                 }

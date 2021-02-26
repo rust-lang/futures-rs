@@ -20,7 +20,7 @@ mod stream;
 pub use self::stream::{
     Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, Fold, ForEach,
     Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, Peekable, Scan, SelectNextSome, Skip, SkipWhile, StreamExt,
-    StreamFuture, Take, TakeUntil, TakeWhile, Then, Unzip, Zip,
+    StreamFuture, Take, TakeUntil, TakeWhile, Then, TryFold, TryForEach, Unzip, Zip,
 };
 
 #[cfg(feature = "std")]
@@ -38,7 +38,7 @@ pub use self::stream::Forward;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-pub use self::stream::{BufferUnordered, Buffered, ForEachConcurrent};
+pub use self::stream::{BufferUnordered, Buffered, ForEachConcurrent, TryForEachConcurrent};
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "sink")]
@@ -49,7 +49,7 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 mod try_stream;
 pub use self::try_stream::{
     try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext,
     TrySkipWhile, TryStreamExt, TryTakeWhile, TryUnfold,
 };
 
@@ -60,7 +60,7 @@ pub use self::try_stream::IntoAsyncRead;
 
 #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryForEachConcurrent};
+pub use self::try_stream::{TryBufferUnordered, TryBuffered};
 
 // Primitive streams
 

@@ -2,7 +2,7 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::ready;
-use futures_core::stream::TryStream;
+use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
@@ -35,9 +35,9 @@ where
 }
 
 impl<St, Fut, T, F> TryFold<St, Fut, T, F>
-where St: TryStream,
-      F: FnMut(T, St::Ok) -> Fut,
-      Fut: TryFuture<Ok = T, Error = St::Error>,
+where St: Stream,
+      F: FnMut(T, St::Item) -> Fut,
+      Fut: TryFuture<Ok = T>,
 {
     pub(super) fn new(stream: St, f: F, t: T) -> Self {
         Self {
@@ -50,9 +50,9 @@ where St: TryStream,
 }
 
 impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+    where St: Stream,
+          F: FnMut(T, St::Item) -> Fut,
+          Fut: TryFuture<Ok = T>,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
@@ -60,11 +60,11 @@ impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
 }
 
 impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+    where St: Stream,
+          F: FnMut(T, St::Item) -> Fut,
+          Fut: TryFuture<Ok = T>,
 {
-    type Output = Result<T, St::Error>;
+    type Output = Result<T, Fut::Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
@@ -80,11 +80,10 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 }
             } else if this.accum.is_some() {
                 // we're waiting on a new item from the stream
-                let res = ready!(this.stream.as_mut().try_poll_next(cx));
+                let res = ready!(this.stream.as_mut().poll_next(cx));
                 let a = this.accum.take().unwrap();
                 match res {
-                    Some(Ok(item)) => this.future.set(Some((this.f)(a, item))),
-                    Some(Err(e)) => break Err(e),
+                    Some(item) => this.future.set(Some((this.f)(a, item))),
                     None => break Ok(a),
                 }
             } else {
