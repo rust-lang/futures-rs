@@ -57,11 +57,8 @@ impl<St: Stream> Stream for Skip<St> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, upper) = self.stream.size_hint();
 
-        let lower = lower.saturating_sub(self.remaining as usize);
-        let upper = match upper {
-            Some(x) => Some(x.saturating_sub(self.remaining as usize)),
-            None => None,
-        };
+        let lower = lower.saturating_sub(self.remaining);
+        let upper = upper.map(|x| x.saturating_sub(self.remaining));
 
         (lower, upper)
     }
