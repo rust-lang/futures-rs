@@ -1020,6 +1020,11 @@ impl<T> Receiver<T> {
     /// It is not recommended to call this function from inside of a future,
     /// only when you've otherwise arranged to be notified when the channel is
     /// no longer empty.
+    ///
+    /// This function returns:
+    /// * `Ok(Some(t))` when message is fetched
+    /// * `Ok(None)` when channel is closed and no messages left in the queue
+    /// * `Err(e)` when there are no messages available, but channel is not yet closed
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {
