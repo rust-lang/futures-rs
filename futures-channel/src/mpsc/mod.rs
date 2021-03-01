@@ -1020,9 +1020,6 @@ impl<T> Receiver<T> {
     /// It is not recommended to call this function from inside of a future,
     /// only when you've otherwise arranged to be notified when the channel is
     /// no longer empty.
-    ///
-    /// This function will panic if called after `try_next` or `poll_next` has
-    /// returned `None`.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {
@@ -1033,7 +1030,10 @@ impl<T> Receiver<T> {
     }
 
     fn next_message(&mut self) -> Poll<Option<T>> {
-        let inner = self.inner.as_mut().expect("Receiver::next_message called after `None`");
+        let inner = match self.inner.as_mut() {
+            None => return Poll::Ready(None),
+            Some(inner) => inner,
+        };
         // Pop off a message
         match unsafe { inner.message_queue.pop_spin() } {
             Some(msg) => {
@@ -1173,9 +1173,6 @@ impl<T> UnboundedReceiver<T> {
     /// * `Ok(Some(t))` when message is fetched
     /// * `Ok(None)` when channel is closed and no messages left in the queue
     /// * `Err(e)` when there are no messages available, but channel is not yet closed
-    ///
-    /// This function will panic if called after `try_next` or `poll_next` has
-    /// returned `None`.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {
@@ -1186,7 +1183,10 @@ impl<T> UnboundedReceiver<T> {
     }
 
     fn next_message(&mut self) -> Poll<Option<T>> {
-        let inner = self.inner.as_mut().expect("Receiver::next_message called after `None`");
+        let inner = match self.inner.as_mut() {
+            None => return Poll::Ready(None),
+            Some(inner) => inner,
+        };
         // Pop off a message
         match unsafe { inner.message_queue.pop_spin() } {
             Some(msg) => {

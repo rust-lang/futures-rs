@@ -276,3 +276,25 @@ fn stress_try_send_as_receiver_closes() {
     bg.join()
         .expect("background thread join");
 }
+
+#[test]
+fn unbounded_try_next_after_none() {
+    let (tx, mut rx) = mpsc::unbounded::<String>();
+    // Drop the sender, close the channel.
+    drop(tx);
+    // Receive the end of channel.
+    assert_eq!(Ok(None), rx.try_next().map_err(|_| ()));
+    // None received, check we can call `try_next` again.
+    assert_eq!(Ok(None), rx.try_next().map_err(|_| ()));
+}
+
+#[test]
+fn bounded_try_next_after_none() {
+    let (tx, mut rx) = mpsc::channel::<String>(17);
+    // Drop the sender, close the channel.
+    drop(tx);
+    // Receive the end of channel.
+    assert_eq!(Ok(None), rx.try_next().map_err(|_| ()));
+    // None received, check we can call `try_next` again.
+    assert_eq!(Ok(None), rx.try_next().map_err(|_| ()));
+}
