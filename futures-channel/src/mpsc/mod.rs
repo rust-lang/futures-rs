@@ -1169,6 +1169,11 @@ impl<T> UnboundedReceiver<T> {
     /// only when you've otherwise arranged to be notified when the channel is
     /// no longer empty.
     ///
+    /// This function returns:
+    /// * `Ok(Some(t))` when message is fetched
+    /// * `Ok(None)` when channel is closed and no messages left in the queue
+    /// * `Err(e)` when there are no messages available, but channel is not yet closed
+    ///
     /// This function will panic if called after `try_next` or `poll_next` has
     /// returned `None`.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
