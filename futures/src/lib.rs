@@ -101,14 +101,14 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 compile_error!("The `read-initializer` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)]
-pub use futures_core::future::{Future, TryFuture};
+pub use futures_core::future::Future;
 #[doc(hidden)]
-pub use futures_util::future::{FutureExt, TryFutureExt};
+pub use futures_util::future::{FutureExt, TryFuture, TryFutureExt};
 
 #[doc(hidden)]
-pub use futures_core::stream::{Stream, TryStream};
+pub use futures_core::stream::Stream;
 #[doc(hidden)]
-pub use futures_util::stream::{StreamExt, TryStreamExt};
+pub use futures_util::stream::{StreamExt, TryStream, TryStreamExt};
 
 #[doc(hidden)]
 pub use futures_sink::Sink;

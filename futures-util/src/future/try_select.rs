@@ -1,7 +1,6 @@
+use crate::future::{Either, Future, TryFuture, TryFutureExt};
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use crate::future::{Either, TryFutureExt};
 
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]

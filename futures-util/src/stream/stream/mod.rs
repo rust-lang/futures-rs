@@ -3,22 +3,18 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use crate::future::{assert_future, Either};
-use crate::stream::assert_stream;
+use crate::future::{assert_future, Either, Future};
+use crate::stream::{assert_stream, FusedStream, Stream};
+#[cfg(feature = "alloc")]
+use crate::stream::{BoxStream, LocalBoxStream};
+#[cfg(feature = "sink")]
+use crate::stream::TryStream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
-#[cfg(feature = "sink")]
-use futures_core::stream::TryStream;
-#[cfg(feature = "alloc")]
-use futures_core::stream::{BoxStream, LocalBoxStream};
-use futures_core::{
-    future::Future,
-    stream::{FusedStream, Stream},
-    task::{Context, Poll},
-};
+use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 

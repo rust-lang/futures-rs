@@ -1,8 +1,8 @@
+use crate::future::{Future, TryFuture};
+use crate::stream::TryStream;
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
 use futures_core::ready;
-use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
