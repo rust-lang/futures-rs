@@ -46,6 +46,7 @@ where
         St: Stream,
         St::Item: Future,
     {
+        assert!(n > 0);
         Self {
             stream: super::Fuse::new(stream),
             in_progress_queue: FuturesUnordered::new(),

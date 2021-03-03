@@ -1142,6 +1142,10 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `n` is zero.
     #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
     fn buffered(self, n: usize) -> Buffered<Self>
@@ -1164,6 +1168,10 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `n` is zero.
     ///
     /// # Examples
     ///
