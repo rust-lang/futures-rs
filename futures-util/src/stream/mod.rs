@@ -49,7 +49,7 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 mod try_stream;
 pub use self::try_stream::{
     try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
+    TryCollect, TryConcat, TryCount, TryFilter, TryFilterMap, TryFlatten, TryFold, TryForEach, TryNext,
     TrySkipWhile, TryStreamExt, TryTakeWhile, TryUnfold,
 };
 

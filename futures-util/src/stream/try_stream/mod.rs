@@ -89,6 +89,10 @@ mod try_collect;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_collect::TryCollect;
 
+mod try_count;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_count::TryCount;
+
 mod try_concat;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_concat::TryConcat;
@@ -569,6 +573,35 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_future::<Result<C, Self::Error>, _>(TryCollect::new(self))
+    }
+
+    /// Attempt to count the number of items returned from a stream,
+    /// returning a future that resolves to the total count.
+    /// 
+    /// If an error happens then the current count will be discarded
+    /// and the error will be returned. The returned future will be
+    /// resolved when the stream terminates.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let evens = stream::iter((0..100).into_iter().map(Ok::<usize, ()>)).try_filter(|x| {
+    ///     future::ready(x % 2 == 0)
+    /// });
+    ///
+    /// let output: Result<usize, ()> = evens.try_count().await;
+    /// assert_eq!(output, Ok(50));
+    /// # })
+    /// ```
+    fn try_count(self) -> TryCount<Self>
+    where
+        Self: Sized,
+    {
+        assert_future::<Result<usize, Self::Error>, _>(TryCount::new(self))
     }
 
     /// Attempt to filter the values produced by this stream according to the
