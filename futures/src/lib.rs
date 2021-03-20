@@ -29,7 +29,7 @@
 //! # use futures::executor; ///standard executors to provide a context for futures and streams
 //! # use futures::executor::ThreadPool;
 //! # use futures::StreamExt;
-//!
+//! #
 //! fn main() {
 //!     let pool = ThreadPool::new().expect("Failed to build pool");
 //!     let (tx, rx) = mpsc::unbounded::<i32>();
