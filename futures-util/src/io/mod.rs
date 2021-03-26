@@ -601,6 +601,17 @@ pub trait AsyncSeekExt: AsyncSeek {
     {
         assert_future::<Result<u64>, _>(Seek::new(self, pos))
     }
+
+    /// Creates a future which will return the current seek position from the
+    /// start of the stream.
+    ///
+    /// This is equivalent to `self.seek(SeekFrom::Current(0))`.
+    fn stream_position(&mut self) -> Seek<'_, Self>
+    where
+        Self: Unpin,
+    {
+        self.seek(SeekFrom::Current(0))
+    }
 }
 
 impl<S: AsyncSeek + ?Sized> AsyncSeekExt for S {}
