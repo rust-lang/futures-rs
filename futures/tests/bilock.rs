@@ -50,10 +50,7 @@ fn concurrent() {
     const N: usize = 10000;
     let (a, b) = BiLock::new(0);
 
-    let a = Increment {
-        a: Some(a),
-        remaining: N,
-    };
+    let a = Increment { a: Some(a), remaining: N };
     let b = stream::iter(0..N).fold(b, |b, _n| async {
         *b.lock().await += 1;
         b
@@ -74,10 +71,7 @@ fn concurrent() {
         Poll::Pending => panic!("poll not ready"),
     }
 
-    assert_eq!(
-        a.reunite(b).expect("bilock/concurrent: reunite error"),
-        2 * N
-    );
+    assert_eq!(a.reunite(b).expect("bilock/concurrent: reunite error"), 2 * N);
 
     struct Increment {
         remaining: usize,
