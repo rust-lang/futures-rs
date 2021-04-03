@@ -16,7 +16,7 @@ mod bench {
         let mut ctx = noop_context();
 
         b.iter(|| {
-            let (x, y) = BiLock::new(1);
+            let (mut x, mut y) = BiLock::new(1);
 
             for _ in 0..1000 {
                 let x_guard = match x.poll_lock(&mut ctx) {
@@ -48,7 +48,7 @@ mod bench {
         let mut ctx = noop_context();
 
         b.iter(|| {
-            let (x, y) = BiLock::new(1);
+            let (mut x, mut y) = BiLock::new(1);
 
             for _ in 0..1000 {
                 let x_guard = match x.poll_lock(&mut ctx) {
@@ -74,7 +74,7 @@ mod bench {
         use std::thread;
 
         b.iter(|| {
-            let (x, y) = BiLock::new(false);
+            let (mut x, mut y) = BiLock::new(false);
             const ITERATION_COUNT: usize = 1000;
 
             let a = thread::spawn(move || {
@@ -85,7 +85,7 @@ mod bench {
                         *guard = false;
                         count += 1;
                     }
-                    drop(guard);
+                    x = guard.unlock();
                 }
             });
 
@@ -97,7 +97,7 @@ mod bench {
                         *guard = true;
                         count += 1;
                     }
-                    drop(guard);
+                    y = guard.unlock();
                 }
             });
 

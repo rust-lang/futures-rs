@@ -15,7 +15,7 @@ cfg_target_has_atomic! {
     mod bilock;
     #[cfg(feature = "bilock")]
     #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
-    pub use self::bilock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
+    pub use self::bilock::{BiLock, BiLockAcquire, BiLockAcquired, BiLockGuard, ReuniteError};
     #[cfg(any(feature = "sink", feature = "io"))]
     #[cfg(not(feature = "bilock"))]
     pub(crate) use self::bilock::BiLock;

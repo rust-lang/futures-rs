@@ -1,6 +1,6 @@
 #![cfg(feature = "bilock")]
 use futures::executor::block_on;
-use futures::future::{self, Future};
+use futures::future::{self, Future, FutureExt};
 use futures::lock::BiLock;
 use futures::stream::{self, StreamExt};
 use futures::task::{Context, Poll};
@@ -12,7 +12,7 @@ use std::thread;
 #[test]
 fn smoke() {
     let future = future::lazy(|ctx| {
-        let (a, b) = BiLock::new(1);
+        let (mut a, mut b) = BiLock::new(1);
 
         {
             let mut lock = match a.poll_lock(ctx) {
@@ -51,16 +51,18 @@ fn concurrent() {
     let (a, b) = BiLock::new(0);
 
     let a = Increment { a: Some(a), remaining: N };
-    let b = stream::iter(0..N).fold(b, |b, _n| async {
-        *b.lock().await += 1;
-        b
+    let b = stream::iter(0..N).fold(b, |b, _n| {
+        b.lock().map(|mut b| {
+            *b += 1;
+            b.unlock()
+        })
     });
 
     let mut ctx = panic_context();
 
     let t1 = thread::spawn(move || block_on(a));
-    let b = block_on(b);
-    let a = t1.join().expect("a error");
+    let mut b = block_on(b);
+    let mut a = t1.join().expect("a error");
 
     match a.poll_lock(&mut ctx) {
         Poll::Ready(l) => assert_eq!(*l, 2 * N),
@@ -84,7 +86,7 @@ fn concurrent() {
         fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<BiLock<usize>> {
             loop {
                 if self.remaining == 0 {
-                    return Poll::Ready(self.a.take().unwrap().into());
+                    return Poll::Ready(self.a.take().unwrap());
                 }
 
                 {
@@ -105,7 +107,7 @@ fn concurrent() {
 #[ignore = "long runtime"]
 fn exclusion() {
     const N: usize = 1000000;
-    let (a, b) = BiLock::new(AtomicUsize::new(0));
+    let (mut a, mut b) = BiLock::new(AtomicUsize::new(0));
     let t1 = thread::spawn(move || {
         for _ in 0..N {
             let guard = block_on(a.lock());
@@ -117,6 +119,7 @@ fn exclusion() {
                 inc += 1;
                 assert_eq!(start + inc, end);
             }
+            a = guard.unlock();
         }
         a
     });
@@ -131,6 +134,7 @@ fn exclusion() {
                 inc += 1;
                 assert_eq!(start + inc, end);
             }
+            b = guard.unlock();
         }
         b
     });

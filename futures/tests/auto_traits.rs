@@ -887,15 +887,15 @@ pub mod lock {
     assert_impl!(BiLock<PhantomPinned>: Unpin);
 
     #[cfg(feature = "bilock")]
-    assert_impl!(BiLockAcquire<'_, ()>: Send);
+    assert_impl!(BiLockAcquire<()>: Send);
     #[cfg(feature = "bilock")]
-    assert_not_impl!(BiLockAcquire<'_, *const ()>: Send);
+    assert_not_impl!(BiLockAcquire<*const ()>: Send);
     #[cfg(feature = "bilock")]
-    assert_impl!(BiLockAcquire<'_, ()>: Sync);
+    assert_impl!(BiLockAcquire<()>: Sync);
     #[cfg(feature = "bilock")]
-    assert_not_impl!(BiLockAcquire<'_, *const ()>: Sync);
+    assert_not_impl!(BiLockAcquire<*const ()>: Sync);
     #[cfg(feature = "bilock")]
-    assert_impl!(BiLockAcquire<'_, PhantomPinned>: Unpin);
+    assert_impl!(BiLockAcquire<PhantomPinned>: Unpin);
 
     #[cfg(feature = "bilock")]
     assert_impl!(BiLockGuard<'_, ()>: Send);
