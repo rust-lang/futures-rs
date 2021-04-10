@@ -1,3 +1,10 @@
+# 0.3.14 - 2021-04-10
+- Add `future::SelectAll::into_inner` (#2363)
+- Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
+- Reexport non-Ext traits from the root of `futures_util` (#2377)
+- Add `AsyncSeekExt::stream_position` (#2380)
+- Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
+
 # 0.3.13 - 2021-02-23
 - Mitigated starvation issues in `FuturesUnordered` (#2333)
 - Fixed race with dropping `mpsc::Receiver` (#2304)
