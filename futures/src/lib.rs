@@ -3,12 +3,12 @@
 //! This crate provides a number of core abstractions for writing asynchronous
 //! code:
 //!
-//! - [Futures](crate::future::Future) are single eventual values produced by
+//! - [Futures](crate::future) are single eventual values produced by
 //!   asynchronous computations. Some programming languages (e.g. JavaScript)
 //!   call this concept "promise".
-//! - [Streams](crate::stream::Stream) represent a series of values
+//! - [Streams](crate::stream) represent a series of values
 //!   produced asynchronously.
-//! - [Sinks](crate::sink::Sink) provide support for asynchronous writing of
+//! - [Sinks](crate::sink) provide support for asynchronous writing of
 //!   data.
 //! - [Executors](crate::executor) are responsible for running asynchronous
 //!   tasks.
