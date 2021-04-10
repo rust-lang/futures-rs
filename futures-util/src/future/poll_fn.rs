@@ -35,7 +35,7 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&mut Context<'_>) -> Poll<T>
+    F: FnMut(&mut Context<'_>) -> Poll<T>,
 {
     assert_future::<T, _>(PollFn { f })
 }
@@ -47,7 +47,8 @@ impl<F> fmt::Debug for PollFn<F> {
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut Context<'_>) -> Poll<T>,
+where
+    F: FnMut(&mut Context<'_>) -> Poll<T>,
 {
     type Output = T;
 

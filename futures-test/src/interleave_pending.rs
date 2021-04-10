@@ -28,10 +28,7 @@ pub struct InterleavePending<T> {
 
 impl<T> InterleavePending<T> {
     pub(crate) fn new(inner: T) -> Self {
-        Self {
-            inner,
-            pended: false,
-        }
+        Self { inner, pended: false }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is

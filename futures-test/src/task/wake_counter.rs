@@ -1,7 +1,7 @@
 use futures_core::task::Waker;
 use futures_util::task::{self, ArcWake};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Number of times the waker was awoken.
 ///

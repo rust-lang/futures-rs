@@ -1,4 +1,3 @@
-
 use futures::executor::block_on;
 use futures::future::poll_fn;
 use futures::task::{AtomicWaker, Poll};
