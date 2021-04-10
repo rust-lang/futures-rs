@@ -52,7 +52,7 @@ jobs:
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
       # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
-      - run: cargo install cargo-hack
+      - run: cargo +stable install cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check no-default-features
@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo install cargo-hack
+      - run: cargo +stable install cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check no-default-features
@@ -108,7 +108,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo install cargo-hack
+      - run: cargo +stable install cargo-hack
       - run: cargo hack build --workspace --no-dev-deps
 
   build:
