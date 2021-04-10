@@ -1,7 +1,7 @@
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use std::pin::Pin;
 use pin_project::pin_project;
+use std::pin::Pin;
 
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner
 /// future.
@@ -20,20 +20,14 @@ pub struct PendingOnce<Fut> {
 
 impl<Fut: Future> PendingOnce<Fut> {
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            future,
-            polled_before: false,
-        }
+        Self { future, polled_before: false }
     }
 }
 
 impl<Fut: Future> Future for PendingOnce<Fut> {
     type Output = Fut::Output;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
         if *this.polled_before {
             this.future.poll(cx)

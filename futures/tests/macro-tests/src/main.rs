@@ -65,5 +65,4 @@ fn main() {
             _ = b => unreachable!(),
         };
     });
-
 }

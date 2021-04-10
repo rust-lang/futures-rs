@@ -123,7 +123,7 @@ pub use self::select_next_some::SelectNextSome;
 
 mod peek;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::peek::{Peek, Peekable, NextIf, NextIfEq};
+pub use self::peek::{NextIf, NextIfEq, Peek, Peekable};
 
 mod skip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -1078,11 +1078,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = Result<(), E>>,
         Self: Sized,
     {
-        assert_future::<Result<(), E>, _>(TryForEachConcurrent::new(
-            self,
-            limit.into(),
-            f,
-        ))
+        assert_future::<Result<(), E>, _>(TryForEachConcurrent::new(self, limit.into(), f))
     }
 
     /// Creates a new stream of at most `n` items of the underlying stream.

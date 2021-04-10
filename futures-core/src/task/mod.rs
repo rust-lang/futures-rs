@@ -7,4 +7,4 @@ mod poll;
 pub mod __internal;
 
 #[doc(no_inline)]
-pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};

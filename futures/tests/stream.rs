@@ -1,10 +1,10 @@
-use futures::{channel::mpsc, future::BoxFuture};
 use futures::executor::block_on;
 use futures::future::{self, Future};
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::FutureExt;
+use futures::{channel::mpsc, future::BoxFuture};
 use futures_test::task::noop_context;
 
 #[test]
@@ -24,16 +24,11 @@ fn select() {
 #[test]
 fn flat_map() {
     block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
-        let values: Vec<_> = st
-            .flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .collect()
-            .await;
+        let values: Vec<_> =
+            st.flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0))).collect().await;
 
         assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 0, 2]);
     });

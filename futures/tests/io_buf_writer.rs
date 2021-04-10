@@ -15,10 +15,7 @@ struct MaybePending {
 
 impl MaybePending {
     fn new(inner: Vec<u8>) -> Self {
-        Self {
-            inner,
-            ready: false,
-        }
+        Self { inner, ready: false }
     }
 }
 
@@ -157,17 +154,11 @@ fn maybe_pending_buf_writer() {
 
     run(writer.write(&[9, 10, 11])).unwrap();
     assert_eq!(writer.buffer(), []);
-    assert_eq!(
-        writer.get_ref().inner,
-        &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    );
+    assert_eq!(writer.get_ref().inner, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 
     run(writer.flush()).unwrap();
     assert_eq!(writer.buffer(), []);
-    assert_eq!(
-        &writer.get_ref().inner,
-        &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    );
+    assert_eq!(&writer.get_ref().inner, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 }
 
 #[test]
@@ -190,11 +181,7 @@ fn maybe_pending_buf_writer_seek() {
 
     impl MaybePendingSeek {
         fn new(inner: Vec<u8>) -> Self {
-            Self {
-                inner: Cursor::new(inner),
-                ready_write: false,
-                ready_seek: false,
-            }
+            Self { inner: Cursor::new(inner), ready_write: false, ready_seek: false }
         }
     }
 
@@ -244,15 +231,9 @@ fn maybe_pending_buf_writer_seek() {
     run(w.write_all(&[0, 1, 2, 3, 4, 5])).unwrap();
     run(w.write_all(&[6, 7])).unwrap();
     assert_eq!(run(w.seek(SeekFrom::Current(0))).ok(), Some(8));
-    assert_eq!(
-        &w.get_ref().inner.get_ref()[..],
-        &[0, 1, 2, 3, 4, 5, 6, 7][..]
-    );
+    assert_eq!(&w.get_ref().inner.get_ref()[..], &[0, 1, 2, 3, 4, 5, 6, 7][..]);
     assert_eq!(run(w.seek(SeekFrom::Start(2))).ok(), Some(2));
     run(w.write_all(&[8, 9])).unwrap();
     run(w.flush()).unwrap();
-    assert_eq!(
-        &w.into_inner().inner.into_inner()[..],
-        &[0, 1, 8, 9, 4, 5, 6, 7]
-    );
+    assert_eq!(&w.into_inner().inner.into_inner()[..], &[0, 1, 8, 9, 4, 5, 6, 7]);
 }

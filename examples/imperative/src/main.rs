@@ -34,7 +34,7 @@ fn main() {
         // of the stream to be available.
         while let Some(v) = rx.next().await {
             pending.push(v * 2);
-        };
+        }
 
         pending
     };

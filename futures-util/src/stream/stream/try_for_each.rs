@@ -32,23 +32,21 @@ where
 }
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: Stream,
-      F: FnMut(St::Item) -> Fut,
-      Fut: TryFuture<Ok = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: TryFuture<Ok = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
-        Self {
-            stream,
-            f,
-            future: None,
-        }
+        Self { stream, f, future: None }
     }
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: TryFuture<Ok = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: TryFuture<Ok = ()>,
 {
     type Output = Result<(), Fut::Error>;
 

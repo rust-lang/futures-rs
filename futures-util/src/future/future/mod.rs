@@ -5,8 +5,8 @@
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-use core::pin::Pin;
 use core::convert::Infallible;
+use core::pin::Pin;
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
