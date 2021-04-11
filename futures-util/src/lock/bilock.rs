@@ -9,8 +9,8 @@ use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 #[cfg(feature = "bilock")]
 use core::ptr;
-use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
-use core::sync::atomic::{fence, AtomicU8};
+use core::sync::atomic::AtomicU8;
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed};
 #[cfg(feature = "bilock")]
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
@@ -176,15 +176,22 @@ impl<T> BiLock<T> {
                 }
             }
         }
-        self.token = self.arc.token.swap(self.token, AcqRel);
         // Maybe we spin here a few times?
+
+        for _ in 0..5 {
+            match self.arc.token.compare_exchange_weak(TOKEN_LOCK, self.token, AcqRel, Relaxed) {
+                Ok(token) => {
+                    self.token = token;
+                    return Poll::Ready(BiLockGuard { bilock: self });
+                }
+                Err(_) => {}
+            }
+            std::hint::spin_loop();
+        }
+        self.token = self.arc.token.swap(self.token, AcqRel);
         match self.token {
-            TOKEN_LOCK => {
-                return Poll::Ready(BiLockGuard { bilock: self });
-            }
-            TOKEN_NULL => {
-                return Poll::Pending;
-            }
+            TOKEN_LOCK => Poll::Ready(BiLockGuard { bilock: self }),
+            TOKEN_NULL => Poll::Pending,
             _ => unreachable!(),
         }
     }
