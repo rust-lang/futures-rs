@@ -160,8 +160,7 @@ impl<T> BiLock<T> {
     /// task.
     pub fn poll_lock(&mut self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
         assert_ne!(self.token, TOKEN_LOCK);
-        self.token = self.arc.token.swap(self.token, Acquire);
-        let mut release = false;
+        self.token = self.arc.token.swap(self.token, if self.token == TOKEN_WAKE { AcqRel } else { Acquire });
         match self.token {
             TOKEN_NULL => { }
             TOKEN_WAKE => {
@@ -178,7 +177,6 @@ impl<T> BiLock<T> {
                         }
                     }
                 }
-                release = true;
             }
             TOKEN_LOCK => {
                 return Poll::Ready(BiLockGuard { bilock: self });
@@ -186,7 +184,7 @@ impl<T> BiLock<T> {
             _ => unreachable!(),
         }
         // We only need Release if we previously stored our waker
-        self.token = self.arc.token.swap(self.token, if release { AcqRel } else { Acquire });
+        self.token = self.arc.token.swap(self.token, if self.token == TOKEN_WAKE { AcqRel } else { Acquire });
         match self.token {
             TOKEN_NULL => {
                 return Poll::Pending;
