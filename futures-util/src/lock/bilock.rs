@@ -10,7 +10,7 @@ use core::pin::Pin;
 #[cfg(feature = "bilock")]
 use core::ptr;
 use core::sync::atomic::AtomicU8;
-use core::sync::atomic::Ordering::{Acquire, AcqRel};
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 #[cfg(feature = "bilock")]
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
@@ -160,10 +160,12 @@ impl<T> BiLock<T> {
     /// task.
     pub fn poll_lock(&mut self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
         assert_ne!(self.token, TOKEN_LOCK);
-        self.token = self.arc.token.swap(self.token, if self.token == TOKEN_WAKE { AcqRel } else { Acquire });
+        let arc_token = &self.arc.token;
+        self.token = arc_token.swap(self.token, if self.token == TOKEN_WAKE { Release } else { Relaxed });
         match self.token {
             TOKEN_NULL => { }
             TOKEN_WAKE => {
+                arc_token.load(Acquire);
                 let our_waker = cx.waker();
                 // SAFETY: we own the wake token, so we have exclusive access to this field.
                 // The mutable reference we create goes out of scope before we give up the
@@ -179,17 +181,19 @@ impl<T> BiLock<T> {
                 }
             }
             TOKEN_LOCK => {
+                arc_token.load(Acquire);
                 return Poll::Ready(BiLockGuard { bilock: self });
             }
             _ => unreachable!(),
         }
         // We only need Release if we previously stored our waker
-        self.token = self.arc.token.swap(self.token, if self.token == TOKEN_WAKE { AcqRel } else { Acquire });
+        self.token = arc_token.swap(self.token, if self.token == TOKEN_WAKE { Release } else { Relaxed });
         match self.token {
             TOKEN_NULL => {
                 return Poll::Pending;
             }
             TOKEN_WAKE => {
+                arc_token.load(Acquire);
                 let our_waker = cx.waker();
                 // SAFETY: we own the wake token, so we have exclusive access to this field.
                 // The mutable reference we create goes out of scope before we give up the
@@ -205,17 +209,19 @@ impl<T> BiLock<T> {
                 }
             }
             TOKEN_LOCK => {
+                arc_token.load(Acquire);
                 return Poll::Ready(BiLockGuard { bilock: self });
             }
             _ => unreachable!(),
         }
-        self.token = self.arc.token.swap(self.token, AcqRel);
+        self.token = arc_token.swap(self.token, Release);
         match self.token {
             TOKEN_NULL => {
-                return Poll::Pending;
+                Poll::Pending
             }
             TOKEN_LOCK => {
-                return Poll::Ready(BiLockGuard { bilock: self });
+                arc_token.load(Acquire);
+                Poll::Ready(BiLockGuard { bilock: self })
             }
             _ => unreachable!(),
         }
@@ -255,10 +261,12 @@ impl<T> BiLock<T> {
 
     fn unlock(&mut self) {
         assert_eq!(self.token, TOKEN_LOCK);
-        self.token = self.arc.token.swap(self.token, AcqRel);
+        let arc_token = &self.arc.token;
+        self.token = self.arc.token.swap(self.token, Release);
         match self.token {
             TOKEN_NULL => {} // lock uncontended
             TOKEN_WAKE => {
+                arc_token.load(Acquire);
                 // SAFETY: we own the wake token, so we have exclusive access to this field.
                 if let Some((left, wake)) = unsafe { &mut *self.arc.waker.get() } {
                     if self.left != *left {
