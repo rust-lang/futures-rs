@@ -10,7 +10,7 @@ use core::pin::Pin;
 #[cfg(feature = "bilock")]
 use core::ptr;
 use core::sync::atomic::AtomicU8;
-use core::sync::atomic::Ordering::AcqRel;
+use core::sync::atomic::Ordering::{Acquire, AcqRel};
 #[cfg(feature = "bilock")]
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
@@ -160,36 +160,66 @@ impl<T> BiLock<T> {
     /// task.
     pub fn poll_lock(&mut self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
         assert_ne!(self.token, TOKEN_LOCK);
-        let mut inserted_waker = false;
-        loop {
-            self.token = self.arc.token.swap(self.token, AcqRel);
-            match self.token {
-                TOKEN_NULL => {
-                    if inserted_waker {
-                        break Poll::Pending;
-                    }
-                }
-                TOKEN_WAKE => {
-                    let our_waker = cx.waker();
-                    // SAFETY: we own the wake token, so we have exclusive access to this field.
-                    // The mutable reference we create goes out of scope before we give up the
-                    // token
-                    match unsafe { &mut *self.arc.waker.get() } {
-                        waker @ None => *waker = Some((self.left, our_waker.clone())),
-                        Some((left, waker)) => {
-                            if !our_waker.will_wake(waker) {
-                                *left = self.left;
-                                *waker = our_waker.clone()
-                            }
+        self.token = self.arc.token.swap(self.token, Acquire);
+        let mut release = false;
+        match self.token {
+            TOKEN_NULL => { }
+            TOKEN_WAKE => {
+                let our_waker = cx.waker();
+                // SAFETY: we own the wake token, so we have exclusive access to this field.
+                // The mutable reference we create goes out of scope before we give up the
+                // token
+                match unsafe { &mut *self.arc.waker.get() } {
+                    waker @ None => *waker = Some((self.left, our_waker.clone())),
+                    Some((left, waker)) => {
+                        if !our_waker.will_wake(waker) {
+                            *left = self.left;
+                            *waker = our_waker.clone()
                         }
                     }
-                    inserted_waker = true;
                 }
-                TOKEN_LOCK => {
-                    break Poll::Ready(BiLockGuard { bilock: self });
-                }
-                _ => unreachable!(),
+                release = true;
             }
+            TOKEN_LOCK => {
+                return Poll::Ready(BiLockGuard { bilock: self });
+            }
+            _ => unreachable!(),
+        }
+        // We only need Release if we previously stored our waker
+        self.token = self.arc.token.swap(self.token, if release { AcqRel } else { Acquire });
+        match self.token {
+            TOKEN_NULL => {
+                return Poll::Pending;
+            }
+            TOKEN_WAKE => {
+                let our_waker = cx.waker();
+                // SAFETY: we own the wake token, so we have exclusive access to this field.
+                // The mutable reference we create goes out of scope before we give up the
+                // token
+                match unsafe { &mut *self.arc.waker.get() } {
+                    waker @ None => *waker = Some((self.left, our_waker.clone())),
+                    Some((left, waker)) => {
+                        if !our_waker.will_wake(waker) {
+                            *left = self.left;
+                            *waker = our_waker.clone()
+                        }
+                    }
+                }
+            }
+            TOKEN_LOCK => {
+                return Poll::Ready(BiLockGuard { bilock: self });
+            }
+            _ => unreachable!(),
+        }
+        self.token = self.arc.token.swap(self.token, AcqRel);
+        match self.token {
+            TOKEN_NULL => {
+                return Poll::Pending;
+            }
+            TOKEN_LOCK => {
+                return Poll::Ready(BiLockGuard { bilock: self });
+            }
+            _ => unreachable!(),
         }
     }
 
