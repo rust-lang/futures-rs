@@ -29,6 +29,12 @@ struct Notifier {
 /// A weak reference to a [`Shared`] that can be upgraded much like an `Arc`.
 pub struct WeakShared<Fut: Future>(Weak<Inner<Fut>>);
 
+impl<Fut: Future> Clone for WeakShared<Fut> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 // The future itself is polled behind the `Arc`, so it won't be moved
 // when `Shared` is moved.
 impl<Fut: Future> Unpin for Shared<Fut> {}
