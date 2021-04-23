@@ -7,18 +7,20 @@
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
 #[cfg(not(feature = "std"))]
-compile_error!("`futures-test` must have the `std` feature activated, this is a default-active feature");
+compile_error!(
+    "`futures-test` must have the `std` feature activated, this is a default-active feature"
+);
 
 // Not public API.
 #[doc(hidden)]
 #[cfg(feature = "std")]
 pub mod __private {
+    pub use futures_core::{future, stream, task};
     pub use std::{
-        option::Option::{Some, None},
+        option::Option::{None, Some},
         pin::Pin,
         result::Result::{Err, Ok},
     };
-    pub use futures_core::{future, stream, task};
 
     pub mod assert {
         pub use crate::assert::*;

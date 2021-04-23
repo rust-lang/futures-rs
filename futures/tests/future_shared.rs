@@ -119,9 +119,7 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    spawn
-        .spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ()))))
-        .unwrap();
+    spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
     local_pool.run();
     for _ in 0..2 {
         assert_eq!(*f2.peek().unwrap(), Ok(42));
@@ -193,8 +191,5 @@ fn shared_future_that_wakes_itself_until_pending_is_returned() {
 
     // The join future can only complete if the second future gets a chance to run after the first
     // has returned pending
-    assert_eq!(
-        block_on(futures::future::join(fut, async { proceed.set(true) })),
-        ((), ())
-    );
+    assert_eq!(block_on(futures::future::join(fut, async { proceed.set(true) })), ((), ()));
 }

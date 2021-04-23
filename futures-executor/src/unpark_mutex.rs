@@ -29,25 +29,22 @@ unsafe impl<D: Send> Sync for UnparkMutex<D> {}
 // transitions:
 
 // The task is blocked, waiting on an event
-const WAITING: usize = 0;       // --> POLLING
+const WAITING: usize = 0; // --> POLLING
 
 // The task is actively being polled by a thread; arrival of additional events
 // of interest should move it to the REPOLL state
-const POLLING: usize = 1;       // --> WAITING, REPOLL, or COMPLETE
+const POLLING: usize = 1; // --> WAITING, REPOLL, or COMPLETE
 
 // The task is actively being polled, but will need to be re-polled upon
 // completion to ensure that all events were observed.
-const REPOLL: usize = 2;        // --> POLLING
+const REPOLL: usize = 2; // --> POLLING
 
 // The task has finished executing (either successfully or with an error/panic)
-const COMPLETE: usize = 3;      // No transitions out
+const COMPLETE: usize = 3; // No transitions out
 
 impl<D> UnparkMutex<D> {
     pub(crate) fn new() -> Self {
-        Self {
-            status: AtomicUsize::new(WAITING),
-            inner: UnsafeCell::new(None),
-        }
+        Self { status: AtomicUsize::new(WAITING), inner: UnsafeCell::new(None) }
     }
 
     /// Attempt to "notify" the mutex that a poll should occur.
@@ -62,8 +59,7 @@ impl<D> UnparkMutex<D> {
             match status {
                 // The task is idle, so try to run it immediately.
                 WAITING => {
-                    match self.status.compare_exchange(WAITING, POLLING,
-                                                       SeqCst, SeqCst) {
+                    match self.status.compare_exchange(WAITING, POLLING, SeqCst, SeqCst) {
                         Ok(_) => {
                             let data = unsafe {
                                 // SAFETY: we've ensured mutual exclusion via
@@ -82,13 +78,10 @@ impl<D> UnparkMutex<D> {
 
                 // The task is being polled, so we need to record that it should
                 // be *repolled* when complete.
-                POLLING => {
-                    match self.status.compare_exchange(POLLING, REPOLL,
-                                                       SeqCst, SeqCst) {
-                        Ok(_) => return Err(()),
-                        Err(cur) => status = cur,
-                    }
-                }
+                POLLING => match self.status.compare_exchange(POLLING, REPOLL, SeqCst, SeqCst) {
+                    Ok(_) => return Err(()),
+                    Err(cur) => status = cur,
+                },
 
                 // The task is already scheduled for polling, or is complete, so
                 // we've got nothing to do.

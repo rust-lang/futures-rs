@@ -52,19 +52,13 @@ fn resolving_errors() {
 
         drop(tx2);
 
-        assert_eq!(
-            Poll::Ready(Some(Err(oneshot::Canceled))),
-            queue.poll_next_unpin(cx)
-        );
+        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
         assert!(!queue.poll_next_unpin(cx).is_ready());
 
         drop(tx1);
         tx3.send("world2").unwrap();
 
-        assert_eq!(
-            Poll::Ready(Some(Err(oneshot::Canceled))),
-            queue.poll_next_unpin(cx)
-        );
+        assert_eq!(Poll::Ready(Some(Err(oneshot::Canceled))), queue.poll_next_unpin(cx));
         assert_eq!(Poll::Ready(Some(Ok("world2"))), queue.poll_next_unpin(cx));
         assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
     }));

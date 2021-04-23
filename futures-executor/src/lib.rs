@@ -37,13 +37,11 @@
 //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "std")]
@@ -52,12 +50,12 @@ mod local_pool;
 pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
 
 #[cfg(feature = "thread-pool")]
-#[cfg(feature = "std")]
-mod unpark_mutex;
-#[cfg(feature = "thread-pool")]
 #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 #[cfg(feature = "std")]
 mod thread_pool;
+#[cfg(feature = "thread-pool")]
+#[cfg(feature = "std")]
+mod unpark_mutex;
 #[cfg(feature = "thread-pool")]
 #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
 #[cfg(feature = "std")]

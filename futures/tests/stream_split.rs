@@ -45,10 +45,7 @@ fn test_split() {
 
     let mut dest: Vec<i32> = Vec::new();
     {
-        let join = Join {
-            stream: stream::iter(vec![10, 20, 30]),
-            sink: &mut dest,
-        };
+        let join = Join { stream: stream::iter(vec![10, 20, 30]), sink: &mut dest };
 
         let (sink, stream) = join.split();
         let join = sink.reunite(stream).expect("test_split: reunite error");

@@ -27,10 +27,7 @@ impl Parse for Join {
     }
 }
 
-fn bind_futures(
-    fut_exprs: Vec<Expr>,
-    span: Span,
-) -> (Vec<TokenStream2>, Vec<Ident>) {
+fn bind_futures(fut_exprs: Vec<Expr>, span: Span) -> (Vec<TokenStream2>, Vec<Ident>) {
     let mut future_let_bindings = Vec::with_capacity(fut_exprs.len());
     let future_names: Vec<_> = fut_exprs
         .into_iter()

@@ -34,10 +34,7 @@ unsafe impl<T: Sync> Sync for AssertUnmoved<T> {}
 
 impl<T> AssertUnmoved<T> {
     pub(crate) fn new(inner: T) -> Self {
-        Self {
-            inner,
-            this_ptr: ptr::null(),
-        }
+        Self { inner, this_ptr: ptr::null() }
     }
 
     fn poll_with<'a, U>(mut self: Pin<&'a mut Self>, f: impl FnOnce(Pin<&'a mut T>) -> U) -> U {
@@ -46,10 +43,7 @@ impl<T> AssertUnmoved<T> {
             // First time being polled
             *self.as_mut().project().this_ptr = cur_this;
         } else {
-            assert_eq!(
-                self.this_ptr, cur_this,
-                "AssertUnmoved moved between poll calls"
-            );
+            assert_eq!(self.this_ptr, cur_this, "AssertUnmoved moved between poll calls");
         }
         f(self.project().inner)
     }

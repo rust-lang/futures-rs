@@ -1,8 +1,8 @@
 use super::assert_future;
-use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{Context, Poll};
 use crate::future::{Either, FutureExt};
+use core::pin::Pin;
+use futures_core::future::{FusedFuture, Future};
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -37,13 +37,13 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///     future::Either,
 ///     future::self,
 /// };
-/// 
+///
 /// // These two futures have different types even though their outputs have the same type.
 /// let future1 = async {
 ///     future::pending::<()>().await; // will never finish
 ///     1
 /// };
-/// let future2 = async { 
+/// let future2 = async {
 ///     future::ready(2).await
 /// };
 ///
@@ -82,9 +82,13 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// }
 /// ```
 pub fn select<A, B>(future1: A, future2: B) -> Select<A, B>
-    where A: Future + Unpin, B: Future + Unpin
+where
+    A: Future + Unpin,
+    B: Future + Unpin,
 {
-    assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select { inner: Some((future1, future2)) })
+    assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
+        inner: Some((future1, future2)),
+    })
 }
 
 impl<A, B> Future for Select<A, B>
@@ -104,7 +108,7 @@ where
                     self.inner = Some((a, b));
                     Poll::Pending
                 }
-            }
+            },
         }
     }
 }
