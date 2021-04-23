@@ -1,5 +1,5 @@
 use super::assert_stream;
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{Fuse, StreamExt};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -29,8 +29,9 @@ pin_project! {
 /// Note that this function consumes both streams and returns a wrapped
 /// version of them.
 pub fn select<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
-    where St1: Stream,
-          St2: Stream<Item = St1::Item>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     assert_stream::<St1::Item, _>(Select {
         stream1: stream1.fuse(),
@@ -75,8 +76,9 @@ impl<St1, St2> Select<St1, St2> {
 }
 
 impl<St1, St2> FusedStream for Select<St1, St2>
-    where St1: Stream,
-          St2: Stream<Item = St1::Item>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     fn is_terminated(&self) -> bool {
         self.stream1.is_terminated() && self.stream2.is_terminated()
@@ -84,15 +86,13 @@ impl<St1, St2> FusedStream for Select<St1, St2>
 }
 
 impl<St1, St2> Stream for Select<St1, St2>
-    where St1: Stream,
-          St2: Stream<Item = St1::Item>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     type Item = St1::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St1::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St1::Item>> {
         let this = self.project();
         if !*this.flag {
             poll_inner(this.flag, this.stream1, this.stream2, cx)
@@ -106,24 +106,24 @@ fn poll_inner<St1, St2>(
     flag: &mut bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
-    cx: &mut Context<'_>
+    cx: &mut Context<'_>,
 ) -> Poll<Option<St1::Item>>
-    where St1: Stream, St2: Stream<Item = St1::Item>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
 {
     let a_done = match a.poll_next(cx) {
         Poll::Ready(Some(item)) => {
             // give the other stream a chance to go first next time
             *flag = !*flag;
-            return Poll::Ready(Some(item))
-        },
+            return Poll::Ready(Some(item));
+        }
         Poll::Ready(None) => true,
         Poll::Pending => false,
     };
 
     match b.poll_next(cx) {
-        Poll::Ready(Some(item)) => {
-            Poll::Ready(Some(item))
-        }
+        Poll::Ready(Some(item)) => Poll::Ready(Some(item)),
         Poll::Ready(None) if a_done => Poll::Ready(None),
         Poll::Ready(None) | Poll::Pending => Poll::Pending,
     }

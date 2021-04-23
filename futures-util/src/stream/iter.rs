@@ -27,15 +27,15 @@ impl<I> Unpin for Iter<I> {}
 /// # });
 /// ```
 pub fn iter<I>(i: I) -> Iter<I::IntoIter>
-    where I: IntoIterator,
+where
+    I: IntoIterator,
 {
-    assert_stream::<I::Item, _>(Iter {
-        iter: i.into_iter(),
-    })
+    assert_stream::<I::Item, _>(Iter { iter: i.into_iter() })
 }
 
 impl<I> Stream for Iter<I>
-    where I: Iterator,
+where
+    I: Iterator,
 {
     type Item = I::Item;
 

@@ -28,10 +28,7 @@ pin_project! {
 
 impl<St: Stream> Peekable<St> {
     pub(super) fn new(stream: St) -> Self {
-        Self {
-            stream: stream.fuse(),
-            peeked: None,
-        }
+        Self { stream: stream.fuse(), peeked: None }
     }
 
     delegate_access_inner!(stream, St, (.));
@@ -105,9 +102,7 @@ impl<St: Stream> Peekable<St> {
     where
         F: FnOnce(&St::Item) -> bool,
     {
-        NextIf {
-            inner: Some((self, func)),
-        }
+        NextIf { inner: Some((self, func)) }
     }
 
     /// Creates a future which will consume and return the next item if it is
@@ -138,15 +133,7 @@ impl<St: Stream> Peekable<St> {
         St::Item: PartialEq<T>,
     {
         NextIfEq {
-            inner: NextIf {
-                inner: Some((
-                    self,
-                    NextIfEqFn {
-                        expected,
-                        _next: PhantomData,
-                    },
-                )),
-            },
+            inner: NextIf { inner: Some((self, NextIfEqFn { expected, _next: PhantomData })) },
         }
     }
 }
@@ -247,9 +234,7 @@ where
     St::Item: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("NextIf")
-            .field("inner", &self.inner.as_ref().map(|(s, _f)| s))
-            .finish()
+        f.debug_struct("NextIf").field("inner", &self.inner.as_ref().map(|(s, _f)| s)).finish()
     }
 }
 

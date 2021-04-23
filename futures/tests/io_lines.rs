@@ -43,10 +43,8 @@ fn lines() {
 
 #[test]
 fn maybe_pending() {
-    let buf = stream::iter(vec![&b"12"[..], &b"\r"[..]])
-        .map(Ok)
-        .into_async_read()
-        .interleave_pending();
+    let buf =
+        stream::iter(vec![&b"12"[..], &b"\r"[..]]).map(Ok).into_async_read().interleave_pending();
     let mut s = buf.lines();
     assert_eq!(run_next!(s), "12\r".to_string());
     assert!(run(s.next()).is_none());

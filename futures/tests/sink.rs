@@ -131,10 +131,7 @@ impl<T: Unpin> Sink<Option<T>> for ManualFlush<T> {
 
 impl<T: Unpin> ManualFlush<T> {
     fn new() -> Self {
-        Self {
-            data: Vec::new(),
-            waiting_tasks: Vec::new(),
-        }
+        Self { data: Vec::new(), waiting_tasks: Vec::new() }
     }
 
     fn force_flush(&mut self) -> Vec<T> {
@@ -157,10 +154,7 @@ struct Allow {
 
 impl Allow {
     fn new() -> Self {
-        Self {
-            flag: Cell::new(false),
-            tasks: RefCell::new(Vec::new()),
-        }
+        Self { flag: Cell::new(false), tasks: RefCell::new(Vec::new()) }
     }
 
     fn check(&self, cx: &mut Context<'_>) -> bool {
@@ -208,20 +202,14 @@ impl<T: Unpin> Sink<T> for ManualAllow<T> {
 
 fn manual_allow<T: Unpin>() -> (ManualAllow<T>, Rc<Allow>) {
     let allow = Rc::new(Allow::new());
-    let manual_allow = ManualAllow {
-        data: Vec::new(),
-        allow: allow.clone(),
-    };
+    let manual_allow = ManualAllow { data: Vec::new(), allow: allow.clone() };
     (manual_allow, allow)
 }
 
 #[test]
 fn either_sink() {
-    let mut s = if true {
-        Vec::<i32>::new().left_sink()
-    } else {
-        VecDeque::<i32>::new().right_sink()
-    };
+    let mut s =
+        if true { Vec::<i32>::new().left_sink() } else { VecDeque::<i32>::new().right_sink() };
 
     Pin::new(&mut s).start_send(0).unwrap();
 }
@@ -400,13 +388,10 @@ fn with_implements_clone() {
     let (mut tx, rx) = mpsc::channel(5);
 
     {
-        let mut is_positive = tx
-            .clone()
-            .with(|item| future::ok::<bool, mpsc::SendError>(item > 0));
+        let mut is_positive = tx.clone().with(|item| future::ok::<bool, mpsc::SendError>(item > 0));
 
-        let mut is_long = tx
-            .clone()
-            .with(|item: &str| future::ok::<bool, mpsc::SendError>(item.len() > 5));
+        let mut is_long =
+            tx.clone().with(|item: &str| future::ok::<bool, mpsc::SendError>(item.len() > 5));
 
         block_on(is_positive.clone().send(-1)).unwrap();
         block_on(is_long.clone().send("123456")).unwrap();
@@ -418,10 +403,7 @@ fn with_implements_clone() {
 
     block_on(tx.close()).unwrap();
 
-    assert_eq!(
-        block_on(rx.collect::<Vec<_>>()),
-        vec![false, true, false, true, false]
-    );
+    assert_eq!(block_on(rx.collect::<Vec<_>>()), vec![false, true, false, true, false]);
 }
 
 // test that a buffer is a no-nop around a sink that always accepts sends
@@ -513,10 +495,7 @@ fn sink_map_err() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()),
-        Err(())
-    );
+    assert_eq!(Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()), Err(()));
 }
 
 #[test]
@@ -571,8 +550,5 @@ fn err_into() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_err_into()).start_send(()),
-        Err(ErrIntoTest)
-    );
+    assert_eq!(Pin::new(&mut tx.sink_err_into()).start_send(()), Err(ErrIntoTest));
 }

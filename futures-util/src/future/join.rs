@@ -213,14 +213,5 @@ where
     Fut5: Future,
 {
     let f = Join5::new(future1, future2, future3, future4, future5);
-    assert_future::<
-        (
-            Fut1::Output,
-            Fut2::Output,
-            Fut3::Output,
-            Fut4::Output,
-            Fut5::Output,
-        ),
-        _,
-    >(f)
+    assert_future::<(Fut1::Output, Fut2::Output, Fut3::Output, Fut4::Output, Fut5::Output), _>(f)
 }

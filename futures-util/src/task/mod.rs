@@ -11,12 +11,9 @@
 //! executors or dealing with synchronization issues around task wakeup.
 
 #[doc(no_inline)]
-pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
-pub use futures_task::{
-    Spawn, LocalSpawn, SpawnError,
-    FutureObj, LocalFutureObj, UnsafeFutureObj,
-};
+pub use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, UnsafeFutureObj};
 
 pub use futures_task::noop_waker;
 #[cfg(feature = "std")]
@@ -36,4 +33,4 @@ cfg_target_has_atomic! {
 }
 
 mod spawn;
-pub use self::spawn::{SpawnExt, LocalSpawnExt};
+pub use self::spawn::{LocalSpawnExt, SpawnExt};

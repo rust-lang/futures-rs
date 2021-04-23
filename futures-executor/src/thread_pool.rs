@@ -2,8 +2,8 @@ use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
+use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, Spawn, SpawnError};
-use futures_task::{ArcWake, waker_ref};
 use futures_util::future::FutureExt;
 use std::cmp;
 use std::fmt;
@@ -54,9 +54,7 @@ struct PoolState {
 
 impl fmt::Debug for ThreadPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ThreadPool")
-            .field("size", &self.state.size)
-            .finish()
+        f.debug_struct("ThreadPool").field("size", &self.state.size).finish()
     }
 }
 
@@ -100,10 +98,7 @@ impl ThreadPool {
     pub fn spawn_obj_ok(&self, future: FutureObj<'static, ()>) {
         let task = Task {
             future,
-            wake_handle: Arc::new(WakeHandle {
-                exec: self.clone(),
-                mutex: UnparkMutex::new(),
-            }),
+            wake_handle: Arc::new(WakeHandle { exec: self.clone(), mutex: UnparkMutex::new() }),
             exec: self.clone(),
         };
         self.state.send(Message::Run(task));
@@ -132,10 +127,7 @@ impl ThreadPool {
 }
 
 impl Spawn for ThreadPool {
-    fn spawn_obj(
-        &self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawn_obj_ok(future);
         Ok(())
     }
@@ -146,10 +138,12 @@ impl PoolState {
         self.tx.lock().unwrap().send(msg).unwrap();
     }
 
-    fn work(&self,
-            idx: usize,
-            after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
-            before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>) {
+    fn work(
+        &self,
+        idx: usize,
+        after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+        before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+    ) {
         let _scope = enter().unwrap();
         if let Some(after_start) = after_start {
             after_start(idx);
@@ -241,7 +235,8 @@ impl ThreadPoolBuilder {
     /// The closure provided will receive an index corresponding to the worker
     /// thread it's running on.
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
-        where F: Fn(usize) + Send + Sync + 'static
+    where
+        F: Fn(usize) + Send + Sync + 'static,
     {
         self.after_start = Some(Arc::new(f));
         self
@@ -256,7 +251,8 @@ impl ThreadPoolBuilder {
     /// The closure provided will receive an index corresponding to the worker
     /// thread it's running on.
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-        where F: Fn(usize) + Send + Sync + 'static
+    where
+        F: Fn(usize) + Send + Sync + 'static,
     {
         self.before_stop = Some(Arc::new(f));
         self
@@ -328,14 +324,11 @@ impl Task {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),
                 }
-                let task = Self {
-                    future,
-                    wake_handle: wake_handle.clone(),
-                    exec,
-                };
+                let task = Self { future, wake_handle: wake_handle.clone(), exec };
                 match wake_handle.mutex.wait(task) {
                     Ok(()) => return, // we've waited
-                    Err(task) => { // someone's notified us
+                    Err(task) => {
+                        // someone's notified us
                         future = task.future;
                         exec = task.exec;
                     }
@@ -347,9 +340,7 @@ impl Task {
 
 impl fmt::Debug for Task {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Task")
-            .field("contents", &"...")
-            .finish()
+        f.debug_struct("Task").field("contents", &"...").finish()
     }
 }
 
@@ -372,7 +363,9 @@ mod tests {
         let (tx, rx) = mpsc::sync_channel(2);
         let _cpu_pool = ThreadPoolBuilder::new()
             .pool_size(2)
-            .after_start(move |_| tx.send(1).unwrap()).create().unwrap();
+            .after_start(move |_| tx.send(1).unwrap())
+            .create()
+            .unwrap();
 
         // After ThreadPoolBuilder is deconstructed, the tx should be droped
         // so that we can use rx as an iterator.
