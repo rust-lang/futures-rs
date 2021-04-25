@@ -15,26 +15,26 @@ fn is_terminated() {
     let mut cx = noop_context();
     let mut tasks = FuturesUnordered::new();
 
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
-    assert_eq!(tasks.is_terminated(), true);
+    assert!(tasks.is_terminated());
 
     // Test that the sentinel value doesn't leak
-    assert_eq!(tasks.is_empty(), true);
+    assert!(tasks.is_empty());
     assert_eq!(tasks.len(), 0);
     assert_eq!(tasks.iter_mut().len(), 0);
 
     tasks.push(future::ready(1));
 
-    assert_eq!(tasks.is_empty(), false);
+    assert!(!tasks.is_empty());
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks.iter_mut().len(), 1);
 
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(Some(1)));
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
-    assert_eq!(tasks.is_terminated(), true);
+    assert!(tasks.is_terminated());
 }
 
 #[test]

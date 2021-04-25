@@ -14,20 +14,20 @@ fn is_terminated() {
     let mut tasks = FuturesUnordered::new();
 
     let mut select_next_some = tasks.select_next_some();
-    assert_eq!(select_next_some.is_terminated(), false);
+    assert!(!select_next_some.is_terminated());
     assert_eq!(select_next_some.poll_unpin(&mut cx), Poll::Pending);
     assert_eq!(counter, 1);
-    assert_eq!(select_next_some.is_terminated(), true);
+    assert!(select_next_some.is_terminated());
     drop(select_next_some);
 
     tasks.push(future::ready(1));
 
     let mut select_next_some = tasks.select_next_some();
-    assert_eq!(select_next_some.is_terminated(), false);
+    assert!(!select_next_some.is_terminated());
     assert_eq!(select_next_some.poll_unpin(&mut cx), Poll::Ready(1));
-    assert_eq!(select_next_some.is_terminated(), false);
+    assert!(!select_next_some.is_terminated());
     assert_eq!(select_next_some.poll_unpin(&mut cx), Poll::Pending);
-    assert_eq!(select_next_some.is_terminated(), true);
+    assert!(select_next_some.is_terminated());
 }
 
 #[test]
