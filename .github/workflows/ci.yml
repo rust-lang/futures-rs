@@ -43,7 +43,7 @@ jobs:
       matrix:
         rust:
           # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task, futures-channel.
-          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
+          # When updating this, the reminder to update the minimum required version in .clippy.toml.
           - 1.36.0
     runs-on: ubuntu-latest
     steps:
@@ -74,8 +74,8 @@ jobs:
       matrix:
         rust:
           # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-test.
-          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
-          - 1.37.0
+          # When updating this, the reminder to update the minimum required version in README.md.
+          - 1.41.0
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -84,6 +84,8 @@ jobs:
       - run: cargo +stable install cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
+      # Check default features
+      - run: cargo hack build --workspace --ignore-private
       # Check no-default-features
       - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features
       # Check alloc feature
@@ -94,22 +96,6 @@ jobs:
       - run: cargo hack build -p futures -p futures-util --no-default-features --features std,io-compat
       # Check thread-pool feature (futures, futures-executor)
       - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
-
-  async-await-msrv:
-    name: cargo +${{ matrix.rust }} build
-    strategy:
-      matrix:
-        rust:
-          # This is the minimum Rust version supported by `async-await` feature.
-          # When updating this, the reminder to update the minimum required version of `async-await` feature in README.md.
-          - 1.39.0
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo +stable install cargo-hack
-      - run: cargo hack build --workspace --no-dev-deps
 
   build:
     name: cargo +${{ matrix.rust }} build
