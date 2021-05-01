@@ -15,8 +15,8 @@
     <img alt="Crates.io" src="https://img.shields.io/crates/v/futures.svg">
   </a>
 
-  <a href="https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html">
-    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.39+-lightgray.svg">
+  <a href="https://www.rust-lang.org">
+    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.41+-lightgray.svg">
   </a>
 </p>
 
@@ -48,7 +48,7 @@ Now, you can use futures-rs:
 use futures::future::Future;
 ```
 
-The current futures-rs requires Rust 1.39 or later.
+The current futures-rs requires Rust 1.41 or later.
 
 ### Feature `std`
 
