@@ -1329,7 +1329,8 @@ pub trait StreamExt: Stream {
     /// the sink is closed. Note that neither the original stream nor provided
     /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
-    /// order to preserve access to the `Sink`.
+    /// order to preserve access to the `Sink`. If the stream produces an error,
+    /// that error will be returned by this future without flushing/closing the sink.
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
