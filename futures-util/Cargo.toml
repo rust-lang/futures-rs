@@ -32,6 +32,9 @@ bilock = []
 read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
 write-all-vectored = ["io"]
 
+[build-dependencies]
+autocfg = "1"
+
 [dependencies]
 futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-features = false }
 futures-task = { path = "../futures-task", version = "=0.4.0-alpha.0", default-features = false }
