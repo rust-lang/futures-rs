@@ -16,6 +16,9 @@ proc-macro = true
 
 [features]
 
+[build-dependencies]
+autocfg = "1"
+
 [dependencies]
 proc-macro2 = "1.0"
 proc-macro-hack = "0.5.19"
