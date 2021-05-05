@@ -13,31 +13,34 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro_hack::proc_macro_hack;
 
 mod join;
 mod select;
 
 /// The `join!` macro.
-#[proc_macro_hack]
+#[cfg_attr(fn_like_proc_macro, proc_macro)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn join_internal(input: TokenStream) -> TokenStream {
     crate::join::join(input)
 }
 
 /// The `try_join!` macro.
-#[proc_macro_hack]
+#[cfg_attr(fn_like_proc_macro, proc_macro)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn try_join_internal(input: TokenStream) -> TokenStream {
     crate::join::try_join(input)
 }
 
 /// The `select!` macro.
-#[proc_macro_hack]
+#[cfg_attr(fn_like_proc_macro, proc_macro)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn select_internal(input: TokenStream) -> TokenStream {
     crate::select::select(input)
 }
 
 /// The `select_biased!` macro.
-#[proc_macro_hack]
+#[cfg_attr(fn_like_proc_macro, proc_macro)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn select_biased_internal(input: TokenStream) -> TokenStream {
     crate::select::select_biased(input)
 }
