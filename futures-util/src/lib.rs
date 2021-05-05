@@ -1,7 +1,6 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 #![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -11,9 +10,6 @@
 #![warn(clippy::all)]
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-#[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
-compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -53,7 +49,7 @@ pub mod __private {
 
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
-        #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+        #[cfg(not(futures_no_atomic_cas))]
         $item
     )*};
 }
