@@ -37,11 +37,11 @@ pub use self::stream::ReadyChunks;
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::stream::Forward;
 
-#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 pub use self::stream::{BufferUnordered, Buffered, ForEachConcurrent, TryForEachConcurrent};
 
-#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
@@ -59,7 +59,7 @@ pub use self::try_stream::{
 #[cfg(feature = "std")]
 pub use self::try_stream::IntoAsyncRead;
 
-#[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryBufferUnordered, TryBuffered};
 

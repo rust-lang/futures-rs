@@ -17,11 +17,10 @@ std = ["alloc", "futures-core/std"]
 alloc = ["futures-core/alloc"]
 sink = ["futures-sink"]
 
-# Unstable features
-# These features are outside of the normal semver guarantees and require the
-# `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core/unstable"]
-cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic"]
+# These features are no longer used.
+# TODO: remove in the next major version.
+unstable = []
+cfg-target-has-atomic = []
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-features = false }
