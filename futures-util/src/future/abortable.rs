@@ -1,6 +1,6 @@
 use super::assert_future;
 use crate::future::{AbortHandle, Abortable, Aborted};
-use std::future::Future;
+use futures_core::future::Future;
 
 /// Creates a new `Abortable` future and an `AbortHandle` which can be used to stop it.
 ///
