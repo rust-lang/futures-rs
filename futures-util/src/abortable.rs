@@ -61,7 +61,7 @@ impl<T> Abortable<T> {
 
     /// Checks whether the task has been aborted. See [`AbortHandle::abort`] for details.
     pub fn is_aborted(&self) -> bool {
-        self.inner.abort.load(Ordering::Relaxed)
+        self.inner.aborted.load(Ordering::Relaxed)
     }
 }
 
@@ -86,7 +86,7 @@ impl AbortHandle {
     /// This function is usually paired with a call to [`Abortable::new`].
     pub fn new_pair() -> (Self, AbortRegistration) {
         let inner =
-            Arc::new(AbortInner { waker: AtomicWaker::new(), abort: AtomicBool::new(false) });
+            Arc::new(AbortInner { waker: AtomicWaker::new(), aborted: AtomicBool::new(false) });
 
         (Self { inner: inner.clone() }, AbortRegistration { inner })
     }
@@ -97,7 +97,7 @@ impl AbortHandle {
 #[derive(Debug)]
 struct AbortInner {
     waker: AtomicWaker,
-    abort: AtomicBool,
+    aborted: AtomicBool,
 }
 
 /// Indicator that the `Abortable` task was aborted.
@@ -120,7 +120,7 @@ impl<T> Abortable<T> {
         poll: impl Fn(Pin<&mut T>, &mut Context<'_>) -> Poll<I>,
     ) -> Poll<Result<I, Aborted>> {
         // Check if the task has been aborted
-        if self.inner.abort.load(Ordering::Relaxed) {
+        if self.inner.aborted.load(Ordering::Relaxed) {
             return Poll::Ready(Err(Aborted));
         }
 
@@ -136,7 +136,7 @@ impl<T> Abortable<T> {
         // registration.
         // Checking with `Relaxed` is sufficient because `register` introduces an
         // `AcqRel` barrier.
-        if self.inner.abort.load(Ordering::Relaxed) {
+        if self.inner.aborted.load(Ordering::Relaxed) {
             return Poll::Ready(Err(Aborted));
         }
 
@@ -174,7 +174,7 @@ impl AbortHandle {
     /// another thread, it will not immediately stop running. Instead, it will
     /// continue to run until its poll method returns.
     pub fn abort(&self) {
-        self.inner.abort.store(true, Ordering::Relaxed);
+        self.inner.aborted.store(true, Ordering::Relaxed);
         self.inner.waker.wake();
     }
 }
