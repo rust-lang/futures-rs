@@ -41,7 +41,7 @@ pin_project_lite::pin_project! {
         F: Future,
     {
         Small { elems: Pin<Box<[MaybeDone<F>]>> },
-        Big  { #[pin] ordered: Collect<FuturesOrdered<F>, Vec<F::Output>> },
+        Big  { #[pin] fut: Collect<FuturesOrdered<F>, Vec<F::Output>> },
     }
 }
 
@@ -55,7 +55,7 @@ where
             JoinAllKind::Small { ref elems } => {
                 f.debug_struct("JoinAll").field("elems", elems).finish()
             }
-            JoinAllKind::Big { ref ordered, .. } => fmt::Debug::fmt(ordered, f),
+            JoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
 }
@@ -94,41 +94,24 @@ where
 /// assert_eq!(join_all(futures).await, [1, 2, 3]);
 /// # });
 /// ```
-pub fn join_all<I>(i: I) -> JoinAll<I::Item>
+pub fn join_all<I>(iter: I) -> JoinAll<I::Item>
 where
     I: IntoIterator,
     I::Item: Future,
 {
-    let iter = i.into_iter();
+    let iter = iter.into_iter();
     let kind = match iter.size_hint().1 {
-        None => big(iter),
+        None => JoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().collect() },
         Some(max) => {
             if max <= SMALL {
-                small(iter)
+                let elems = iter.map(MaybeDone::Future).collect::<Box<[_]>>().into();
+                JoinAllKind::Small { elems }
             } else {
-                big(iter)
+                JoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().collect() }
             }
         }
     };
     assert_future::<Vec<<I::Item as Future>::Output>, _>(JoinAll { kind })
-}
-
-fn small<I>(i: I) -> JoinAllKind<I::Item>
-where
-    I: Iterator,
-    I::Item: Future,
-{
-    let elems: Box<[_]> = i.map(MaybeDone::Future).collect();
-    JoinAllKind::Small { elems: elems.into() }
-}
-
-fn big<I>(i: I) -> JoinAllKind<I::Item>
-where
-    I: Iterator,
-    I::Item: Future,
-{
-    let ordered = FuturesOrdered::from_iter(i);
-    JoinAllKind::Big { ordered: StreamExt::collect(ordered) }
 }
 
 impl<F> Future for JoinAll<F>
@@ -157,7 +140,7 @@ where
                     Poll::Pending
                 }
             }
-            JoinAllKindProj::Big { ordered } => ordered.poll(cx),
+            JoinAllKindProj::Big { fut } => fut.poll(cx),
         }
     }
 }
