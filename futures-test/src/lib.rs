@@ -54,7 +54,7 @@ mod track_closed;
 /// Enables an `async` test function. The generated future will be run to completion with
 /// [`futures_executor::block_on`](futures_executor::block_on).
 ///
-/// ```no_run
+/// ```
 /// #[futures_test::test]
 /// async fn my_test() {
 ///     let fut = async { true };
