@@ -7,6 +7,9 @@ use futures::task::{Context, SpawnExt};
 use futures_test::future::FutureTestExt;
 use futures_test::task::{new_count_waker, panic_context};
 use std::sync::Arc;
+use futures::stream::futures_unordered::FuturesUnordered;
+use std::time::Instant;
+
 
 #[test]
 fn mutex_acquire_uncontested() {
@@ -53,7 +56,7 @@ fn mutex_contested() {
             tx.unbounded_send(()).unwrap();
             drop(lock);
         })
-        .unwrap();
+            .unwrap();
     }
 
     block_on(async {
@@ -63,4 +66,19 @@ fn mutex_contested() {
         let lock = mutex.lock().await;
         assert_eq!(num_tasks, *lock);
     })
+}
+
+#[test]
+fn quadratic_performance_test() {
+    for &count in &[10, 100, 1000, 10000, 100000, 1000000] {
+        let mutex = Mutex::new(());
+        let start = Instant::now();
+        block_on((0..count).map(|_| {
+            async {
+                let _guard = mutex.lock().await;
+                ready(()).pending_once().await;
+            }
+        }).collect::<FuturesUnordered<_>>().collect::<()>());
+        println!("{}\t{:?}", count, start.elapsed());
+    }
 }
