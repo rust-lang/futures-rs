@@ -3,10 +3,11 @@ use quote::quote;
 
 pub(crate) fn test(args: TokenStream, item: TokenStream) -> TokenStream {
     if !args.is_empty() {
-        return syn::Error::new_spanned(args, "invalid argument"))
+        return syn::Error::new_spanned(proc_macro2::TokenStream::from(args), "invalid argument")
             .to_compile_error()
             .into();
     }
+
     let mut input = syn::parse_macro_input!(item as syn::ItemFn);
     let attrs = &input.attrs;
     let vis = &input.vis;
