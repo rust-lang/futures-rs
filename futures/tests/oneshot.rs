@@ -64,3 +64,15 @@ fn oneshot_drop_rx() {
     drop(rx);
     assert_eq!(Err(2), tx.send(2));
 }
+
+#[test]
+fn oneshot_debug() {
+    let (tx, rx) = oneshot::channel::<i32>();
+    assert_eq!(format!("{:?}", tx), "Sender { complete: false }");
+    assert_eq!(format!("{:?}", rx), "Receiver { complete: false }");
+    drop(rx);
+    assert_eq!(format!("{:?}", tx), "Sender { complete: true }");
+    let (tx, rx) = oneshot::channel::<i32>();
+    drop(tx);
+    assert_eq!(format!("{:?}", rx), "Receiver { complete: true }");
+}
