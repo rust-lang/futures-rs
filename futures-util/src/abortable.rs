@@ -50,13 +50,18 @@ impl<T> Abortable<T> {
     /// # use futures::stream::{self, StreamExt};
     ///
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    /// let mut stream = Abortable::stream(stream::iter(vec![1, 2, 3]), abort_registration);
+    /// let mut stream = Abortable::new(stream::iter(vec![1, 2, 3]), abort_registration);
     /// abort_handle.abort();
     /// assert_eq!(stream.next().await, None);
     /// # });
     /// ```
-    pub fn new(future: T, reg: AbortRegistration) -> Self {
-        Self { task: future, inner: reg.inner }
+    pub fn new(task: T, reg: AbortRegistration) -> Self {
+        Self { task, inner: reg.inner }
+    }
+
+    /// Checks whether the task has been aborted. See [`AbortHandle::abort`] for details.
+    pub fn is_aborted(&self) -> bool {
+        self.inner.cancel.load(Ordering::Relaxed)
     }
 }
 

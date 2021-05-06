@@ -12,6 +12,7 @@ fn abortable_works() {
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
     abort_handle.abort();
+    assert!(abortable_rx.is_aborted());
     assert_eq!(None, block_on(abortable_rx.next()));
 }
 
@@ -29,6 +30,7 @@ fn abortable_awakens() {
 
     abort_handle.abort();
     assert_eq!(counter, 1);
+    assert!(abortable_rx.is_aborted());
     assert_eq!(Poll::Ready(None), Pin::new(&mut abortable_rx).poll_next(&mut cx));
 }
 
@@ -39,5 +41,6 @@ fn abortable_resolves() {
 
     block_on(tx.send(())).unwrap();
 
+    assert!(!abortable_rx.is_aborted());
     assert_eq!(Some(()), block_on(abortable_rx.next()));
 }
