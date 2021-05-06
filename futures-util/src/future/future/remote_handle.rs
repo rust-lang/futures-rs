@@ -36,7 +36,7 @@ use {
 /// must be careful with regard to unwind safety because the thread in which the future
 /// is polled will keep running after the panic and the thread running the [RemoteHandle]
 /// will unwind.
-#[must_use = "futures do nothing unless you `.await` or poll them"]
+#[must_use = "dropping a remote handle cancels the underlying future"]
 #[derive(Debug)]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 pub struct RemoteHandle<T> {
