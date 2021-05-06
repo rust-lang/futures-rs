@@ -16,7 +16,6 @@ use crate::lock::Lock;
 ///
 /// This is created by the [`channel`](channel) function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-#[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
@@ -24,7 +23,6 @@ pub struct Receiver<T> {
 /// A means of transmitting a single value to another task.
 ///
 /// This is created by the [`channel`](channel) function.
-#[derive(Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
@@ -35,7 +33,6 @@ impl<T> Unpin for Sender<T> {}
 
 /// Internal state of the `Receiver`/`Sender` pair above. This is all used as
 /// the internal synchronization between the two for send/recv operations.
-#[derive(Debug)]
 struct Inner<T> {
     /// Indicates whether this oneshot is complete yet. This is filled in both
     /// by `Sender::drop` and by `Receiver::drop`, and both sides interpret it
@@ -394,6 +391,12 @@ impl<T> Drop for Sender<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for Sender<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Sender").field("complete", &self.inner.complete).finish()
+    }
+}
+
 /// A future that resolves when the receiving end of a channel has hung up.
 ///
 /// This is an `.await`-friendly interface around [`poll_canceled`](Sender::poll_canceled).
@@ -479,5 +482,11 @@ impl<T> FusedFuture for Receiver<T> {
 impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         self.inner.drop_rx()
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Receiver<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Receiver").field("complete", &self.inner.complete).finish()
     }
 }
