@@ -61,5 +61,17 @@ mod track_closed;
 ///     assert!(fut.await);
 /// }
 /// ```
+///
+/// This is equivalent to the following code:
+///
+/// ```
+/// #[test]
+/// fn my_test() {
+///     futures::executor::block_on(async move {
+///         let fut = async { true };
+///         assert!(fut.await);
+///     })
+/// }
+/// ```
 #[cfg(feature = "std")]
 pub use futures_macro::test_internal as test;
