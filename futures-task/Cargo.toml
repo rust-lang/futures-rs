@@ -16,11 +16,6 @@ default = ["std"]
 std = ["alloc"]
 alloc = []
 
-# These features are no longer used.
-# TODO: remove in the next major version.
-unstable = []
-cfg-target-has-atomic = []
-
 [dependencies]
 
 [dev-dependencies]
