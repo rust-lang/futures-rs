@@ -89,7 +89,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
     // Clear the queue of tasks.
     //
     // Note that each task has a strong reference count associated with it
-    // which is owned by the ready to run queue. This method just pulls out 
+    // which is owned by the ready to run queue. This method just pulls out
     // tasks and drops their refcounts.
     //
     // # Safety
