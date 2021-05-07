@@ -307,17 +307,18 @@ fn clear() {
 
     assert_eq!(block_on(tasks.next()), Some(1));
     assert!(!tasks.is_empty());
-    assert!(!tasks.is_terminated());
 
     tasks.clear();
     assert!(tasks.is_empty());
-    assert!(tasks.is_terminated());
 
     tasks.push(future::ready(3));
     assert!(!tasks.is_empty());
-    assert!(!tasks.is_terminated());
 
     tasks.clear();
     assert!(tasks.is_empty());
+
+    assert_eq!(block_on(tasks.next()), None);
     assert!(tasks.is_terminated());
+    tasks.clear();
+    assert!(!tasks.is_terminated());
 }

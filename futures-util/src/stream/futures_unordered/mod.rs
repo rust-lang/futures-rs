@@ -564,7 +564,7 @@ impl<Fut> FuturesUnordered<Fut> {
         // we just cleared all the tasks, so this is safe.
         unsafe { self.ready_to_run_queue.clear() };
 
-        self.is_terminated.store(true, Relaxed);
+        self.is_terminated.store(false, Relaxed);
     }
 }
 
