@@ -1,11 +1,11 @@
 use super::assert_future;
 use crate::task::AtomicWaker;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use alloc::sync::Arc;
 use core::fmt;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
-use alloc::sync::Arc;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {
@@ -19,7 +19,10 @@ pin_project! {
     }
 }
 
-impl<Fut> Abortable<Fut> where Fut: Future {
+impl<Fut> Abortable<Fut>
+where
+    Fut: Future,
+{
     /// Creates a new `Abortable` future using an existing `AbortRegistration`.
     /// `AbortRegistration`s can be acquired through `AbortHandle::new`.
     ///
@@ -40,10 +43,7 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     /// # });
     /// ```
     pub fn new(future: Fut, reg: AbortRegistration) -> Self {
-        assert_future::<Result<Fut::Output, Aborted>, _>(Self {
-            future,
-            inner: reg.inner,
-        })
+        assert_future::<Result<Fut::Output, Aborted>, _>(Self { future, inner: reg.inner })
     }
 }
 
@@ -80,19 +80,10 @@ impl AbortHandle {
     /// # });
     /// ```
     pub fn new_pair() -> (Self, AbortRegistration) {
-        let inner = Arc::new(AbortInner {
-            waker: AtomicWaker::new(),
-            cancel: AtomicBool::new(false),
-        });
+        let inner =
+            Arc::new(AbortInner { waker: AtomicWaker::new(), cancel: AtomicBool::new(false) });
 
-        (
-            Self {
-                inner: inner.clone(),
-            },
-            AbortRegistration {
-                inner,
-            },
-        )
+        (Self { inner: inner.clone() }, AbortRegistration { inner })
     }
 }
 
@@ -112,13 +103,11 @@ struct AbortInner {
 /// This function is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
 pub fn abortable<Fut>(future: Fut) -> (Abortable<Fut>, AbortHandle)
-    where Fut: Future
+where
+    Fut: Future,
 {
     let (handle, reg) = AbortHandle::new_pair();
-    (
-        Abortable::new(future, reg),
-        handle,
-    )
+    (Abortable::new(future, reg), handle)
 }
 
 /// Indicator that the `Abortable` future was aborted.
@@ -134,18 +123,21 @@ impl fmt::Display for Aborted {
 #[cfg(feature = "std")]
 impl std::error::Error for Aborted {}
 
-impl<Fut> Future for Abortable<Fut> where Fut: Future {
+impl<Fut> Future for Abortable<Fut>
+where
+    Fut: Future,
+{
     type Output = Result<Fut::Output, Aborted>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Check if the future has been aborted
         if self.inner.cancel.load(Ordering::Relaxed) {
-            return Poll::Ready(Err(Aborted))
+            return Poll::Ready(Err(Aborted));
         }
 
         // attempt to complete the future
         if let Poll::Ready(x) = self.as_mut().project().future.poll(cx) {
-            return Poll::Ready(Ok(x))
+            return Poll::Ready(Ok(x));
         }
 
         // Register to receive a wakeup if the future is aborted in the... future
@@ -156,7 +148,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         // Checking with `Relaxed` is sufficient because `register` introduces an
         // `AcqRel` barrier.
         if self.inner.cancel.load(Ordering::Relaxed) {
-            return Poll::Ready(Err(Aborted))
+            return Poll::Ready(Err(Aborted));
         }
 
         Poll::Pending
