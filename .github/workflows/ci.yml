@@ -241,6 +241,14 @@ jobs:
           rustup component add clippy
       - run: cargo clippy --workspace --all-features --all-targets
 
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo fmt --all -- --check
+
   docs:
     name: cargo doc
     runs-on: ubuntu-latest
