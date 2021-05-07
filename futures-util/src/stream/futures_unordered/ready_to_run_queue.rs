@@ -88,14 +88,17 @@ impl<Fut> ReadyToRunQueue<Fut> {
 
     // Clear the queue of tasks.
     //
+    // Note that each task has a strong reference count associated with it
+    // which is owned by the ready to run queue. This method just pulls out 
+    // tasks and drops their refcounts.
+    //
     // # Safety
     //
-    // Note that each task has a strong reference count associated with it
-    // which is owned by the ready to run queue. All tasks MUST have had
-    // their futures dropped already by `FuturesUnordered::clear`. This
-    // method just pulls out tasks and drops their refcounts.
+    // - All tasks **must** have had their futures dropped already (by FuturesUnordered::clear)
+    // - The caller **must** guarantee unique access to `self`
     pub(crate) unsafe fn clear(&self) {
         loop {
+            // SAFETY: We have the guarantee of mutual exclusion required by `dequeue`.
             match self.dequeue() {
                 Dequeue::Empty => break,
                 Dequeue::Inconsistent => abort("inconsistent in drop"),
@@ -109,8 +112,9 @@ impl<Fut> Drop for ReadyToRunQueue<Fut> {
     fn drop(&mut self) {
         // Once we're in the destructor for `Inner<Fut>` we need to clear out
         // the ready to run queue of tasks if there's anything left in there.
+
         // All tasks have had their futures dropped already by the `FuturesUnordered`
-        // destructor above, so this is safe.
+        // destructor above, and we have &mut self, so this is safe.
         unsafe {
             self.clear();
         }
