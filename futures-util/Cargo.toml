@@ -26,14 +26,10 @@ channel = ["std", "futures-channel"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core/unstable", "futures-task/unstable"]
+unstable = []
 bilock = []
 read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
 write-all-vectored = ["io"]
-
-# These features are no longer used.
-# TODO: remove in the next major version.
-cfg-target-has-atomic = []
 
 [build-dependencies]
 autocfg = "1"

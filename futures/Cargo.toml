@@ -46,14 +46,10 @@ thread-pool = ["executor", "futures-executor/thread-pool"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core/unstable", "futures-task/unstable", "futures-channel/unstable", "futures-io/unstable", "futures-util/unstable"]
+unstable = ["futures-io/unstable", "futures-util/unstable"]
 bilock = ["futures-util/bilock"]
 read-initializer = ["futures-io/read-initializer", "futures-util/read-initializer"]
 write-all-vectored = ["futures-util/write-all-vectored"]
-
-# These features are no longer used.
-# TODO: remove in the next major version.
-cfg-target-has-atomic = []
 
 [package.metadata.docs.rs]
 all-features = true
