@@ -300,3 +300,14 @@ fn polled_only_once_at_most_per_iteration() {
     let mut tasks = FuturesUnordered::<F>::new();
     assert_eq!(Poll::Ready(None), tasks.poll_next_unpin(cx));
 }
+
+#[test]
+fn clear() {
+    let mut tasks = FuturesUnordered::from_iter(vec![future::ready(1), future::ready(2)]);
+
+    assert_eq!(block_on(tasks.next()), Some(1));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+}
