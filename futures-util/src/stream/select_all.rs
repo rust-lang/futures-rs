@@ -5,11 +5,11 @@ use core::iter::FromIterator;
 use core::pin::Pin;
 
 use futures_core::ready;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
 use super::assert_stream;
-use crate::stream::{StreamExt, StreamFuture, FuturesUnordered};
+use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
 
 /// An unbounded set of streams
 ///
@@ -75,10 +75,7 @@ impl<St: Stream + Unpin> Default for SelectAll<St> {
 impl<St: Stream + Unpin> Stream for SelectAll<St> {
     type Item = St::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             match ready!(self.inner.poll_next_unpin(cx)) {
                 Some((Some(item), remaining)) => {
@@ -116,8 +113,9 @@ impl<St: Stream + Unpin> FusedStream for SelectAll<St> {
 /// This function is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
 pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
-    where I: IntoIterator,
-          I::Item: Stream + Unpin
+where
+    I: IntoIterator,
+    I::Item: Stream + Unpin,
 {
     let mut set = SelectAll::new();
 
