@@ -555,13 +555,16 @@ impl<Fut> Debug for FuturesUnordered<Fut> {
 impl<Fut> FuturesUnordered<Fut> {
     /// Clear all the futures associated with this task.
     pub fn clear(&mut self) {
-        unsafe {
-            while !self.head_all.get_mut().is_null() {
-                let head = *self.head_all.get_mut();
-                let task = self.unlink(head);
-                self.release_task(task);
-            }
+        while !self.head_all.get_mut().is_null() {
+            let head = *self.head_all.get_mut();
+            let task = unsafe { self.unlink(head) };
+            self.release_task(task);
         }
+
+        // we just cleared all the tasks, so this is safe.
+        unsafe { self.ready_to_run_queue.clear() };
+
+        self.is_terminated.store(true, Relaxed);
     }
 }
 
