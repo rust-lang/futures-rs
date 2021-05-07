@@ -1780,24 +1780,24 @@ pub mod stream {
     assert_not_impl!(Zip<UnpinStream, PinnedStream>: Unpin);
     assert_not_impl!(Zip<PinnedStream, UnpinStream>: Unpin);
 
-    assert_not_impl!(futures_unordered::Iter<()>: Send);
-    assert_not_impl!(futures_unordered::Iter<()>: Sync);
+    assert_impl!(futures_unordered::Iter<()>: Send);
+    assert_impl!(futures_unordered::Iter<()>: Sync);
     assert_impl!(futures_unordered::Iter<()>: Unpin);
     // futures_unordered::Iter requires `Fut: Unpin`
     // assert_not_impl!(futures_unordered::Iter<PhantomPinned>: Unpin);
 
-    assert_not_impl!(futures_unordered::IterMut<()>: Send);
-    assert_not_impl!(futures_unordered::IterMut<()>: Sync);
+    assert_impl!(futures_unordered::IterMut<()>: Send);
+    assert_impl!(futures_unordered::IterMut<()>: Sync);
     assert_impl!(futures_unordered::IterMut<()>: Unpin);
     // futures_unordered::IterMut requires `Fut: Unpin`
     // assert_not_impl!(futures_unordered::IterMut<PhantomPinned>: Unpin);
 
-    assert_not_impl!(futures_unordered::IterPinMut<()>: Send);
-    assert_not_impl!(futures_unordered::IterPinMut<()>: Sync);
+    assert_impl!(futures_unordered::IterPinMut<()>: Send);
+    assert_impl!(futures_unordered::IterPinMut<()>: Sync);
     assert_impl!(futures_unordered::IterPinMut<PhantomPinned>: Unpin);
 
-    assert_not_impl!(futures_unordered::IterPinRef<()>: Send);
-    assert_not_impl!(futures_unordered::IterPinRef<()>: Sync);
+    assert_impl!(futures_unordered::IterPinRef<()>: Send);
+    assert_impl!(futures_unordered::IterPinRef<()>: Sync);
     assert_impl!(futures_unordered::IterPinRef<PhantomPinned>: Unpin);
 }
 
