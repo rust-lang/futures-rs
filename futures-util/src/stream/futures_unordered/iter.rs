@@ -1,5 +1,5 @@
-use super::FuturesUnordered;
 use super::task::Task;
+use super::FuturesUnordered;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use core::sync::atomic::Ordering::Relaxed;
@@ -9,12 +9,12 @@ use core::sync::atomic::Ordering::Relaxed;
 pub struct IterPinMut<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
-    pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>
+    pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>,
 }
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, Fut: Unpin> (pub(super) IterPinMut<'a, Fut>);
+pub struct IterMut<'a, Fut: Unpin>(pub(super) IterPinMut<'a, Fut>);
 
 #[derive(Debug)]
 /// Immutable iterator over all futures in the unordered set.
@@ -22,12 +22,12 @@ pub struct IterPinRef<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
     pub(super) pending_next_all: *mut Task<Fut>,
-    pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>
+    pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>,
 }
 
 #[derive(Debug)]
 /// Immutable iterator over all the futures in the unordered set.
-pub struct Iter<'a, Fut: Unpin> (pub(super) IterPinRef<'a, Fut>);
+pub struct Iter<'a, Fut: Unpin>(pub(super) IterPinRef<'a, Fut>);
 
 impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = Pin<&'a mut Fut>;
@@ -85,10 +85,7 @@ impl<'a, Fut> Iterator for IterPinRef<'a, Fut> {
             // `head_all` was initially read for this iterator implies acquire
             // ordering for all previously inserted nodes (and we don't need to
             // read `len_all` again for any other nodes).
-            let next = (*self.task).spin_next_all(
-                self.pending_next_all,
-                Relaxed,
-            );
+            let next = (*self.task).spin_next_all(self.pending_next_all, Relaxed);
             self.task = next;
             self.len -= 1;
             Some(Pin::new_unchecked(future))
@@ -115,3 +112,11 @@ impl<'a, Fut: Unpin> Iterator for Iter<'a, Fut> {
 }
 
 impl<Fut: Unpin> ExactSizeIterator for Iter<'_, Fut> {}
+
+// SAFETY: we do nothing thread-local and there is no interior mutability,
+// so the usual structural `Send`/`Sync` apply.
+unsafe impl<Fut: Send> Send for IterPinRef<'_, Fut> {}
+unsafe impl<Fut: Sync> Sync for IterPinRef<'_, Fut> {}
+
+unsafe impl<Fut: Send> Send for IterPinMut<'_, Fut> {}
+unsafe impl<Fut: Sync> Sync for IterPinMut<'_, Fut> {}
