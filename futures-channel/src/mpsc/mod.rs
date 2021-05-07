@@ -282,7 +282,7 @@ struct UnboundedInner<T> {
 
 #[derive(Debug)]
 struct BoundedInner<T> {
-    // Max buffer size of the channel. If `None` then the channel is unbounded.
+    // Max buffer size of the channel.
     buffer: usize,
 
     // Internal channel state. Consists of the number of messages stored in the
