@@ -228,18 +228,20 @@ jobs:
           # `--cfg futures_sanitizer`.
           RUSTFLAGS: -D warnings -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
 
-  clippy:
-    name: cargo clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust and Clippy
-        run: |
-          toolchain=nightly-$(curl -sSf https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)
-          rustup set profile minimal
-          rustup default "$toolchain"
-          rustup component add clippy
-      - run: cargo clippy --workspace --all-features --all-targets
+  # This branch no longer actively developed. Most commits to this
+  # branch are backporting and should not be blocked by clippy.
+  # clippy:
+  #   name: cargo clippy
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install Rust and Clippy
+  #       run: |
+  #         toolchain=nightly-$(curl -sSf https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)
+  #         rustup set profile minimal
+  #         rustup default "$toolchain"
+  #         rustup component add clippy
+  #     - run: cargo clippy --workspace --all-features --all-targets
 
   docs:
     name: cargo doc
