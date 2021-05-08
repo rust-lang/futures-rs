@@ -46,7 +46,7 @@ impl<Fut: Unpin> Iterator for IntoIter<Fut> {
 
         unsafe {
             // Moving out of the future is safe because it is `Unpin`
-            let future = (**task).future.get_mut().take().unwrap();
+            let future = (*(**task).future.get()).take().unwrap();
 
             // Mutable access to a previously shared `FuturesUnordered` implies
             // that the other threads already released the object before the
