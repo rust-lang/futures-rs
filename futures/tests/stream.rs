@@ -38,14 +38,31 @@ fn flat_map() {
 fn scan() {
     block_on(async {
         let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
-            .scan(1, |state, e| {
-                *state += 1;
-                futures::future::ready(if e < *state { Some(e) } else { None })
+            .scan(1, |mut state, e| async move {
+                state += 1;
+                if e < state {
+                    Some((state, e))
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>()
             .await;
 
         assert_eq!(values, vec![1u8, 2, 3, 4]);
+    });
+
+    block_on(async {
+        let mut state = vec![];
+        let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
+            .scan(&mut state, |state, e| async move {
+                state.push(e);
+                Some((state, e))
+            })
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_eq!(values, state);
     });
 }
 

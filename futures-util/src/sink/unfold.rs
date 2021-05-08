@@ -10,10 +10,10 @@ pin_project! {
     /// Sink for the [`unfold`] function.
     #[derive(Debug)]
     #[must_use = "sinks do nothing unless polled"]
-    pub struct Unfold<T, F, R> {
+    pub struct Unfold<T, F, Fut> {
         function: F,
         #[pin]
-        state: UnfoldState<T, R>,
+        state: UnfoldState<T, Fut>,
     }
 }
 
@@ -36,18 +36,18 @@ pin_project! {
 /// unfold.send(5).await?;
 /// # Ok::<(), std::convert::Infallible>(()) }).unwrap();
 /// ```
-pub fn unfold<T, F, R, Item, E>(init: T, function: F) -> Unfold<T, F, R>
+pub fn unfold<T, F, Fut, Item, E>(init: T, function: F) -> Unfold<T, F, Fut>
 where
-    F: FnMut(T, Item) -> R,
-    R: Future<Output = Result<T, E>>,
+    F: FnMut(T, Item) -> Fut,
+    Fut: Future<Output = Result<T, E>>,
 {
     assert_sink::<Item, E, _>(Unfold { function, state: UnfoldState::Value { value: init } })
 }
 
-impl<T, F, R, Item, E> Sink<Item> for Unfold<T, F, R>
+impl<T, F, Fut, Item, E> Sink<Item> for Unfold<T, F, Fut>
 where
-    F: FnMut(T, Item) -> R,
-    R: Future<Output = Result<T, E>>,
+    F: FnMut(T, Item) -> Fut,
+    Fut: Future<Output = Result<T, E>>,
 {
     type Error = E;
 
