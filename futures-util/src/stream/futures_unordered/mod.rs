@@ -221,7 +221,7 @@ impl<Fut> FuturesUnordered<Fut> {
 
     /// Returns the current head node and number of futures in the list of all
     /// futures within a context where access is shared with other threads
-    /// (mostly for use with the `len` and `iter` methods).
+    /// (mostly for use with the `len` and `iter_pin_ref` methods).
     fn atomic_load_head_and_len_all(&self) -> (*const Task<Fut>, usize) {
         let task = self.head_all.load(Acquire);
         let len = if task.is_null() {
