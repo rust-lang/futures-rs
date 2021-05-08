@@ -1822,6 +1822,12 @@ pub mod stream {
     assert_not_impl!(futures_unordered::IterPinMut<*const ()>: Sync);
     assert_impl!(futures_unordered::IterPinMut<PhantomPinned>: Unpin);
 
+    assert_impl!(futures_unordered::IterPinRef<()>: Send);
+    assert_not_impl!(futures_unordered::IterPinRef<*const ()>: Send);
+    assert_impl!(futures_unordered::IterPinRef<()>: Sync);
+    assert_not_impl!(futures_unordered::IterPinRef<*const ()>: Sync);
+    assert_impl!(futures_unordered::IterPinRef<PhantomPinned>: Unpin);
+
     assert_impl!(futures_unordered::IntoIter<()>: Send);
     assert_not_impl!(futures_unordered::IntoIter<*const ()>: Send);
     assert_impl!(futures_unordered::IntoIter<()>: Sync);

@@ -22,7 +22,7 @@ use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 mod abort;
 
 mod iter;
-pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut};
+pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 
 mod task;
 use self::task::Task;
@@ -190,10 +190,15 @@ impl<Fut> FuturesUnordered<Fut> {
     where
         Fut: Unpin,
     {
+        Iter(Pin::new(self).iter_pin_ref())
+    }
+
+    /// Returns an iterator that allows inspecting each future in the set.
+    pub fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
         let (task, len) = self.atomic_load_head_and_len_all();
         let pending_next_all = self.pending_next_all();
 
-        Iter { task, len, pending_next_all, _marker: PhantomData }
+        IterPinRef { task, len, pending_next_all, _marker: PhantomData }
     }
 
     /// Returns an iterator that allows modifying each future in the set.
@@ -577,17 +582,12 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
     }
 }
 
-impl<Fut: Unpin> IntoIterator for FuturesUnordered<Fut> {
-    type Item = Fut;
-    type IntoIter = IntoIter<Fut>;
+impl<'a, Fut: Unpin> IntoIterator for &'a FuturesUnordered<Fut> {
+    type Item = &'a Fut;
+    type IntoIter = Iter<'a, Fut>;
 
-    fn into_iter(mut self) -> Self::IntoIter {
-        // `head_all` can be accessed directly and we don't need to spin on
-        // `Task::next_all` since we have exclusive access to the set.
-        let task = *self.head_all.get_mut();
-        let len = if task.is_null() { 0 } else { unsafe { *(*task).len_all.get() } };
-
-        IntoIter { len, inner: self }
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -600,12 +600,17 @@ impl<'a, Fut: Unpin> IntoIterator for &'a mut FuturesUnordered<Fut> {
     }
 }
 
-impl<'a, Fut: Unpin> IntoIterator for &'a FuturesUnordered<Fut> {
-    type Item = &'a Fut;
-    type IntoIter = Iter<'a, Fut>;
+impl<Fut: Unpin> IntoIterator for FuturesUnordered<Fut> {
+    type Item = Fut;
+    type IntoIter = IntoIter<Fut>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+    fn into_iter(mut self) -> Self::IntoIter {
+        // `head_all` can be accessed directly and we don't need to spin on
+        // `Task::next_all` since we have exclusive access to the set.
+        let task = *self.head_all.get_mut();
+        let len = if task.is_null() { 0 } else { unsafe { *(*task).len_all.get() } };
+
+        IntoIter { len, inner: self }
     }
 }
 
