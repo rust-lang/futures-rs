@@ -10,6 +10,7 @@ use futures_core::task::{Context, Poll};
 
 use super::assert_stream;
 use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
+use crate::stream::futures_unordered::{Iter, IterMut};
 
 /// An unbounded set of streams
 ///
@@ -63,6 +64,16 @@ impl<St: Stream + Unpin> SelectAll<St> {
     /// notifications.
     pub fn push(&self, stream: St) {
         self.inner.push(stream.into_future());
+    }
+
+    /// Returns an iterator that allows inspecting each future in the set.
+    pub fn iter(&self) -> Iter<'_, StreamFuture<St>> {
+        self.inner.iter()
+    }
+
+    /// Returns an iterator that allows modifying each future in the set.
+    pub fn iter_mut(&mut self) -> IterMut<'_, StreamFuture<St>> {
+        self.inner.iter_mut()
     }
 }
 
@@ -137,5 +148,23 @@ impl<St: Stream + Unpin> Extend<St> for SelectAll<St> {
         for st in iter {
             self.push(st)
         }
+    }
+}
+
+impl<'a, St: Stream + Unpin> IntoIterator for &'a SelectAll<St> {
+    type Item = &'a StreamFuture<St>;
+    type IntoIter = Iter<'a, StreamFuture<St>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, St: Stream + Unpin> IntoIterator for &'a mut SelectAll<St> {
+    type Item = &'a mut StreamFuture<St>;
+    type IntoIter = IterMut<'a, StreamFuture<St>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
