@@ -14,6 +14,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 
+mod executor;
 mod join;
 mod select;
 
@@ -43,4 +44,10 @@ pub fn select_internal(input: TokenStream) -> TokenStream {
 #[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn select_biased_internal(input: TokenStream) -> TokenStream {
     crate::select::select_biased(input)
+}
+
+/// The `test` attribute.
+#[proc_macro_attribute]
+pub fn test_internal(input: TokenStream, item: TokenStream) -> TokenStream {
+    crate::executor::test(input, item)
 }

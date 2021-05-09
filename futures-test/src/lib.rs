@@ -16,6 +16,7 @@ compile_error!(
 #[cfg(feature = "std")]
 pub mod __private {
     pub use futures_core::{future, stream, task};
+    pub use futures_executor::block_on;
     pub use std::{
         option::Option::{None, Some},
         pin::Pin,
@@ -49,3 +50,28 @@ pub mod io;
 mod assert_unmoved;
 mod interleave_pending;
 mod track_closed;
+
+/// Enables an `async` test function. The generated future will be run to completion with
+/// [`futures_executor::block_on`](futures_executor::block_on).
+///
+/// ```
+/// #[futures_test::test]
+/// async fn my_test() {
+///     let fut = async { true };
+///     assert!(fut.await);
+/// }
+/// ```
+///
+/// This is equivalent to the following code:
+///
+/// ```
+/// #[test]
+/// fn my_test() {
+///     futures::executor::block_on(async move {
+///         let fut = async { true };
+///         assert!(fut.await);
+///     })
+/// }
+/// ```
+#[cfg(feature = "std")]
+pub use futures_macro::test_internal as test;

@@ -127,59 +127,41 @@ jobs:
       - run: cargo update -Z minimal-versions
       - run: cargo build --workspace --all-features
 
-  thumbv6m:
-    name: cargo build --target thumbv6m-none-eabi
+  no-std:
+    name: cargo build --target ${{ matrix.target }}
+    strategy:
+      matrix:
+        target:
+          - thumbv6m-none-eabi
+          - thumbv7m-none-eabi
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: rustup target add thumbv6m-none-eabi
+      - run: rustup target add ${{ matrix.target }}
       - run: cargo install cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv6m-none-eabi \
-            --no-default-features \
-            --features unstable,cfg-target-has-atomic
+          cargo hack build --manifest-path futures/tests/no-std/Cargo.toml \
+            --each-feature --optional-deps \
+            --target ${{ matrix.target }}
       - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv6m-none-eabi \
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
             --no-default-features \
-            --features alloc,unstable,cfg-target-has-atomic
+            --target ${{ matrix.target }}
       - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv6m-none-eabi \
-            --no-default-features \
-            --features async-await,unstable,cfg-target-has-atomic
-
-  thumbv7m:
-    name: cargo build --target thumbv7m-none-eabi
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: rustup target add thumbv7m-none-eabi
-      - run: cargo install cargo-hack
-      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-      - run: cargo hack --remove-dev-deps --workspace
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
+            --no-default-features --features alloc --ignore-unknown-features \
+            --target ${{ matrix.target }}
       - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv7m-none-eabi \
-            --no-default-features \
-            --features unstable,cfg-target-has-atomic
-      - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv7m-none-eabi \
-            --no-default-features \
-            --features alloc
-      - run: |
-          cargo build --manifest-path futures/Cargo.toml \
-            --target thumbv7m-none-eabi \
-            --no-default-features \
-            --features async-await
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
+            --no-default-features --features async-await,alloc --ignore-unknown-features \
+            --target ${{ matrix.target }}
 
   bench:
     name: cargo bench
@@ -211,6 +193,19 @@ jobs:
             --feature-powerset --depth 2 --no-dev-deps \
             --workspace --exclude futures-test \
             --features unstable --ignore-unknown-features
+
+  # When this job failed, run ci/no_atomic_cas.sh and commit result changes.
+  # TODO(taiki-e): Ideally, this should be automated using a bot that creates
+  #                PR when failed, but there is no bandwidth to implement it
+  #                right now...
+  codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: ci/no_atomic_cas.sh
+      - run: git diff --exit-code
 
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
@@ -245,6 +240,14 @@ jobs:
           rustup default "$toolchain"
           rustup component add clippy
       - run: cargo clippy --workspace --all-features --all-targets
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - run: tools/fmt.sh
 
   docs:
     name: cargo doc

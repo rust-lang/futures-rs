@@ -26,8 +26,7 @@ channel = ["std", "futures-channel"]
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
 # `unstable` feature as an explicit opt-in to unstable API.
-unstable = ["futures-core/unstable", "futures-task/unstable"]
-cfg-target-has-atomic = ["futures-core/cfg-target-has-atomic", "futures-task/cfg-target-has-atomic"]
+unstable = []
 bilock = []
 read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
 write-all-vectored = ["io"]

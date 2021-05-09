@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use crate::future::{assert_future, try_maybe_done, TryMaybeDone};
 use core::fmt;
 use core::pin::Pin;
@@ -7,91 +5,58 @@ use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
-macro_rules! generate {
-    ($(
-        $(#[$doc:meta])*
-        ($Join:ident, <Fut1, $($Fut:ident),*>),
-    )*) => ($(
-        pin_project! {
-            $(#[$doc])*
-            #[must_use = "futures do nothing unless you `.await` or poll them"]
-            pub struct $Join<Fut1: TryFuture, $($Fut: TryFuture),*> {
-                #[pin] Fut1: TryMaybeDone<Fut1>,
-                $(#[pin] $Fut: TryMaybeDone<$Fut>,)*
-            }
-        }
-
-        impl<Fut1, $($Fut),*> fmt::Debug for $Join<Fut1, $($Fut),*>
-        where
-            Fut1: TryFuture + fmt::Debug,
-            Fut1::Ok: fmt::Debug,
-            Fut1::Error: fmt::Debug,
-            $(
-                $Fut: TryFuture + fmt::Debug,
-                $Fut::Ok: fmt::Debug,
-                $Fut::Error: fmt::Debug,
-            )*
-        {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct(stringify!($Join))
-                    .field("Fut1", &self.Fut1)
-                    $(.field(stringify!($Fut), &self.$Fut))*
-                    .finish()
-            }
-        }
-
-        impl<Fut1, $($Fut),*> $Join<Fut1, $($Fut),*>
-        where
-            Fut1: TryFuture,
-            $(
-                $Fut: TryFuture<Error=Fut1::Error>
-            ),*
-        {
-            fn new(Fut1: Fut1, $($Fut: $Fut),*) -> Self {
-                Self {
-                    Fut1: try_maybe_done(Fut1),
-                    $($Fut: try_maybe_done($Fut)),*
-                }
-            }
-        }
-
-        impl<Fut1, $($Fut),*> Future for $Join<Fut1, $($Fut),*>
-        where
-            Fut1: TryFuture,
-            $(
-                $Fut: TryFuture<Error=Fut1::Error>
-            ),*
-        {
-            type Output = Result<(Fut1::Ok, $($Fut::Ok),*), Fut1::Error>;
-
-            fn poll(
-                self: Pin<&mut Self>, cx: &mut Context<'_>
-            ) -> Poll<Self::Output> {
-                let mut all_done = true;
-                let mut futures = self.project();
-                all_done &= futures.Fut1.as_mut().poll(cx)?.is_ready();
-                $(
-                    all_done &= futures.$Fut.as_mut().poll(cx)?.is_ready();
-                )*
-
-                if all_done {
-                    Poll::Ready(Ok((
-                        futures.Fut1.take_output().unwrap(),
-                        $(
-                            futures.$Fut.take_output().unwrap()
-                        ),*
-                    )))
-                } else {
-                    Poll::Pending
-                }
-            }
-        }
-    )*)
+pin_project! {
+    /// Future for the [`try_join`](super::TryFutureExt::try_join) method.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct TryJoin<Fut1: TryFuture, Fut2: TryFuture> {
+        #[pin] fut1: TryMaybeDone<Fut1>,
+        #[pin] fut2: TryMaybeDone<Fut2>
+    }
 }
 
-generate! {
-    /// Future for the [`try_join`](try_join()) function.
-    (TryJoin, <Fut1, Fut2>),
+impl<Fut1: TryFuture, Fut2: TryFuture> TryJoin<Fut1, Fut2> {
+    pub(crate) fn new(fut1: Fut1, fut2: Fut2) -> Self {
+        Self { fut1: try_maybe_done(fut1), fut2: try_maybe_done(fut2) }
+    }
+}
+
+impl<Fut1, Fut2> fmt::Debug for TryJoin<Fut1, Fut2>
+where
+    Fut1: TryFuture + fmt::Debug,
+    Fut1::Ok: fmt::Debug,
+    Fut1::Error: fmt::Debug,
+    Fut2: TryFuture + fmt::Debug,
+    Fut2::Ok: fmt::Debug,
+    Fut2::Error: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TryJoin").field("fut1", &self.fut1).field("fut2", &self.fut2).finish()
+    }
+}
+
+impl<Fut1, Fut2> Future for TryJoin<Fut1, Fut2>
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture<Error = Fut1::Error>,
+{
+    type Output = Result<(Fut1::Ok, Fut2::Ok), Fut1::Error>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut all_done = true;
+        let mut futures = self.project();
+
+        all_done &= futures.fut1.as_mut().poll(cx)?.is_ready();
+        all_done &= futures.fut2.as_mut().poll(cx)?.is_ready();
+
+        if all_done {
+            Poll::Ready(Ok((
+                futures.fut1.take_output().unwrap(),
+                futures.fut2.take_output().unwrap(),
+            )))
+        } else {
+            Poll::Pending
+        }
+    }
 }
 
 /// Joins the result of two futures, waiting for them both to complete or

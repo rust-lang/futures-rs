@@ -3,11 +3,8 @@
 //! This module is only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
-use futures_task::{FutureObj, LocalFutureObj, Spawn, LocalSpawn, SpawnError};
 use crate::task::AtomicWaker;
+use alloc::sync::{Arc, Weak};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -16,8 +13,11 @@ use core::mem;
 use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
-use core::sync::atomic::{AtomicPtr, AtomicBool};
-use alloc::sync::{Arc, Weak};
+use core::sync::atomic::{AtomicBool, AtomicPtr};
+use futures_core::future::Future;
+use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
+use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
 mod abort;
 
@@ -28,8 +28,7 @@ mod task;
 use self::task::Task;
 
 mod ready_to_run_queue;
-use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
-
+use self::ready_to_run_queue::{Dequeue, ReadyToRunQueue};
 
 /// A set of futures which may complete in any order.
 ///
@@ -63,18 +62,14 @@ unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
 
 impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
-    fn spawn_obj(&self, future_obj: FutureObj<'static, ()>)
-        -> Result<(), SpawnError>
-    {
+    fn spawn_obj(&self, future_obj: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.push(future_obj);
         Ok(())
     }
 }
 
 impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
-    fn spawn_local_obj(&self, future_obj: LocalFutureObj<'static, ()>)
-        -> Result<(), SpawnError>
-    {
+    fn spawn_local_obj(&self, future_obj: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.push(future_obj);
         Ok(())
     }
@@ -191,7 +186,10 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
-    pub fn iter(&self) -> Iter<'_, Fut> where Fut: Unpin {
+    pub fn iter(&self) -> Iter<'_, Fut>
+    where
+        Fut: Unpin,
+    {
         Iter(Pin::new(self).iter_pin_ref())
     }
 
@@ -199,16 +197,14 @@ impl<Fut> FuturesUnordered<Fut> {
     fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
         let (task, len) = self.atomic_load_head_and_len_all();
 
-        IterPinRef {
-            task,
-            len,
-            pending_next_all: self.pending_next_all(),
-            _marker: PhantomData,
-        }
+        IterPinRef { task, len, pending_next_all: self.pending_next_all(), _marker: PhantomData }
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_mut(&mut self) -> IterMut<'_, Fut> where Fut: Unpin {
+    pub fn iter_mut(&mut self) -> IterMut<'_, Fut>
+    where
+        Fut: Unpin,
+    {
         IterMut(Pin::new(self).iter_pin_mut())
     }
 
@@ -217,19 +213,9 @@ impl<Fut> FuturesUnordered<Fut> {
         // `head_all` can be accessed directly and we don't need to spin on
         // `Task::next_all` since we have exclusive access to the set.
         let task = *self.head_all.get_mut();
-        let len = if task.is_null() {
-            0
-        } else {
-            unsafe {
-                *(*task).len_all.get()
-            }
-        };
+        let len = if task.is_null() { 0 } else { unsafe { *(*task).len_all.get() } };
 
-        IterPinMut {
-            task,
-            len,
-            _marker: PhantomData
-        }
+        IterPinMut { task, len, _marker: PhantomData }
     }
 
     /// Returns the current head node and number of futures in the list of all
@@ -395,9 +381,7 @@ impl<Fut> FuturesUnordered<Fut> {
 impl<Fut: Future> Stream for FuturesUnordered<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<Self::Item>>
-    {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Variable to determine how many times it is allowed to poll underlying
         // futures without yielding.
         //
@@ -469,14 +453,11 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
 
                     // Double check that the call to `release_task` really
                     // happened. Calling it required the task to be unlinked.
-                    debug_assert_eq!(
-                        task.next_all.load(Relaxed),
-                        self.pending_next_all()
-                    );
+                    debug_assert_eq!(task.next_all.load(Relaxed), self.pending_next_all());
                     unsafe {
                         debug_assert!((*task.prev_all.get()).is_null());
                     }
-                    continue
+                    continue;
                 }
             };
 
@@ -516,10 +497,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                 }
             }
 
-            let mut bomb = Bomb {
-                task: Some(task),
-                queue: &mut *self,
-            };
+            let mut bomb = Bomb { task: Some(task), queue: &mut *self };
 
             // Poll the underlying future with the appropriate waker
             // implementation. This is where a large bit of the unsafety
@@ -555,11 +533,9 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                         cx.waker().wake_by_ref();
                         return Poll::Pending;
                     }
-                    continue
+                    continue;
                 }
-                Poll::Ready(output) => {
-                    return Poll::Ready(Some(output))
-                }
+                Poll::Ready(output) => return Poll::Ready(Some(output)),
             }
         }
     }
@@ -611,7 +587,10 @@ impl<Fut> FromIterator<Fut> for FuturesUnordered<Fut> {
         I: IntoIterator<Item = Fut>,
     {
         let acc = Self::new();
-        iter.into_iter().fold(acc, |acc, item| { acc.push(item); acc })
+        iter.into_iter().fold(acc, |acc, item| {
+            acc.push(item);
+            acc
+        })
     }
 }
 

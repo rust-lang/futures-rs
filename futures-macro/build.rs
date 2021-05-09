@@ -23,4 +23,6 @@ fn main() {
     if cfg.probe_rustc_version(1, 45) {
         println!("cargo:rustc-cfg=fn_like_proc_macro");
     }
+
+    println!("cargo:rerun-if-changed=build.rs");
 }
