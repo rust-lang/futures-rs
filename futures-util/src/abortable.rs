@@ -59,7 +59,12 @@ impl<T> Abortable<T> {
         Self { task, inner: reg.inner }
     }
 
-    /// Checks whether the task has been aborted. See [`AbortHandle::abort`] for details.
+    /// Checks whether the task has been aborted. Note that all this
+    /// method indicates is whether [`AbortHandle::abort`] was *called*.
+    /// This means that it will return `true` even if:
+    /// * `abort` was called after the task had completed.
+    /// * `abort` was called while the task was being polled - the task may still be running and
+    /// will not be stopped until `poll` returns.
     pub fn is_aborted(&self) -> bool {
         self.inner.aborted.load(Ordering::Relaxed)
     }
@@ -120,7 +125,7 @@ impl<T> Abortable<T> {
         poll: impl Fn(Pin<&mut T>, &mut Context<'_>) -> Poll<I>,
     ) -> Poll<Result<I, Aborted>> {
         // Check if the task has been aborted
-        if self.inner.aborted.load(Ordering::Relaxed) {
+        if self.is_aborted() {
             return Poll::Ready(Err(Aborted));
         }
 
@@ -136,7 +141,7 @@ impl<T> Abortable<T> {
         // registration.
         // Checking with `Relaxed` is sufficient because `register` introduces an
         // `AcqRel` barrier.
-        if self.inner.aborted.load(Ordering::Relaxed) {
+        if self.is_aborted() {
             return Poll::Ready(Err(Aborted));
         }
 
