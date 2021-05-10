@@ -11,7 +11,7 @@ use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 use super::assert_stream;
-use crate::stream::futures_unordered::{Iter, IterMut, IterPinMut, IterPinRef, IntoIter};
+use crate::stream::futures_unordered::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
 
 pin_project! {
@@ -77,7 +77,7 @@ impl<St: Stream + Unpin> SelectAll<St> {
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
-    pub fn iter_pin_ref<'a>(self: Pin<&'a Self>) -> IterPinRef<'a, StreamFuture<St>> {
+    pub fn iter_pin_ref(self: Pin<&'_ Self>) -> IterPinRef<'_, StreamFuture<St>> {
         self.project_ref().inner.iter_pin_ref()
     }
 
