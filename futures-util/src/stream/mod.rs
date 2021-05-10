@@ -108,6 +108,13 @@ cfg_target_has_atomic! {
     mod select_all;
     #[cfg(feature = "alloc")]
     pub use self::select_all::{select_all, SelectAll};
+
+    #[cfg(feature = "alloc")]
+    mod abortable;
+    #[cfg(feature = "alloc")]
+    pub use crate::abortable::{Abortable, AbortHandle, AbortRegistration, Aborted};
+    #[cfg(feature = "alloc")]
+    pub use abortable::abortable;
 }
 
 // Just a helper function to ensure the streams we're returning all have the

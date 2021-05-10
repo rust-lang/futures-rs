@@ -334,5 +334,10 @@ pub use crate::io::{
 #[cfg(feature = "alloc")]
 pub mod lock;
 
+cfg_target_has_atomic! {
+    #[cfg(feature = "alloc")]
+    mod abortable;
+}
+
 mod fns;
 mod unfold_state;

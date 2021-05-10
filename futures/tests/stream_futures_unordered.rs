@@ -215,6 +215,51 @@ fn iter_len() {
 }
 
 #[test]
+fn into_iter_cancel() {
+    let (a_tx, a_rx) = oneshot::channel::<i32>();
+    let (b_tx, b_rx) = oneshot::channel::<i32>();
+    let (c_tx, c_rx) = oneshot::channel::<i32>();
+
+    let stream = vec![a_rx, b_rx, c_rx].into_iter().collect::<FuturesUnordered<_>>();
+
+    let stream = stream
+        .into_iter()
+        .map(|mut rx| {
+            rx.close();
+            rx
+        })
+        .collect::<FuturesUnordered<_>>();
+
+    let mut iter = block_on_stream(stream);
+
+    assert!(a_tx.is_canceled());
+    assert!(b_tx.is_canceled());
+    assert!(c_tx.is_canceled());
+
+    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
+    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
+    assert_eq!(iter.next(), Some(Err(futures::channel::oneshot::Canceled)));
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn into_iter_len() {
+    let stream = vec![future::pending::<()>(), future::pending::<()>(), future::pending::<()>()]
+        .into_iter()
+        .collect::<FuturesUnordered<_>>();
+
+    let mut into_iter = stream.into_iter();
+    assert_eq!(into_iter.len(), 3);
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 2);
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 1);
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 0);
+    assert!(into_iter.next().is_none());
+}
+
+#[test]
 fn futures_not_moved_after_poll() {
     // Future that will be ready after being polled twice,
     // asserting that it does not move.
@@ -299,4 +344,26 @@ fn polled_only_once_at_most_per_iteration() {
 
     let mut tasks = FuturesUnordered::<F>::new();
     assert_eq!(Poll::Ready(None), tasks.poll_next_unpin(cx));
+}
+
+#[test]
+fn clear() {
+    let mut tasks = FuturesUnordered::from_iter(vec![future::ready(1), future::ready(2)]);
+
+    assert_eq!(block_on(tasks.next()), Some(1));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    tasks.push(future::ready(3));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    assert_eq!(block_on(tasks.next()), None);
+    assert!(tasks.is_terminated());
+    tasks.clear();
+    assert!(!tasks.is_terminated());
 }
