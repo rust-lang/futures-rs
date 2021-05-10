@@ -139,8 +139,8 @@ impl<T> Abortable<T> {
 
         // Check to see if the task was aborted between the first check and
         // registration.
-        // Checking with `Relaxed` is sufficient because `register` introduces an
-        // `AcqRel` barrier.
+        // Checking with `is_aborted` which uses `Relaxed` is sufficient because
+        // `register` introduces an `AcqRel` barrier.
         if self.is_aborted() {
             return Poll::Ready(Err(Aborted));
         }
