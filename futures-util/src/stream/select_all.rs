@@ -82,7 +82,7 @@ impl<St: Stream + Unpin> SelectAll<St> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_pin_mut<'a>(self: Pin<&'a mut Self>) -> IterPinMut<'a, StreamFuture<St>> {
+    pub fn iter_pin_mut(self: Pin<&mut Self>) -> IterPinMut<'_, StreamFuture<St>> {
         self.project().inner.iter_pin_mut()
     }
 }
