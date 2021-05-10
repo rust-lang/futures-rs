@@ -236,7 +236,7 @@ impl<Fut> FuturesUnordered<Fut> {
         (task, len)
     }
 
-    /// Releases the task. It destorys the future inside and either drops
+    /// Releases the task. It destroys the future inside and either drops
     /// the `Arc<Task>` or transfers ownership to the ready to run queue.
     /// The task this method is called on must have been unlinked before.
     fn release_task(&mut self, task: Arc<Task<Fut>>) {
@@ -553,19 +553,33 @@ impl<Fut> Debug for FuturesUnordered<Fut> {
     }
 }
 
+impl<Fut> FuturesUnordered<Fut> {
+    /// Clears the set, removing all futures.
+    pub fn clear(&mut self) {
+        self.clear_head_all();
+
+        // we just cleared all the tasks, and we have &mut self, so this is safe.
+        unsafe { self.ready_to_run_queue.clear() };
+
+        self.is_terminated.store(false, Relaxed);
+    }
+
+    fn clear_head_all(&mut self) {
+        while !self.head_all.get_mut().is_null() {
+            let head = *self.head_all.get_mut();
+            let task = unsafe { self.unlink(head) };
+            self.release_task(task);
+        }
+    }
+}
+
 impl<Fut> Drop for FuturesUnordered<Fut> {
     fn drop(&mut self) {
         // When a `FuturesUnordered` is dropped we want to drop all futures
         // associated with it. At the same time though there may be tons of
         // wakers flying around which contain `Task<Fut>` references
         // inside them. We'll let those naturally get deallocated.
-        unsafe {
-            while !self.head_all.get_mut().is_null() {
-                let head = *self.head_all.get_mut();
-                let task = self.unlink(head);
-                self.release_task(task);
-            }
-        }
+        self.clear_head_all();
 
         // Note that at this point we could still have a bunch of tasks in the
         // ready to run queue. None of those tasks, however, have futures
