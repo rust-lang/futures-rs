@@ -1827,6 +1827,13 @@ pub mod stream {
     assert_impl!(futures_unordered::IterPinRef<()>: Sync);
     assert_not_impl!(futures_unordered::IterPinRef<*const ()>: Sync);
     assert_impl!(futures_unordered::IterPinRef<PhantomPinned>: Unpin);
+
+    assert_impl!(futures_unordered::IntoIter<()>: Send);
+    assert_not_impl!(futures_unordered::IntoIter<*const ()>: Send);
+    assert_impl!(futures_unordered::IntoIter<()>: Sync);
+    assert_not_impl!(futures_unordered::IntoIter<*const ()>: Sync);
+    // The definition of futures_unordered::IntoIter has `Fut: Unpin` bounds.
+    // assert_not_impl!(futures_unordered::IntoIter<PhantomPinned>: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::task`.

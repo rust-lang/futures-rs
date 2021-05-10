@@ -22,7 +22,7 @@ use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 mod abort;
 
 mod iter;
-pub use self::iter::{Iter, IterMut, IterPinMut, IterPinRef};
+pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 
 mod task;
 use self::task::Task;
@@ -194,10 +194,11 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
-    fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
+    pub fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, Fut> {
         let (task, len) = self.atomic_load_head_and_len_all();
+        let pending_next_all = self.pending_next_all();
 
-        IterPinRef { task, len, pending_next_all: self.pending_next_all(), _marker: PhantomData }
+        IterPinRef { task, len, pending_next_all, _marker: PhantomData }
     }
 
     /// Returns an iterator that allows modifying each future in the set.
@@ -578,6 +579,38 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
         // happen while there's a strong refcount held.
+    }
+}
+
+impl<'a, Fut: Unpin> IntoIterator for &'a FuturesUnordered<Fut> {
+    type Item = &'a Fut;
+    type IntoIter = Iter<'a, Fut>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, Fut: Unpin> IntoIterator for &'a mut FuturesUnordered<Fut> {
+    type Item = &'a mut Fut;
+    type IntoIter = IterMut<'a, Fut>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<Fut: Unpin> IntoIterator for FuturesUnordered<Fut> {
+    type Item = Fut;
+    type IntoIter = IntoIter<Fut>;
+
+    fn into_iter(mut self) -> Self::IntoIter {
+        // `head_all` can be accessed directly and we don't need to spin on
+        // `Task::next_all` since we have exclusive access to the set.
+        let task = *self.head_all.get_mut();
+        let len = if task.is_null() { 0 } else { unsafe { *(*task).len_all.get() } };
+
+        IntoIter { len, inner: self }
     }
 }
 
