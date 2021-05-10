@@ -4,20 +4,20 @@ use core::marker::PhantomData;
 use core::pin::Pin;
 use core::sync::atomic::Ordering::Relaxed;
 
-#[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
+#[derive(Debug)]
 pub struct IterPinMut<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>,
 }
 
-#[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
+#[derive(Debug)]
 pub struct IterMut<'a, Fut: Unpin>(pub(super) IterPinMut<'a, Fut>);
 
-#[derive(Debug)]
 /// Immutable iterator over all futures in the unordered set.
+#[derive(Debug)]
 pub struct IterPinRef<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
@@ -25,12 +25,12 @@ pub struct IterPinRef<'a, Fut> {
     pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>,
 }
 
-#[derive(Debug)]
 /// Immutable iterator over all the futures in the unordered set.
+#[derive(Debug)]
 pub struct Iter<'a, Fut: Unpin>(pub(super) IterPinRef<'a, Fut>);
 
-#[derive(Debug)]
 /// Owned iterator over all futures in the unordered set.
+#[derive(Debug)]
 pub struct IntoIter<Fut: Unpin> {
     pub(super) len: usize,
     pub(super) inner: FuturesUnordered<Fut>,
@@ -39,7 +39,7 @@ pub struct IntoIter<Fut: Unpin> {
 impl<Fut: Unpin> Iterator for IntoIter<Fut> {
     type Item = Fut;
 
-    fn next(&mut self) -> Option<Fut> {
+    fn next(&mut self) -> Option<Self::Item> {
         // `head_all` can be accessed directly and we don't need to spin on
         // `Task::next_all` since we have exclusive access to the set.
         let task = self.inner.head_all.get_mut();
@@ -73,7 +73,7 @@ impl<Fut: Unpin> ExactSizeIterator for IntoIter<Fut> {}
 impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = Pin<&'a mut Fut>;
 
-    fn next(&mut self) -> Option<Pin<&'a mut Fut>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.task.is_null() {
             return None;
         }
@@ -102,7 +102,7 @@ impl<Fut> ExactSizeIterator for IterPinMut<'_, Fut> {}
 impl<'a, Fut: Unpin> Iterator for IterMut<'a, Fut> {
     type Item = &'a mut Fut;
 
-    fn next(&mut self) -> Option<&'a mut Fut> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(Pin::get_mut)
     }
 
@@ -116,7 +116,7 @@ impl<Fut: Unpin> ExactSizeIterator for IterMut<'_, Fut> {}
 impl<'a, Fut> Iterator for IterPinRef<'a, Fut> {
     type Item = Pin<&'a Fut>;
 
-    fn next(&mut self) -> Option<Pin<&'a Fut>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.task.is_null() {
             return None;
         }
@@ -145,7 +145,7 @@ impl<Fut> ExactSizeIterator for IterPinRef<'_, Fut> {}
 impl<'a, Fut: Unpin> Iterator for Iter<'a, Fut> {
     type Item = &'a Fut;
 
-    fn next(&mut self) -> Option<&'a Fut> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(Pin::get_ref)
     }
 
