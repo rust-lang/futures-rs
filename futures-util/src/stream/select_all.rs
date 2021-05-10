@@ -90,6 +90,11 @@ impl<St: Stream + Unpin> SelectAll<St> {
     pub fn iter_pin_mut(self: Pin<&mut Self>) -> IterPinMut<'_, StreamFuture<St>> {
         self.project().inner.iter_pin_mut()
     }
+
+    /// Clears the set, removing all futures.
+    pub fn clear(&mut self) {
+        self.inner.clear()
+    }
 }
 
 impl<St: Stream + Unpin> Default for SelectAll<St> {
