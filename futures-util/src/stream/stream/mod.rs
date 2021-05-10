@@ -1285,6 +1285,13 @@ pub trait StreamExt: Stream {
     /// buffered at any point in time, and less than `n` may also be buffered
     /// depending on the state of each future.
     ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
     /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
@@ -1295,12 +1302,12 @@ pub trait StreamExt: Stream {
     /// This method will panic if `n` is zero.
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn buffered(self, n: usize) -> Buffered<Self>
+    fn buffered(self, n: impl Into<Option<usize>>) -> Buffered<Self>
     where
         Self::Item: Future,
         Self: Sized,
     {
-        assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n))
+        assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n.into()))
     }
 
     /// An adaptor for creating a buffered list of pending futures (unordered).
@@ -1310,6 +1317,10 @@ pub trait StreamExt: Stream {
     /// in which they complete. No more than `n` futures will be buffered at
     /// any point in time, and less than `n` may also be buffered depending on
     /// the state of each future.
+    ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
     ///
     /// The returned stream will be a stream of each future's output.
     ///
@@ -1344,12 +1355,12 @@ pub trait StreamExt: Stream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
+    fn buffer_unordered(self, n: impl Into<Option<usize>>) -> BufferUnordered<Self>
     where
         Self::Item: Future,
         Self: Sized,
     {
-        assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n))
+        assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n.into()))
     }
 
     /// An adapter for zipping two streams together.
