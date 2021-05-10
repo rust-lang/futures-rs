@@ -23,4 +23,4 @@ autocfg = "1"
 proc-macro2 = "1.0"
 proc-macro-hack = "0.5.19"
 quote = "1.0"
-syn = { version = "1.0", features = ["full"] }
+syn = { version = "1.0.56", features = ["full"] }
