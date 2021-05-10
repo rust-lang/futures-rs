@@ -8,25 +8,30 @@ use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
+use pin_project_lite::pin_project;
+
 use super::assert_stream;
 use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
-use crate::stream::futures_unordered::{Iter, IterMut};
+use crate::stream::futures_unordered::{Iter, IterMut, IterPinMut};
 
-/// An unbounded set of streams
-///
-/// This "combinator" provides the ability to maintain a set of streams
-/// and drive them all to completion.
-///
-/// Streams are pushed into this set and their realized values are
-/// yielded as they become ready. Streams will only be polled when they
-/// generate notifications. This allows to coordinate a large number of streams.
-///
-/// Note that you can create a ready-made `SelectAll` via the
-/// `select_all` function in the `stream` module, or you can start with an
-/// empty set with the `SelectAll::new` constructor.
-#[must_use = "streams do nothing unless polled"]
-pub struct SelectAll<St> {
-    inner: FuturesUnordered<StreamFuture<St>>,
+pin_project! {
+    /// An unbounded set of streams
+    ///
+    /// This "combinator" provides the ability to maintain a set of streams
+    /// and drive them all to completion.
+    ///
+    /// Streams are pushed into this set and their realized values are
+    /// yielded as they become ready. Streams will only be polled when they
+    /// generate notifications. This allows to coordinate a large number of streams.
+    ///
+    /// Note that you can create a ready-made `SelectAll` via the
+    /// `select_all` function in the `stream` module, or you can start with an
+    /// empty set with the `SelectAll::new` constructor.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct SelectAll<St> {
+        #[pin]
+        inner: FuturesUnordered<StreamFuture<St>>,
+    }
 }
 
 impl<St: Debug> Debug for SelectAll<St> {
@@ -74,6 +79,11 @@ impl<St: Stream + Unpin> SelectAll<St> {
     /// Returns an iterator that allows modifying each future in the set.
     pub fn iter_mut(&mut self) -> IterMut<'_, StreamFuture<St>> {
         self.inner.iter_mut()
+    }
+
+    /// Returns an iterator that allows modifying each future in the set.
+    pub fn iter_pin_mut<'a>(self: Pin<&'a mut Self>) -> IterPinMut<'a, StreamFuture<St>> {
+        self.project().inner.iter_pin_mut()
     }
 }
 
