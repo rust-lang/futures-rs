@@ -11,8 +11,7 @@ use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 use super::assert_stream;
-use crate::stream::futures_unordered::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
-use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
+use crate::stream::{futures_unordered, FuturesUnordered, StreamExt, StreamFuture};
 
 pin_project! {
     /// An unbounded set of streams
@@ -71,27 +70,17 @@ impl<St: Stream + Unpin> SelectAll<St> {
         self.inner.push(stream.into_future());
     }
 
-    /// Returns an iterator that allows inspecting each future in the set.
-    pub fn iter(&self) -> Iter<'_, StreamFuture<St>> {
-        self.inner.iter()
+    /// Returns an iterator that allows inspecting each stream in the set.
+    pub fn iter(&self) -> Iter<'_, St> {
+        Iter(self.inner.iter())
     }
 
-    /// Returns an iterator that allows inspecting each future in the set.
-    pub fn iter_pin_ref(self: Pin<&'_ Self>) -> IterPinRef<'_, StreamFuture<St>> {
-        self.project_ref().inner.iter_pin_ref()
+    /// Returns an iterator that allows modifying each stream in the set.
+    pub fn iter_mut(&mut self) -> IterMut<'_, St> {
+        IterMut(self.inner.iter_mut())
     }
 
-    /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_mut(&mut self) -> IterMut<'_, StreamFuture<St>> {
-        self.inner.iter_mut()
-    }
-
-    /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_pin_mut(self: Pin<&mut Self>) -> IterPinMut<'_, StreamFuture<St>> {
-        self.project().inner.iter_pin_mut()
-    }
-
-    /// Clears the set, removing all futures.
+    /// Clears the set, removing all streams.
     pub fn clear(&mut self) {
         self.inner.clear()
     }
@@ -139,7 +128,7 @@ impl<St: Stream + Unpin> FusedStream for SelectAll<St> {
 /// streams internally, in the order they become available.
 ///
 /// Note that the returned set can also be used to dynamically push more
-/// futures into the set as they become available.
+/// streams into the set as they become available.
 ///
 /// This function is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
@@ -172,17 +161,17 @@ impl<St: Stream + Unpin> Extend<St> for SelectAll<St> {
 }
 
 impl<St: Stream + Unpin> IntoIterator for SelectAll<St> {
-    type Item = StreamFuture<St>;
-    type IntoIter = IntoIter<StreamFuture<St>>;
+    type Item = St;
+    type IntoIter = IntoIter<St>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inner.into_iter()
+        IntoIter(self.inner.into_iter())
     }
 }
 
 impl<'a, St: Stream + Unpin> IntoIterator for &'a SelectAll<St> {
-    type Item = &'a StreamFuture<St>;
-    type IntoIter = Iter<'a, StreamFuture<St>>;
+    type Item = &'a St;
+    type IntoIter = Iter<'a, St>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -190,10 +179,76 @@ impl<'a, St: Stream + Unpin> IntoIterator for &'a SelectAll<St> {
 }
 
 impl<'a, St: Stream + Unpin> IntoIterator for &'a mut SelectAll<St> {
-    type Item = &'a mut StreamFuture<St>;
-    type IntoIter = IterMut<'a, StreamFuture<St>>;
+    type Item = &'a mut St;
+    type IntoIter = IterMut<'a, St>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
 }
+
+/// Immutable iterator over all streams in the unordered set.
+#[derive(Debug)]
+pub struct Iter<'a, St: Unpin>(futures_unordered::Iter<'a, StreamFuture<St>>);
+
+/// Mutable iterator over all streams in the unordered set.
+#[derive(Debug)]
+pub struct IterMut<'a, St: Unpin>(futures_unordered::IterMut<'a, StreamFuture<St>>);
+
+/// Owned iterator over all streams in the unordered set.
+#[derive(Debug)]
+pub struct IntoIter<St: Unpin>(futures_unordered::IntoIter<StreamFuture<St>>);
+
+impl<'a, St: Stream + Unpin> Iterator for Iter<'a, St> {
+    type Item = &'a St;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let st = self.0.next()?;
+        let next = st.get_ref();
+        // This should always be true because FuturesUnordered removes completed futures.
+        debug_assert!(next.is_some());
+        next
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<St: Stream + Unpin> ExactSizeIterator for Iter<'_, St> {}
+
+impl<'a, St: Stream + Unpin> Iterator for IterMut<'a, St> {
+    type Item = &'a mut St;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let st = self.0.next()?;
+        let next = st.get_mut();
+        // This should always be true because FuturesUnordered removes completed futures.
+        debug_assert!(next.is_some());
+        next
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<St: Stream + Unpin> ExactSizeIterator for IterMut<'_, St> {}
+
+impl<St: Stream + Unpin> Iterator for IntoIter<St> {
+    type Item = St;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let st = self.0.next()?;
+        let next = st.into_inner();
+        // This should always be true because FuturesUnordered removes completed futures.
+        debug_assert!(next.is_some());
+        next
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<St: Stream + Unpin> ExactSizeIterator for IntoIter<St> {}

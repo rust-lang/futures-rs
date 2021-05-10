@@ -105,7 +105,7 @@ cfg_target_has_atomic! {
     pub use self::futures_unordered::FuturesUnordered;
 
     #[cfg(feature = "alloc")]
-    mod select_all;
+    pub mod select_all;
     #[cfg(feature = "alloc")]
     pub use self::select_all::{select_all, SelectAll};
 
