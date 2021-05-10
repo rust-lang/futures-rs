@@ -1,5 +1,5 @@
 use futures::channel::mpsc;
-use futures::executor::block_on_stream;
+use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureExt};
 use futures::stream::{self, select_all, FusedStream, SelectAll, StreamExt};
 use futures::task::Poll;
@@ -75,4 +75,27 @@ fn works_1() {
 
     drop((a_tx, b_tx, c_tx));
     assert_eq!(None, stream.next());
+}
+
+#[test]
+fn clear() {
+    let mut tasks =
+        select_all(vec![stream::iter(vec![1].into_iter()), stream::iter(vec![2].into_iter())]);
+
+    assert_eq!(block_on(tasks.next()), Some(1));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    tasks.push(stream::iter(vec![3].into_iter()));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    assert_eq!(block_on(tasks.next()), None);
+    assert!(tasks.is_terminated());
+    tasks.clear();
+    assert!(!tasks.is_terminated());
 }
