@@ -13,3 +13,8 @@ async fn it_is_being_run() {
     let fut = async { false };
     assert!(fut.await);
 }
+
+#[futures_test::test]
+async fn return_ty() -> Result<(), ()> {
+    Ok(())
+}
