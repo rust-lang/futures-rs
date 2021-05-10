@@ -112,7 +112,9 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod abortable;
     #[cfg(feature = "alloc")]
-    pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
+    pub use crate::abortable::{Abortable, AbortHandle, AbortRegistration, Aborted};
+    #[cfg(feature = "alloc")]
+    pub use abortable::abortable;
 }
 
 // Just a helper function to ensure the futures we're returning all have the
