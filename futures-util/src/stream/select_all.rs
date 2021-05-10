@@ -11,8 +11,8 @@ use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 use super::assert_stream;
-use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
 use crate::stream::futures_unordered::{Iter, IterMut, IterPinMut};
+use crate::stream::{FuturesUnordered, StreamExt, StreamFuture};
 
 pin_project! {
     /// An unbounded set of streams
