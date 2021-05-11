@@ -1,16 +1,30 @@
+# 0.3.15 - 2021-05-11
+* Use `#[proc_macro]` at Rust 1.45+ to fix an issue where proc macros don't work with rust-analyzer (#2407)
+* Support targets that do not have atomic CAS on stable Rust (#2400)
+* futures-test: Add async `#[test]` function attribute (#2409)
+* Add `stream::abortable` (#2410)
+* Add `FuturesUnordered::clear` (#2415)
+* Implement `IntoIterator` for `FuturesUnordered` (#2423)
+* Implement `Send` and `Sync` for `FuturesUnordered` iterators (#2416)
+* Make `FuturesUnordered::iter_pin_ref` public (#2423)
+* Add `SelectAll::clear` (#2430)
+* Add `SelectAll::{iter, iter_mut}` (#2428)
+* Implement `IntoIterator` for `SelectAll` (#2428)
+* Implement `Clone` for `WeakShared` (#2396)
+
 # 0.3.14 - 2021-04-10
-- Add `future::SelectAll::into_inner` (#2363)
-- Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
-- Reexport non-Ext traits from the root of `futures_util` (#2377)
-- Add `AsyncSeekExt::stream_position` (#2380)
-- Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
+* Add `future::SelectAll::into_inner` (#2363)
+* Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
+* Reexport non-Ext traits from the root of `futures_util` (#2377)
+* Add `AsyncSeekExt::stream_position` (#2380)
+* Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
 
 # 0.3.13 - 2021-02-23
-- Mitigated starvation issues in `FuturesUnordered` (#2333)
-- Fixed race with dropping `mpsc::Receiver` (#2304)
-- Added `Shared::{strong_count, weak_count}` (#2346)
-- Added `no_std` support for `task::noop_waker_ref` (#2332)
-- Implemented `Stream::size_hint` for `Either` (#2325)
+* Mitigated starvation issues in `FuturesUnordered` (#2333)
+* Fixed race with dropping `mpsc::Receiver` (#2304)
+* Added `Shared::{strong_count, weak_count}` (#2346)
+* Added `no_std` support for `task::noop_waker_ref` (#2332)
+* Implemented `Stream::size_hint` for `Either` (#2325)
 
 # 0.3.12 - 2021-01-15
 * Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
