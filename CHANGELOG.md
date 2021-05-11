@@ -1,4 +1,4 @@
-# 0.3.15 - 2021-05-10
+# 0.3.15 - 2021-05-11
 * Use `#[proc_macro]` at Rust 1.45+ to fix an issue where proc macros don't work with rust-analyzer (#2407)
 * Support targets that do not have atomic CAS on stable Rust (#2400)
 * futures-test: Add async `#[test]` function attribute (#2409)
