@@ -510,7 +510,6 @@ impl<T> BoundedSenderInner<T> {
 
     // Do the send without failing.
     // Can be called only by bounded sender.
-    #[allow(clippy::debug_assert_with_mut_call)]
     fn do_send_b(&mut self, msg: T) -> Result<(), TrySendError<T>> {
         // Anyone callig do_send *should* make sure there is room first,
         // but assert here for tests as a sanity check.

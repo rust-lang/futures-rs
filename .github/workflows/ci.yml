@@ -38,11 +38,11 @@ jobs:
       - run: cargo test --workspace --all-features --release
 
   core-msrv:
-    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task, channel})
+    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task})
     strategy:
       matrix:
         rust:
-          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task, futures-channel.
+          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task.
           # When updating this, the reminder to update the minimum required version in .clippy.toml.
           - 1.36.0
     runs-on: ubuntu-latest
@@ -58,22 +58,22 @@ jobs:
       # Check no-default-features
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check alloc feature
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features --features alloc --ignore-unknown-features \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check std feature
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features --features std \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
     strategy:
       matrix:
         rust:
-          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-test.
+          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md.
           - 1.41.0
     runs-on: ubuntu-latest
