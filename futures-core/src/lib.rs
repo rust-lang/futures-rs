@@ -20,9 +20,3 @@ pub use self::stream::{FusedStream, Stream, TryStream};
 
 #[macro_use]
 pub mod task;
-
-// Not public API.
-#[doc(hidden)]
-pub mod __private {
-    pub use core::task::Poll;
-}
