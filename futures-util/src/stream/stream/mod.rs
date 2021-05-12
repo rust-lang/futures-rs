@@ -169,35 +169,41 @@ mod scan;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::scan::Scan;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod buffer_unordered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::buffer_unordered::BufferUnordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod buffer_unordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::buffer_unordered::BufferUnordered;
 
-    #[cfg(feature = "alloc")]
-    mod buffered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::buffered::Buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::buffered::Buffered;
 
-    #[cfg(feature = "alloc")]
-    mod for_each_concurrent;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::for_each_concurrent::ForEachConcurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod for_each_concurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::for_each_concurrent::ForEachConcurrent;
 
-    #[cfg(feature = "sink")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    #[cfg(feature = "alloc")]
-    mod split;
-    #[cfg(feature = "sink")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::split::{SplitStream, SplitSink, ReuniteError};
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+#[cfg(feature = "alloc")]
+mod split;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::split::{ReuniteError, SplitSink, SplitStream};
 
 #[cfg(feature = "std")]
 mod catch_unwind;

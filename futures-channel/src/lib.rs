@@ -18,21 +18,16 @@
 #![warn(clippy::all)]
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
-macro_rules! cfg_target_has_atomic {
-    ($($item:item)*) => {$(
-        #[cfg(not(futures_no_atomic_cas))]
-        $item
-    )*};
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    extern crate alloc;
-
-    #[cfg(feature = "alloc")]
-    mod lock;
-    #[cfg(feature = "std")]
-    pub mod mpsc;
-    #[cfg(feature = "alloc")]
-    pub mod oneshot;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod lock;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "std")]
+pub mod mpsc;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub mod oneshot;

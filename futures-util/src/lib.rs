@@ -47,13 +47,6 @@ pub mod __private {
     }
 }
 
-macro_rules! cfg_target_has_atomic {
-    ($($item:item)*) => {$(
-        #[cfg(not(futures_no_atomic_cas))]
-        $item
-    )*};
-}
-
 #[cfg(feature = "sink")]
 macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {
@@ -336,10 +329,9 @@ pub use crate::io::{
 #[cfg(feature = "alloc")]
 pub mod lock;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod abortable;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod abortable;
 
 mod fns;
 mod unfold_state;

@@ -108,14 +108,15 @@ pub use self::select_ok::{select_ok, SelectOk};
 mod either;
 pub use self::either::Either;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod abortable;
-    #[cfg(feature = "alloc")]
-    pub use crate::abortable::{Abortable, AbortHandle, AbortRegistration, Aborted};
-    #[cfg(feature = "alloc")]
-    pub use abortable::abortable;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod abortable;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use abortable::abortable;
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
