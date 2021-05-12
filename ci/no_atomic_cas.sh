@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Update the list of targets that do not support atomic CAS operations.
+#
+# Usage:
+#    ./ci/no_atomic_cas.sh
+
 set -euo pipefail
 IFS=$'\n\t'
 

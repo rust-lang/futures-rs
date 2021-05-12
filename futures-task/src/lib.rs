@@ -10,32 +10,29 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-macro_rules! cfg_target_has_atomic {
-    ($($item:item)*) => {$(
-        #[cfg(not(futures_no_atomic_cas))]
-        $item
-    )*};
-}
-
 mod spawn;
 pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod arc_wake;
-    #[cfg(feature = "alloc")]
-    pub use crate::arc_wake::ArcWake;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod arc_wake;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use crate::arc_wake::ArcWake;
 
-    #[cfg(feature = "alloc")]
-    mod waker;
-    #[cfg(feature = "alloc")]
-    pub use crate::waker::waker;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod waker;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use crate::waker::waker;
 
-    #[cfg(feature = "alloc")]
-    mod waker_ref;
-    #[cfg(feature = "alloc")]
-    pub use crate::waker_ref::{waker_ref, WakerRef};
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod waker_ref;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use crate::waker_ref::{waker_ref, WakerRef};
 
 mod future_obj;
 pub use crate::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
