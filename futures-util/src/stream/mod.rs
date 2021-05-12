@@ -111,6 +111,7 @@ pub use self::futures_unordered::FuturesUnordered;
 pub mod select_all;
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
+#[doc(inline)]
 pub use self::select_all::{select_all, SelectAll};
 
 #[cfg(not(futures_no_atomic_cas))]
