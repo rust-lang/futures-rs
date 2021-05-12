@@ -92,30 +92,37 @@ pub use self::select::{select, Select};
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod futures_ordered;
-    #[cfg(feature = "alloc")]
-    pub use self::futures_ordered::FuturesOrdered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod futures_ordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use self::futures_ordered::FuturesOrdered;
 
-    #[cfg(feature = "alloc")]
-    pub mod futures_unordered;
-    #[cfg(feature = "alloc")]
-    #[doc(inline)]
-    pub use self::futures_unordered::FuturesUnordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub mod futures_unordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use self::futures_unordered::FuturesUnordered;
 
-    #[cfg(feature = "alloc")]
-    pub mod select_all;
-    #[cfg(feature = "alloc")]
-    pub use self::select_all::{select_all, SelectAll};
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub mod select_all;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use self::select_all::{select_all, SelectAll};
 
-    #[cfg(feature = "alloc")]
-    mod abortable;
-    #[cfg(feature = "alloc")]
-    pub use crate::abortable::{Abortable, AbortHandle, AbortRegistration, Aborted};
-    #[cfg(feature = "alloc")]
-    pub use abortable::abortable;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod abortable;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use abortable::abortable;
 
 // Just a helper function to ensure the streams we're returning all have the
 // right implementations.

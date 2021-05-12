@@ -246,8 +246,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
-        run: rustup update stable && rustup default stable
-      - run: tools/fmt.sh
+        run: rustup update stable
+      - run: cargo fmt --all -- --check
 
   docs:
     name: cargo doc
