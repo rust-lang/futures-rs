@@ -723,18 +723,25 @@ pub trait StreamExt: Stream {
     /// of the stream until provided closure returns `None`. Once `None` is
     /// returned, stream will be terminated.
     ///
+    /// Unlike [`Iterator::scan`], the closure takes the state by value instead of
+    /// mutable reference to avoid [the limitation of the async
+    /// block](https://github.com/rust-lang/futures-rs/issues/2171).
+    ///
     /// # Examples
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
-    /// let stream = stream.scan(0, |state, x| {
-    ///     *state += x;
-    ///     future::ready(if *state < 10 { Some(x) } else { None })
+    /// let stream = stream.scan(0, |mut state, x| async move {
+    ///     state += x;
+    ///     if state < 10 {
+    ///         Some((state, x))
+    ///     } else {
+    ///         None
+    ///     }
     /// });
     ///
     /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
@@ -742,8 +749,8 @@ pub trait StreamExt: Stream {
     /// ```
     fn scan<S, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
     where
-        F: FnMut(&mut S, Self::Item) -> Fut,
-        Fut: Future<Output = Option<B>>,
+        F: FnMut(S, Self::Item) -> Fut,
+        Fut: Future<Output = Option<(S, B)>>,
         Self: Sized,
     {
         assert_stream::<B, _>(Scan::new(self, initial_state, f))
