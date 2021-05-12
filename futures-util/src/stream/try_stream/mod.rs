@@ -110,25 +110,29 @@ mod try_take_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_take_while::TryTakeWhile;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod try_buffer_unordered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_buffer_unordered::TryBufferUnordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_buffer_unordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_buffer_unordered::TryBufferUnordered;
 
-    #[cfg(feature = "alloc")]
-    mod try_buffered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_buffered::TryBuffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_buffered::TryBuffered;
 
-    #[cfg(feature = "alloc")]
-    mod try_for_each_concurrent;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_for_each_concurrent::TryForEachConcurrent;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_for_each_concurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_for_each_concurrent::TryForEachConcurrent;
 
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
