@@ -116,6 +116,9 @@ pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
 #[cfg(feature = "alloc")]
 pub use abortable::abortable;
 
+mod loop_fn;
+pub use loop_fn::{LoopFn,  loop_fn, Loop};
+
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 pub(crate) fn assert_future<T, F>(future: F) -> F
