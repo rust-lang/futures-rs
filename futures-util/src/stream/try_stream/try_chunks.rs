@@ -43,7 +43,7 @@ impl<St: TryStream> TryChunks<St> {
 
 impl<St: TryStream> Stream for TryChunks<St> {
     #[allow(clippy::type_complexity)]
-    type Item = Result<Vec<St::Ok>, ChunkError<St::Ok, St::Error>>;
+    type Item = Result<Vec<St::Ok>, TryChunksError<St::Ok, St::Error>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.as_mut().project();
@@ -60,7 +60,7 @@ impl<St: TryStream> Stream for TryChunks<St> {
                         }
                     }
                     Err(e) => {
-                        return Poll::Ready(Some(Err(ChunkError(self.take(), e))));
+                        return Poll::Ready(Some(Err(TryChunksError(self.take(), e))));
                     }
                 },
 
@@ -112,14 +112,20 @@ where
 /// Error indicating, that while chunk was collected inner stream produced an error.
 ///
 /// Contains all items that were collected before an error occured, and the stream error itself.
-#[derive(Debug, PartialEq, Eq)]
-pub struct ChunkError<T, E>(pub Vec<T>, pub E);
+#[derive(PartialEq, Eq)]
+pub struct TryChunksError<T, E>(pub Vec<T>, pub E);
 
-impl<T, E: fmt::Display> fmt::Display for ChunkError<T, E> {
+impl<T, E: fmt::Debug> fmt::Debug for TryChunksError<T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.1.fmt(f)
+    }
+}
+
+impl<T, E: fmt::Display> fmt::Display for TryChunksError<T, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.1.fmt(f)
     }
 }
 
 #[cfg(feature = "std")]
-impl<T: fmt::Debug, E: fmt::Debug + fmt::Display> std::error::Error for ChunkError<T, E> {}
+impl<T, E: fmt::Debug + fmt::Display> std::error::Error for TryChunksError<T, E> {}

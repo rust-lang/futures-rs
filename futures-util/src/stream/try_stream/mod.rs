@@ -96,7 +96,7 @@ pub use self::try_concat::TryConcat;
 mod try_chunks;
 #[cfg(feature = "alloc")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::try_chunks::{ChunkError, TryChunks};
+pub use self::try_chunks::{TryChunks, TryChunksError};
 
 mod try_unfold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -487,13 +487,13 @@ pub trait TryStreamExt: TryStream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, ChunkError, TryStreamExt};
+    /// use futures::stream::{self, TryChunksError, TryStreamExt};
     ///
     /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Err(4), Ok(5), Ok(6)]);
     /// let mut stream = stream.try_chunks(2);
     ///
     /// assert_eq!(stream.try_next().await, Ok(Some(vec![1, 2])));
-    /// assert_eq!(stream.try_next().await, Err(ChunkError(vec![3], 4)));
+    /// assert_eq!(stream.try_next().await, Err(TryChunksError(vec![3], 4)));
     /// assert_eq!(stream.try_next().await, Ok(Some(vec![5, 6])));
     /// # })
     /// ```
@@ -506,7 +506,7 @@ pub trait TryStreamExt: TryStream {
     where
         Self: Sized,
     {
-        assert_stream::<Result<Vec<Self::Ok>, ChunkError<Self::Ok, Self::Error>>, _>(
+        assert_stream::<Result<Vec<Self::Ok>, TryChunksError<Self::Ok, Self::Error>>, _>(
             TryChunks::new(self, capacity),
         )
     }
