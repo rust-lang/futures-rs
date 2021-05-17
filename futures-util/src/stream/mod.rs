@@ -63,6 +63,9 @@ pub use self::try_stream::IntoAsyncRead;
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryBufferUnordered, TryBuffered};
 
+#[cfg(feature = "alloc")]
+pub use self::try_stream::{TryChunks, TryChunksError};
+
 // Primitive streams
 
 mod iter;
