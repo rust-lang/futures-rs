@@ -115,22 +115,6 @@ fn take_until() {
 
 #[test]
 #[should_panic]
-fn buffered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffered(0);
-}
-
-#[test]
-#[should_panic]
-fn buffer_unordered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffer_unordered(0);
-}
-
-#[test]
-#[should_panic]
 fn chunks_panic_on_cap_zero() {
     let (_, rx1) = mpsc::channel::<()>(1);
 
