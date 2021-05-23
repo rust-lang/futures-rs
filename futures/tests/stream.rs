@@ -1,10 +1,10 @@
+use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::{self, Future};
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::FutureExt;
-use futures::channel::mpsc;
 use futures_test::task::noop_context;
 
 #[test]
