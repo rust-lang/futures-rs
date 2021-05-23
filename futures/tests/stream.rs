@@ -4,7 +4,7 @@ use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::FutureExt;
-use futures::{channel::mpsc, future::BoxFuture};
+use futures::channel::mpsc;
 use futures_test::task::noop_context;
 
 #[test]
