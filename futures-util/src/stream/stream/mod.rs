@@ -1289,9 +1289,6 @@ pub trait StreamExt: Stream {
     /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
     /// interpreted as no limit at all, and will have the same result as passing in `None`.
     ///
-    /// This method is only available when the `std` or `alloc` feature of this
-    /// library is activated, and it is activated by default.
-    ///
     /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
