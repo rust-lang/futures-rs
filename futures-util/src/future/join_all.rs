@@ -41,6 +41,7 @@ pin_project_lite::pin_project! {
         F: Future,
     {
         Small { elems: Pin<Box<[MaybeDone<F>]>> },
+        #[cfg(not(futures_no_atomic_cas))]
         Big  { #[pin] fut: Collect<FuturesOrdered<F>, Vec<F::Output>> },
     }
 }
@@ -55,6 +56,7 @@ where
             JoinAllKind::Small { ref elems } => {
                 f.debug_struct("JoinAll").field("elems", elems).finish()
             }
+            #[cfg(not(futures_no_atomic_cas))]
             JoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
@@ -101,17 +103,33 @@ where
 {
     let iter = iter.into_iter();
     let kind = match iter.size_hint().1 {
-        None => JoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().collect() },
+        None => join_all_big(iter),
         Some(max) => {
             if max <= SMALL {
                 let elems = iter.map(MaybeDone::Future).collect::<Box<[_]>>().into();
                 JoinAllKind::Small { elems }
             } else {
-                JoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().collect() }
+                join_all_big(iter)
             }
         }
     };
     assert_future::<Vec<<I::Item as Future>::Output>, _>(JoinAll { kind })
+}
+
+fn join_all_big<I>(iter: I) -> JoinAllKind<I::Item>
+where
+    I: Iterator,
+    I::Item: Future,
+{
+    #[cfg(not(futures_no_atomic_cas))]
+    {
+        return JoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().collect() };
+    }
+    #[cfg(futures_no_atomic_cas)]
+    {
+        let elems = iter.map(MaybeDone::Future).collect::<Box<[_]>>().into();
+        JoinAllKind::Small { elems }
+    }
 }
 
 impl<F> Future for JoinAll<F>
@@ -140,6 +158,7 @@ where
                     Poll::Pending
                 }
             }
+            #[cfg(not(futures_no_atomic_cas))]
             JoinAllKindProj::Big { fut } => fut.poll(cx),
         }
     }
