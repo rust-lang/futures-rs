@@ -1293,10 +1293,6 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `n` is zero.
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
     fn buffered(self, n: impl Into<Option<usize>>) -> Buffered<Self>
@@ -1323,10 +1319,6 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `n` is zero.
     ///
     /// # Examples
     ///
