@@ -693,6 +693,10 @@ pub trait TryStreamExt: TryStream {
     /// outputs in the order in which they complete. If the underlying stream
     /// returns an error, it will be immediately propagated.
     ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
+    ///
     /// The returned stream will be a stream of results, each containing either
     /// an error or a future's output. An error can be produced either by the
     /// underlying stream itself or by one of the futures it yielded.
@@ -743,13 +747,13 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
+    fn try_buffer_unordered(self, n: impl Into<Option<usize>>) -> TryBufferUnordered<Self>
     where
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(
-            TryBufferUnordered::new(self, n),
+            TryBufferUnordered::new(self, n.into()),
         )
     }
 
@@ -761,6 +765,10 @@ pub trait TryStreamExt: TryStream {
     /// This adaptor will buffer up to `n` futures and then return their
     /// outputs in the order. If the underlying stream returns an error, it will
     /// be immediately propagated.
+    ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
     ///
     /// The returned stream will be a stream of results, each containing either
     /// an error or a future's output. An error can be produced either by the
@@ -819,13 +827,14 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_buffered(self, n: usize) -> TryBuffered<Self>
+    fn try_buffered(self, n: impl Into<Option<usize>>) -> TryBuffered<Self>
     where
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(TryBuffered::new(
-            self, n,
+            self,
+            n.into(),
         ))
     }
 

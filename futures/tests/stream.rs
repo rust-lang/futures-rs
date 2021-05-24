@@ -1,10 +1,10 @@
+use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::{self, Future};
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::FutureExt;
-use futures::{channel::mpsc, future::BoxFuture};
 use futures_test::task::noop_context;
 
 #[test]
@@ -128,22 +128,6 @@ fn take_until() {
         assert_eq!(stream.next().await, None);
         assert_eq!(stream.next().await, None);
     });
-}
-
-#[test]
-#[should_panic]
-fn buffered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffered(0);
-}
-
-#[test]
-#[should_panic]
-fn buffer_unordered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffer_unordered(0);
 }
 
 #[test]
