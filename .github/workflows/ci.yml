@@ -19,23 +19,39 @@ defaults:
 
 jobs:
   test:
-    name: cargo +${{ matrix.rust }} test (${{ matrix.os }})
+    name: cargo test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
-        rust:
-          - nightly
         os:
-         - ubuntu-latest
-         - macos-latest
-         - windows-latest
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
         # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-        run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+        run: rustup update nightly --no-self-update && rustup default nightly
       - run: cargo test --workspace --all-features
       - run: cargo test --workspace --all-features --release
+
+  cross:
+    name: cross test --target ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - i686-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cross
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task})
@@ -100,6 +116,7 @@ jobs:
   build:
     name: cargo +${{ matrix.rust }} build
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
@@ -130,10 +147,13 @@ jobs:
   no-std:
     name: cargo build --target ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
+        # thumbv7m-none-eabi supports atomic CAS.
+        # thumbv6m-none-eabi supports atomic, but not atomic CAS.
         target:
-          - thumbv6m-none-eabi
           - thumbv7m-none-eabi
+          - thumbv6m-none-eabi
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -210,6 +230,7 @@ jobs:
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
     strategy:
+      fail-fast: false
       matrix:
         sanitizer:
           - address
