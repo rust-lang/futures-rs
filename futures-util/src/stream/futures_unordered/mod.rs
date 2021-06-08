@@ -97,7 +97,7 @@ impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
 // Each task is wrapped in an `Arc` and thereby atomically reference counted.
 // Also, each task contains an `AtomicBool` which acts as a flag that indicates
 // whether the task is currently inserted in the atomic queue. When a wake-up
-// notifiaction is received, the task will only be inserted into the ready to
+// notification is received, the task will only be inserted into the ready to
 // run queue if it isn't inserted already.
 
 impl<Fut> Default for FuturesUnordered<Fut> {
