@@ -92,6 +92,9 @@ pub use self::poll_fn::{poll_fn, PollFn};
 mod select;
 pub use self::select::{select, Select};
 
+mod select_bias;
+pub use self::select_bias::{select_bias, PollNext, SelectBias};
+
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
 
