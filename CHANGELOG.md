@@ -102,7 +102,7 @@
 * Fixed bug with zero-size buffers in vectored IO (#1998)
 * `AtomicWaker::new()` is now `const fn` (#2007)
 * Fixed bug between threadpool and user park/unparking (#2010)
-* Added `stream::Peakable::peek` (#2021)
+* Added `stream::Peekable::peek` (#2021)
 * Added `StreamExt::scan` (#2044)
 * Added impl of `AsyncRead`/`Write` for `BufReader`/`Writer` (#2033)
 * Added impl of `Spawn` and `LocalSpawn` for `Arc<impl Spawn` and `Rc<impl Spawn>` (#2039)
@@ -238,7 +238,7 @@
 # 0.3.0-alpha.14 - 2019-4-15
 * Updated to new nightly `futures_api`.
 * Changed `Forward` combinator to drop sink after completion, and allow `!Unpin` `Sink`s.
-* Added 0.1 <-> 0.3 compatability shim for `Sink`s.
+* Added 0.1 <-> 0.3 compatibility shim for `Sink`s.
 * Changed `Sink::Item` to a generic parameter `Sink<Item>`, allowing `Sink`s to accept
   multiple different types, including types containing references.
 * Changed `AsyncRead` and `AsyncWrite` to take `Pin<&mut Self>` rather than `&mut self`.
@@ -313,8 +313,8 @@
 * `StreamExt::boxed` combinator
 * Unsoundness fix for `FuturesUnordered`
 * `StreamObj` (similar to `FutureObj`)
-* Code examples for compatiblity layer functions
-* Use cargo create renaming feature to import `futures@0.1` for compatiblily layer
+* Code examples for compatibility layer functions
+* Use cargo create renaming feature to import `futures@0.1` for compatibility layer
 * Import pinning APIs from `core::pin`
 * Run Clippy in CI only when it is available
 
@@ -338,7 +338,7 @@
 
 # 0.3.0-alpha.2 - 2018-07-30
 * The changelog is back!
-* Compatiblity with futures API in latest nightly
+* Compatibility with futures API in latest nightly
 * Code examples and doc improvements
   - IO: Methods of traits `AsyncReadExt`, `AsyncWriteExt`
   - Future:
@@ -360,7 +360,7 @@
 * We now use the unstable `use_extern_macros` feature for macro reexports
 * CI improvements: Named CI jobs, tests are now run on macOS and Linux, the docs are generated and Clippy needs to pass
 * `#[deny(warnings)]` was removed from all crates and is now only enforced in the CI
-* We now have a naming convention for type paramters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
+* We now have a naming convention for type parameters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
 * "Task" is now defined as our term for "lightweight thread". The code of the executors and `FuturesUnordered` was refactored to align with this definition.
 
 # 0.3.0-alpha.1 - 2018-07-19
