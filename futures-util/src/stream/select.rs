@@ -1,5 +1,5 @@
 use super::assert_stream;
-use crate::stream::{select_with_strategy, SelectWithStrategy, PollNext};
+use crate::stream::{select_with_strategy, PollNext, SelectWithStrategy};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -48,10 +48,12 @@ where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
 {
-    fn round_robin(last: &mut PollNext) -> PollNext { last.toggle() }
+    fn round_robin(last: &mut PollNext) -> PollNext {
+        last.toggle()
+    }
 
-    assert_stream::<St1::Item, _>( Select {
-        inner: select_with_strategy(stream1, stream2, round_robin)
+    assert_stream::<St1::Item, _>(Select {
+        inner: select_with_strategy(stream1, stream2, round_robin),
     })
 }
 
