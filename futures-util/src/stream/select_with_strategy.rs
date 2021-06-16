@@ -5,7 +5,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
-/// Type to tell [`SelectBias`] which stream to poll next.
+/// Type to tell [`SelectWithStrategy`] which stream to poll next.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PollNext {
     /// Poll the first stream.
@@ -35,10 +35,10 @@ impl Default for PollNext {
 }
 
 pin_project! {
-    /// Stream for the [`select_bias()`] function. See function docs for details.
+    /// Stream for the [`select_with_strategy()`] function. See function docs for details.
     #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
-    pub struct SelectBias<St1, St2, Clos, State> {
+    pub struct SelectWithStrategy<St1, St2, Clos, State> {
         #[pin]
         stream1: Fuse<St1>,
         #[pin]
@@ -49,8 +49,8 @@ pin_project! {
 }
 
 /// This function will attempt to pull items from both streams. You provide a
-/// closure to tell the [`SelectBias`] which stream to poll. The closure can
-/// store state on `SelectBias` to which it will receive a `&mut` on every
+/// closure to tell [`SelectWithStrategy`] which stream to poll. The closure can
+/// store state on `SelectWithStrategy` to which it will receive a `&mut` on every
 /// invocation. This allows basing the strategy on prior choices.
 ///
 /// After one of the two input streams completes, the remaining one will be
@@ -67,7 +67,7 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ repeat, select_bias, PollNext, StreamExt };
+/// use futures_util::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
@@ -77,7 +77,7 @@ pin_project! {
 /// // to infer it.
 /// let prio_left = |_: &mut ()| PollNext::Left;
 ///
-/// let mut out = select_bias(left, right, prio_left);
+/// let mut out = select_with_strategy(left, right, prio_left);
 ///
 /// for _ in 0..100 {
 ///     // Whenever we poll out, we will alwas get `1`.
@@ -91,7 +91,7 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ repeat, select_bias, PollNext, StreamExt };
+/// use futures_util::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
@@ -99,7 +99,7 @@ pin_project! {
 /// // We don't need any state, so let's make it an empty tuple.
 /// let rrobin = |last: &mut PollNext| last.toggle();
 ///
-/// let mut out = select_bias(left, right, rrobin);
+/// let mut out = select_with_strategy(left, right, rrobin);
 ///
 /// for _ in 0..100 {
 ///     // We should be alternating now.
@@ -108,18 +108,18 @@ pin_project! {
 /// }
 /// # });
 /// ```
-pub fn select_bias<St1, St2, Clos, State>(
+pub fn select_with_strategy<St1, St2, Clos, State>(
     stream1: St1,
     stream2: St2,
     which: Clos,
-) -> SelectBias<St1, St2, Clos, State>
+) -> SelectWithStrategy<St1, St2, Clos, State>
 where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
     Clos: FnMut(&mut State) -> PollNext,
     State: Default,
 {
-    assert_stream::<St1::Item, _>(SelectBias {
+    assert_stream::<St1::Item, _>(SelectWithStrategy {
         stream1: stream1.fuse(),
         stream2: stream2.fuse(),
         state: Default::default(),
@@ -127,7 +127,7 @@ where
     })
 }
 
-impl<St1, St2, Clos, State> SelectBias<St1, St2, Clos, State> {
+impl<St1, St2, Clos, State> SelectWithStrategy<St1, St2, Clos, State> {
     /// Acquires a reference to the underlying streams that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> (&St1, &St2) {
@@ -162,7 +162,7 @@ impl<St1, St2, Clos, State> SelectBias<St1, St2, Clos, State> {
     }
 }
 
-impl<St1, St2, Clos, State> FusedStream for SelectBias<St1, St2, Clos, State>
+impl<St1, St2, Clos, State> FusedStream for SelectWithStrategy<St1, St2, Clos, State>
 where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
@@ -173,7 +173,7 @@ where
     }
 }
 
-impl<St1, St2, Clos, State> Stream for SelectBias<St1, St2, Clos, State>
+impl<St1, St2, Clos, State> Stream for SelectWithStrategy<St1, St2, Clos, State>
 where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
