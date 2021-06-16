@@ -53,7 +53,7 @@ pin_project! {
 /// store state on `SelectBias` to which it will receive a `&mut` on every
 /// invocation. This allows basing the strategy on prior choices.
 ///
-/// After one of the two input stream completes, the remaining one will be
+/// After one of the two input streams completes, the remaining one will be
 /// polled exclusively. The returned stream completes when both input
 /// streams have completed.
 ///
@@ -66,15 +66,13 @@ pin_project! {
 /// This example shows how to always prioritize the left stream.
 ///
 /// ```rust
-///
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ select_bias, PollNext, StreamExt };
-/// use futures::stream::repeat;
+/// use futures_util::stream::{ repeat, select_bias, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
 ///
-/// // We don't need any state, so lets make it an empty tuple.
+/// // We don't need any state, so let's make it an empty tuple.
 /// // We must provide some type here, as there is no way for the compiler
 /// // to infer it.
 /// let prio_left = |_: &mut ()| PollNext::Left;
@@ -82,26 +80,23 @@ pin_project! {
 /// let mut out = select_bias(left, right, prio_left);
 ///
 /// for _ in 0..100 {
-///     // Whenever we poll out, we will alwasy get `1`.
+///     // Whenever we poll out, we will alwas get `1`.
 ///     assert_eq!(1, out.select_next_some().await);
 /// }
-///
-/// });
+/// # });
 /// ```
 ///
 /// ### Round Robin
 /// This example shows how to select from both streams round robin.
 ///
 /// ```rust
-///
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ select_bias, PollNext, StreamExt };
-/// use futures::stream::repeat;
+/// use futures_util::stream::{ repeat, select_bias, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
 ///
-/// // We don't need any state, so lets make it an empty tuple.
+/// // We don't need any state, so let's make it an empty tuple.
 /// let rrobin = |last: &mut PollNext| last.toggle();
 ///
 /// let mut out = select_bias(left, right, rrobin);
@@ -111,8 +106,7 @@ pin_project! {
 ///     assert_eq!(1, out.select_next_some().await);
 ///     assert_eq!(2, out.select_next_some().await);
 /// }
-///
-/// });
+/// # });
 /// ```
 pub fn select_bias<St1, St2, Clos, State>(
     stream1: St1,
