@@ -74,8 +74,9 @@ pin_project! {
 ///
 /// // We don't need any state, so let's make it an empty tuple.
 /// // We must provide some type here, as there is no way for the compiler
-/// // to infer it.
-/// let prio_left = |_: &mut ()| PollNext::Left;
+/// // to infer it. As we don't need to capture variables, we can just
+/// // use a function pointer instead of a closure.
+/// fn prio_left(_: &mut ()) -> PollNext { PollNext::Left }
 ///
 /// let mut out = select_with_strategy(left, right, prio_left);
 ///
@@ -88,6 +89,7 @@ pin_project! {
 ///
 /// ### Round Robin
 /// This example shows how to select from both streams round robin.
+/// Note: this special case is provided by [`futures-util::stream::select`].
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
