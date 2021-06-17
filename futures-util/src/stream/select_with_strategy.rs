@@ -67,7 +67,7 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
+/// use futures::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
@@ -93,7 +93,7 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures_util::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
+/// use futures::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
