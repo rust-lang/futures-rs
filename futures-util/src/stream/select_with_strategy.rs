@@ -1,6 +1,6 @@
 use super::assert_stream;
 use crate::stream::{Fuse, StreamExt};
-use core::pin::Pin;
+use core::{fmt, pin::Pin};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
@@ -36,7 +36,6 @@ impl Default for PollNext {
 
 pin_project! {
     /// Stream for the [`select_with_strategy()`] function. See function docs for details.
-    #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
     pub struct SelectWithStrategy<St1, St2, Clos, State> {
         #[pin]
@@ -212,5 +211,20 @@ where
         Poll::Ready(Some(item)) => Poll::Ready(Some(item)),
         Poll::Ready(None) if a_done => Poll::Ready(None),
         Poll::Ready(None) | Poll::Pending => Poll::Pending,
+    }
+}
+
+impl<St1, St2, Clos, State> fmt::Debug for SelectWithStrategy<St1, St2, Clos, State>
+where
+    St1: fmt::Debug,
+    St2: fmt::Debug,
+    State: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SelectWithStrategy")
+            .field("stream1", &self.stream1)
+            .field("stream2", &self.stream2)
+            .field("state", &self.state)
+            .finish()
     }
 }

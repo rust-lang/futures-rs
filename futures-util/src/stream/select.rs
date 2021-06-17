@@ -7,6 +7,7 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Stream for the [`select()`] function.
+    #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
     pub struct Select<St1, St2> {
         #[pin]
