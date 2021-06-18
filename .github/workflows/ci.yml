@@ -254,12 +254,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust and Clippy
-        run: |
-          toolchain=nightly-$(curl -sSf https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)
-          rustup set profile minimal
-          rustup default "$toolchain"
-          rustup component add clippy
+      - name: Install Rust
+        run: rustup toolchain install nightly --component clippy && rustup default nightly
       - run: cargo clippy --workspace --all-features --all-targets
 
   fmt:
