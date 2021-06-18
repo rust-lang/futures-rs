@@ -3,11 +3,17 @@ use crate::FutureExt;
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
 use futures_core::{FusedFuture, Future, Stream};
+use pin_project_lite::pin_project;
 
-/// Future for the [`poll_immediate`](poll_immediate()) function.
-#[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct PollImmediate<T>(Option<T>);
+pin_project! {
+    /// Future for the [`poll_immediate`](poll_immediate()) function.
+    #[derive(Debug, Clone)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct PollImmediate<T> {
+        #[pin]
+        future: Option<T>
+    }
+}
 
 impl<T, F> Future for PollImmediate<F>
 where
@@ -17,13 +23,14 @@ where
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<T>> {
-        // # Safety
-        // This is the only time that this future will ever be polled.
+        let mut this = self.project();
         let inner =
-            unsafe { self.get_unchecked_mut().0.take().expect("PollOnce polled after completion") };
-        crate::pin_mut!(inner);
+            this.future.as_mut().as_pin_mut().expect("PollImmediate polled after completion");
         match inner.poll(cx) {
-            Poll::Ready(t) => Poll::Ready(Some(t)),
+            Poll::Ready(t) => {
+                this.future.set(None);
+                Poll::Ready(Some(t))
+            }
             Poll::Pending => Poll::Ready(None),
         }
     }
@@ -31,7 +38,7 @@ where
 
 impl<T: Future> FusedFuture for PollImmediate<T> {
     fn is_terminated(&self) -> bool {
-        self.0.is_none()
+        self.future.is_none()
     }
 }
 
@@ -64,25 +71,14 @@ where
     type Item = Poll<T>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        unsafe {
-            // # Safety
-            // We never move the inner value until it is done. We only get a reference to it.
-            let inner = &mut self.get_unchecked_mut().0;
-            let fut = match inner.as_mut() {
-                // inner is gone, so we can signal that the stream is closed.
-                None => return Poll::Ready(None),
-                Some(inner) => inner,
-            };
-            let fut = Pin::new_unchecked(fut);
-            Poll::Ready(Some(fut.poll(cx).map(|t| {
-                // # Safety
-                // The inner option value is done, so we need to drop it. We do it without moving it
-                // by using drop in place. We then write over the value without trying to drop it first
-                // This should uphold all the safety requirements of `Pin`
-                std::ptr::drop_in_place(inner);
-                std::ptr::write(inner, None);
+        let mut this = self.project();
+        match this.future.as_mut().as_pin_mut() {
+            // inner is gone, so we can signal that the stream is closed.
+            None => Poll::Ready(None),
+            Some(fut) => Poll::Ready(Some(fut.poll(cx).map(|t| {
+                this.future.set(None);
                 t
-            })))
+            }))),
         }
     }
 }
@@ -103,7 +99,7 @@ where
 /// # });
 /// ```
 pub fn poll_immediate<F: Future>(f: F) -> PollImmediate<F> {
-    assert_future::<Option<F::Output>, PollImmediate<F>>(PollImmediate(Some(f)))
+    assert_future::<Option<F::Output>, PollImmediate<F>>(PollImmediate { future: Some(f) })
 }
 
 /// Future for the [`poll_immediate_reuse`](poll_immediate_reuse()) function.
@@ -119,7 +115,8 @@ where
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, F>> {
-        let mut inner = self.get_mut().0.take().expect("PollOnceReuse polled after completion");
+        let mut inner =
+            self.get_mut().0.take().expect("PollImmediateReuse polled after completion");
         match inner.poll_unpin(cx) {
             Poll::Ready(t) => Poll::Ready(Ok(t)),
             Poll::Pending => Poll::Ready(Err(inner)),
