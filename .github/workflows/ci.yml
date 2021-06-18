@@ -52,6 +52,8 @@ jobs:
       - run: cargo install cross
       - run: cross test --target ${{ matrix.target }} --workspace --all-features
       - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
+        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task})
