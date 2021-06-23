@@ -1,11 +1,9 @@
 //! The `stream_select` macro.
 
 #[cfg(feature = "std")]
-use proc_macro_hack::proc_macro_hack;
-
-#[cfg(feature = "std")]
+#[allow(unreachable_pub)]
 #[doc(hidden)]
-#[proc_macro_hack(support_nested, only_hack_old_rustc)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack(support_nested))]
 pub use futures_macro::stream_select_internal;
 
 /// Combines several streams, all producing the same `Item` type, into one stream.

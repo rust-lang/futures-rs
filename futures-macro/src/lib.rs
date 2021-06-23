@@ -57,7 +57,8 @@ pub fn test_internal(input: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 /// The `stream_select!` macro.
-#[proc_macro_hack]
+#[cfg_attr(fn_like_proc_macro, proc_macro)]
+#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack)]
 pub fn stream_select_internal(input: TokenStream) -> TokenStream {
     crate::stream_select::stream_select(input)
 }
