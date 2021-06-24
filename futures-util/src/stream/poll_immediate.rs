@@ -4,7 +4,9 @@ use futures_core::Stream;
 use pin_project_lite::pin_project;
 
 pin_project! {
-    /// Stream for the [`poll_immediate`](poll_immediate()) function.
+    /// Stream for the [poll_immediate](poll_immediate()) function.
+    ///
+    /// It will never return [Poll::Pending](core::task::Poll::Pending)
     #[derive(Debug, Clone)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct PollImmediate<S> {
@@ -48,8 +50,9 @@ impl<S: Stream> super::FusedStream for PollImmediate<S> {
     }
 }
 
-/// Creates a new stream that never blocks when awaiting it. This is useful
-/// when immediacy is more important than waiting for the next item to be ready
+/// Creates a new stream that always immediately returns [Poll::Ready](core::task::Poll::Ready) when awaiting it.
+///
+/// This is useful when immediacy is more important than waiting for the next item to be ready.
 ///
 /// # Examples
 ///

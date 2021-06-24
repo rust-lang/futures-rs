@@ -69,9 +69,7 @@ mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod poll_immediate;
-pub use self::poll_immediate::{
-    poll_immediate, poll_immediate_reuse, PollImmediate, PollImmediateReuse,
-};
+pub use self::poll_immediate::{poll_immediate, PollImmediate};
 
 mod ready;
 pub use self::ready::{err, ok, ready, Ready};

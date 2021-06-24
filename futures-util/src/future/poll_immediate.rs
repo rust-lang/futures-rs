@@ -1,5 +1,4 @@
 use super::assert_future;
-use crate::FutureExt;
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
 use futures_core::{FusedFuture, Future, Stream};
@@ -7,6 +6,8 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Future for the [`poll_immediate`](poll_immediate()) function.
+    ///
+    /// It will never return [Poll::Pending](core::task::Poll::Pending)
     #[derive(Debug, Clone)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct PollImmediate<T> {
@@ -42,7 +43,9 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
     }
 }
 
-/// Creates a stream that can be polled repeatedly until the future is done
+/// A [Stream](crate::stream::Stream) implementation that can be polled repeatedly until the future is done.
+/// The stream will never return [Poll::Pending](core::task::Poll::Pending)
+/// so polling it in a tight loop is worse than using a blocking synchronous function.
 /// ```
 /// # futures::executor::block_on(async {
 /// use futures::task::Poll;
@@ -84,6 +87,14 @@ where
 }
 
 /// Creates a future that is immediately ready with an Option of a value.
+/// Specifically this means that [poll](core::future::Future::poll()) always returns [Poll::Ready](core::task::Poll::Ready).
+///
+/// # Caution
+///
+/// Some futures expect to run until completion. If the future passed to this function isn't some sort of `&mut Future` then it will
+/// be dropped and can cause performance problems when creating and dropping futures continuously. In some cases this is fine like
+/// when asking for the [next()](crate::stream::StreamExt::next()) value of a stream and dropping the [Next](crate::stream::Next) future
+/// doesn't change any state in the stream.
 ///
 /// # Examples
 ///
@@ -98,101 +109,18 @@ where
 /// assert_eq!(p.await, None);
 /// # });
 /// ```
+///
+/// ### Reusing a future
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures::{future, pin_mut};
+/// let f = async {futures::pending!(); 42_u8};
+/// pin_mut!(f);
+/// assert_eq!(None, future::poll_immediate(&mut f).await);
+/// assert_eq!(42, f.await);
+/// # });
+/// ```
 pub fn poll_immediate<F: Future>(f: F) -> PollImmediate<F> {
     assert_future::<Option<F::Output>, PollImmediate<F>>(PollImmediate { future: Some(f) })
-}
-
-/// Future for the [`poll_immediate_reuse`](poll_immediate_reuse()) function.
-#[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct PollImmediateReuse<T>(Option<T>);
-
-impl<T, F> Future for PollImmediateReuse<F>
-where
-    F: Future<Output = T> + Unpin,
-{
-    type Output = Result<T, F>;
-
-    #[inline]
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, F>> {
-        let mut inner =
-            self.get_mut().0.take().expect("PollImmediateReuse polled after completion");
-        match inner.poll_unpin(cx) {
-            Poll::Ready(t) => Poll::Ready(Ok(t)),
-            Poll::Pending => Poll::Ready(Err(inner)),
-        }
-    }
-}
-
-impl<T: Future + Unpin> FusedFuture for PollImmediateReuse<T> {
-    fn is_terminated(&self) -> bool {
-        self.0.is_none()
-    }
-}
-
-/// Creates a stream that can be polled repeatedly until the future is done
-/// ```
-/// # futures::executor::block_on(async {
-/// use futures::task::Poll;
-/// use futures::{StreamExt, future};
-/// use future::FusedFuture;
-///
-/// let mut r = future::poll_immediate_reuse(future::ready(1_u32));
-/// assert_eq!(r.next().await, Some(Poll::Ready(1)));
-///
-/// let mut p = future::poll_immediate_reuse(Box::pin(async {futures::pending!(); 42_u8}));
-/// assert_eq!(p.next().await, Some(Poll::Pending));
-/// assert!(!p.is_terminated());
-/// assert_eq!(p.next().await, Some(Poll::Ready(42)));
-/// assert!(p.is_terminated());
-/// assert_eq!(p.next().await, None);
-/// # });
-/// ```
-impl<T, F> Stream for PollImmediateReuse<F>
-where
-    F: Future<Output = T> + Unpin,
-{
-    type Item = Poll<T>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let inner = &mut self.get_mut().0;
-        let fut = match inner.as_mut() {
-            // inner is gone, so we can signal that the stream is closed.
-            None => return Poll::Ready(None),
-            Some(inner) => inner,
-        };
-        let fut = Pin::new(fut);
-        Poll::Ready(Some(fut.poll(cx).map(|t| {
-            *inner = None;
-            t
-        })))
-    }
-}
-
-/// Creates a future that is immediately ready with a Result of a value or the future.
-///
-/// # Examples
-///
-/// ```
-/// # futures::executor::block_on(async {
-/// use futures::future;
-///
-/// let r = future::poll_immediate_reuse(future::ready(1_i32));
-/// assert_eq!(r.await.unwrap(), 1);
-///
-/// // futures::pending!() returns pending once and then evaluates to `()`
-/// let p = future::poll_immediate_reuse(Box::pin(async {
-///     futures::pending!();
-///     42_u8
-/// }));
-/// match p.await {
-///     Ok(_) => unreachable!(),
-///     Err(e) => {
-///         assert_eq!(e.await, 42);
-///     }
-/// }
-/// # });
-/// ```
-pub fn poll_immediate_reuse<F: Future + Unpin>(f: F) -> PollImmediateReuse<F> {
-    assert_future::<Result<F::Output, _>, PollImmediateReuse<F>>(PollImmediateReuse(Some(f)))
 }
