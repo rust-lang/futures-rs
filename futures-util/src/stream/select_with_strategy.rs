@@ -97,7 +97,6 @@ pin_project! {
 /// let left = repeat(1);
 /// let right = repeat(2);
 ///
-/// // We don't need any state, so let's make it an empty tuple.
 /// let rrobin = |last: &mut PollNext| last.toggle();
 ///
 /// let mut out = select_with_strategy(left, right, rrobin);
