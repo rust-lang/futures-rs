@@ -20,7 +20,7 @@ pin_project! {
 }
 
 impl<St, Fut, F> fmt::Debug for Any<St, Fut, F>
-where 
+where
     St: fmt::Debug,
     Fut: fmt::Debug,
 {
@@ -69,16 +69,18 @@ where
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 // we're currently processing a future to produce a new accum value
                 let acc = this.accum.unwrap() || ready!(fut.poll(cx));
-                if acc == true { break true } // early exit
+                if acc {
+                    break true;
+                } // early exit
                 *this.accum = Some(acc);
                 this.future.set(None);
             } else if this.accum.is_some() {
                 // we're waiting on a new item from the stream
                 match ready!(this.stream.as_mut().poll_next(cx)) {
-                    Some(item) => { // pulled
+                    Some(item) => {
                         this.future.set(Some((this.f)(item)));
                     }
-                    None => { // we finish
+                    None => {
                         break this.accum.take().unwrap();
                     }
                 }
