@@ -68,7 +68,7 @@ where
         Poll::Ready(loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 // we're currently processing a future to produce a new accum value
-                let acc = this.accum.unwrap() && ready!(fut.poll(cx));
+                let acc = this.accum.unwrap() || ready!(fut.poll(cx));
                 if acc == true { break true } // early exit
                 *this.accum = Some(acc);
                 this.future.set(None);
