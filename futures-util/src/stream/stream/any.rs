@@ -7,7 +7,7 @@ use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {
-    /// Future for the [`fold`](super::StreamExt::fold) method.
+    /// Future for the [`any`](super::StreamExt::any) method.
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Any<St, Fut, F> {
         #[pin]
