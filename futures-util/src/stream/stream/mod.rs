@@ -70,6 +70,14 @@ mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fold::Fold;
 
+mod any;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::any::Any;
+
+mod all;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::all::All;
+
 #[cfg(feature = "sink")]
 mod forward;
 
@@ -625,6 +633,50 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<T, _>(Fold::new(self, f, init))
+    }
+
+    /// Execute predicate over asynchronous stream, and return `true` if any element in stream satisfied a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let contain_three = number_stream.any(|i| async move { i == 3 });
+    /// assert_eq!(contain_three.await, true);
+    /// # });
+    /// ```
+    fn any<Fut, F>(self, f: F) -> Any<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_future::<bool, _>(Any::new(self, f))
+    }
+
+    /// Execute predicate over asynchronous stream, and return `true` if all element in stream satisfied a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let less_then_twenty = number_stream.all(|i| async move { i < 20 });
+    /// assert_eq!(less_then_twenty.await, true);
+    /// # });
+    /// ```
+    fn all<Fut, F>(self, f: F) -> All<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_future::<bool, _>(All::new(self, f))
     }
 
     /// Flattens a stream of streams into just one continuous stream.
