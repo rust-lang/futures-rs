@@ -10,8 +10,6 @@ use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
-#[cfg(feature = "sink")]
-use futures_core::stream::TryStream;
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
 use futures_core::{
@@ -78,9 +76,9 @@ delegate_all!(
     /// Future for the [`forward`](super::StreamExt::forward) method.
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     Forward<St, Si>(
-        forward::Forward<St, Si, St::Ok>
+        forward::Forward<St, Si, St::Item>
     ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
-    where St: TryStream
+    where St: Stream
 );
 
 mod for_each;
@@ -1484,18 +1482,14 @@ pub trait StreamExt: Stream {
     /// the sink is closed. Note that neither the original stream nor provided
     /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
-    /// order to preserve access to the `Sink`. If the stream produces an error,
-    /// that error will be returned by this future without flushing/closing the sink.
+    /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    fn forward<S>(self, sink: S) -> Forward<Self, S>
+    fn forward<S, E>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink<Self::Ok, Error = Self::Error>,
-        Self: TryStream + Sized,
-        // Self: TryStream + Sized + Stream<Item = Result<<Self as TryStream>::Ok, <Self as TryStream>::Error>>,
+        S: Sink<Self::Item, Error = E>,
+        Self: Sized,
     {
-        // TODO: type mismatch resolving `<Self as futures_core::Stream>::Item == std::result::Result<<Self as futures_core::TryStream>::Ok, <Self as futures_core::TryStream>::Error>`
-        // assert_future::<Result<(), Self::Error>, _>(Forward::new(self, sink))
         Forward::new(self, sink)
     }
 

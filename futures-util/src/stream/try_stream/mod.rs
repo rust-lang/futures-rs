@@ -18,6 +18,8 @@ use futures_core::{
     stream::TryStream,
     task::{Context, Poll},
 };
+#[cfg(feature = "sink")]
+use futures_sink::Sink;
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -73,6 +75,18 @@ pub use self::try_next::TryNext;
 mod try_filter;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter::TryFilter;
+
+mod try_forward;
+
+#[cfg(feature = "sink")]
+delegate_all!(
+    /// Future for the [`try_forward`](super::TryStreamExt::try_forward) method.
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    TryForward<St, Si>(
+        try_forward::TryForward<St, Si, St::Item>
+    ): Debug + Future + FusedFuture + New[|x: St, y: Si| try_forward::TryForward::new(x, y)]
+    where St: TryStream
+);
 
 mod try_filter_map;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -275,6 +289,27 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_stream::<Result<Self::Ok, Fut::Error>, _>(OrElse::new(self, f))
+    }
+
+    /// A future that completes after the given stream has been fully processed
+    /// into the sink and the sink has been flushed and closed.
+    ///
+    /// This future will drive the stream to keep producing items until it is
+    /// exhausted, sending each item to the sink. It will complete once the
+    /// stream is exhausted, the sink has received and flushed all items, and
+    /// the sink is closed. Note that neither the original stream nor provided
+    /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
+    /// (for example, via `try_forward(&mut sink)` inside an `async` fn/block) in
+    /// order to preserve access to the `Sink`. If the stream produces an error,
+    /// that error will be returned by this future without flushing/closing the sink.
+    #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    fn try_forward<S>(self, sink: S) -> TryForward<Self, S>
+    where
+        S: Sink<Self::Ok, Error = Self::Error>,
+        Self: Sized,
+    {
+        TryForward::new(self, sink)
     }
 
     /// Do something with the success value of this stream, afterwards passing

@@ -1268,17 +1268,29 @@ pub mod stream {
     assert_impl!(ForEachConcurrent<(), PhantomPinned, PhantomPinned>: Unpin);
     assert_not_impl!(ForEachConcurrent<PhantomPinned, (), ()>: Unpin);
 
-    assert_impl!(Forward<SendTryStream<()>, ()>: Send);
-    assert_not_impl!(Forward<SendTryStream, ()>: Send);
-    assert_not_impl!(Forward<SendTryStream<()>, *const ()>: Send);
-    assert_not_impl!(Forward<LocalTryStream, ()>: Send);
-    assert_impl!(Forward<SyncTryStream<()>, ()>: Sync);
-    assert_not_impl!(Forward<SyncTryStream, ()>: Sync);
-    assert_not_impl!(Forward<SyncTryStream<()>, *const ()>: Sync);
-    assert_not_impl!(Forward<LocalTryStream, ()>: Sync);
-    assert_impl!(Forward<UnpinTryStream, ()>: Unpin);
-    assert_not_impl!(Forward<UnpinTryStream, PhantomPinned>: Unpin);
-    assert_not_impl!(Forward<PinnedTryStream, ()>: Unpin);
+    assert_impl!(Forward<SendStream<()>, ()>: Send);
+    assert_not_impl!(Forward<SendStream, ()>: Send);
+    assert_not_impl!(Forward<SendStream<()>, *const ()>: Send);
+    assert_not_impl!(Forward<LocalStream, ()>: Send);
+    assert_impl!(Forward<SyncStream<()>, ()>: Sync);
+    assert_not_impl!(Forward<SyncStream, ()>: Sync);
+    assert_not_impl!(Forward<SyncStream<()>, *const ()>: Sync);
+    assert_not_impl!(Forward<LocalStream, ()>: Sync);
+    assert_impl!(Forward<UnpinStream, ()>: Unpin);
+    assert_not_impl!(Forward<UnpinStream, PhantomPinned>: Unpin);
+    assert_not_impl!(Forward<PinnedStream, ()>: Unpin);
+
+    assert_impl!(TryForward<SendTryStream<()>, ()>: Send);
+    assert_not_impl!(TryForward<SendTryStream, ()>: Send);
+    assert_not_impl!(TryForward<SendTryStream<()>, *const ()>: Send);
+    assert_not_impl!(TryForward<LocalTryStream, ()>: Send);
+    assert_impl!(TryForward<SyncTryStream<()>, ()>: Sync);
+    assert_not_impl!(TryForward<SyncTryStream, ()>: Sync);
+    assert_not_impl!(TryForward<SyncTryStream<()>, *const ()>: Sync);
+    assert_not_impl!(TryForward<LocalTryStream, ()>: Sync);
+    assert_impl!(TryForward<UnpinTryStream, ()>: Unpin);
+    assert_not_impl!(TryForward<UnpinTryStream, PhantomPinned>: Unpin);
+    assert_not_impl!(TryForward<PinnedTryStream, ()>: Unpin);
 
     assert_impl!(Fuse<()>: Send);
     assert_not_impl!(Fuse<*const ()>: Send);

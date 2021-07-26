@@ -17,7 +17,7 @@ fn it_works() {
     let collect_fut2 = rx2.collect::<Vec<_>>();
     let (_, vec1, vec2) = block_on(async move { join!(fwd, collect_fut1, collect_fut2) });
 
-    let expected = (0..10).collect::<Vec<_>>();
+    let expected = (0..10).map(Ok::<_, ()>).collect::<Vec<_>>();
 
     assert_eq!(vec1, expected);
     assert_eq!(vec2, expected);

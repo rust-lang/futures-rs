@@ -63,6 +63,10 @@ pub use self::try_stream::IntoAsyncRead;
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryBufferUnordered, TryBuffered};
 
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::try_stream::TryForward;
+
 // Primitive streams
 
 mod iter;
