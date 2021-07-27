@@ -19,30 +19,48 @@ defaults:
 
 jobs:
   test:
-    name: cargo +${{ matrix.rust }} test (${{ matrix.os }})
+    name: cargo test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
-        rust:
-          - nightly
         os:
-         - ubuntu-latest
-         - macos-latest
-         - windows-latest
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
         # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-        run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+        run: rustup update nightly --no-self-update && rustup default nightly
       - run: cargo test --workspace --all-features
       - run: cargo test --workspace --all-features --release
 
+  cross:
+    name: cross test --target ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - i686-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cross
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
+        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
+
   core-msrv:
-    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task, channel})
+    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task})
     strategy:
       matrix:
         rust:
-          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task, futures-channel.
+          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task.
           # When updating this, the reminder to update the minimum required version in .clippy.toml.
           - 1.36.0
     runs-on: ubuntu-latest
@@ -58,22 +76,22 @@ jobs:
       # Check no-default-features
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check alloc feature
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features --features alloc --ignore-unknown-features \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check std feature
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features --features std \
-            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-test
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
     strategy:
       matrix:
         rust:
-          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-test.
+          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md.
           - 1.41.0
     runs-on: ubuntu-latest
@@ -100,6 +118,7 @@ jobs:
   build:
     name: cargo +${{ matrix.rust }} build
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
@@ -130,10 +149,13 @@ jobs:
   no-std:
     name: cargo build --target ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
+        # thumbv7m-none-eabi supports atomic CAS.
+        # thumbv6m-none-eabi supports atomic, but not atomic CAS.
         target:
-          - thumbv6m-none-eabi
           - thumbv7m-none-eabi
+          - thumbv6m-none-eabi
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -210,6 +232,7 @@ jobs:
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
     strategy:
+      fail-fast: false
       matrix:
         sanitizer:
           - address
@@ -233,12 +256,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust and Clippy
-        run: |
-          toolchain=nightly-$(curl -sSf https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)
-          rustup set profile minimal
-          rustup default "$toolchain"
-          rustup component add clippy
+      - name: Install Rust
+        run: rustup toolchain install nightly --component clippy && rustup default nightly
       - run: cargo clippy --workspace --all-features --all-targets
 
   fmt:
@@ -246,8 +265,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
-        run: rustup update stable && rustup default stable
-      - run: tools/fmt.sh
+        run: rustup update stable
+      - run: cargo fmt --all -- --check
 
   docs:
     name: cargo doc

@@ -158,6 +158,7 @@ fn select_nested() {
     assert_eq!(res, 3);
 }
 
+#[cfg_attr(not(target_pointer_width = "64"), ignore)]
 #[test]
 fn select_size() {
     let fut = async {
@@ -212,6 +213,7 @@ fn select_on_non_unpin_expressions_with_default() {
     assert_eq!(res, 5);
 }
 
+#[cfg_attr(not(target_pointer_width = "64"), ignore)]
 #[test]
 fn select_on_non_unpin_size() {
     // The returned Future is !Unpin

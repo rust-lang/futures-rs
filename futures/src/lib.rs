@@ -67,7 +67,7 @@
 //!     };
 //!
 //!     // Actually execute the above future, which will invoke Future::poll and
-//!     // subsequenty chain appropriate Future::poll and methods needing executors
+//!     // subsequently chain appropriate Future::poll and methods needing executors
 //!     // to drive all futures. Eventually fut_values will be driven to completion.
 //!     let values: Vec<i32> = executor::block_on(fut_values);
 //!
@@ -80,11 +80,20 @@
 
 #![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-// It cannot be included in the published code because this lints have false positives in the minimum required version.
-#![cfg_attr(test, warn(single_use_lifetimes))]
-#![warn(clippy::all)]
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_debug_implementations,
+    missing_docs,
+    rust_2018_idioms,
+    single_use_lifetimes,
+    unreachable_pub
+)]
+#![doc(test(
+    no_crate_inject,
+    attr(
+        deny(warnings, rust_2018_idioms, single_use_lifetimes),
+        allow(dead_code, unused_assignments, unused_variables)
+    )
+))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
