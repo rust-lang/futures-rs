@@ -572,7 +572,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// use futures::io::AsyncWriteExt;
     /// use futures::stream::{self, StreamExt};
     ///
-    /// let stream = stream::iter(vec![Ok([1, 2, 3]), Ok([4, 5, 6])]);
+    /// let stream = stream::iter(vec![[1, 2, 3], [4, 5, 6]]);
     ///
     /// let mut writer = vec![];
     ///
