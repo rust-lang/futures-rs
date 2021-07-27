@@ -1552,9 +1552,9 @@ pub trait StreamExt: Stream {
     /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    fn forward<S, E>(self, sink: S) -> Forward<Self, S>
+    fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink<Self::Item, Error = E>,
+        S: Sink<Self::Item>,
         Self: Sized,
     {
         Forward::new(self, sink)
