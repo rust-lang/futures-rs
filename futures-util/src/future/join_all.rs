@@ -34,7 +34,7 @@ where
 
 const SMALL: usize = 30;
 
-pub enum JoinAllKind<F>
+pub(crate) enum JoinAllKind<F>
 where
     F: Future,
 {
