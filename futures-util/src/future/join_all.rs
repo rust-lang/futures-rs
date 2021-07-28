@@ -11,10 +11,9 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 
 use super::{assert_future, MaybeDone};
-use crate::stream::Collect;
 
 #[cfg(not(futures_no_atomic_cas))]
-use crate::stream::{FuturesOrdered, StreamExt};
+use crate::stream::{Collect, FuturesOrdered, StreamExt};
 
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
@@ -106,7 +105,7 @@ where
 {
     #[cfg(futures_no_atomic_cas)]
     {
-        let elems = iter.map(MaybeDone::Future).collect::<Box<[_]>>().into();
+        let elems = iter.into_iter().map(MaybeDone::Future).collect::<Box<[_]>>().into();
         let kind = JoinAllKind::Small { elems };
         assert_future::<Vec<<I::Item as Future>::Output>, _>(JoinAll { kind })
     }
