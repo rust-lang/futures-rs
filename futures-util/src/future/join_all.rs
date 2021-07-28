@@ -75,7 +75,9 @@ where
 ///
 /// # See Also
 ///
-/// `join_all` will switch to the more powerful [`FuturesOrdered`] if the number of futures is large for performance reasons. If the return order does not matter and you are polling many futures, you should look into [`FuturesUnordered`][crate::stream::FuturesUnordered].
+/// `join_all` will switch to the more powerful [`FuturesOrdered`] for performance
+/// reasons if the number of futures is large. You may want to look into using it or
+/// it's counterpart [`FuturesUnordered`][crate::stream::FuturesUnordered] directly.
 ///
 /// Some examples for additional functionality provided by these are:
 ///
