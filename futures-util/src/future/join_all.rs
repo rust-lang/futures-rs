@@ -24,29 +24,27 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
 }
 
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pin_project_lite::pin_project! {
-    /// Future for the [`join_all`] function.
-    pub struct JoinAll<F>
-    where
-        F: Future,
-    {
-        #[pin]
-        kind: JoinAllKind<F>,
-    }
+/// Future for the [`join_all`] function.
+pub struct JoinAll<F>
+where
+    F: Future,
+{
+    kind: JoinAllKind<F>,
 }
 
 const SMALL: usize = 30;
 
-pin_project_lite::pin_project! {
-    #[project = JoinAllKindProj]
-    pub enum JoinAllKind<F>
-    where
-        F: Future,
-    {
-        Small { elems: Pin<Box<[MaybeDone<F>]>> },
-        #[cfg(not(futures_no_atomic_cas))]
-        Big  { #[pin] fut: Collect<FuturesOrdered<F>, Vec<F::Output>> },
-    }
+pub enum JoinAllKind<F>
+where
+    F: Future,
+{
+    Small {
+        elems: Pin<Box<[MaybeDone<F>]>>,
+    },
+    #[cfg(not(futures_no_atomic_cas))]
+    Big {
+        fut: Collect<FuturesOrdered<F>, Vec<F::Output>>,
+    },
 }
 
 impl<F> fmt::Debug for JoinAll<F>
@@ -134,9 +132,9 @@ where
 {
     type Output = Vec<F::Output>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.project().kind.project() {
-            JoinAllKindProj::Small { elems } => {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match &mut self.kind {
+            JoinAllKind::Small { elems } => {
                 let mut all_done = true;
 
                 for elem in iter_pin_mut(elems.as_mut()) {
@@ -155,7 +153,7 @@ where
                 }
             }
             #[cfg(not(futures_no_atomic_cas))]
-            JoinAllKindProj::Big { fut } => fut.poll(cx),
+            JoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
         }
     }
 }
