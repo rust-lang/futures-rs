@@ -31,6 +31,7 @@ where
     kind: JoinAllKind<F>,
 }
 
+#[cfg(not(futures_no_atomic_cas))]
 const SMALL: usize = 30;
 
 pub(crate) enum JoinAllKind<F>
