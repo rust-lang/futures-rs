@@ -91,10 +91,10 @@ where
 ///
 /// # Caution
 ///
-/// Some futures expect to run until completion. If the future passed to this function isn't some sort of `&mut Future` then it will
-/// be dropped and can cause performance problems when creating and dropping futures continuously. In some cases this is fine like
-/// when asking for the [next()](crate::stream::StreamExt::next()) value of a stream and dropping the [Next](crate::stream::Next) future
-/// doesn't change any state in the stream.
+/// When consuming the future by this function, note the following:
+///
+/// - This function does not guarantee that the future will run to completion, so it is generally incompatible with passing the non-cancellation-safe future by value.
+/// - Even if the future is cancellation-safe, creating and dropping new futures frequently may lead to performance problems.
 ///
 /// # Examples
 ///
