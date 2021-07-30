@@ -4,8 +4,7 @@ use syn::{parse::Parser, punctuated::Punctuated, Expr, Index, Token};
 
 /// The `stream_select!` macro.
 pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Error> {
-    let args = Punctuated::<Expr, Token![,]>::parse_terminated
-        .parse2(input)?;
+    let args = Punctuated::<Expr, Token![,]>::parse_terminated.parse2(input)?;
     let generic_idents = (0..args.len()).map(|i| format_ident!("_{}", i)).collect::<Vec<_>>();
     let field_idents = (0..args.len()).map(|i| format_ident!("__{}", i)).collect::<Vec<_>>();
     let field_idents_2 = (0..args.len()).map(|i| format_ident!("___{}", i)).collect::<Vec<_>>();

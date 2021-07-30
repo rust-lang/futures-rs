@@ -4,7 +4,9 @@ use futures::future::{self, poll_fn, FutureExt};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use futures::task::{Context, Poll};
-use futures::{join, pending, pin_mut, poll, select, select_biased, stream, stream_select, try_join};
+use futures::{
+    join, pending, pin_mut, poll, select, select_biased, stream, stream_select, try_join,
+};
 use std::mem;
 
 #[test]
@@ -325,23 +327,22 @@ fn stream_select() {
         assert_eq!(finite_list.next().await, Some(3));
         assert_eq!(finite_list.next().await, None);
 
-        let endless_mixed =
-            stream_select!(endless_ints(1i32), endless_ints(2), endless_ints(3));
-        // Take 100, and assert a somewhat even distribution of values.
-        // The fairness is randomized, but over 100 samples we should be pretty close to even.
+        let endless_mixed = stream_select!(endless_ints(1i32), endless_ints(2), endless_ints(3));
+        // Take 1000, and assert a somewhat even distribution of values.
+        // The fairness is randomized, but over 1000 samples we should be pretty close to even.
         // This test may be a bit flaky. Feel free to adjust the margins as you see fit.
         let mut count = 0;
         let results = endless_mixed
             .take_while(move |_| {
                 count += 1;
-                let ret = count < 100;
+                let ret = count < 1000;
                 async move { ret }
             })
             .collect::<Vec<_>>()
             .await;
-        assert!(results.iter().filter(|x| **x == 1).count() >= 29);
-        assert!(results.iter().filter(|x| **x == 2).count() >= 29);
-        assert!(results.iter().filter(|x| **x == 3).count() >= 29);
+        assert!(results.iter().filter(|x| **x == 1).count() >= 299);
+        assert!(results.iter().filter(|x| **x == 2).count() >= 299);
+        assert!(results.iter().filter(|x| **x == 3).count() >= 299);
     });
 }
 
