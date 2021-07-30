@@ -11,8 +11,7 @@ pub use futures_macro::stream_select_internal;
 /// It also keeps the streams inline, and does not require `Box<dyn Stream>`s to be allocated.
 /// Streams passed to this macro must be `Unpin`.
 ///
-/// Fairness for this stream is implemented in terms of the futures `select` macro. If multiple
-/// streams are ready, one will be pseudo randomly selected at runtime.
+/// If multiple streams are ready, one will be pseudo randomly selected at runtime.
 ///
 /// This macro is gated behind the `async-await` feature of this library, which is activated by default.
 /// Note that `stream_select!` relies on `proc-macro-hack`, and may require to set the compiler's recursion
