@@ -11,7 +11,7 @@ pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Erro
     let field_indices = (0..args.len()).map(Index::from).collect::<Vec<_>>();
     let args = args.iter().map(|e| e.to_token_stream());
 
-    Ok(TokenStream::from(quote! {
+    Ok(quote! {
         {
             #[derive(Debug)]
             struct StreamSelect<#(#generic_idents),*> (#(Option<#generic_idents>),*);
@@ -104,5 +104,5 @@ pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Erro
             StreamSelect(#(Some(#args)),*)
 
         }
-    }))
+    })
 }
