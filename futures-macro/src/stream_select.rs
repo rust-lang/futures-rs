@@ -1,19 +1,18 @@
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parse::Parser, punctuated::Punctuated, Expr, Index, Token};
 
 /// The `stream_select!` macro.
-pub(crate) fn stream_select(input: TokenStream) -> TokenStream {
+pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Error> {
     let args = Punctuated::<Expr, Token![,]>::parse_terminated
-        .parse(input)
-        .expect("macro expects a comma separated list of expressions");
+        .parse2(input)?;
     let generic_idents = (0..args.len()).map(|i| format_ident!("_{}", i)).collect::<Vec<_>>();
     let field_idents = (0..args.len()).map(|i| format_ident!("__{}", i)).collect::<Vec<_>>();
     let field_idents_2 = (0..args.len()).map(|i| format_ident!("___{}", i)).collect::<Vec<_>>();
     let field_indices = (0..args.len()).map(Index::from).collect::<Vec<_>>();
     let args = args.iter().map(|e| e.to_token_stream());
 
-    TokenStream::from(quote! {
+    Ok(TokenStream::from(quote! {
         {
             #[derive(Debug)]
             struct StreamSelect<#(#generic_idents),*> (#(Option<#generic_idents>),*);
@@ -106,5 +105,5 @@ pub(crate) fn stream_select(input: TokenStream) -> TokenStream {
             StreamSelect(#(Some(#args)),*)
 
         }
-    })
+    }))
 }
