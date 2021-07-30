@@ -321,10 +321,10 @@ fn stream_select() {
         assert_eq!(endless_ones.next().await, Some(1));
         assert_eq!(endless_ones.next().await, Some(1));
 
-        let mut finite_list = stream_select!(stream::iter(vec![1, 2, 3].into_iter()));
+        let mut finite_list =
+            stream_select!(stream::iter(vec![1].into_iter()), stream::iter(vec![1].into_iter()));
         assert_eq!(finite_list.next().await, Some(1));
-        assert_eq!(finite_list.next().await, Some(2));
-        assert_eq!(finite_list.next().await, Some(3));
+        assert_eq!(finite_list.next().await, Some(1));
         assert_eq!(finite_list.next().await, None);
 
         let endless_mixed = stream_select!(endless_ints(1i32), endless_ints(2), endless_ints(3));
