@@ -319,7 +319,7 @@ pub trait TryStreamExt: TryStream {
         S: Sink<Self::Ok, Error = Self::Error>,
         Self: Sized,
     {
-        TryForward::new(self, sink)
+        assert_future::<Result<(), S::Error>, _>(TryForward::new(self, sink))
     }
 
     /// Do something with the success value of this stream, afterwards passing

@@ -1557,7 +1557,7 @@ pub trait StreamExt: Stream {
         S: Sink<Self::Item>,
         Self: Sized,
     {
-        Forward::new(self, sink)
+        assert_future::<Result<(), S::Error>, _>(Forward::new(self, sink))
     }
 
     /// Splits this `Stream + Sink` object into separate `Sink` and `Stream`
