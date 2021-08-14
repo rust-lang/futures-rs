@@ -78,6 +78,7 @@ mod try_filter;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter::TryFilter;
 
+#[cfg(feature = "sink")]
 mod try_forward;
 
 #[cfg(feature = "sink")]
