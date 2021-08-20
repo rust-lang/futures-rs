@@ -6,6 +6,7 @@ use pin_project_lite::pin_project;
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
+use std::ptr;
 
 pin_project! {
     /// Wraps a writer and buffers its output.
@@ -49,7 +50,7 @@ impl<W: AsyncWrite> BufWriter<W> {
         Self { inner, buf: Vec::with_capacity(cap), written: 0 }
     }
 
-    fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    pub(super) fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
 
         let len = this.buf.len();
@@ -82,6 +83,42 @@ impl<W: AsyncWrite> BufWriter<W> {
     /// Returns a reference to the internally buffered data.
     pub fn buffer(&self) -> &[u8] {
         &self.buf
+    }
+
+    /// TODO WIP
+    pub(super) fn capacity(&self) -> usize {
+        self.buf.capacity()
+    }
+
+    #[inline]
+    /// TODO WIP
+    pub(super) fn spare_capacity(&self) -> usize {
+        self.buf.capacity() - self.buf.len()
+    }
+
+    /// TODO WIP
+    pub(super) fn write_to_buf(mut self: Pin<&mut Self>, buf: &[u8]) -> usize {
+        let available = self.spare_capacity();
+        let amt_to_buffer = available.min(buf.len());
+
+        // SAFETY: `amt_to_buffer` is <= buffer's spare capacity by construction.
+        unsafe {
+            self.write_to_buffer_unchecked(&buf[..amt_to_buffer]);
+        }
+
+        amt_to_buffer
+    }
+
+    #[inline]
+    /// TODO WIP
+    unsafe fn write_to_buffer_unchecked(mut self: Pin<&mut Self>, buf: &[u8]) {
+        debug_assert!(buf.len() <= self.spare_capacity());
+        let old_len = self.buf.len();
+        let buf_len = buf.len();
+        let src = buf.as_ptr();
+        let dst = self.buf.as_mut_ptr().add(old_len);
+        ptr::copy_nonoverlapping(src, dst, buf_len);
+        self.buf.set_len(old_len + buf_len);
     }
 }
 
