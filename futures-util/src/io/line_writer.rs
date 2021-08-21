@@ -24,7 +24,7 @@ impl<W: AsyncWrite> LineWriterShim<W> {
     fn flush_if_completed_line(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.project();
         //let this = &mut *self;
-        match self.buffered().last().copied() {
+        match this.buffer.buffer().last().copied() {
             Some(b'\n') => this.buffer.flush_buf(cx),
             _ => Poll::Ready(Ok(())),
         }
@@ -37,16 +37,16 @@ impl<W: AsyncWrite> AsyncWrite for LineWriterShim<W> {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        let this = self.project();
+        let mut this = self.as_mut().project();
         let newline_index = match memchr::memrchr(b'\n', buf) {
             None => {
-                ready!(self.flush_if_completed_line(cx)?);
-                return this.buffer.poll_write(cx, buf);
+                ready!(self.as_mut().flush_if_completed_line(cx)?);
+                return self.project().buffer.poll_write(cx, buf);
             }
             Some(newline_index) => newline_index + 1,
         };
 
-        this.buffer.poll_flush(cx)?;
+        this.buffer.as_mut().poll_flush(cx)?;
 
         let lines = &buf[..newline_index];
 
@@ -58,24 +58,24 @@ impl<W: AsyncWrite> AsyncWrite for LineWriterShim<W> {
 
         let tail = if flushed >= newline_index {
             &buf[flushed..]
-        } else if newline_index - flushed <= self.buffer.capacity() {
+        } else if newline_index - flushed <= this.buffer.capacity() {
             &buf[flushed..newline_index]
         } else {
             let scan_area = &buf[flushed..];
-            let scan_area = &scan_area[..self.buffer.capacity()];
+            let scan_area = &scan_area[..this.buffer.capacity()];
             match memchr::memrchr(b'\n', scan_area) {
                 Some(newline_index) => &scan_area[..newline_index + 1],
                 None => scan_area,
             }
         };
 
-        let buffered = self.buffer.write_to_buf(tail);
+        let buffered = this.buffer.write_to_buf(tail);
         Poll::Ready(Ok(flushed + buffered))
     }
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         self.project().buffer.poll_flush(cx)
     }
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         self.project().buffer.poll_close(cx)
     }
 }

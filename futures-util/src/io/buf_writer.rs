@@ -97,7 +97,7 @@ impl<W: AsyncWrite> BufWriter<W> {
     }
 
     /// TODO WIP
-    pub(super) fn write_to_buf(mut self: Pin<&mut Self>, buf: &[u8]) -> usize {
+    pub(super) fn write_to_buf(self: Pin<&mut Self>, buf: &[u8]) -> usize {
         let available = self.spare_capacity();
         let amt_to_buffer = available.min(buf.len());
 
@@ -111,14 +111,15 @@ impl<W: AsyncWrite> BufWriter<W> {
 
     #[inline]
     /// TODO WIP
-    unsafe fn write_to_buffer_unchecked(mut self: Pin<&mut Self>, buf: &[u8]) {
+    unsafe fn write_to_buffer_unchecked(self: Pin<&mut Self>, buf: &[u8]) {
         debug_assert!(buf.len() <= self.spare_capacity());
-        let old_len = self.buf.len();
+        let this = self.project();
+        let old_len = this.buf.len();
         let buf_len = buf.len();
         let src = buf.as_ptr();
-        let dst = self.buf.as_mut_ptr().add(old_len);
+        let dst = this.buf.as_mut_ptr().add(old_len);
         ptr::copy_nonoverlapping(src, dst, buf_len);
-        self.buf.set_len(old_len + buf_len);
+        this.buf.set_len(old_len + buf_len);
     }
 }
 
