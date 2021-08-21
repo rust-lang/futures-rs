@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_match)] // https://github.com/rust-lang/rust-clippy/issues/7591
+
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, poll_fn, FutureExt};
