@@ -217,7 +217,10 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// The returned future will resolve to the number of bytes read once the read
     /// operation is completed.
-    fn read_vectored<'a>(&'a mut self, bufs: &'a mut [IoSliceMut<'a>]) -> ReadVectored<'a, Self>
+    fn read_vectored<'a, 'b>(
+        &'a mut self,
+        bufs: &'a mut [IoSliceMut<'b>],
+    ) -> ReadVectored<'a, 'b, Self>
     where
         Self: Unpin,
     {
@@ -456,7 +459,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     ///
     /// The returned future will resolve to the number of bytes written once the write
     /// operation is completed.
-    fn write_vectored<'a>(&'a mut self, bufs: &'a [IoSlice<'a>]) -> WriteVectored<'a, Self>
+    fn write_vectored<'a, 'b>(&'a mut self, bufs: &'a [IoSlice<'b>]) -> WriteVectored<'a, 'b, Self>
     where
         Self: Unpin,
     {
@@ -535,10 +538,10 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     #[cfg(feature = "write-all-vectored")]
-    fn write_all_vectored<'a>(
+    fn write_all_vectored<'a, 'b>(
         &'a mut self,
-        bufs: &'a mut [IoSlice<'a>],
-    ) -> WriteAllVectored<'a, Self>
+        bufs: &'a mut [IoSlice<'b>],
+    ) -> WriteAllVectored<'a, 'b, Self>
     where
         Self: Unpin,
     {
