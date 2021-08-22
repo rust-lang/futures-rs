@@ -16,11 +16,11 @@
 extern crate alloc;
 
 pub mod future;
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use self::future::{FusedFuture, Future, TryFuture};
 
 pub mod stream;
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use self::stream::{FusedStream, Stream, TryStream};
 
 #[macro_use]

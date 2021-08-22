@@ -301,18 +301,18 @@ macro_rules! delegate_all {
 }
 
 pub mod future;
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use crate::future::{Future, FutureExt, TryFuture, TryFutureExt};
 
 pub mod stream;
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use crate::stream::{Stream, StreamExt, TryStream, TryStreamExt};
 
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub mod sink;
 #[cfg(feature = "sink")]
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use crate::sink::{Sink, SinkExt};
 
 pub mod task;
@@ -329,7 +329,7 @@ pub mod compat;
 pub mod io;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use crate::io::{
     AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
     AsyncWriteExt,
