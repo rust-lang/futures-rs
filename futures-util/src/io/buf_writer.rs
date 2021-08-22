@@ -85,18 +85,23 @@ impl<W: AsyncWrite> BufWriter<W> {
         &self.buf
     }
 
-    /// TODO WIP
+    /// Capacity of `buf`. how many chars can be held in buffer
     pub(super) fn capacity(&self) -> usize {
         self.buf.capacity()
     }
 
+    /// Remaining number of bytes to reach `buf` 's capacity
     #[inline]
-    /// TODO WIP
     pub(super) fn spare_capacity(&self) -> usize {
         self.buf.capacity() - self.buf.len()
     }
 
-    /// TODO WIP
+    /// Write a byte slice directly into buffer
+    ///
+    /// Will truncate the number of bytes written to `spare_capacity()` so you want to
+    /// calculate the size of your slice to avoid losing bytes
+    ///
+    /// Based on `std::io::BufWriter`
     pub(super) fn write_to_buf(self: Pin<&mut Self>, buf: &[u8]) -> usize {
         let available = self.spare_capacity();
         let amt_to_buffer = available.min(buf.len());
@@ -109,8 +114,10 @@ impl<W: AsyncWrite> BufWriter<W> {
         amt_to_buffer
     }
 
+    /// Write byte slice directly into `self.buf`
+    ///
+    /// Based on `std::io::BufWriter`
     #[inline]
-    /// TODO WIP
     unsafe fn write_to_buffer_unchecked(self: Pin<&mut Self>, buf: &[u8]) {
         debug_assert!(buf.len() <= self.spare_capacity());
         let this = self.project();

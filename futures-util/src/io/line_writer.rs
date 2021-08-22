@@ -7,7 +7,13 @@ use std::io;
 use std::pin::Pin;
 
 pin_project! {
-/// TODO: WIP
+/// Wrap a writer, like [`BufWriter`] does, but prioritizes buffering lines
+///
+/// This was written based on `std::io::LineWriter` which goes into further details
+/// explaining the code.
+///
+/// Buffering is actually done using `BufWriter`. This class will leverage `BufWriter`
+/// to write on-each-line.
 #[derive(Debug)]
 pub struct LineWriter<W: AsyncWrite> {
     #[pin]
@@ -16,19 +22,20 @@ pub struct LineWriter<W: AsyncWrite> {
 }
 
 impl<W: AsyncWrite> LineWriter<W> {
-    /// TODO: WIP
+    /// Create a new `LineWriter` with default buffer capacity. The default is currently 1KB
+    /// which was taken from `std::io::LineWriter`
     pub fn new(inner: W) -> LineWriter<W> {
-        // 1024 is taken from std::io::buffered::LineWriter
         LineWriter::with_capacity(1024, inner)
     }
-    /// TODO: WIP
+
+    /// Creates a new `LineWriter` with the specified buffer capacity.
     pub fn with_capacity(capacity: usize, inner: W) -> LineWriter<W> {
         LineWriter { inner: BufWriter::with_capacity(capacity, inner) }
     }
-    /// TODO WIP
+
+    /// Flush `inner` if last char is "new line"
     fn flush_if_completed_line(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.project();
-        //let this = &mut *self;
         match this.inner.buffer().last().copied() {
             Some(b'\n') => this.inner.flush_buf(cx),
             _ => Poll::Ready(Ok(())),
@@ -77,10 +84,14 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
         let buffered = this.inner.write_to_buf(tail);
         Poll::Ready(Ok(flushed + buffered))
     }
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.project().inner.poll_flush(cx)
+
+    /// Forward to `inner` 's `BufWriter::poll_flush()`
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.as_mut().project().inner.poll_flush(cx)
     }
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.project().inner.poll_close(cx)
+
+    /// Forward to `inner` 's `BufWriter::poll_close()`
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.as_mut().project().inner.poll_close(cx)
     }
 }
