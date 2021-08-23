@@ -32,7 +32,7 @@ pin_project! {
     // TODO: Examples
     pub struct BufWriter<W> {
         #[pin]
-        inner: W,
+        pub(super) inner: W,
         buf: Vec<u8>,
         written: usize,
     }

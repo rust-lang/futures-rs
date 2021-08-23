@@ -17,7 +17,7 @@ pin_project! {
 #[derive(Debug)]
 pub struct LineWriter<W: AsyncWrite> {
     #[pin]
-    inner: BufWriter<W>,
+    buf_writer: BufWriter<W>,
 }
 }
 
@@ -30,16 +30,26 @@ impl<W: AsyncWrite> LineWriter<W> {
 
     /// Creates a new `LineWriter` with the specified buffer capacity.
     pub fn with_capacity(capacity: usize, inner: W) -> LineWriter<W> {
-        LineWriter { inner: BufWriter::with_capacity(capacity, inner) }
+        LineWriter { buf_writer: BufWriter::with_capacity(capacity, inner) }
     }
 
-    /// Flush `inner` if last char is "new line"
+    /// Flush `buf_writer` if last char is "new line"
     fn flush_if_completed_line(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.project();
-        match this.inner.buffer().last().copied() {
-            Some(b'\n') => this.inner.flush_buf(cx),
+        match this.buf_writer.buffer().last().copied() {
+            Some(b'\n') => this.buf_writer.flush_buf(cx),
             _ => Poll::Ready(Ok(())),
         }
+    }
+
+    /// Returns a reference to `buf_writer`'s internally buffered data.
+    pub fn buffer(&self) -> &[u8] {
+        &self.buf_writer.buffer()
+    }
+    /// Acquires a reference to the underlying sink or stream that this combinator is
+    /// pulling from.
+    pub fn get_ref(&self) -> &W {
+        self.buf_writer.get_ref()
     }
 }
 
@@ -53,16 +63,17 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
         let newline_index = match memchr::memrchr(b'\n', buf) {
             None => {
                 ready!(self.as_mut().flush_if_completed_line(cx)?);
-                return self.project().inner.poll_write(cx, buf);
+                return self.project().buf_writer.poll_write(cx, buf);
             }
             Some(newline_index) => newline_index + 1,
         };
 
-        ready!(this.inner.as_mut().poll_flush(cx)?);
+        ready!(this.buf_writer.as_mut().poll_flush(cx)?);
 
         let lines = &buf[..newline_index];
 
-        let flushed = ready!(this.inner.as_mut().poll_write(cx, lines))?;
+        let _buf_writer = this.buf_writer.project();
+        let flushed = ready!(_buf_writer.inner.poll_write(cx, lines))?;
 
         if flushed == 0 {
             return Poll::Ready(Ok(0));
@@ -70,28 +81,28 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
 
         let tail = if flushed >= newline_index {
             &buf[flushed..]
-        } else if newline_index - flushed <= this.inner.capacity() {
+        } else if newline_index - flushed <= this.buf_writer.capacity() {
             &buf[flushed..newline_index]
         } else {
             let scan_area = &buf[flushed..];
-            let scan_area = &scan_area[..this.inner.capacity()];
+            let scan_area = &scan_area[..this.buf_writer.capacity()];
             match memchr::memrchr(b'\n', scan_area) {
                 Some(newline_index) => &scan_area[..newline_index + 1],
                 None => scan_area,
             }
         };
 
-        let buffered = this.inner.write_to_buf(tail);
+        let buffered = _buf_writer.write_to_buf(tail); // TODO crap!
         Poll::Ready(Ok(flushed + buffered))
     }
 
-    /// Forward to `inner` 's `BufWriter::poll_flush()`
+    /// Forward to `buf_writer` 's `BufWriter::poll_flush()`
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.as_mut().project().inner.poll_flush(cx)
+        self.as_mut().project().buf_writer.poll_flush(cx)
     }
 
-    /// Forward to `inner` 's `BufWriter::poll_close()`
+    /// Forward to `buf_writer` 's `BufWriter::poll_close()`
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.as_mut().project().inner.poll_close(cx)
+        self.as_mut().project().buf_writer.poll_close(cx)
     }
 }
