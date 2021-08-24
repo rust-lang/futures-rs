@@ -72,8 +72,7 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
 
         let lines = &buf[..newline_index];
 
-        let _buf_writer = this.buf_writer.project();
-        let flushed = ready!(_buf_writer.inner.poll_write(cx, lines))?;
+        let flushed = { ready!(this.buf_writer.as_mut().inner_poll_write(cx, lines))? };
 
         if flushed == 0 {
             return Poll::Ready(Ok(0));
@@ -92,7 +91,7 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
             }
         };
 
-        let buffered = _buf_writer.write_to_buf(tail); // TODO crap!
+        let buffered = this.buf_writer.as_mut().write_to_buf(tail);
         Poll::Ready(Ok(flushed + buffered))
     }
 

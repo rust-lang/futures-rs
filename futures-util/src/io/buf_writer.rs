@@ -32,7 +32,7 @@ pin_project! {
     // TODO: Examples
     pub struct BufWriter<W> {
         #[pin]
-        pub(super) inner: W,
+        inner: W,
         buf: Vec<u8>,
         written: usize,
     }
@@ -127,6 +127,14 @@ impl<W: AsyncWrite> BufWriter<W> {
         let dst = this.buf.as_mut_ptr().add(old_len);
         ptr::copy_nonoverlapping(src, dst, buf_len);
         this.buf.set_len(old_len + buf_len);
+    }
+    /// Write directly using `inner`, bypassing buffering
+    pub(super) fn inner_poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.project().inner.poll_write(cx, buf)
     }
 }
 
