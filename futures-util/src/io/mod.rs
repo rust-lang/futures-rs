@@ -56,7 +56,7 @@ mod allow_std;
 pub use self::allow_std::AllowStdIo;
 
 mod buf_reader;
-pub use self::buf_reader::BufReader;
+pub use self::buf_reader::{BufReader, SeeKRelative};
 
 mod buf_writer;
 pub use self::buf_writer::BufWriter;
