@@ -13,6 +13,20 @@ fn peekable() {
 }
 
 #[test]
+fn peekable_mut() {
+    block_on(async {
+        let s = stream::iter(vec![1u8, 2, 3]).peekable();
+        pin_mut!(s);
+        if let Some(p) = s.as_mut().peek_mut().await {
+            if *p == 1 {
+                *p = 5;
+            }
+        }
+        assert_eq!(s.collect::<Vec<_>>().await, vec![5, 2, 3]);
+    });
+}
+
+#[test]
 fn peekable_next_if_eq() {
     block_on(async {
         // first, try on references
