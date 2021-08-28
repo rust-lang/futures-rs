@@ -817,6 +817,12 @@ pub mod io {
     assert_impl!(Seek<'_, ()>: Unpin);
     assert_not_impl!(Seek<'_, PhantomPinned>: Unpin);
 
+    assert_impl!(SeeKRelative<'_, ()>: Send);
+    assert_not_impl!(SeeKRelative<'_, *const ()>: Send);
+    assert_impl!(SeeKRelative<'_, ()>: Sync);
+    assert_not_impl!(SeeKRelative<'_, *const ()>: Sync);
+    assert_impl!(SeeKRelative<'_, PhantomPinned>: Unpin);
+
     assert_impl!(Sink: Send);
     assert_impl!(Sink: Sync);
     assert_impl!(Sink: Unpin);
