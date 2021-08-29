@@ -2,6 +2,7 @@ use super::buf_writer::BufWriter;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
+use futures_io::IoSlice;
 use pin_project_lite::pin_project;
 use std::io;
 use std::pin::Pin;
@@ -46,6 +47,7 @@ impl<W: AsyncWrite> LineWriter<W> {
     pub fn buffer(&self) -> &[u8] {
         &self.buf_writer.buffer()
     }
+
     /// Acquires a reference to the underlying sink or stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &W {
@@ -92,6 +94,52 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
         };
 
         let buffered = this.buf_writer.as_mut().write_to_buf(tail);
+        Poll::Ready(Ok(flushed + buffered))
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let mut this = self.as_mut().project();
+        // `is_write_vectored()` is handled in original code, but not in this crate
+        // see https://github.com/rust-lang/rust/issues/70436
+
+        let last_newline_buf_idx = bufs
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, buf)| memchr::memchr(b'\n', buf).map(|_| i));
+        let last_newline_buf_idx = match last_newline_buf_idx {
+            None => {
+                ready!(self.as_mut().flush_if_completed_line(cx)?);
+                return self.project().buf_writer.poll_write_vectored(cx, bufs);
+            }
+            Some(i) => i,
+        };
+
+        ready!(this.buf_writer.as_mut().poll_flush(cx)?);
+
+        let (lines, tail) = bufs.split_at(last_newline_buf_idx + 1);
+
+        let flushed = { ready!(this.buf_writer.as_mut().inner_poll_write_vectored(cx, lines))? };
+        if flushed == 0 {
+            return Poll::Ready(Ok(0));
+        }
+
+        let lines_len = lines.iter().map(|buf| buf.len()).sum();
+        if flushed < lines_len {
+            return Poll::Ready(Ok(flushed));
+        }
+
+        let buffered: usize = tail
+            .iter()
+            .filter(|buf| !buf.is_empty())
+            .map(|buf| this.buf_writer.as_mut().write_to_buf(buf))
+            .take_while(|&n| n > 0)
+            .sum();
+
         Poll::Ready(Ok(flushed + buffered))
     }
 
