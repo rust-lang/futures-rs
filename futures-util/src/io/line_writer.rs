@@ -45,7 +45,7 @@ impl<W: AsyncWrite> LineWriter<W> {
 
     /// Returns a reference to `buf_writer`'s internally buffered data.
     pub fn buffer(&self) -> &[u8] {
-        &self.buf_writer.buffer()
+        self.buf_writer.buffer()
     }
 
     /// Acquires a reference to the underlying sink or stream that this combinator is
