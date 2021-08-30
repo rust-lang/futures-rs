@@ -1,7 +1,7 @@
 [package]
 name = "futures"
 edition = "2018"
-version = "0.3.16"
+version = "0.3.17"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -16,13 +16,13 @@ composability, and iterator-like interfaces.
 categories = ["asynchronous"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.16", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.16", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.16", default-features = false, features = ["sink"] }
-futures-executor = { path = "../futures-executor", version = "0.3.16", default-features = false, optional = true }
-futures-io = { path = "../futures-io", version = "0.3.16", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.16", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.16", default-features = false, features = ["sink"] }
+futures-core = { path = "../futures-core", version = "0.3.17", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.17", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.17", default-features = false, features = ["sink"] }
+futures-executor = { path = "../futures-executor", version = "0.3.17", default-features = false, optional = true }
+futures-io = { path = "../futures-io", version = "0.3.17", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.17", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.17", default-features = false, features = ["sink"] }
 
 [dev-dependencies]
 futures-executor = { path = "../futures-executor", features = ["thread-pool"] }
