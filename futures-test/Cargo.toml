@@ -14,7 +14,7 @@ Common utilities for testing components built off futures-rs.
 [dependencies]
 futures-core = { version = "=1.0.0-alpha.0", path = "../futures-core", default-features = false }
 futures-task = { version = "=0.4.0-alpha.0", path = "../futures-task", default-features = false }
-futures-io = { version = "0.3.16", path = "../futures-io", default-features = false }
+futures-io = { version = "0.3.17", path = "../futures-io", default-features = false }
 futures-util = { version = "=0.4.0-alpha.0", path = "../futures-util", default-features = false }
 futures-executor = { version = "=0.4.0-alpha.0", path = "../futures-executor", default-features = false }
 futures-sink = { version = "=0.4.0-alpha.0", path = "../futures-sink", default-features = false }
