@@ -1,3 +1,12 @@
+# 0.3.17 - 2021-08-30
+
+* Use `FuturesOrdered` in `join_all` (#2412)
+* Add `{future, stream}::poll_immediate` (#2452)
+* Add `stream_select!` macro (#2262)
+* Implement `Default` for `OptionFuture` (#2471)
+* Add `Peekable::{peek_mut, poll_peek_mut}` (#2488)
+* Add `BufReader::seek_relative` (#2489)
+
 # 0.3.16 - 2021-07-23
 
 * Add `TryStreamExt::try_chunks` (#2438)
