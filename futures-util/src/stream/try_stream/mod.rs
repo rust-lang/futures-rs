@@ -10,7 +10,9 @@ use crate::fns::{
     IntoFn, MapErrFn, MapOkFn,
 };
 use crate::future::assert_future;
-use crate::stream::{assert_stream, Inspect, Map, Stream};
+use crate::stream::{assert_stream, Inspect, Map};
+#[cfg(feature = "sink")]
+use crate::Stream;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
