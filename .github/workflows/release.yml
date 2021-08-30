@@ -21,6 +21,6 @@ jobs:
       - uses: taiki-e/create-gh-release-action@v1
         with:
           changelog: CHANGELOG.md
-          branch: master
+          branch: 'master|[0-9]+\.[0-9]+'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
