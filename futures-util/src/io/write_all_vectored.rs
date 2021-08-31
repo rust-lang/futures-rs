@@ -193,6 +193,11 @@ mod tests {
 
     #[test]
     fn test_write_all_vectored_distinct_lifetimes() {
+        struct WrapVec<T>(Vec<T>);
+        impl<T> Drop for WrapVec<T> {
+            fn drop(&mut self) {}
+        }
+
         let waker = noop_waker();
         let mut cx = Context::from_waker(&waker);
         let mut dst = test_writer(2, 2);
@@ -201,8 +206,8 @@ mod tests {
             // Force the lifetimes of the underlying data and IOSlice to be unequal
             let data = vec![1, 2, 3, 4];
             {
-                let mut slices: Vec<_> = data.chunks(2).map(IoSlice::new).collect();
-                let mut future = dst.write_all_vectored(&mut *slices);
+                let mut slices = WrapVec(data.chunks(2).map(IoSlice::new).collect());
+                let mut future = dst.write_all_vectored(&mut *slices.0);
                 match Pin::new(&mut future).poll(&mut cx) {
                     Poll::Ready(Ok(())) => {}
                     other => panic!("unexpected result polling future: {:?}", other),
