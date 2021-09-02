@@ -11,8 +11,6 @@ use crate::fns::{
 };
 use crate::future::assert_future;
 use crate::stream::{assert_stream, Inspect, Map};
-#[cfg(feature = "sink")]
-use crate::Stream;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
@@ -319,7 +317,7 @@ pub trait TryStreamExt: TryStream {
     fn try_forward<S>(self, sink: S) -> TryForward<Self, S>
     where
         S: Sink<Self::Ok, Error = Self::Error>,
-        Self: Sized + Stream<Item = Result<Self::Ok, Self::Error>>,
+        Self: Sized,
     {
         assert_future::<Result<(), Self::Error>, _>(TryForward::new(self, sink))
     }

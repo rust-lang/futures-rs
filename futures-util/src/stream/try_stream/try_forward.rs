@@ -1,8 +1,7 @@
-use crate::stream::Fuse;
+use crate::stream::{Fuse, IntoStream, Stream, TryStream};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::ready;
-use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
@@ -16,21 +15,21 @@ pin_project! {
         #[pin]
         sink: Option<Si>,
         #[pin]
-        stream: Fuse<St>,
+        stream: Fuse<IntoStream<St>>,
         buffered_item: Option<Item>,
     }
 }
 
 impl<St, Si, Item> TryForward<St, Si, Item> {
     pub(crate) fn new(stream: St, sink: Si) -> Self {
-        Self { sink: Some(sink), stream: Fuse::new(stream), buffered_item: None }
+        Self { sink: Some(sink), stream: Fuse::new(IntoStream::new(stream)), buffered_item: None }
     }
 }
 
 impl<St, Si, Item, E> FusedFuture for TryForward<St, Si, Item>
 where
     Si: Sink<Item, Error = E>,
-    St: Stream<Item = Result<Item, E>>,
+    St: TryStream<Ok = Item, Error = E>,
 {
     fn is_terminated(&self) -> bool {
         self.sink.is_none()
@@ -40,7 +39,7 @@ where
 impl<St, Si, Item, E> Future for TryForward<St, Si, Item>
 where
     Si: Sink<Item, Error = E>,
-    St: Stream<Item = Result<Item, E>>,
+    St: TryStream<Ok = Item, Error = E>,
 {
     type Output = Result<(), E>;
 
