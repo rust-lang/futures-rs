@@ -793,12 +793,12 @@ pub mod io {
     assert_impl!(ReadUntil<'_, ()>: Unpin);
     assert_not_impl!(ReadUntil<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(ReadVectored<'_, ()>: Send);
-    assert_not_impl!(ReadVectored<'_, *const ()>: Send);
-    assert_impl!(ReadVectored<'_, ()>: Sync);
-    assert_not_impl!(ReadVectored<'_, *const ()>: Sync);
-    assert_impl!(ReadVectored<'_, ()>: Unpin);
-    assert_not_impl!(ReadVectored<'_, PhantomPinned>: Unpin);
+    assert_impl!(ReadVectored<'_, '_, ()>: Send);
+    assert_not_impl!(ReadVectored<'_, '_, *const ()>: Send);
+    assert_impl!(ReadVectored<'_, '_, ()>: Sync);
+    assert_not_impl!(ReadVectored<'_, '_, *const ()>: Sync);
+    assert_impl!(ReadVectored<'_, '_, ()>: Unpin);
+    assert_not_impl!(ReadVectored<'_, '_, PhantomPinned>: Unpin);
 
     assert_impl!(Repeat: Send);
     assert_impl!(Repeat: Sync);
@@ -856,15 +856,15 @@ pub mod io {
     assert_not_impl!(WriteAll<'_, PhantomPinned>: Unpin);
 
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Send);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Send);
     #[cfg(feature = "write-all-vectored")]
-    assert_not_impl!(WriteAllVectored<'_, *const ()>: Send);
+    assert_not_impl!(WriteAllVectored<'_, '_, *const ()>: Send);
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Sync);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Sync);
     #[cfg(feature = "write-all-vectored")]
-    assert_not_impl!(WriteAllVectored<'_, *const ()>: Sync);
+    assert_not_impl!(WriteAllVectored<'_, '_, *const ()>: Sync);
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Unpin);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Unpin);
     // WriteAllVectored requires `W: Unpin`
     // #[cfg(feature = "write-all-vectored")]
     // assert_not_impl!(WriteAllVectored<'_, PhantomPinned>: Unpin);
@@ -875,12 +875,12 @@ pub mod io {
     assert_not_impl!(WriteHalf<*const ()>: Sync);
     assert_impl!(WriteHalf<PhantomPinned>: Unpin);
 
-    assert_impl!(WriteVectored<'_, ()>: Send);
-    assert_not_impl!(WriteVectored<'_, *const ()>: Send);
-    assert_impl!(WriteVectored<'_, ()>: Sync);
-    assert_not_impl!(WriteVectored<'_, *const ()>: Sync);
-    assert_impl!(WriteVectored<'_, ()>: Unpin);
-    assert_not_impl!(WriteVectored<'_, PhantomPinned>: Unpin);
+    assert_impl!(WriteVectored<'_, '_, ()>: Send);
+    assert_not_impl!(WriteVectored<'_, '_, *const ()>: Send);
+    assert_impl!(WriteVectored<'_, '_, ()>: Sync);
+    assert_not_impl!(WriteVectored<'_, '_, *const ()>: Sync);
+    assert_impl!(WriteVectored<'_, '_, ()>: Unpin);
+    assert_not_impl!(WriteVectored<'_, '_, PhantomPinned>: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.

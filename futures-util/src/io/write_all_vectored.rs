@@ -10,21 +10,21 @@ use std::pin::Pin;
 /// [`write_all_vectored`](super::AsyncWriteExt::write_all_vectored) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct WriteAllVectored<'a, W: ?Sized + Unpin> {
+pub struct WriteAllVectored<'a, 'b, W: ?Sized + Unpin> {
     writer: &'a mut W,
-    bufs: &'a mut [IoSlice<'a>],
+    bufs: &'a mut [IoSlice<'b>],
 }
 
-impl<W: ?Sized + Unpin> Unpin for WriteAllVectored<'_, W> {}
+impl<W: ?Sized + Unpin> Unpin for WriteAllVectored<'_, '_, W> {}
 
-impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAllVectored<'a, W> {
-    pub(super) fn new(writer: &'a mut W, mut bufs: &'a mut [IoSlice<'a>]) -> Self {
+impl<'a, 'b, W: AsyncWrite + ?Sized + Unpin> WriteAllVectored<'a, 'b, W> {
+    pub(super) fn new(writer: &'a mut W, mut bufs: &'a mut [IoSlice<'b>]) -> Self {
         IoSlice::advance_slices(&mut bufs, 0);
         Self { writer, bufs }
     }
 }
 
-impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAllVectored<'_, W> {
+impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAllVectored<'_, '_, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -188,6 +188,32 @@ mod tests {
                 }
             }
             assert_eq!(&*dst.written, &*wanted);
+        }
+    }
+
+    #[test]
+    fn test_write_all_vectored_distinct_lifetimes() {
+        struct WrapVec<T>(Vec<T>);
+        impl<T> Drop for WrapVec<T> {
+            fn drop(&mut self) {}
+        }
+
+        let waker = noop_waker();
+        let mut cx = Context::from_waker(&waker);
+        let mut dst = test_writer(2, 2);
+
+        {
+            // Force the lifetimes of the underlying data and IOSlice to be unequal
+            let data = vec![1, 2, 3, 4];
+            {
+                let mut slices = WrapVec(data.chunks(2).map(IoSlice::new).collect());
+                let mut future = dst.write_all_vectored(&mut *slices.0);
+                match Pin::new(&mut future).poll(&mut cx) {
+                    Poll::Ready(Ok(())) => {}
+                    other => panic!("unexpected result polling future: {:?}", other),
+                }
+            }
+            assert_eq!(&*dst.written, &*data);
         }
     }
 }
