@@ -94,7 +94,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
     //
     // # Safety
     //
-    // - All tasks **must** have had their futures dropped already (by FuturesUnordered::clear)
+    // - All tasks **must** have had their futures dropped already (by FuturesUnordered::clear_head_all)
     // - The caller **must** guarantee unique access to `self`
     pub(crate) unsafe fn clear(&self) {
         loop {
