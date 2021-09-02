@@ -107,16 +107,3 @@ impl<Fut> ReadyToRunQueue<Fut> {
         }
     }
 }
-
-impl<Fut> Drop for ReadyToRunQueue<Fut> {
-    fn drop(&mut self) {
-        // Once we're in the destructor for `Inner<Fut>` we need to clear out
-        // the ready to run queue of tasks if there's anything left in there.
-
-        // All tasks have had their futures dropped already by the `FuturesUnordered`
-        // destructor above, and we have &mut self, so this is safe.
-        unsafe {
-            self.clear();
-        }
-    }
-}
