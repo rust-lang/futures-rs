@@ -8,7 +8,7 @@ pub use futures_core::task::__internal::AtomicWaker as _;
 
 #[cfg(feature = "futures-task-alloc")]
 #[cfg(target_has_atomic = "ptr")]
-pub use futures_task::ArcWake as _;
+pub use futures_task::task::Wake as _;
 
 #[cfg(feature = "futures-channel-alloc")]
 #[cfg(target_has_atomic = "ptr")]

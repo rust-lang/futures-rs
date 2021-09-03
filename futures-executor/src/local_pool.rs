@@ -64,7 +64,7 @@ impl Wake for ThreadNotify {
     fn wake(self: Arc<Self>) {
         self.wake_by_ref();
     }
-    
+
     fn wake_by_ref(self: &Arc<Self>) {
         // Make sure the wakeup is remembered until the next `park()`.
         let unparked = self.unparked.swap(true, Ordering::Relaxed);
