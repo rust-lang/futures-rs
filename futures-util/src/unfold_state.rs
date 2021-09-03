@@ -7,20 +7,34 @@ pin_project! {
     #[project = UnfoldStateProj]
     #[project_replace = UnfoldStateProjReplace]
     #[derive(Debug)]
-    pub(crate) enum UnfoldState<T, R> {
+    pub(crate) enum UnfoldState<T, Fut> {
         Value {
             value: T,
         },
         Future {
             #[pin]
-            future: R,
+            future: Fut,
         },
         Empty,
     }
 }
 
-impl<T, R> UnfoldState<T, R> {
-    pub(crate) fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut R>> {
+impl<T, Fut> UnfoldState<T, Fut> {
+    pub(crate) fn is_empty(&self) -> bool {
+        match self {
+            Self::Empty => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_future(&self) -> bool {
+        match self {
+            Self::Future { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut Fut>> {
         match self.project() {
             UnfoldStateProj::Future { future } => Some(future),
             _ => None,

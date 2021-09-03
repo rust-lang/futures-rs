@@ -1,10 +1,10 @@
+use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::{self, Future};
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::FutureExt;
-use futures::{channel::mpsc, future::BoxFuture};
 use futures_test::task::noop_context;
 
 #[test]
@@ -38,14 +38,31 @@ fn flat_map() {
 fn scan() {
     block_on(async {
         let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
-            .scan(1, |state, e| {
-                *state += 1;
-                futures::future::ready(if e < *state { Some(e) } else { None })
+            .scan(1, |mut state, e| async move {
+                state += 1;
+                if e < state {
+                    Some((state, e))
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>()
             .await;
 
         assert_eq!(values, vec![1u8, 2, 3, 4]);
+    });
+
+    block_on(async {
+        let mut state = vec![];
+        let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
+            .scan(&mut state, |state, e| async move {
+                state.push(e);
+                Some((state, e))
+            })
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_eq!(values, state);
     });
 }
 
@@ -111,22 +128,6 @@ fn take_until() {
         assert_eq!(stream.next().await, None);
         assert_eq!(stream.next().await, None);
     });
-}
-
-#[test]
-#[should_panic]
-fn buffered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffered(0);
-}
-
-#[test]
-#[should_panic]
-fn buffer_unordered_panic_on_cap_zero() {
-    let (_, rx1) = mpsc::channel::<BoxFuture<()>>(1);
-
-    let _ = rx1.buffer_unordered(0);
 }
 
 #[test]

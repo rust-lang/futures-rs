@@ -10,14 +10,17 @@ use crate::fns::{
     IntoFn, MapErrFn, MapOkFn,
 };
 use crate::future::assert_future;
-use crate::stream::assert_stream;
-use crate::stream::{Inspect, Map};
+use crate::stream::{assert_stream, Inspect, Map};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::pin::Pin;
 use futures_core::{
     future::{Future, TryFuture},
     stream::TryStream,
     task::{Context, Poll},
 };
+#[cfg(feature = "sink")]
+use futures_sink::Sink;
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -74,6 +77,19 @@ mod try_filter;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter::TryFilter;
 
+#[cfg(feature = "sink")]
+mod try_forward;
+
+#[cfg(feature = "sink")]
+delegate_all!(
+    /// Future for the [`try_forward`](super::TryStreamExt::try_forward) method.
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    TryForward<St, Si>(
+        try_forward::TryForward<St, Si, St::Ok>
+    ): Debug + Future + FusedFuture + New[|x: St, y: Si| try_forward::TryForward::new(x, y)]
+    where St: TryStream
+);
+
 mod try_filter_map;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter_map::TryFilterMap;
@@ -90,6 +106,12 @@ mod try_concat;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_concat::TryConcat;
 
+#[cfg(feature = "alloc")]
+mod try_chunks;
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_chunks::{TryChunks, TryChunksError};
+
 mod try_unfold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_unfold::{try_unfold, TryUnfold};
@@ -102,19 +124,21 @@ mod try_take_while;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_take_while::TryTakeWhile;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod try_buffer_unordered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_buffer_unordered::TryBufferUnordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_buffer_unordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_buffer_unordered::TryBufferUnordered;
 
-    #[cfg(feature = "alloc")]
-    mod try_buffered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_buffered::TryBuffered;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_buffered::TryBuffered;
 
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
@@ -275,6 +299,27 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_stream::<Result<Self::Ok, Fut::Error>, _>(OrElse::new(self, f))
+    }
+
+    /// A future that completes after the given stream has been fully processed
+    /// into the sink and the sink has been flushed and closed.
+    ///
+    /// This future will drive the stream to keep producing items until it is
+    /// exhausted, sending each item to the sink. It will complete once the
+    /// stream is exhausted, the sink has received and flushed all items, and
+    /// the sink is closed. Note that neither the original stream nor provided
+    /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
+    /// (for example, via `try_forward(&mut sink)` inside an `async` fn/block) in
+    /// order to preserve access to the `Sink`. If the stream produces an error,
+    /// that error will be returned by this future without flushing/closing the sink.
+    #[cfg(feature = "sink")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+    fn try_forward<S>(self, sink: S) -> TryForward<Self, S>
+    where
+        S: Sink<Self::Ok, Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), Self::Error>, _>(TryForward::new(self, sink))
     }
 
     /// Do something with the success value of this stream, afterwards passing
@@ -454,6 +499,53 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_future::<Result<C, Self::Error>, _>(TryCollect::new(self))
+    }
+
+    /// An adaptor for chunking up successful items of the stream inside a vector.
+    ///
+    /// This combinator will attempt to pull successful items from this stream and buffer
+    /// them into a local vector. At most `capacity` items will get buffered
+    /// before they're yielded from the returned stream.
+    ///
+    /// Note that the vectors returned from this iterator may not always have
+    /// `capacity` elements. If the underlying stream ended and only a partial
+    /// vector was created, it'll be returned. Additionally if an error happens
+    /// from the underlying stream then the currently buffered items will be
+    /// yielded.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// This function is similar to
+    /// [`StreamExt::chunks`](crate::stream::StreamExt::chunks) but exits
+    /// early if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, TryChunksError, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Err(4), Ok(5), Ok(6)]);
+    /// let mut stream = stream.try_chunks(2);
+    ///
+    /// assert_eq!(stream.try_next().await, Ok(Some(vec![1, 2])));
+    /// assert_eq!(stream.try_next().await, Err(TryChunksError(vec![3], 4)));
+    /// assert_eq!(stream.try_next().await, Ok(Some(vec![5, 6])));
+    /// # })
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `capacity` is zero.
+    #[cfg(feature = "alloc")]
+    fn try_chunks(self, capacity: usize) -> TryChunks<Self>
+    where
+        Self: Sized,
+    {
+        assert_stream::<Result<Vec<Self::Ok>, TryChunksError<Self::Ok, Self::Error>>, _>(
+            TryChunks::new(self, capacity),
+        )
     }
 
     /// Attempt to filter the values produced by this stream according to the
@@ -636,6 +728,10 @@ pub trait TryStreamExt: TryStream {
     /// outputs in the order in which they complete. If the underlying stream
     /// returns an error, it will be immediately propagated.
     ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
+    ///
     /// The returned stream will be a stream of results, each containing either
     /// an error or a future's output. An error can be produced either by the
     /// underlying stream itself or by one of the futures it yielded.
@@ -686,13 +782,13 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
+    fn try_buffer_unordered(self, n: impl Into<Option<usize>>) -> TryBufferUnordered<Self>
     where
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(
-            TryBufferUnordered::new(self, n),
+            TryBufferUnordered::new(self, n.into()),
         )
     }
 
@@ -704,6 +800,10 @@ pub trait TryStreamExt: TryStream {
     /// This adaptor will buffer up to `n` futures and then return their
     /// outputs in the order. If the underlying stream returns an error, it will
     /// be immediately propagated.
+    ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
     ///
     /// The returned stream will be a stream of results, each containing either
     /// an error or a future's output. An error can be produced either by the
@@ -762,13 +862,14 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_buffered(self, n: usize) -> TryBuffered<Self>
+    fn try_buffered(self, n: impl Into<Option<usize>>) -> TryBuffered<Self>
     where
         Self::Ok: TryFuture<Error = Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryFuture>::Ok, Self::Error>, _>(TryBuffered::new(
-            self, n,
+            self,
+            n.into(),
         ))
     }
 

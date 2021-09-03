@@ -470,6 +470,13 @@ pub mod future {
     assert_not_impl!(PollFn<*const ()>: Sync);
     assert_impl!(PollFn<PhantomPinned>: Unpin);
 
+    assert_impl!(PollImmediate<SendStream>: Send);
+    assert_not_impl!(PollImmediate<LocalStream<()>>: Send);
+    assert_impl!(PollImmediate<SyncStream>: Sync);
+    assert_not_impl!(PollImmediate<LocalStream<()>>: Sync);
+    assert_impl!(PollImmediate<UnpinStream>: Unpin);
+    assert_not_impl!(PollImmediate<PinnedStream>: Unpin);
+
     assert_impl!(Ready<()>: Send);
     assert_not_impl!(Ready<*const ()>: Send);
     assert_impl!(Ready<()>: Sync);
@@ -786,12 +793,12 @@ pub mod io {
     assert_impl!(ReadUntil<'_, ()>: Unpin);
     assert_not_impl!(ReadUntil<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(ReadVectored<'_, ()>: Send);
-    assert_not_impl!(ReadVectored<'_, *const ()>: Send);
-    assert_impl!(ReadVectored<'_, ()>: Sync);
-    assert_not_impl!(ReadVectored<'_, *const ()>: Sync);
-    assert_impl!(ReadVectored<'_, ()>: Unpin);
-    assert_not_impl!(ReadVectored<'_, PhantomPinned>: Unpin);
+    assert_impl!(ReadVectored<'_, '_, ()>: Send);
+    assert_not_impl!(ReadVectored<'_, '_, *const ()>: Send);
+    assert_impl!(ReadVectored<'_, '_, ()>: Sync);
+    assert_not_impl!(ReadVectored<'_, '_, *const ()>: Sync);
+    assert_impl!(ReadVectored<'_, '_, ()>: Unpin);
+    assert_not_impl!(ReadVectored<'_, '_, PhantomPinned>: Unpin);
 
     assert_impl!(Repeat: Send);
     assert_impl!(Repeat: Sync);
@@ -809,6 +816,12 @@ pub mod io {
     assert_not_impl!(Seek<'_, *const ()>: Sync);
     assert_impl!(Seek<'_, ()>: Unpin);
     assert_not_impl!(Seek<'_, PhantomPinned>: Unpin);
+
+    assert_impl!(SeeKRelative<'_, ()>: Send);
+    assert_not_impl!(SeeKRelative<'_, *const ()>: Send);
+    assert_impl!(SeeKRelative<'_, ()>: Sync);
+    assert_not_impl!(SeeKRelative<'_, *const ()>: Sync);
+    assert_impl!(SeeKRelative<'_, PhantomPinned>: Unpin);
 
     assert_impl!(Sink: Send);
     assert_impl!(Sink: Sync);
@@ -843,15 +856,15 @@ pub mod io {
     assert_not_impl!(WriteAll<'_, PhantomPinned>: Unpin);
 
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Send);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Send);
     #[cfg(feature = "write-all-vectored")]
-    assert_not_impl!(WriteAllVectored<'_, *const ()>: Send);
+    assert_not_impl!(WriteAllVectored<'_, '_, *const ()>: Send);
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Sync);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Sync);
     #[cfg(feature = "write-all-vectored")]
-    assert_not_impl!(WriteAllVectored<'_, *const ()>: Sync);
+    assert_not_impl!(WriteAllVectored<'_, '_, *const ()>: Sync);
     #[cfg(feature = "write-all-vectored")]
-    assert_impl!(WriteAllVectored<'_, ()>: Unpin);
+    assert_impl!(WriteAllVectored<'_, '_, ()>: Unpin);
     // WriteAllVectored requires `W: Unpin`
     // #[cfg(feature = "write-all-vectored")]
     // assert_not_impl!(WriteAllVectored<'_, PhantomPinned>: Unpin);
@@ -862,12 +875,12 @@ pub mod io {
     assert_not_impl!(WriteHalf<*const ()>: Sync);
     assert_impl!(WriteHalf<PhantomPinned>: Unpin);
 
-    assert_impl!(WriteVectored<'_, ()>: Send);
-    assert_not_impl!(WriteVectored<'_, *const ()>: Send);
-    assert_impl!(WriteVectored<'_, ()>: Sync);
-    assert_not_impl!(WriteVectored<'_, *const ()>: Sync);
-    assert_impl!(WriteVectored<'_, ()>: Unpin);
-    assert_not_impl!(WriteVectored<'_, PhantomPinned>: Unpin);
+    assert_impl!(WriteVectored<'_, '_, ()>: Send);
+    assert_not_impl!(WriteVectored<'_, '_, *const ()>: Send);
+    assert_impl!(WriteVectored<'_, '_, ()>: Sync);
+    assert_not_impl!(WriteVectored<'_, '_, *const ()>: Sync);
+    assert_impl!(WriteVectored<'_, '_, ()>: Unpin);
+    assert_not_impl!(WriteVectored<'_, '_, PhantomPinned>: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.
@@ -1268,17 +1281,29 @@ pub mod stream {
     assert_impl!(ForEachConcurrent<(), PhantomPinned, PhantomPinned>: Unpin);
     assert_not_impl!(ForEachConcurrent<PhantomPinned, (), ()>: Unpin);
 
-    assert_impl!(Forward<SendTryStream<()>, ()>: Send);
-    assert_not_impl!(Forward<SendTryStream, ()>: Send);
-    assert_not_impl!(Forward<SendTryStream<()>, *const ()>: Send);
-    assert_not_impl!(Forward<LocalTryStream, ()>: Send);
-    assert_impl!(Forward<SyncTryStream<()>, ()>: Sync);
-    assert_not_impl!(Forward<SyncTryStream, ()>: Sync);
-    assert_not_impl!(Forward<SyncTryStream<()>, *const ()>: Sync);
-    assert_not_impl!(Forward<LocalTryStream, ()>: Sync);
-    assert_impl!(Forward<UnpinTryStream, ()>: Unpin);
-    assert_not_impl!(Forward<UnpinTryStream, PhantomPinned>: Unpin);
-    assert_not_impl!(Forward<PinnedTryStream, ()>: Unpin);
+    assert_impl!(Forward<SendStream<()>, ()>: Send);
+    assert_not_impl!(Forward<SendStream, ()>: Send);
+    assert_not_impl!(Forward<SendStream<()>, *const ()>: Send);
+    assert_not_impl!(Forward<LocalStream, ()>: Send);
+    assert_impl!(Forward<SyncStream<()>, ()>: Sync);
+    assert_not_impl!(Forward<SyncStream, ()>: Sync);
+    assert_not_impl!(Forward<SyncStream<()>, *const ()>: Sync);
+    assert_not_impl!(Forward<LocalStream, ()>: Sync);
+    assert_impl!(Forward<UnpinStream, ()>: Unpin);
+    assert_not_impl!(Forward<UnpinStream, PhantomPinned>: Unpin);
+    assert_not_impl!(Forward<PinnedStream, ()>: Unpin);
+
+    assert_impl!(TryForward<SendTryStream<()>, ()>: Send);
+    assert_not_impl!(TryForward<SendTryStream, ()>: Send);
+    assert_not_impl!(TryForward<SendTryStream<()>, *const ()>: Send);
+    assert_not_impl!(TryForward<LocalTryStream, ()>: Send);
+    assert_impl!(TryForward<SyncTryStream<()>, ()>: Sync);
+    assert_not_impl!(TryForward<SyncTryStream, ()>: Sync);
+    assert_not_impl!(TryForward<SyncTryStream<()>, *const ()>: Sync);
+    assert_not_impl!(TryForward<LocalTryStream, ()>: Sync);
+    assert_impl!(TryForward<UnpinTryStream, ()>: Unpin);
+    assert_not_impl!(TryForward<UnpinTryStream, PhantomPinned>: Unpin);
+    assert_not_impl!(TryForward<PinnedTryStream, ()>: Unpin);
 
     assert_impl!(Fuse<()>: Send);
     assert_not_impl!(Fuse<*const ()>: Send);
@@ -1430,6 +1455,14 @@ pub mod stream {
     assert_not_impl!(Peek<'_, LocalStream<()>>: Sync);
     assert_impl!(Peek<'_, PinnedStream>: Unpin);
 
+    assert_impl!(PeekMut<'_, SendStream<()>>: Send);
+    assert_not_impl!(PeekMut<'_, SendStream>: Send);
+    assert_not_impl!(PeekMut<'_, LocalStream<()>>: Send);
+    assert_impl!(PeekMut<'_, SyncStream<()>>: Sync);
+    assert_not_impl!(PeekMut<'_, SyncStream>: Sync);
+    assert_not_impl!(PeekMut<'_, LocalStream<()>>: Sync);
+    assert_impl!(PeekMut<'_, PinnedStream>: Unpin);
+
     assert_impl!(Peekable<SendStream<()>>: Send);
     assert_not_impl!(Peekable<SendStream>: Send);
     assert_not_impl!(Peekable<LocalStream>: Send);
@@ -1450,6 +1483,13 @@ pub mod stream {
     assert_impl!(PollFn<()>: Sync);
     assert_not_impl!(PollFn<*const ()>: Sync);
     assert_impl!(PollFn<PhantomPinned>: Unpin);
+
+    assert_impl!(PollImmediate<SendStream>: Send);
+    assert_not_impl!(PollImmediate<LocalStream<()>>: Send);
+    assert_impl!(PollImmediate<SyncStream>: Sync);
+    assert_not_impl!(PollImmediate<LocalStream<()>>: Sync);
+    assert_impl!(PollImmediate<UnpinStream>: Unpin);
+    assert_not_impl!(PollImmediate<PinnedStream>: Unpin);
 
     assert_impl!(ReadyChunks<SendStream<()>>: Send);
     assert_not_impl!(ReadyChunks<SendStream>: Send);
