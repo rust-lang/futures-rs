@@ -19,18 +19,20 @@ pub use futures_task::noop_waker;
 #[cfg(feature = "std")]
 pub use futures_task::noop_waker_ref;
 
-cfg_target_has_atomic! {
-    #[doc(no_inline)]
-    pub use alloc::task::Wake;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use futures_core::task::Wake;
 
-    #[cfg(feature = "alloc")]
-    pub use futures_task::waker;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use futures_task::waker;
 
-    #[cfg(feature = "alloc")]
-    pub use futures_task::{waker_ref, WakerRef};
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub use futures_task::{waker_ref, WakerRef};
 
-    pub use futures_core::task::__internal::AtomicWaker;
-}
+#[cfg(not(futures_no_atomic_cas))]
+pub use futures_core::task::__internal::AtomicWaker;
 
 mod spawn;
 pub use self::spawn::{LocalSpawnExt, SpawnExt};

@@ -1,27 +1,64 @@
+# 0.3.17 - 2021-08-30
+
+* Use `FuturesOrdered` in `join_all` (#2412)
+* Add `{future, stream}::poll_immediate` (#2452)
+* Add `stream_select!` macro (#2262)
+* Implement `Default` for `OptionFuture` (#2471)
+* Add `Peekable::{peek_mut, poll_peek_mut}` (#2488)
+* Add `BufReader::seek_relative` (#2489)
+
+# 0.3.16 - 2021-07-23
+
+* Add `TryStreamExt::try_chunks` (#2438)
+* Add `StreamExt::{all, any}` (#2460)
+* Add `stream::select_with_strategy` (#2450)
+* Update to new `io_slice_advance` interface (#2454)
+
+# 0.3.15 - 2021-05-11
+
+* Use `#[proc_macro]` at Rust 1.45+ to fix an issue where proc macros don't work with rust-analyzer (#2407)
+* Support targets that do not have atomic CAS on stable Rust (#2400)
+* futures-test: Add async `#[test]` function attribute (#2409)
+* Add `stream::abortable` (#2410)
+* Add `FuturesUnordered::clear` (#2415)
+* Implement `IntoIterator` for `FuturesUnordered` (#2423)
+* Implement `Send` and `Sync` for `FuturesUnordered` iterators (#2416)
+* Make `FuturesUnordered::iter_pin_ref` public (#2423)
+* Add `SelectAll::clear` (#2430)
+* Add `SelectAll::{iter, iter_mut}` (#2428)
+* Implement `IntoIterator` for `SelectAll` (#2428)
+* Implement `Clone` for `WeakShared` (#2396)
+
 # 0.3.14 - 2021-04-10
-- Add `future::SelectAll::into_inner` (#2363)
-- Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
-- Reexport non-Ext traits from the root of `futures_util` (#2377)
-- Add `AsyncSeekExt::stream_position` (#2380)
-- Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
+
+* Add `future::SelectAll::into_inner` (#2363)
+* Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
+* Reexport non-Ext traits from the root of `futures_util` (#2377)
+* Add `AsyncSeekExt::stream_position` (#2380)
+* Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
 
 # 0.3.13 - 2021-02-23
-- Mitigated starvation issues in `FuturesUnordered` (#2333)
-- Fixed race with dropping `mpsc::Receiver` (#2304)
-- Added `Shared::{strong_count, weak_count}` (#2346)
-- Added `no_std` support for `task::noop_waker_ref` (#2332)
-- Implemented `Stream::size_hint` for `Either` (#2325)
+
+* Mitigated starvation issues in `FuturesUnordered` (#2333)
+* Fixed race with dropping `mpsc::Receiver` (#2304)
+* Added `Shared::{strong_count, weak_count}` (#2346)
+* Added `no_std` support for `task::noop_waker_ref` (#2332)
+* Implemented `Stream::size_hint` for `Either` (#2325)
 
 # 0.3.12 - 2021-01-15
+
 * Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
 
 # 0.3.11 - 2021-01-14
+
 * Fixed heap buffer overflow in `AsyncReadExt::{read_to_end, read_to_string}` (#2314)
 
 # 0.3.10 - 2021-01-13
+
 * Fixed type-inference in `sink::unfold` by specifying more of its types (breaking change -- see #2311)
 
 # 0.3.9 - 2021-01-08
+
 * Significantly improved compile time when `async-await` crate feature is disabled (#2273)
 * Added `stream::repeat_with` (#2279)
 * Added `StreamExt::unzip` (#2263)
@@ -32,6 +69,7 @@
 * Re-exported `MapOkOrElse`, `MapInto`, `OkInto`, `TryFlatten`, `WriteAllVectored` (#2275)
 
 # 0.3.8 - 2020-11-04
+
 * Switched proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
 * Added `WeakShared` (#2169)
 * Added `TryStreamExt::try_buffered` (#2245)
@@ -40,11 +78,13 @@
 * Fixed panic in some `TryStreamExt` combinators (#2250)
 
 # 0.3.7 - 2020-10-23
+
 * Fixed unsoundness in `MappedMutexGuard` (#2240)
 * Re-exported `TakeUntil` (#2235)
 * futures-test: Prevent double panic in `panic_waker` (#2236)
 
 # 0.3.6 - 2020-10-06
+
 * Fixed UB due to missing 'static on `task::waker` (#2206)
 * Added `AsyncBufReadExt::fill_buf` (#2225)
 * Added `TryStreamExt::try_take_while` (#2212)
@@ -58,6 +98,7 @@
 * futures-test: Implemented more traits for `AssertUnmoved` (#2208)
 
 # 0.3.5 - 2020-05-08
+
 * Added `StreamExt::flat_map`.
 * Added `StreamExt::ready_chunks`.
 * Added `*_unpin` methods to `SinkExt`.
@@ -75,12 +116,15 @@
 * Removed and replaced a large amount of internal `unsafe`.
 
 # 0.3.4 - 2020-02-06
+
 * Fixed missing `Drop` for `UnboundedReceiver` (#2064)
 
 # 0.3.3 - 2020-02-04
+
 * Fixed compatibility issue with pinned facade (#2062)
 
 # 0.3.2 - 2020-02-03
+
 * Improved buffering performance of `SplitSink` (#1969)
 * Added `select_biased!` macro (#1976)
 * Added `hash_receiver` method to mpsc channel (#1962)
@@ -88,7 +132,7 @@
 * Fixed bug with zero-size buffers in vectored IO (#1998)
 * `AtomicWaker::new()` is now `const fn` (#2007)
 * Fixed bug between threadpool and user park/unparking (#2010)
-* Added `stream::Peakable::peek` (#2021)
+* Added `stream::Peekable::peek` (#2021)
 * Added `StreamExt::scan` (#2044)
 * Added impl of `AsyncRead`/`Write` for `BufReader`/`Writer` (#2033)
 * Added impl of `Spawn` and `LocalSpawn` for `Arc<impl Spawn` and `Rc<impl Spawn>` (#2039)
@@ -98,10 +142,12 @@
 * Mitigated starvation issues in `FuturesUnordered` (#2049)
 * Added `TryFutureExt::map_ok_or_else` (#2058)
 
-# 0.3.1 - 2019-11-7
+# 0.3.1 - 2019-11-07
+
 * Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
 
-# 0.3.0 - 2019-11-5
+# 0.3.0 - 2019-11-05
+
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
 * Changed `Spawn` trait and `FuturesUnordered::push` to take `&self` (#1950)
@@ -122,7 +168,8 @@
 * Added some missing `Clone` implementations
 * Documentation fixes
 
-# 0.3.0-alpha.19 - 2019-9-25
+# 0.3.0-alpha.19 - 2019-09-25
+
 * Stabilized the `async-await` feature (#1816)
 * Made `async-await` feature no longer require `std` feature (#1815)
 * Updated `proc-macro2`, `syn`, and `quote` to 1.0 (#1798)
@@ -145,7 +192,8 @@
 * Removed dependency on `rand` by using our own PRNG (#1837)
 * Removed `futures-core` dependency from `futures-sink` (#1832)
 
-# 0.3.0-alpha.18 - 2019-8-9
+# 0.3.0-alpha.18 - 2019-08-09
+
 * Rewrote `join!` and `try_join!` as procedural macros to allow passing expressions (#1783)
 * Banned manual implementation of `TryFuture` and `TryStream` for forward compatibility. See #1776 for more details. (#1777)
 * Changed `AsyncReadExt::read_to_end` to return the total number of bytes read (#1721)
@@ -164,7 +212,8 @@
 * Added `TryStreamExt::try_flatten` (#1731)
 * Added `FutureExt::now_or_never` (#1747)
 
-# 0.3.0-alpha.17 - 2019-7-3
+# 0.3.0-alpha.17 - 2019-07-03
+
 * Removed `try_ready!` macro in favor of `ready!(..)?`. (#1602)
 * Removed `io::Window::{set_start, set_end}` in favor of `io::Window::set`. (#1667)
 * Re-exported `pin_utils::pin_mut!` macro. (#1686)
@@ -197,7 +246,8 @@
 * Renamed `Sink::SinkError` to `Sink::Error`.
 * Made a number of dependencies of `futures-util` optional.
 
-# 0.3.0-alpha.16 - 2019-5-10
+# 0.3.0-alpha.16 - 2019-05-10
+
 * Updated to new nightly `async_await`.
 * Changed `AsyncRead::poll_vectored_read` and `AsyncWrite::poll_vectored_write` to use
   stabilized `std::io::{IoSlice, IoSliceMut}` instead of `iovec::IoVec`, and renamed to
@@ -208,7 +258,8 @@
 * Added `AsyncBufReadExt::{read_line, lines}`.
 * Added `io::BufReader`.
 
-# 0.3.0-alpha.15 - 2019-4-26
+# 0.3.0-alpha.15 - 2019-04-26
+
 * Updated to stabilized `futures_api`.
 * Removed `StreamObj`, cautioned against usage of `FutureObj`.
 * Changed `StreamExt::select` to a function.
@@ -221,10 +272,11 @@
 * Added functions to partially progress a local pool.
 * Changed to use our own `Either` type rather than the one from the `either` crate.
 
-# 0.3.0-alpha.14 - 2019-4-15
+# 0.3.0-alpha.14 - 2019-04-15
+
 * Updated to new nightly `futures_api`.
 * Changed `Forward` combinator to drop sink after completion, and allow `!Unpin` `Sink`s.
-* Added 0.1 <-> 0.3 compatability shim for `Sink`s.
+* Added 0.1 <-> 0.3 compatibility shim for `Sink`s.
 * Changed `Sink::Item` to a generic parameter `Sink<Item>`, allowing `Sink`s to accept
   multiple different types, including types containing references.
 * Changed `AsyncRead` and `AsyncWrite` to take `Pin<&mut Self>` rather than `&mut self`.
@@ -232,7 +284,8 @@
 * Changed `join` and `try_join` combinators to functions.
 * Fixed propagation of `cfg-target-has-atomic` feature.
 
-# 0.3.0-alpha.13 - 2019-2-20
+# 0.3.0-alpha.13 - 2019-02-20
+
 * Updated to new nightly with stabilization candidate API.
 * Removed `LocalWaker`.
 * Added `#[must_use]` to `Stream` and `Sink` traits.
@@ -242,7 +295,8 @@
 * Removed `TokioDefaultSpawner` and `tokio-compat`.
 * Moved intra-crate dependencies to exact versions.
 
-# 0.3.0-alpha.12 - 2019-1-14
+# 0.3.0-alpha.12 - 2019-01-14
+
 * Updated to new nightly with a modification to `Pin::set`.
 * Expose `AssertUnmoved` and `PendingOnce`.
 * Prevent double-panic in `AssertUnmoved`.
@@ -250,6 +304,7 @@
 * Implement `Default` for `Mutex` and `SelectAll`.
 
 # 0.3.0-alpha.11 - 2018-12-27
+
 * Updated to newly stabilized versions of the `pin` and `arbitrary_self_types` features.
 * Re-added `select_all` for streams.
 * Added `TryStream::into_async_read` for converting from a stream of bytes into
@@ -259,6 +314,7 @@
 * Exposed `join_all` from the facade
 
 # 0.3.0-alpha.10 - 2018-11-27
+
 * Revamped `select!` macro
 * Added `select_next_some` method for getting only the `Some` elements of a stream from `select!`
 * Added `futures::lock::Mutex` for async-aware synchronization.
@@ -271,27 +327,33 @@
 * Added `try_concat`
 
 # 0.3.0-alpha.9 - 2018-10-18
+
 * Fixed in response to new nightly handling of 2018 edition + `#![no_std]`
 
 # 0.3.0-alpha.8 - 2018-10-16
+
 * Fixed stack overflow in 0.1 compatibility layer
 * Added AsyncRead / AsyncWrite compatibility layer
 * Added Spawn -> 0.1 Executor compatibility
 * Made 0.1 futures usable on 0.3 executors without an additional global `Task`, accomplished by wrapping 0.1 futures in an 0.1 `Spawn` when using them as 0.3 futures.
-* Cleanups and improvments to the `AtomicWaker` implementation.
+* Cleanups and improvements to the `AtomicWaker` implementation.
 
 # 0.3.0-alpha.7 - 2018-10-01
+
 * Update to new nightly which removes `Spawn` from `task::Context` and replaces `Context` with `LocalWaker`.
 * Add `Spawn` and `LocalSpawn` traits and `FutureObj` and `LocalFutureObj` types to `futures-core`.
 
 # 0.3.0-alpha.6 - 2018-09-10
+
 * Replace usage of `crate` visibility with `pub(crate)` now that `crate` visibility is no longer included in the 2018 edition
 * Remove newly-stabilized "edition" feature in Cargo.toml files
 
 # 0.3.0-alpha.5 - 2018-09-03
+
 * Revert usage of cargo crate renaming feature
 
 # 0.3.0-alpha.4 - 2018-09-02
+
 **Note: This release does not work, use `0.3.0-alpha.5` instead**
 
 * `future::ok` and `future:err` to create result wrapping futures (similar to `future::ready`)
@@ -299,13 +361,14 @@
 * `StreamExt::boxed` combinator
 * Unsoundness fix for `FuturesUnordered`
 * `StreamObj` (similar to `FutureObj`)
-* Code examples for compatiblity layer functions
-* Use cargo create renaming feature to import `futures@0.1` for compatiblily layer
+* Code examples for compatibility layer functions
+* Use cargo create renaming feature to import `futures@0.1` for compatibility layer
 * Import pinning APIs from `core::pin`
 * Run Clippy in CI only when it is available
 
 # 0.3.0-alpha.3 - 2018-08-15
-* Compatibilty with newest nightly
+
+* Compatibility with newest nightly
 * Futures 0.1 compatibility layer including Tokio compatibility
 * Added `spawn!` and `spawn_with_handle!` macros
 * Added `SpawnExt` methods `spawn` and `spawn_with_handle`
@@ -323,16 +386,17 @@
 * Doc improvements to `StreamExt::select`
 
 # 0.3.0-alpha.2 - 2018-07-30
+
 * The changelog is back!
-* Compatiblity with futures API in latest nightly
+* Compatibility with futures API in latest nightly
 * Code examples and doc improvements
-  - IO: Methods of traits `AsyncReadExt`, `AsyncWriteExt`
-  - Future:
-    - Methods of trait `TryFutureExt`
-    - Free functions `empty`, `lazy`, `maybe_done`, `poll_fn` and `ready`
-    - Type `FutureOption`
-    - Macros `join!`, `select!` and `pending!`
-  - Stream: Methods of trait `TryStreamExt`
+  * IO: Methods of traits `AsyncReadExt`, `AsyncWriteExt`
+  * Future:
+    * Methods of trait `TryFutureExt`
+    * Free functions `empty`, `lazy`, `maybe_done`, `poll_fn` and `ready`
+    * Type `FutureOption`
+    * Macros `join!`, `select!` and `pending!`
+  * Stream: Methods of trait `TryStreamExt`
 * Added `TryStreamExt` combinators `map_ok`, `map_err`, `err_into`, `try_next` and `try_for_each`
 * Added `Drain`, a sink that will discard all items given to it. Can be created using the `drain` function
 * Bugfix for the `write_all` combinator
@@ -346,10 +410,11 @@
 * We now use the unstable `use_extern_macros` feature for macro reexports
 * CI improvements: Named CI jobs, tests are now run on macOS and Linux, the docs are generated and Clippy needs to pass
 * `#[deny(warnings)]` was removed from all crates and is now only enforced in the CI
-* We now have a naming convention for type paramters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
+* We now have a naming convention for type parameters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
 * "Task" is now defined as our term for "lightweight thread". The code of the executors and `FuturesUnordered` was refactored to align with this definition.
 
 # 0.3.0-alpha.1 - 2018-07-19
+
 * Major changes: See [the announcement](https://rust-lang-nursery.github.io/futures-rs/blog/2018/07/19/futures-0.3.0-alpha.1.html) on our new blog for details. The changes are too numerous to be covered in this changelog because nearly every line of code was modified.
 
 # 0.1.17 - 2017-10-31

@@ -10,8 +10,6 @@ use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
-#[cfg(feature = "sink")]
-use futures_core::stream::TryStream;
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
 use futures_core::{
@@ -70,6 +68,14 @@ mod fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fold::Fold;
 
+mod any;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::any::Any;
+
+mod all;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::all::All;
+
 #[cfg(feature = "sink")]
 mod forward;
 
@@ -78,9 +84,9 @@ delegate_all!(
     /// Future for the [`forward`](super::StreamExt::forward) method.
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     Forward<St, Si>(
-        forward::Forward<St, Si, St::Ok>
+        forward::Forward<St, Si, St::Item>
     ): Debug + Future + FusedFuture + New[|x: St, y: Si| forward::Forward::new(x, y)]
-    where St: TryStream
+    where St: Stream
 );
 
 mod for_each;
@@ -123,7 +129,7 @@ pub use self::select_next_some::SelectNextSome;
 
 mod peek;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::peek::{NextIf, NextIfEq, Peek, Peekable};
+pub use self::peek::{NextIf, NextIfEq, Peek, PeekMut, Peekable};
 
 mod skip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -177,41 +183,49 @@ mod scan;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::scan::Scan;
 
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    mod buffer_unordered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::buffer_unordered::BufferUnordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod buffer_unordered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::buffer_unordered::BufferUnordered;
 
-    #[cfg(feature = "alloc")]
-    mod buffered;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::buffered::Buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod buffered;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::buffered::Buffered;
 
-    #[cfg(feature = "alloc")]
-    mod for_each_concurrent;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::for_each_concurrent::ForEachConcurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod for_each_concurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::for_each_concurrent::ForEachConcurrent;
 
-    #[cfg(feature = "sink")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    #[cfg(feature = "alloc")]
-    mod split;
-    #[cfg(feature = "sink")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::split::{SplitStream, SplitSink, ReuniteError};
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+#[cfg(feature = "alloc")]
+mod split;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::split::{ReuniteError, SplitSink, SplitStream};
 
-    #[cfg(feature = "alloc")]
-    mod try_for_each_concurrent;
-    #[cfg(feature = "alloc")]
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::try_for_each_concurrent::TryForEachConcurrent;
-}
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod try_for_each_concurrent;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_for_each_concurrent::TryForEachConcurrent;
 
 #[cfg(feature = "std")]
 mod catch_unwind;
@@ -635,6 +649,50 @@ pub trait StreamExt: Stream {
         assert_future::<T, _>(Fold::new(self, f, init))
     }
 
+    /// Execute predicate over asynchronous stream, and return `true` if any element in stream satisfied a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let contain_three = number_stream.any(|i| async move { i == 3 });
+    /// assert_eq!(contain_three.await, true);
+    /// # });
+    /// ```
+    fn any<Fut, F>(self, f: F) -> Any<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_future::<bool, _>(Any::new(self, f))
+    }
+
+    /// Execute predicate over asynchronous stream, and return `true` if all element in stream satisfied a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let less_then_twenty = number_stream.all(|i| async move { i < 20 });
+    /// assert_eq!(less_then_twenty.await, true);
+    /// # });
+    /// ```
+    fn all<Fut, F>(self, f: F) -> All<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_future::<bool, _>(All::new(self, f))
+    }
+
     /// Flattens a stream of streams into just one continuous stream.
     ///
     /// # Examples
@@ -715,18 +773,25 @@ pub trait StreamExt: Stream {
     /// of the stream until provided closure returns `None`. Once `None` is
     /// returned, stream will be terminated.
     ///
+    /// Unlike [`Iterator::scan`], the closure takes the state by value instead of
+    /// mutable reference to avoid [the limitation of the async
+    /// block](https://github.com/rust-lang/futures-rs/issues/2171).
+    ///
     /// # Examples
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
-    /// let stream = stream.scan(0, |state, x| {
-    ///     *state += x;
-    ///     future::ready(if *state < 10 { Some(x) } else { None })
+    /// let stream = stream.scan(0, |mut state, x| async move {
+    ///     state += x;
+    ///     if state < 10 {
+    ///         Some((state, x))
+    ///     } else {
+    ///         None
+    ///     }
     /// });
     ///
     /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
@@ -734,8 +799,8 @@ pub trait StreamExt: Stream {
     /// ```
     fn scan<S, B, Fut, F>(self, initial_state: S, f: F) -> Scan<Self, S, Fut, F>
     where
-        F: FnMut(&mut S, Self::Item) -> Fut,
-        Fut: Future<Output = Option<B>>,
+        F: FnMut(S, Self::Item) -> Fut,
+        Fut: Future<Output = Option<(S, B)>>,
         Self: Sized,
     {
         assert_stream::<B, _>(Scan::new(self, initial_state, f))
@@ -1285,22 +1350,22 @@ pub trait StreamExt: Stream {
     /// buffered at any point in time, and less than `n` may also be buffered
     /// depending on the state of each future.
     ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
+    ///
     /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `n` is zero.
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn buffered(self, n: usize) -> Buffered<Self>
+    fn buffered(self, n: impl Into<Option<usize>>) -> Buffered<Self>
     where
         Self::Item: Future,
         Self: Sized,
     {
-        assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n))
+        assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n.into()))
     }
 
     /// An adaptor for creating a buffered list of pending futures (unordered).
@@ -1311,14 +1376,14 @@ pub trait StreamExt: Stream {
     /// any point in time, and less than `n` may also be buffered depending on
     /// the state of each future.
     ///
+    /// The limit argument is of type `Into<Option<usize>>`, and so can be
+    /// provided as either `None`, `Some(10)`, or just `10`. Note: a limit of zero is
+    /// interpreted as no limit at all, and will have the same result as passing in `None`.
+    ///
     /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `n` is zero.
     ///
     /// # Examples
     ///
@@ -1344,12 +1409,12 @@ pub trait StreamExt: Stream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
+    fn buffer_unordered(self, n: impl Into<Option<usize>>) -> BufferUnordered<Self>
     where
         Self::Item: Future,
         Self: Sized,
     {
-        assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n))
+        assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n.into()))
     }
 
     /// An adapter for zipping two streams together.
@@ -1484,19 +1549,15 @@ pub trait StreamExt: Stream {
     /// the sink is closed. Note that neither the original stream nor provided
     /// sink will be output by this future. Pass the sink by `Pin<&mut S>`
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
-    /// order to preserve access to the `Sink`. If the stream produces an error,
-    /// that error will be returned by this future without flushing/closing the sink.
+    /// order to preserve access to the `Sink`.
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink<Self::Ok, Error = Self::Error>,
-        Self: TryStream + Sized,
-        // Self: TryStream + Sized + Stream<Item = Result<<Self as TryStream>::Ok, <Self as TryStream>::Error>>,
+        S: Sink<Self::Item>,
+        Self: Sized,
     {
-        // TODO: type mismatch resolving `<Self as futures_core::Stream>::Item == std::result::Result<<Self as futures_core::TryStream>::Ok, <Self as futures_core::TryStream>::Error>`
-        // assert_future::<Result<(), Self::Error>, _>(Forward::new(self, sink))
-        Forward::new(self, sink)
+        assert_future::<Result<(), S::Error>, _>(Forward::new(self, sink))
     }
 
     /// Splits this `Stream + Sink` object into separate `Sink` and `Stream`

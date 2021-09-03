@@ -1,5 +1,5 @@
 // TODO: note that paths like futures_core::task::Context actually get redirected to core::task::Context
-// in the redered docs. Is this desirable? If so, should we change the paths here?
+// in the rendered docs. Is this desirable? If so, should we change the paths here?
 //
 // Also, there is cross crate links in here. They are not going to work anytime soon. Do we put https links
 // in here? to here: https://rust-lang.github.io/futures-api-docs? The problem is these have a
