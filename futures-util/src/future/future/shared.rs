@@ -1,4 +1,4 @@
-use crate::task::{waker_ref, ArcWake};
+use crate::task::{waker_ref, Wake};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
@@ -347,9 +347,13 @@ where
     }
 }
 
-impl ArcWake for Notifier {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        let wakers = &mut *arc_self.wakers.lock().unwrap();
+impl Wake for Notifier {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        let wakers = &mut *self.wakers.lock().unwrap();
         if let Some(wakers) = wakers.as_mut() {
             for (_key, opt_waker) in wakers {
                 if let Some(waker) = opt_waker.take() {

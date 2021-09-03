@@ -22,9 +22,8 @@ pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
-    mod arc_wake;
-    #[cfg(feature = "alloc")]
-    pub use crate::arc_wake::ArcWake;
+    #[doc(no_inline)]
+    pub use alloc::task::Wake;
 
     #[cfg(feature = "alloc")]
     mod waker;

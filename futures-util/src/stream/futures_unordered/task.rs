@@ -2,10 +2,9 @@ use alloc::sync::{Arc, Weak};
 use core::cell::UnsafeCell;
 use core::sync::atomic::Ordering::{self, SeqCst};
 use core::sync::atomic::{AtomicBool, AtomicPtr};
-
 use super::abort::abort;
+use crate::task::{Wake, WakerRef, waker_ref};
 use super::ReadyToRunQueue;
-use crate::task::{waker_ref, ArcWake, WakerRef};
 
 pub(super) struct Task<Fut> {
     // The future
@@ -41,9 +40,13 @@ pub(super) struct Task<Fut> {
 unsafe impl<Fut> Send for Task<Fut> {}
 unsafe impl<Fut> Sync for Task<Fut> {}
 
-impl<Fut> ArcWake for Task<Fut> {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        let inner = match arc_self.ready_to_run_queue.upgrade() {
+impl<Fut> Wake for Task<Fut> {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        let inner = match self.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
             None => return,
         };
@@ -60,9 +63,9 @@ impl<Fut> ArcWake for Task<Fut> {
         // implementation guarantees that if we set the `queued` flag that
         // there's a reference count held by the main `FuturesUnordered` queue
         // still.
-        let prev = arc_self.queued.swap(true, SeqCst);
+        let prev = self.queued.swap(true, SeqCst);
         if !prev {
-            inner.enqueue(&**arc_self);
+            inner.enqueue(&**self);
             inner.waker.wake();
         }
     }

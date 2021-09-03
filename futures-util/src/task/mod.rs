@@ -20,8 +20,8 @@ pub use futures_task::noop_waker;
 pub use futures_task::noop_waker_ref;
 
 cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    pub use futures_task::ArcWake;
+    #[doc(no_inline)]
+    pub use alloc::task::Wake;
 
     #[cfg(feature = "alloc")]
     pub use futures_task::waker;
