@@ -105,6 +105,9 @@ pub use self::select_with_strategy::{select_with_strategy, PollNext, SelectWithS
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
 
+mod repeat_then;
+pub use self::repeat_then::{repeat_then, RepeatThen};
+
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 mod futures_ordered;
