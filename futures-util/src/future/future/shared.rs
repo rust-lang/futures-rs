@@ -140,7 +140,7 @@ where
     /// can change the strong count at any time, including potentially between calling this method
     /// and acting on the result.
     pub fn strong_count(&self) -> Option<usize> {
-        self.inner.as_ref().map(|arc| Arc::strong_count(arc))
+        self.inner.as_ref().map(Arc::strong_count)
     }
 
     /// Gets the number of weak pointers to this allocation.
@@ -153,7 +153,7 @@ where
     /// can change the weak count at any time, including potentially between calling this method
     /// and acting on the result.
     pub fn weak_count(&self) -> Option<usize> {
-        self.inner.as_ref().map(|arc| Arc::weak_count(arc))
+        self.inner.as_ref().map(Arc::weak_count)
     }
 }
 
