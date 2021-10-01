@@ -14,7 +14,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
-
+#![allow(clippy::if_then_panic)]
 #[cfg(not(feature = "std"))]
 compile_error!(
     "`futures-test` must have the `std` feature activated, this is a default-active feature"

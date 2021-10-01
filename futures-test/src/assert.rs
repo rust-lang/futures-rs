@@ -25,16 +25,19 @@ pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}
 /// ```
 #[macro_export]
 macro_rules! assert_stream_pending {
-    ($stream:expr) => {{
-        let mut stream = &mut $stream;
-        $crate::__private::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::__private::Pin::new(stream);
-        let mut cx = $crate::task::noop_context();
-        let poll = $crate::__private::stream::Stream::poll_next(stream, &mut cx);
-        if poll.is_ready() {
-            panic!("assertion failed: stream is not pending");
+    ($stream:expr) => {
+        #[allow(clippy::if_then_panic)]
+        {
+            let mut stream = &mut $stream;
+            $crate::__private::assert::assert_is_unpin_stream(stream);
+            let stream = $crate::__private::Pin::new(stream);
+            let mut cx = $crate::task::noop_context();
+            let poll = $crate::__private::stream::Stream::poll_next(stream, &mut cx);
+            if poll.is_ready() {
+                panic!("assertion failed: stream is not pending");
+            }
         }
-    }};
+    };
 }
 
 /// Assert that the next poll to the provided stream will return
