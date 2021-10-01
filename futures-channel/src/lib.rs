@@ -26,6 +26,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![allow(clippy::if_then_panic)]
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
