@@ -16,7 +16,6 @@ pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 pub use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, UnsafeFutureObj};
 
 pub use futures_task::noop_waker;
-#[cfg(feature = "std")]
 pub use futures_task::noop_waker_ref;
 
 #[cfg(not(futures_no_atomic_cas))]
