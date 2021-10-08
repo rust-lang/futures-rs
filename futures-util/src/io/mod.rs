@@ -61,6 +61,9 @@ pub use self::buf_reader::{BufReader, SeeKRelative};
 mod buf_writer;
 pub use self::buf_writer::BufWriter;
 
+mod line_writer;
+pub use self::line_writer::LineWriter;
+
 mod chain;
 pub use self::chain::Chain;
 
