@@ -29,18 +29,19 @@ use std::sync::Arc;
 /// let mut writer = Cursor::new(vec![0u8; 5]);
 ///
 /// let (fut, abort_handle) = io::copy_buf_abortable(reader, &mut writer);
-/// let bytes = fut.await?;
+/// let bytes = fut.await;
 /// abort_handle.abort();
-/// writer.close().await?;
+/// writer.close().await.unwrap();
 /// match bytes {
-///     Ok(n) => {
-///         assert_eq!(bytes.unwrap(), 4);
+///     Ok(Ok(n)) => {
+///         assert_eq!(n, 4);
 ///         assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
 ///         Ok(n)
 ///     },
-///     Err(a) => {
-///         Err::<usize, Aborted>(a)
+///     Ok(Err(a)) => {
+///         Err::<u64, Aborted>(a)
 ///     }
+///     Err(e) => panic!("{}", e)
 /// }
 /// #  }).unwrap();
 /// ```
