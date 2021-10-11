@@ -42,7 +42,7 @@ use std::sync::Arc;
 ///         Err::<usize, Aborted>(a)
 ///     }
 /// }
-///
+/// #  }).unwrap();
 /// ```
 pub fn copy_buf_abortable<R, W>(
     reader: R,
