@@ -48,12 +48,9 @@ impl<R: AsyncRead> BufReader<R> {
 
     /// Creates a new `BufReader` with the specified buffer capacity.
     pub fn with_capacity(capacity: usize, inner: R) -> Self {
-        unsafe {
-            let mut buffer = Vec::with_capacity(capacity);
-            buffer.set_len(capacity);
-            super::initialize(&inner, &mut buffer);
-            Self { inner, buffer: buffer.into_boxed_slice(), pos: 0, cap: 0 }
-        }
+        // TODO: consider using Box<[u8]>::new_uninit_slice once it stabilized
+        let buffer = vec![0; capacity];
+        Self { inner, buffer: buffer.into_boxed_slice(), pos: 0, cap: 0 }
     }
 }
 
