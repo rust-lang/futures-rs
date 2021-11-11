@@ -14,7 +14,6 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
-#![allow(clippy::if_then_panic)]
 
 #[cfg(not(feature = "std"))]
 compile_error!(
