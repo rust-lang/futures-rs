@@ -31,6 +31,7 @@ macro_rules! document_select_macro {
         ///
         /// Note that `select!` relies on `proc-macro-hack`, and may require to set the
         /// compiler's recursion limit very high, e.g. `#![recursion_limit="1024"]`.
+        /// If you're using Rust 1.45+, you won't have the problem.
         ///
         /// # Examples
         ///
