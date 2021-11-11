@@ -19,6 +19,7 @@
     )
 ))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::non_send_fields_in_send_ty)]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
