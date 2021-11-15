@@ -141,6 +141,10 @@ pub use abortable::abortable;
 mod merge_ascending;
 pub use self::merge_ascending::{merge_ascending, MergeAscending};
 
+#[cfg(feature = "alloc")]
+mod merge_multiple_ascending;
+pub use self::merge_multiple_ascending::{merge_multiple_ascending, MergeMultipleAscending};
+
 // Just a helper function to ensure the streams we're returning all have the
 // right implementations.
 pub(crate) fn assert_stream<T, S>(stream: S) -> S
