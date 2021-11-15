@@ -138,6 +138,9 @@ pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
 #[cfg(feature = "alloc")]
 pub use abortable::abortable;
 
+mod merge_ascending;
+pub use self::merge_ascending::{merge_ascending, MergeAscending};
+
 // Just a helper function to ensure the streams we're returning all have the
 // right implementations.
 pub(crate) fn assert_stream<T, S>(stream: S) -> S
