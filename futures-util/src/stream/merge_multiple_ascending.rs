@@ -1,9 +1,7 @@
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use Poll::*;
-
 use crate::stream::{Fuse, StreamExt};
+use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 /// Merge multiple ordered streams in constant space. The precondition (input
@@ -100,16 +98,16 @@ impl<T: Ord, St: Stream<Item = T> + Unpin> Stream for MergeMultipleAscending<T, 
             match peek.take() {
                 Some(val) => vals[i] = Some(val),
                 None => match this.streams[i].poll_next_unpin(cx) {
-                    Ready(Some(val)) => vals[i] = Some(val),
-                    Ready(None) => vals[i] = None,
-                    Pending => {
+                    Poll::Ready(Some(val)) => vals[i] = Some(val),
+                    Poll::Ready(None) => vals[i] = None,
+                    Poll::Pending => {
                         // Clippy suggests
                         // for (j, <item>) in vals.iter_mut().enumerate().take(i) {
                         #[allow(clippy::needless_range_loop)]
                         for j in 0..i {
                             this.peeks[j] = vals[j].take()
                         }
-                        return Pending;
+                        return Poll::Pending;
                     }
                 },
             }
@@ -128,7 +126,7 @@ impl<T: Ord, St: Stream<Item = T> + Unpin> Stream for MergeMultipleAscending<T, 
                 this.peeks[i] = val;
             }
         }
-        Ready(min_val)
+        Poll::Ready(min_val)
     }
 }
 

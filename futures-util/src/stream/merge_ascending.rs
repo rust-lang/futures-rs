@@ -1,9 +1,7 @@
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use Poll::*;
-
 use crate::stream::{Fuse, StreamExt};
+use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 /// Merge two ordered streams in constant space. The precondition (input streams
@@ -48,34 +46,34 @@ impl<T: Ord, St1: Stream<Item = T>, St2: Stream<Item = T>> Stream for MergeAscen
         let l = match this.left_peek.take() {
             Some(l) => Some(l),
             None => match this.left.as_mut().poll_next(cx) {
-                Ready(Some(l)) => Some(l),
-                Ready(None) => None,
-                Pending => return Pending,
+                Poll::Ready(Some(l)) => Some(l),
+                Poll::Ready(None) => None,
+                Poll::Pending => return Poll::Pending,
             },
         };
         let r = match this.right_peek.take() {
             Some(r) => Some(r),
             None => match this.right.as_mut().poll_next(cx) {
-                Ready(Some(r)) => Some(r),
-                Ready(None) => None,
-                Pending => {
+                Poll::Ready(Some(r)) => Some(r),
+                Poll::Ready(None) => None,
+                Poll::Pending => {
                     *this.left_peek = l;
-                    return Pending;
+                    return Poll::Pending;
                 }
             },
         };
         match (l, r) {
             (Some(l), Some(r)) if l <= r => {
                 *this.right_peek = Some(r);
-                Ready(Some(l))
+                Poll::Ready(Some(l))
             }
             (Some(l), Some(r)) => {
                 *this.left_peek = Some(l);
-                Ready(Some(r))
+                Poll::Ready(Some(r))
             }
-            (Some(l), None) => Ready(Some(l)),
-            (None, Some(r)) => Ready(Some(r)),
-            (None, None) => Ready(None),
+            (Some(l), None) => Poll::Ready(Some(l)),
+            (None, Some(r)) => Poll::Ready(Some(r)),
+            (None, None) => Poll::Ready(None),
         }
     }
 

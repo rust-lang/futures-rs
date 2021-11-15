@@ -1,10 +1,8 @@
-use std::cmp::Ordering;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use Poll::*;
-
 use crate::stream::{Fuse, StreamExt};
+use core::cmp::Ordering;
+use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 /// Diff two sorted streams in constant space. `diff_ascending(x, y)` returns a
@@ -66,7 +64,7 @@ impl<T: Ord, St1: Stream<Item = T>, St2: Stream<Item = T>> Stream for DiffAscend
         let mut this = self.project();
         if *this.right_terminated {
             return match this.left_peek.take() {
-                Some(l) => Ready(Some(l)),
+                Some(l) => Poll::Ready(Some(l)),
                 None => this.left.poll_next(cx),
             };
         }
@@ -74,29 +72,29 @@ impl<T: Ord, St1: Stream<Item = T>, St2: Stream<Item = T>> Stream for DiffAscend
             let l = match this.left_peek.take() {
                 Some(l) => l,
                 None => match this.left.as_mut().poll_next(cx) {
-                    Ready(Some(x)) => x,
-                    Ready(None) => return Ready(None),
-                    Pending => return Pending,
+                    Poll::Ready(Some(x)) => x,
+                    Poll::Ready(None) => return Poll::Ready(None),
+                    Poll::Pending => return Poll::Pending,
                 },
             };
             let r = match this.right_peek.take() {
                 Some(r) => r,
                 None => match this.right.as_mut().poll_next(cx) {
-                    Ready(Some(x)) => x,
-                    Ready(None) => {
+                    Poll::Ready(Some(x)) => x,
+                    Poll::Ready(None) => {
                         *this.right_terminated = true;
-                        return Ready(Some(l));
+                        return Poll::Ready(Some(l));
                     }
-                    Pending => {
+                    Poll::Pending => {
                         *this.left_peek = Some(l);
-                        return Pending;
+                        return Poll::Pending;
                     }
                 },
             };
             match l.cmp(&r) {
                 Ordering::Less => {
                     *this.right_peek = Some(r);
-                    return Ready(Some(l));
+                    return Poll::Ready(Some(l));
                 }
                 Ordering::Equal => {}
                 Ordering::Greater => *this.left_peek = Some(l),
