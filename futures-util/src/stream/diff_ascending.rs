@@ -16,9 +16,9 @@ use pin_project_lite::pin_project;
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///
-/// let s1 = stream::iter((0..10);
-/// let s2 = stream::iter((0..5);
-/// let collected: Vec<i32> = diff_ascending(s1, s2).collect().await;
+/// let s1 = stream::iter(0..10);
+/// let s2 = stream::iter(0..5);
+/// let collected: Vec<i32> = stream::diff_ascending(s1, s2).collect().await;
 /// assert_eq!(collected, vec![5,6,7,8,9]);
 /// # });
 /// ```

@@ -15,7 +15,7 @@ use pin_project_lite::pin_project;
 ///
 /// let evens = stream::iter((0..5).map(|x| x * 2));
 /// let odds = stream::iter((0..5).map(|x| x * 2 + 1));
-/// let collected: Vec<i32> = merge_ascending(evens, odds).collect().await;
+/// let collected: Vec<i32> = stream::merge_ascending(evens, odds).collect().await;
 /// assert_eq!(collected, vec![0,1,2,3,4,5,6,7,8,9]);
 /// # });
 /// ```

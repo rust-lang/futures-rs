@@ -15,7 +15,7 @@ use pin_project_lite::pin_project;
 /// let s1 = stream::iter(0..10);
 /// let s2 = stream::iter(10..20);
 /// let s3 = stream::iter(20..30);
-/// let collected: Vec<i32> = merge_multiple_ascending([s1, s2, s3]).collect().await;
+/// let collected: Vec<i32> = stream::merge_multiple_ascending([s1, s2, s3]).collect().await;
 /// assert_eq!(collected, (0..30).collect::<Vec<i32>>());
 /// # });
 /// ```
@@ -30,6 +30,7 @@ use pin_project_lite::pin_project;
 /// # futures::executor::block_on(async {
 /// use futures::Future;
 /// use futures::stream::{self, StreamExt};
+/// use std::pin::Pin;
 /// type BoxedUnfoldGenerator = Box<dyn Fn(i32) -> Pin<Box<dyn Future<Output = Option<(i32, i32)>>>>>;
 /// let f1: BoxedUnfoldGenerator = Box::new(|state: i32| {
 ///     Box::pin(async move {
@@ -61,7 +62,7 @@ use pin_project_lite::pin_project;
 /// let s1 = stream::unfold(0, f1);
 /// let s2 = stream::unfold(0, f2);
 /// let s3 = stream::unfold(0, f3);
-/// let collected: Vec<i32> = merge_multiple_ordered_streams([s1, s2, s3]).collect().await;
+/// let collected: Vec<i32> = stream::merge_multiple_ascending([s1, s2, s3]).collect().await;
 /// assert_eq!(collected, (0..15).collect::<Vec<i32>>());
 /// # });
 /// ```
