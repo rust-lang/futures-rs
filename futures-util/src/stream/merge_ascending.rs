@@ -27,7 +27,7 @@ pub fn merge_ascending<T: Ord, St1: Stream<Item = T>, St2: Stream<Item = T>>(
 }
 
 pin_project! {
-    /// Struct for the `merge_ascending` method.
+    /// Struct for the [`merge_ascending`] method.
     #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
     pub struct MergeAscending<T, St1: Stream<Item = T>, St2: Stream<Item = T>> {

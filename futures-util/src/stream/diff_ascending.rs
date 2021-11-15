@@ -36,7 +36,7 @@ pub fn diff_ascending<T: Ord, St1: Stream<Item = T>, St2: Stream<Item = T>>(
 }
 
 pin_project! {
-    /// Struct for the `diff_ascending` method.
+    /// Struct for the [`diff_ascending`] method.
     #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
     pub struct DiffAscending<T, St1: Stream<Item = T>, St2: Stream<Item = T>> {
