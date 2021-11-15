@@ -144,8 +144,11 @@ pub use self::diff_ascending::{diff_ascending, DiffAscending};
 mod merge_ascending;
 pub use self::merge_ascending::{merge_ascending, MergeAscending};
 
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 mod merge_multiple_ascending;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
 pub use self::merge_multiple_ascending::{merge_multiple_ascending, MergeMultipleAscending};
 
 // Just a helper function to ensure the streams we're returning all have the

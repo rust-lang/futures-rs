@@ -7,7 +7,9 @@ use futures_core::stream::{FusedStream, Stream};
 use pin_project_lite::pin_project;
 
 /// Merge multiple ordered streams in constant space. The precondition (input
-/// streams are ascending) is not checked.
+/// streams are ascending) is not checked. This function is only available when
+/// the `std` or `alloc` feature of this library is activated, and it is
+/// activated by default.
 ///
 /// ```
 /// # futures::executor::block_on(async {
