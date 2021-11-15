@@ -22,11 +22,12 @@ use pin_project_lite::pin_project;
 /// # });
 /// ```
 ///
-/// NOTE: this is not as easy to use as [`merge_ascending`](crate::stream::merge_asceding). Every stream in the
-/// iterator must be `Unpin` and have _exactly_ the same type as opposed to the
-/// two stream case where both streams need only implement the `Stream<Item =
-/// T>` trait. In practice, you will likely need to Box your streams into a
-/// `dyn` trait object if you want to use this function.
+/// NOTE: this is not as easy to use as
+/// [`merge_ascending`](crate::stream::merge_ascending::merge_ascending). Every
+/// stream in the iterator must be `Unpin` and have exactly the same type as
+/// opposed to the two stream case where both streams need only implement the
+/// `Stream<Item = T>` trait. In practice, you will likely need to Box your
+/// streams into a `dyn` trait object if you want to use this function.
 ///
 /// ```
 /// # futures::executor::block_on(async {
