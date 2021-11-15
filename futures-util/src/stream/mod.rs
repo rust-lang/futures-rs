@@ -138,6 +138,9 @@ pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
 #[cfg(feature = "alloc")]
 pub use abortable::abortable;
 
+mod diff_ascending;
+pub use self::diff_ascending::{diff_ascending, DiffAscending};
+
 mod merge_ascending;
 pub use self::merge_ascending::{merge_ascending, MergeAscending};
 
