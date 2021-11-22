@@ -8,7 +8,6 @@ readme = "../README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures/0.3"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
