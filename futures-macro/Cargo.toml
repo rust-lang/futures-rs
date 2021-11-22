@@ -6,7 +6,6 @@ authors = ["Taylor Cramer <cramertj@google.com>", "Taiki Endo <te316e89@gmail.co
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
-documentation = "https://docs.rs/futures-macro/0.3"
 description = """
 The futures-rs procedural macro implementations.
 """
