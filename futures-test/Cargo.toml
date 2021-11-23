@@ -1,7 +1,8 @@
 [package]
 name = "futures-test"
-edition = "2018"
 version = "0.3.17"
+edition = "2018"
+rust-version = "1.45"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
