@@ -3,7 +3,6 @@
 #[cfg(feature = "std")]
 #[allow(unreachable_pub)]
 #[doc(hidden)]
-#[cfg_attr(not(fn_like_proc_macro), proc_macro_hack::proc_macro_hack(support_nested))]
 pub use futures_macro::stream_select_internal;
 
 /// Combines several streams, all producing the same `Item` type, into one stream.
@@ -12,10 +11,6 @@ pub use futures_macro::stream_select_internal;
 /// Streams passed to this macro must be `Unpin`.
 ///
 /// If multiple streams are ready, one will be pseudo randomly selected at runtime.
-///
-/// This macro is gated behind the `async-await` feature of this library, which is activated by default.
-/// Note that `stream_select!` relies on `proc-macro-hack`, and may require to set the compiler's recursion
-/// limit very high, e.g. `#![recursion_limit="1024"]`.
 ///
 /// # Examples
 ///
