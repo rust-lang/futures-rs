@@ -1,6 +1,6 @@
 [package]
 name = "futures-macro"
-version = "0.3.17"
+version = "0.3.18"
 edition = "2018"
 rust-version = "1.45"
 license = "MIT OR Apache-2.0"
