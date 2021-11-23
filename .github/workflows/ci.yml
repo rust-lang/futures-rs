@@ -7,7 +7,7 @@ on:
       - master
       - '[0-9]+.[0-9]+'
   schedule:
-    - cron: '40 1 * * *'
+    - cron: '0 1 * * *'
 
 env:
   RUSTFLAGS: -D warnings
@@ -61,8 +61,8 @@ jobs:
       matrix:
         rust:
           # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task.
-          # When updating this, the reminder to update the minimum required version in .clippy.toml.
-          - 1.36.0
+          # When updating this, the reminder to update the minimum required version in README.md and .clippy.toml.
+          - 1.36
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -93,7 +93,7 @@ jobs:
         rust:
           # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md.
-          - 1.41.0
+          - 1.45
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
