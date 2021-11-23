@@ -3,7 +3,6 @@ name = "futures-executor"
 version = "0.4.0-alpha.0"
 edition = "2018"
 rust-version = "1.45"
-authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
