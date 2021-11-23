@@ -1,3 +1,10 @@
+# 0.3.18 - 2021-11-23
+
+* Fix unusable `Sink` implementation on `stream::Scan` (#2499)
+* Make `task::noop_waker_ref` available without `std` feature (#2505)
+* Add async `LineWriter` (#2477)
+* Remove dependency on `proc-macro-hack`. This raises MSRV of utility crates to 1.45. (#2520)
+
 # 0.3.17 - 2021-08-30
 
 * Use `FuturesOrdered` in `join_all` (#2412)
