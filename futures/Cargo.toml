@@ -1,7 +1,8 @@
 [package]
 name = "futures"
-edition = "2018"
 version = "0.3.17"
+edition = "2018"
+rust-version = "1.45"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
