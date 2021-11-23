@@ -1,6 +1,5 @@
 use crate::abortable::{AbortHandle, AbortInner, Aborted};
 use futures_core::future::Future;
-use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncWrite};
 use pin_project_lite::pin_project;
@@ -70,6 +69,15 @@ pin_project! {
     }
 }
 
+macro_rules! ready_or_break {
+    ($e:expr $(,)?) => {
+        match $e {
+            $crate::task::Poll::Ready(t) => t,
+            $crate::task::Poll::Pending => break,
+        }
+    };
+}
+
 impl<R, W> Future for CopyBufAbortable<'_, R, W>
 where
     R: AsyncBufRead,
@@ -85,25 +93,24 @@ where
                 return Poll::Ready(Ok(Err(Aborted)));
             }
 
-            let buffer = ready!(this.reader.as_mut().poll_fill_buf(cx))?;
+            // Read some bytes from the reader, and if we have reached EOF, return total bytes read
+            let buffer = ready_or_break!(this.reader.as_mut().poll_fill_buf(cx))?;
             if buffer.is_empty() {
-                ready!(Pin::new(&mut this.writer).poll_flush(cx))?;
+                ready_or_break!(Pin::new(&mut this.writer).poll_flush(cx))?;
                 return Poll::Ready(Ok(Ok(*this.amt)));
             }
 
-            let i = ready!(Pin::new(&mut this.writer).poll_write(cx, buffer))?;
+            // Pass the buffer to the writer, and update the amount written
+            let i = ready_or_break!(Pin::new(&mut this.writer).poll_write(cx, buffer))?;
             if i == 0 {
                 return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
             *this.amt += i as u64;
             this.reader.as_mut().consume(i);
-
-            // Register to receive a wakeup if the task is aborted in the future
-            this.inner.waker.register(cx.waker());
-
-            if this.inner.aborted.load(Ordering::Relaxed) {
-                return Poll::Ready(Ok(Err(Aborted)));
-            }
         }
+        // Schedule the task to be woken up again.
+        // Never called unless Poll::Pending is returned from io objects.
+        cx.waker().wake_by_ref();
+        Poll::Pending
     }
 }
