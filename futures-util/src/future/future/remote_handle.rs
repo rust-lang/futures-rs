@@ -1,22 +1,23 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_channel::oneshot::{self, Receiver, Sender},
     futures_core::{
         future::Future,
+        ready,
         task::{Context, Poll},
     },
+    pin_project_lite::pin_project,
     std::{
         any::Any,
         fmt,
         panic::{self, AssertUnwindSafe},
         pin::Pin,
         sync::{
-            Arc,
             atomic::{AtomicBool, Ordering},
+            Arc,
         },
         thread,
     },
-    pin_project::pin_project,
 };
 
 /// The handle to a remote future returned by
@@ -35,8 +36,9 @@ use {
 /// must be careful with regard to unwind safety because the thread in which the future
 /// is polled will keep running after the panic and the thread running the [RemoteHandle]
 /// will unwind.
-#[must_use = "futures do nothing unless you `.await` or poll them"]
+#[must_use = "dropping a remote handle cancels the underlying future"]
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 pub struct RemoteHandle<T> {
     rx: Receiver<thread::Result<T>>,
     keep_running: Arc<AtomicBool>,
@@ -68,22 +70,22 @@ impl<T: 'static> Future for RemoteHandle<T> {
 
 type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
 
-/// A future which sends its output to the corresponding `RemoteHandle`.
-/// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Remote<Fut: Future> {
-    tx: Option<Sender<SendMsg<Fut>>>,
-    keep_running: Arc<AtomicBool>,
-    #[pin]
-    future: CatchUnwind<AssertUnwindSafe<Fut>>,
+pin_project! {
+    /// A future which sends its output to the corresponding `RemoteHandle`.
+    /// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
+    pub struct Remote<Fut: Future> {
+        tx: Option<Sender<SendMsg<Fut>>>,
+        keep_running: Arc<AtomicBool>,
+        #[pin]
+        future: CatchUnwind<AssertUnwindSafe<Fut>>,
+    }
 }
 
 impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Remote")
-            .field(&self.future)
-            .finish()
+        f.debug_tuple("Remote").field(&self.future).finish()
     }
 }
 
@@ -93,11 +95,11 @@ impl<Fut: Future> Future for Remote<Fut> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         let this = self.project();
 
-        if let Poll::Ready(_) = this.tx.as_mut().unwrap().poll_canceled(cx) {
-            if !this.keep_running.load(Ordering::SeqCst) {
-                // Cancelled, bail out
-                return Poll::Ready(())
-            }
+        if this.tx.as_mut().unwrap().poll_canceled(cx).is_ready()
+            && !this.keep_running.load(Ordering::SeqCst)
+        {
+            // Cancelled, bail out
+            return Poll::Ready(());
         }
 
         let output = ready!(this.future.poll(cx));

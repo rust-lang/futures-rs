@@ -1,29 +1,25 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read-initializer", feature(read_initializer))]
 #![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
-
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-// It cannot be included in the published code because this lints have false positives in the minimum required version.
-#![cfg_attr(test, warn(single_use_lifetimes))]
-#![warn(clippy::all)]
-
-// The solution for this lint is not available on 1.39 which is the current minimum supported version.
-// Can be removed as of minimum supported 1.40 or if https://github.com/rust-lang/rust-clippy/issues/3941
-// get's implemented.
-#![allow(clippy::mem_replace_with_default)]
-// clippy bug: https://github.com/rust-lang/rust-clippy/issues/5704
-#![allow(clippy::unnested_or_patterns)]
-
-#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
-#![doc(html_root_url = "https://docs.rs/futures-util/0.3.5")]
-
-#[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
-compile_error!("The `cfg-target-has-atomic` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+#![warn(
+    missing_debug_implementations,
+    missing_docs,
+    rust_2018_idioms,
+    single_use_lifetimes,
+    unreachable_pub
+)]
+#![doc(test(
+    no_crate_inject,
+    attr(
+        deny(warnings, rust_2018_idioms, single_use_lifetimes),
+        allow(dead_code, unused_assignments, unused_variables)
+    )
+))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::non_send_fields_in_send_ty)]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
@@ -34,39 +30,31 @@ compile_error!("The `read-initializer` feature requires the `unstable` feature a
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[macro_use(ready)]
-extern crate futures_core;
-
 // Macro re-exports
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
-// Not public API.
 #[cfg(feature = "async-await")]
 #[macro_use]
-#[doc(hidden)]
-pub mod async_await;
+mod async_await;
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use self::async_await::*;
 
 // Not public API.
-#[doc(hidden)]
-pub use futures_core::core_reexport;
-
-// Not public API.
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
-pub mod __reexport {
-    #[doc(hidden)]
+pub mod __private {
     pub use crate::*;
-}
+    pub use core::{
+        option::Option::{self, None, Some},
+        pin::Pin,
+        result::Result::{Err, Ok},
+    };
 
-macro_rules! cfg_target_has_atomic {
-    ($($item:item)*) => {$(
-        #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
-        $item
-    )*};
+    pub mod async_await {
+        pub use crate::async_await::*;
+    }
 }
 
 #[cfg(feature = "sink")]
@@ -74,84 +62,87 @@ macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {
         fn poll_ready(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_ready(cx)
         }
 
-        fn start_send(
-            self: core::pin::Pin<&mut Self>,
-            item: $item,
-        ) -> Result<(), Self::Error> {
+        fn start_send(self: core::pin::Pin<&mut Self>, item: $item) -> Result<(), Self::Error> {
             self.project().$field.start_send(item)
         }
 
         fn poll_flush(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_flush(cx)
         }
 
         fn poll_close(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Result<(), Self::Error>> {
             self.project().$field.poll_close(cx)
         }
-    }
+    };
 }
 
 macro_rules! delegate_future {
     ($field:ident) => {
         fn poll(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Self::Output> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Self::Output> {
             self.project().$field.poll(cx)
         }
-    }
+    };
 }
 
 macro_rules! delegate_stream {
     ($field:ident) => {
         fn poll_next(
             self: core::pin::Pin<&mut Self>,
-            cx: &mut $crate::core_reexport::task::Context<'_>,
-        ) -> $crate::core_reexport::task::Poll<Option<Self::Item>> {
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<Option<Self::Item>> {
             self.project().$field.poll_next(cx)
         }
         fn size_hint(&self) -> (usize, Option<usize>) {
             self.$field.size_hint()
         }
-    }
+    };
 }
 
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
 macro_rules! delegate_async_write {
     ($field:ident) => {
-        fn poll_write(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>, buf: &[u8])
-            -> core::task::Poll<std::io::Result<usize>>
-        {
+        fn poll_write(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+            buf: &[u8],
+        ) -> core::task::Poll<std::io::Result<usize>> {
             self.project().$field.poll_write(cx, buf)
         }
-        fn poll_write_vectored(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>, bufs: &[std::io::IoSlice<'_>])
-            -> core::task::Poll<std::io::Result<usize>>
-        {
+        fn poll_write_vectored(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+            bufs: &[std::io::IoSlice<'_>],
+        ) -> core::task::Poll<std::io::Result<usize>> {
             self.project().$field.poll_write_vectored(cx, bufs)
         }
-        fn poll_flush(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>)
-            -> core::task::Poll<std::io::Result<()>>
-        {
+        fn poll_flush(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<std::io::Result<()>> {
             self.project().$field.poll_flush(cx)
         }
-        fn poll_close(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>)
-            -> core::task::Poll<std::io::Result<()>>
-        {
+        fn poll_close(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+        ) -> core::task::Poll<std::io::Result<()>> {
             self.project().$field.poll_close(cx)
         }
-    }
+    };
 }
 
 #[cfg(feature = "io")]
@@ -163,18 +154,22 @@ macro_rules! delegate_async_read {
             self.$field.initializer()
         }
 
-        fn poll_read(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>, buf: &mut [u8])
-            -> core::task::Poll<std::io::Result<usize>>
-        {
+        fn poll_read(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+            buf: &mut [u8],
+        ) -> core::task::Poll<std::io::Result<usize>> {
             self.project().$field.poll_read(cx, buf)
         }
 
-        fn poll_read_vectored(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>, bufs: &mut [std::io::IoSliceMut<'_>])
-            -> core::task::Poll<std::io::Result<usize>>
-        {
+        fn poll_read_vectored(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut core::task::Context<'_>,
+            bufs: &mut [std::io::IoSliceMut<'_>],
+        ) -> core::task::Poll<std::io::Result<usize>> {
             self.project().$field.poll_read_vectored(cx, bufs)
         }
-    }
+    };
 }
 
 #[cfg(feature = "io")]
@@ -191,7 +186,7 @@ macro_rules! delegate_async_buf_read {
         fn consume(self: core::pin::Pin<&mut Self>, amt: usize) {
             self.project().$field.consume(amt)
         }
-    }
+    };
 }
 
 macro_rules! delegate_access_inner {
@@ -287,10 +282,11 @@ macro_rules! delegate_all {
         }
     };
     ($(#[$attr:meta])* $name:ident<$($arg:ident),*>($t:ty) : $ftrait:ident $([$($targs:tt)*])* $({$($item:tt)*})* $(where $($bound:tt)*)*) => {
-        #[pin_project::pin_project]
-        #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
-        $(#[$attr])*
-        pub struct $name< $($arg),* > $(where $($bound)*)* { #[pin] inner:$t }
+        pin_project_lite::pin_project! {
+            #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
+            $(#[$attr])*
+            pub struct $name< $($arg),* > $(where $($bound)*)* { #[pin] inner: $t }
+        }
 
         impl<$($arg),*> $name< $($arg),* > $(where $($bound)*)* {
             $($($item)*)*
@@ -306,34 +302,44 @@ macro_rules! delegate_all {
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::{FutureExt, TryFutureExt};
+#[doc(no_inline)]
+pub use crate::future::{Future, FutureExt, TryFuture, TryFutureExt};
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
+#[doc(no_inline)]
+pub use crate::stream::{Stream, StreamExt, TryStream, TryStreamExt};
 
 #[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub mod sink;
 #[cfg(feature = "sink")]
-#[doc(hidden)] pub use crate::sink::SinkExt;
+#[doc(no_inline)]
+pub use crate::sink::{Sink, SinkExt};
 
 pub mod task;
 
-pub mod never;
-
 #[cfg(feature = "compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat;
 
 #[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
+#[doc(no_inline)]
+pub use crate::io::{
+    AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt,
+};
+
+#[cfg(feature = "alloc")]
+pub mod lock;
+
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+mod abortable;
 
 mod fns;
-
-
-cfg_target_has_atomic! {
-    #[cfg(feature = "alloc")]
-    pub mod lock;
-}
+mod unfold_state;

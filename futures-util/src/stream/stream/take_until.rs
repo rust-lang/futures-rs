@@ -1,28 +1,30 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 // FIXME: docs, tests
 
-/// Stream for the [`take_until`](super::StreamExt::take_until) method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TakeUntil<St: Stream, Fut: Future> {
-    #[pin]
-    stream: St,
-    /// Contains the inner Future on start and None once the inner Future is resolved
-    /// or taken out by the user.
-    #[pin]
-    fut: Option<Fut>,
-    /// Contains fut's return value once fut is resolved
-    fut_result: Option<Fut::Output>,
-    /// Whether the future was taken out by the user.
-    free: bool,
+pin_project! {
+    /// Stream for the [`take_until`](super::StreamExt::take_until) method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TakeUntil<St: Stream, Fut: Future> {
+        #[pin]
+        stream: St,
+        // Contains the inner Future on start and None once the inner Future is resolved
+        // or taken out by the user.
+        #[pin]
+        fut: Option<Fut>,
+        // Contains fut's return value once fut is resolved
+        fut_result: Option<Fut::Output>,
+        // Whether the future was taken out by the user.
+        free: bool,
+    }
 }
 
 impl<St, Fut> fmt::Debug for TakeUntil<St, Fut>
@@ -32,10 +34,7 @@ where
     Fut: Future + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TakeUntil")
-            .field("stream", &self.stream)
-            .field("fut", &self.fut)
-            .finish()
+        f.debug_struct("TakeUntil").field("stream", &self.stream).field("fut", &self.fut).finish()
     }
 }
 
@@ -44,13 +43,8 @@ where
     St: Stream,
     Fut: Future,
 {
-    pub(super) fn new(stream: St, fut: Fut) -> TakeUntil<St, Fut> {
-        TakeUntil {
-            stream,
-            fut: Some(fut),
-            fut_result: None,
-            free: false,
-        }
+    pub(super) fn new(stream: St, fut: Fut) -> Self {
+        Self { stream, fut: Some(fut), fut_result: None, free: false }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -73,7 +67,7 @@ where
     /// This may be used to retrieve arbitrary data from the stopping
     /// future, for example a reason why the stream was stopped.
     ///
-    /// This method will return `None` if the future isn't resovled yet,
+    /// This method will return `None` if the future isn't resolved yet,
     /// or if the result was already taken out.
     ///
     /// # Examples

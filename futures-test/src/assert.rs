@@ -25,18 +25,19 @@ pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}
 /// ```
 #[macro_export]
 macro_rules! assert_stream_pending {
-    ($stream:expr) => {{
-        let mut stream = &mut $stream;
-        $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::pin::Pin::new(stream);
-        let mut cx = $crate::task::noop_context();
-        let poll = $crate::futures_core_reexport::stream::Stream::poll_next(
-            stream, &mut cx,
-        );
-        if poll.is_ready() {
-            panic!("assertion failed: stream is not pending");
+    ($stream:expr) => {
+        #[allow(clippy::if_then_panic)]
+        {
+            let mut stream = &mut $stream;
+            $crate::__private::assert::assert_is_unpin_stream(stream);
+            let stream = $crate::__private::Pin::new(stream);
+            let mut cx = $crate::task::noop_context();
+            let poll = $crate::__private::stream::Stream::poll_next(stream, &mut cx);
+            if poll.is_ready() {
+                panic!("assertion failed: stream is not pending");
+            }
         }
-    }};
+    };
 }
 
 /// Assert that the next poll to the provided stream will return
@@ -63,21 +64,23 @@ macro_rules! assert_stream_pending {
 macro_rules! assert_stream_next {
     ($stream:expr, $item:expr) => {{
         let mut stream = &mut $stream;
-        $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::pin::Pin::new(stream);
+        $crate::__private::assert::assert_is_unpin_stream(stream);
+        let stream = $crate::__private::Pin::new(stream);
         let mut cx = $crate::task::noop_context();
-        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, &mut cx) {
-            $crate::futures_core_reexport::task::Poll::Ready(Some(x)) => {
+        match $crate::__private::stream::Stream::poll_next(stream, &mut cx) {
+            $crate::__private::task::Poll::Ready($crate::__private::Some(x)) => {
                 assert_eq!(x, $item);
             }
-            $crate::futures_core_reexport::task::Poll::Ready(None) => {
-                panic!("assertion failed: expected stream to provide item but stream is at its end");
+            $crate::__private::task::Poll::Ready($crate::__private::None) => {
+                panic!(
+                    "assertion failed: expected stream to provide item but stream is at its end"
+                );
             }
-            $crate::futures_core_reexport::task::Poll::Pending => {
+            $crate::__private::task::Poll::Pending => {
                 panic!("assertion failed: expected stream to provide item but stream wasn't ready");
             }
         }
-    }}
+    }};
 }
 
 /// Assert that the next poll to the provided stream will return an empty
@@ -105,17 +108,17 @@ macro_rules! assert_stream_next {
 macro_rules! assert_stream_done {
     ($stream:expr) => {{
         let mut stream = &mut $stream;
-        $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::pin::Pin::new(stream);
+        $crate::__private::assert::assert_is_unpin_stream(stream);
+        let stream = $crate::__private::Pin::new(stream);
         let mut cx = $crate::task::noop_context();
-        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, &mut cx) {
-            $crate::futures_core_reexport::task::Poll::Ready(Some(_)) => {
+        match $crate::__private::stream::Stream::poll_next(stream, &mut cx) {
+            $crate::__private::task::Poll::Ready($crate::__private::Some(_)) => {
                 panic!("assertion failed: expected stream to be done but had more elements");
             }
-            $crate::futures_core_reexport::task::Poll::Ready(None) => {}
-            $crate::futures_core_reexport::task::Poll::Pending => {
+            $crate::__private::task::Poll::Ready($crate::__private::None) => {}
+            $crate::__private::task::Poll::Pending => {
                 panic!("assertion failed: expected stream to be done but was pending");
             }
         }
-    }}
+    }};
 }

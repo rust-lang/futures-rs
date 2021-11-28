@@ -1,9 +1,11 @@
+use super::assert_stream;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
+use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Creates a `TryStream` from a seed and a closure returning a `TryFuture`.
 ///
@@ -59,21 +61,18 @@ where
     F: FnMut(T) -> Fut,
     Fut: TryFuture<Ok = Option<(Item, T)>>,
 {
-    TryUnfold {
-        f,
-        state: Some(init),
-        fut: None,
-    }
+    assert_stream::<Result<Item, Fut::Error>, _>(TryUnfold { f, state: Some(init), fut: None })
 }
 
-/// Stream for the [`try_unfold`] function.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct TryUnfold<T, F, Fut> {
-    f: F,
-    state: Option<T>,
-    #[pin]
-    fut: Option<Fut>,
+pin_project! {
+    /// Stream for the [`try_unfold`] function.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct TryUnfold<T, F, Fut> {
+        f: F,
+        state: Option<T>,
+        #[pin]
+        fut: Option<Fut>,
+    }
 }
 
 impl<T, F, Fut> fmt::Debug for TryUnfold<T, F, Fut>
@@ -82,10 +81,7 @@ where
     Fut: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TryUnfold")
-            .field("state", &self.state)
-            .field("fut", &self.fut)
-            .finish()
+        f.debug_struct("TryUnfold").field("state", &self.state).field("fut", &self.fut).finish()
     }
 }
 
@@ -96,10 +92,7 @@ where
 {
     type Item = Result<Item, Fut::Error>;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.project();
 
         if let Some(state) = this.state.take() {

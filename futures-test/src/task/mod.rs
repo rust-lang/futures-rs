@@ -1,5 +1,5 @@
 // TODO: note that paths like futures_core::task::Context actually get redirected to core::task::Context
-// in the redered docs. Is this desirable? If so, should we change the paths here?
+// in the rendered docs. Is this desirable? If so, should we change the paths here?
 //
 // Also, there is cross crate links in here. They are not going to work anytime soon. Do we put https links
 // in here? to here: https://rust-lang.github.io/futures-api-docs? The problem is these have a
@@ -23,7 +23,7 @@
 //! Test wakers:
 //! - [`noop_waker`](crate::task::noop_waker) creates a waker that ignores calls to
 //!   [`wake`](futures_core::task::Waker).
-//! - [`panic_waker`](crate::task::panic_waker::panic_waker) creates a waker that panics when
+//! - [`panic_waker`](crate::task::panic_waker) creates a waker that panics when
 //!   [`wake`](futures_core::task::Waker) is called.
 //! - [`new_count_waker`](crate::task::new_count_waker) creates a waker that increments a counter whenever
 //!   [`wake`](futures_core::task::Waker) is called.
@@ -57,4 +57,4 @@ mod record_spawner;
 pub use self::record_spawner::RecordSpawner;
 
 mod wake_counter;
-pub use self::wake_counter::{AwokenCount, new_count_waker};
+pub use self::wake_counter::{new_count_waker, AwokenCount};

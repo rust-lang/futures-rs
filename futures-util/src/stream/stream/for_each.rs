@@ -1,19 +1,21 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Future for the [`for_each`](super::StreamExt::for_each) method.
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct ForEach<St, Fut, F> {
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    future: Option<Fut>,
+pin_project! {
+    /// Future for the [`for_each`](super::StreamExt::for_each) method.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct ForEach<St, Fut, F> {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        future: Option<Fut>,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for ForEach<St, Fut, F>
@@ -30,23 +32,21 @@ where
 }
 
 impl<St, Fut, F> ForEach<St, Fut, F>
-where St: Stream,
-      F: FnMut(St::Item) -> Fut,
-      Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
-    pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
-        ForEach {
-            stream,
-            f,
-            future: None,
-        }
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self { stream, f, future: None }
     }
 }
 
 impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: FusedStream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -54,9 +54,10 @@ impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
 }
 
 impl<St, Fut, F> Future for ForEach<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
     type Output = ();
 

@@ -1,29 +1,34 @@
 use crate::stream::Fuse;
-use futures_core::stream::{Stream, FusedStream};
+use alloc::vec::Vec;
+use core::mem;
+use core::pin::Pin;
+use futures_core::ready;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
-use core::mem;
-use core::pin::Pin;
-use alloc::vec::Vec;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`chunks`](super::StreamExt::chunks) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Chunks<St: Stream> {
-    #[pin]
-    stream: Fuse<St>,
-    items: Vec<St::Item>,
-    cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
+pin_project! {
+    /// Stream for the [`chunks`](super::StreamExt::chunks) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Chunks<St: Stream> {
+        #[pin]
+        stream: Fuse<St>,
+        items: Vec<St::Item>,
+        cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
+    }
 }
 
-impl<St: Stream> Chunks<St> where St: Stream {
-    pub(super) fn new(stream: St, capacity: usize) -> Chunks<St> {
+impl<St: Stream> Chunks<St>
+where
+    St: Stream,
+{
+    pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 
-        Chunks {
+        Self {
             stream: super::Fuse::new(stream),
             items: Vec::with_capacity(capacity),
             cap: capacity,
@@ -41,10 +46,7 @@ impl<St: Stream> Chunks<St> where St: Stream {
 impl<St: Stream> Stream for Chunks<St> {
     type Item = Vec<St::Item>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.as_mut().project();
         loop {
             match ready!(this.stream.as_mut().poll_next(cx)) {
@@ -54,7 +56,7 @@ impl<St: Stream> Stream for Chunks<St> {
                 Some(item) => {
                     this.items.push(item);
                     if this.items.len() >= *this.cap {
-                        return Poll::Ready(Some(self.take()))
+                        return Poll::Ready(Some(self.take()));
                     }
                 }
 

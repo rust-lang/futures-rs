@@ -1,9 +1,8 @@
-#[cfg(feature = "executor")]
+use futures::executor::block_on_stream;
+use futures::stream::{self, StreamExt};
+
 #[test]
 fn panic_in_the_middle_of_the_stream() {
-    use futures::executor::block_on_stream;
-    use futures::stream::{self, StreamExt};
-
     let stream = stream::iter(vec![Some(10), None, Some(11)]);
 
     // panic on second element
@@ -15,12 +14,8 @@ fn panic_in_the_middle_of_the_stream() {
     assert!(iter.next().is_none());
 }
 
-#[cfg(feature = "executor")]
 #[test]
 fn no_panic() {
-    use futures::executor::block_on_stream;
-    use futures::stream::{self, StreamExt};
-
     let stream = stream::iter(vec![10, 11, 12]);
 
     let mut iter = block_on_stream(stream.catch_unwind());

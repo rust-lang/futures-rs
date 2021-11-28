@@ -1,26 +1,25 @@
 use core::pin::Pin;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Enumerate<St> {
-    #[pin]
-    stream: St,
-    count: usize,
+pin_project! {
+    /// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Enumerate<St> {
+        #[pin]
+        stream: St,
+        count: usize,
+    }
 }
 
 impl<St: Stream> Enumerate<St> {
-    pub(super) fn new(stream: St) -> Enumerate<St> {
-        Enumerate {
-            stream,
-            count: 0,
-        }
+    pub(super) fn new(stream: St) -> Self {
+        Self { stream, count: 0 }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -35,10 +34,7 @@ impl<St: Stream + FusedStream> FusedStream for Enumerate<St> {
 impl<St: Stream> Stream for Enumerate<St> {
     type Item = (usize, St::Item);
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
 
         match ready!(this.stream.poll_next(cx)) {

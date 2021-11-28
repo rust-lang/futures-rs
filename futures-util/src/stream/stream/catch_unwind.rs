@@ -1,23 +1,24 @@
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::any::Any;
+use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 use std::pin::Pin;
-use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
-/// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct CatchUnwind<St> {
-    #[pin]
-    stream: St,
-    caught_unwind: bool,
+pin_project! {
+    /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct CatchUnwind<St> {
+        #[pin]
+        stream: St,
+        caught_unwind: bool,
+    }
 }
 
 impl<St: Stream + UnwindSafe> CatchUnwind<St> {
-    pub(super) fn new(stream: St) -> CatchUnwind<St> {
-        CatchUnwind { stream, caught_unwind: false }
+    pub(super) fn new(stream: St) -> Self {
+        Self { stream, caught_unwind: false }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -26,25 +27,20 @@ impl<St: Stream + UnwindSafe> CatchUnwind<St> {
 impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St> {
     type Item = Result<St::Item, Box<dyn Any + Send>>;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.project();
 
         if *this.caught_unwind {
             Poll::Ready(None)
         } else {
-            let res = catch_unwind(AssertUnwindSafe(|| {
-                this.stream.as_mut().poll_next(cx)
-            }));
+            let res = catch_unwind(AssertUnwindSafe(|| this.stream.as_mut().poll_next(cx)));
 
             match res {
                 Ok(poll) => poll.map(|opt| opt.map(Ok)),
                 Err(e) => {
                     *this.caught_unwind = true;
                     Poll::Ready(Some(Err(e)))
-                },
+                }
             }
         }
     }

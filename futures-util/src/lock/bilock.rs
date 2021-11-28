@@ -1,16 +1,16 @@
 //! Futures-powered synchronization primitives.
 
-#[cfg(feature = "bilock")]
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll, Waker};
+use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
+#[cfg(feature = "bilock")]
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll, Waker};
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -34,6 +34,7 @@ use alloc::sync::Arc;
 /// This type is only available when the `bilock` feature of this
 /// library is activated.
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLock<T> {
     arc: Arc<Inner<T>>,
 }
@@ -59,13 +60,10 @@ impl<T> BiLock<T> {
     /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
-    pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
-        let arc = Arc::new(Inner {
-            state: AtomicUsize::new(0),
-            value: Some(UnsafeCell::new(t)),
-        });
+    pub fn new(t: T) -> (Self, Self) {
+        let arc = Arc::new(Inner { state: AtomicUsize::new(0), value: Some(UnsafeCell::new(t)) });
 
-        (BiLock { arc: arc.clone() }, BiLock { arc })
+        (Self { arc: arc.clone() }, Self { arc })
     }
 
     /// Attempt to acquire this lock, returning `Pending` if it can't be
@@ -102,11 +100,11 @@ impl<T> BiLock<T> {
                     let mut prev = Box::from_raw(n as *mut Waker);
                     *prev = cx.waker().clone();
                     waker = Some(prev);
-                }
+                },
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = waker.take().unwrap_or_else(||Box::new(cx.waker().clone()));
+            let me: Box<Waker> = waker.take().unwrap_or_else(|| Box::new(cx.waker().clone()));
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -142,10 +140,9 @@ impl<T> BiLock<T> {
     ///
     /// Note that the returned future will never resolve to an error.
     #[cfg(feature = "bilock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
     pub fn lock(&self) -> BiLockAcquire<'_, T> {
-        BiLockAcquire {
-            bilock: self,
-        }
+        BiLockAcquire { bilock: self }
     }
 
     /// Attempts to put the two "halves" of a `BiLock<T>` back together and
@@ -179,7 +176,7 @@ impl<T> BiLock<T> {
             // up as its now their turn.
             n => unsafe {
                 Box::from_raw(n as *mut Waker).wake();
-            }
+            },
         }
     }
 }
@@ -198,13 +195,12 @@ impl<T> Drop for Inner<T> {
 
 /// Error indicating two `BiLock<T>`s were not two halves of a whole, and
 /// thus could not be `reunite`d.
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
 impl<T> fmt::Debug for ReuniteError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ReuniteError")
-            .field(&"...")
-            .finish()
+        f.debug_tuple("ReuniteError").field(&"...").finish()
     }
 }
 
@@ -223,6 +219,7 @@ impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 /// implementing `Deref` and `DerefMut` to `T`. When dropped, the lock will be
 /// unlocked.
 #[derive(Debug)]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLockGuard<'a, T> {
     bilock: &'a BiLock<T>,
 }
@@ -258,6 +255,7 @@ impl<T> Drop for BiLockGuard<'_, T> {
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
 #[cfg(feature = "bilock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct BiLockAcquire<'a, T> {

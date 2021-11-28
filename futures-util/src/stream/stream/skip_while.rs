@@ -1,23 +1,25 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`skip_while`](super::StreamExt::skip_while) method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct SkipWhile<St, Fut, F> where St: Stream {
-    #[pin]
-    stream: St,
-    f: F,
-    #[pin]
-    pending_fut: Option<Fut>,
-    pending_item: Option<St::Item>,
-    done_skipping: bool,
+pin_project! {
+    /// Stream for the [`skip_while`](super::StreamExt::skip_while) method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct SkipWhile<St, Fut, F> where St: Stream {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        pending_fut: Option<Fut>,
+        pending_item: Option<St::Item>,
+        done_skipping: bool,
+    }
 }
 
 impl<St, Fut, F> fmt::Debug for SkipWhile<St, Fut, F>
@@ -37,27 +39,23 @@ where
 }
 
 impl<St, Fut, F> SkipWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
-    pub(super) fn new(stream: St, f: F) -> SkipWhile<St, Fut, F> {
-        SkipWhile {
-            stream,
-            f,
-            pending_fut: None,
-            pending_item: None,
-            done_skipping: false,
-        }
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self { stream, f, pending_fut: None, pending_item: None, done_skipping: false }
     }
 
     delegate_access_inner!(stream, St, ());
 }
 
 impl<St, Fut, F> FusedStream for SkipWhile<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: FusedStream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
         self.pending_item.is_none() && self.stream.is_terminated()
@@ -65,16 +63,14 @@ impl<St, Fut, F> FusedStream for SkipWhile<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     type Item = St::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
         let mut this = self.project();
 
         if *this.done_skipping {
@@ -117,9 +113,10 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for SkipWhile<S, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(&S::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     type Error = S::Error;
 

@@ -1,3 +1,4 @@
+use super::assert_stream;
 use core::marker;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
@@ -14,7 +15,7 @@ pub struct Pending<T> {
 ///
 /// The returned stream will always return `Pending` when polled.
 pub fn pending<T>() -> Pending<T> {
-    Pending { _data: marker::PhantomData }
+    assert_stream::<T, _>(Pending { _data: marker::PhantomData })
 }
 
 impl<T> Unpin for Pending<T> {}
@@ -34,5 +35,11 @@ impl<T> Stream for Pending<T> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, Some(0))
+    }
+}
+
+impl<T> Clone for Pending<T> {
+    fn clone(&self) -> Self {
+        pending()
     }
 }

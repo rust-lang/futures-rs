@@ -30,9 +30,7 @@ fn main() {
         // responsible for transmission
         pool.spawn_ok(fut_tx_result);
 
-        let fut_values = rx
-            .map(|v| v * 2)
-            .collect();
+        let fut_values = rx.map(|v| v * 2).collect();
 
         // Use the executor provided to this async block to wait for the
         // future to complete.
@@ -40,7 +38,7 @@ fn main() {
     };
 
     // Actually execute the above future, which will invoke Future::poll and
-    // subsequenty chain appropriate Future::poll and methods needing executors
+    // subsequently chain appropriate Future::poll and methods needing executors
     // to drive all futures. Eventually fut_values will be driven to completion.
     let values: Vec<i32> = executor::block_on(fut_values);
 

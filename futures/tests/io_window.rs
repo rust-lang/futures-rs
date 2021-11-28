@@ -1,4 +1,3 @@
-#![cfg(feature = "std")]
 #![allow(clippy::reversed_empty_ranges)] // This is intentional.
 
 use futures::io::Window;

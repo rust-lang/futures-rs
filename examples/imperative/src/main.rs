@@ -34,13 +34,13 @@ fn main() {
         // of the stream to be available.
         while let Some(v) = rx.next().await {
             pending.push(v * 2);
-        };
+        }
 
         pending
     };
 
     // Actually execute the above future, which will invoke Future::poll and
-    // subsequenty chain appropriate Future::poll and methods needing executors
+    // subsequently chain appropriate Future::poll and methods needing executors
     // to drive all futures. Eventually fut_values will be driven to completion.
     let values: Vec<i32> = executor::block_on(fut_values);
 

@@ -1,26 +1,24 @@
+use crate::unfold_state::UnfoldState;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-struct StateFn<S, F> {
-    state: S,
-    f: F,
-}
-
-/// Stream for the [`scan`](super::StreamExt::scan) method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct Scan<St: Stream, S, Fut, F> {
-    #[pin]
-    stream: St,
-    state_f: Option<StateFn<S, F>>,
-    #[pin]
-    future: Option<Fut>,
+pin_project! {
+    /// Stream for the [`scan`](super::StreamExt::scan) method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Scan<St: Stream, S, Fut, F> {
+        #[pin]
+        stream: St,
+        f: F,
+        #[pin]
+        state: UnfoldState<S, Fut>,
+    }
 }
 
 impl<St, S, Fut, F> fmt::Debug for Scan<St, S, Fut, F>
@@ -33,8 +31,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Scan")
             .field("stream", &self.stream)
-            .field("state", &self.state_f.as_ref().map(|s| &s.state))
-            .field("future", &self.future)
+            .field("state", &self.state)
             .field("done_taking", &self.is_done_taking())
             .finish()
     }
@@ -43,25 +40,18 @@ where
 impl<St: Stream, S, Fut, F> Scan<St, S, Fut, F> {
     /// Checks if internal state is `None`.
     fn is_done_taking(&self) -> bool {
-        self.state_f.is_none()
+        self.state.is_empty()
     }
 }
 
 impl<B, St, S, Fut, F> Scan<St, S, Fut, F>
 where
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    F: FnMut(S, St::Item) -> Fut,
+    Fut: Future<Output = Option<(S, B)>>,
 {
-    pub(super) fn new(stream: St, initial_state: S, f: F) -> Scan<St, S, Fut, F> {
-        Scan {
-            stream,
-            state_f: Some(StateFn {
-                state: initial_state,
-                f,
-            }),
-            future: None,
-        }
+    pub(super) fn new(stream: St, initial_state: S, f: F) -> Self {
+        Self { stream, f, state: UnfoldState::Value { value: initial_state } }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -70,8 +60,8 @@ where
 impl<B, St, S, Fut, F> Stream for Scan<St, S, Fut, F>
 where
     St: Stream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    F: FnMut(S, St::Item) -> Fut,
+    Fut: Future<Output = Option<(S, B)>>,
 {
     type Item = B;
 
@@ -83,18 +73,20 @@ where
         let mut this = self.project();
 
         Poll::Ready(loop {
-            if let Some(fut) = this.future.as_mut().as_pin_mut() {
-                let item = ready!(fut.poll(cx));
-                this.future.set(None);
-
-                if item.is_none() {
-                    *this.state_f = None;
+            if let Some(fut) = this.state.as_mut().project_future() {
+                match ready!(fut.poll(cx)) {
+                    None => {
+                        this.state.set(UnfoldState::Empty);
+                        break None;
+                    }
+                    Some((state, item)) => {
+                        this.state.set(UnfoldState::Value { value: state });
+                        break Some(item);
+                    }
                 }
-
-                break item;
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
-                let state_f = this.state_f.as_mut().unwrap();
-                this.future.set(Some((state_f.f)(&mut state_f.state, item)))
+                let state = this.state.as_mut().take_value().unwrap();
+                this.state.set(UnfoldState::Future { future: (this.f)(state, item) })
             } else {
                 break None;
             }
@@ -113,21 +105,21 @@ where
 impl<B, St, S, Fut, F> FusedStream for Scan<St, S, Fut, F>
 where
     St: FusedStream,
-    F: FnMut(&mut S, St::Item) -> Fut,
-    Fut: Future<Output = Option<B>>,
+    F: FnMut(S, St::Item) -> Fut,
+    Fut: Future<Output = Option<(S, B)>>,
 {
     fn is_terminated(&self) -> bool {
-        self.is_done_taking() || self.future.is_none() && self.stream.is_terminated()
+        self.is_done_taking() || !self.state.is_future() && self.stream.is_terminated()
     }
 }
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, Fut, F, Item> Sink<Item> for Scan<S, S, Fut, F>
+impl<St, S, Fut, F, Item> Sink<Item> for Scan<St, S, Fut, F>
 where
-    S: Stream + Sink<Item>,
+    St: Stream + Sink<Item>,
 {
-    type Error = S::Error;
+    type Error = St::Error;
 
     delegate_sink!(stream, Item);
 }

@@ -1,40 +1,37 @@
-#[cfg(feature = "alloc")] // stream::SelectAll
+use futures::channel::mpsc;
+use futures::executor::{block_on, block_on_stream};
+use futures::future::{self, FutureExt};
+use futures::stream::{self, select_all, FusedStream, SelectAll, StreamExt};
+use futures::task::Poll;
+use futures_test::task::noop_context;
+
 #[test]
 fn is_terminated() {
-    use futures::future::{self, FutureExt};
-    use futures::stream::{FusedStream, SelectAll, StreamExt};
-    use futures::task::Poll;
-    use futures_test::task::noop_context;
-
     let mut cx = noop_context();
     let mut tasks = SelectAll::new();
 
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
-    assert_eq!(tasks.is_terminated(), true);
+    assert!(tasks.is_terminated());
 
     // Test that the sentinel value doesn't leak
-    assert_eq!(tasks.is_empty(), true);
+    assert!(tasks.is_empty());
     assert_eq!(tasks.len(), 0);
 
     tasks.push(future::ready(1).into_stream());
 
-    assert_eq!(tasks.is_empty(), false);
+    assert!(!tasks.is_empty());
     assert_eq!(tasks.len(), 1);
 
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(Some(1)));
-    assert_eq!(tasks.is_terminated(), false);
+    assert!(!tasks.is_terminated());
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
-    assert_eq!(tasks.is_terminated(), true);
+    assert!(tasks.is_terminated());
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn issue_1626() {
-    use futures::executor::block_on_stream;
-    use futures::stream;
-
     let a = stream::iter(0..=2);
     let b = stream::iter(10..=14);
 
@@ -51,14 +48,8 @@ fn issue_1626() {
     assert_eq!(s.next(), None);
 }
 
-#[cfg(all(feature = "alloc", feature = "std"))] // channel::mpsc
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn works_1() {
-    use futures::channel::mpsc;
-    use futures::executor::block_on_stream;
-    use futures::stream::select_all;
-
     let (a_tx, a_rx) = mpsc::unbounded::<u32>();
     let (b_tx, b_rx) = mpsc::unbounded::<u32>();
     let (c_tx, c_rx) = mpsc::unbounded::<u32>();
@@ -84,4 +75,123 @@ fn works_1() {
 
     drop((a_tx, b_tx, c_tx));
     assert_eq!(None, stream.next());
+}
+
+#[test]
+fn clear() {
+    let mut tasks =
+        select_all(vec![stream::iter(vec![1].into_iter()), stream::iter(vec![2].into_iter())]);
+
+    assert_eq!(block_on(tasks.next()), Some(1));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    tasks.push(stream::iter(vec![3].into_iter()));
+    assert!(!tasks.is_empty());
+
+    tasks.clear();
+    assert!(tasks.is_empty());
+
+    assert_eq!(block_on(tasks.next()), None);
+    assert!(tasks.is_terminated());
+    tasks.clear();
+    assert!(!tasks.is_terminated());
+}
+
+#[test]
+fn iter_mut() {
+    let mut stream =
+        vec![stream::pending::<()>(), stream::pending::<()>(), stream::pending::<()>()]
+            .into_iter()
+            .collect::<SelectAll<_>>();
+
+    let mut iter = stream.iter_mut();
+    assert_eq!(iter.len(), 3);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+
+    let mut stream = vec![stream::iter(vec![]), stream::iter(vec![1]), stream::iter(vec![2])]
+        .into_iter()
+        .collect::<SelectAll<_>>();
+
+    assert_eq!(stream.len(), 3);
+    assert_eq!(block_on(stream.next()), Some(1));
+    assert_eq!(stream.len(), 2);
+    let mut iter = stream.iter_mut();
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+
+    assert_eq!(block_on(stream.next()), Some(2));
+    assert_eq!(stream.len(), 2);
+    assert_eq!(block_on(stream.next()), None);
+    let mut iter = stream.iter_mut();
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn iter() {
+    let stream = vec![stream::pending::<()>(), stream::pending::<()>(), stream::pending::<()>()]
+        .into_iter()
+        .collect::<SelectAll<_>>();
+
+    let mut iter = stream.iter();
+    assert_eq!(iter.len(), 3);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+
+    let mut stream = vec![stream::iter(vec![]), stream::iter(vec![1]), stream::iter(vec![2])]
+        .into_iter()
+        .collect::<SelectAll<_>>();
+
+    assert_eq!(stream.len(), 3);
+    assert_eq!(block_on(stream.next()), Some(1));
+    assert_eq!(stream.len(), 2);
+    let mut iter = stream.iter();
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+
+    assert_eq!(block_on(stream.next()), Some(2));
+    assert_eq!(stream.len(), 2);
+    assert_eq!(block_on(stream.next()), None);
+    let mut iter = stream.iter();
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn into_iter() {
+    let stream = vec![stream::pending::<()>(), stream::pending::<()>(), stream::pending::<()>()]
+        .into_iter()
+        .collect::<SelectAll<_>>();
+
+    let mut iter = stream.into_iter();
+    assert_eq!(iter.len(), 3);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 2);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert!(iter.next().is_none());
 }

@@ -28,7 +28,6 @@ fn sink() {
     assert_is_object_safe::<&dyn Sink<(), Error = ()>>();
 }
 
-#[cfg(feature = "std")] // futures::io
 #[test]
 fn io() {
     // `AsyncReadExt`, `AsyncWriteExt`, `AsyncSeekExt` and `AsyncBufReadExt` are not object safe.

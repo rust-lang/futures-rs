@@ -1,9 +1,14 @@
-#[cfg(feature = "executor")] // executor::
+use futures::channel::mpsc;
+use futures::executor::block_on;
+use futures::future::{self, Future};
+use futures::sink::SinkExt;
+use futures::stream::{self, StreamExt};
+use futures::task::Poll;
+use futures::FutureExt;
+use futures_test::task::noop_context;
+
 #[test]
 fn select() {
-    use futures::executor::block_on;
-    use futures::stream::{self, StreamExt};
-
     fn select_and_compare(a: Vec<u32>, b: Vec<u32>, expected: Vec<u32>) {
         let a = stream::iter(a);
         let b = stream::iter(b);
@@ -16,47 +21,51 @@ fn select() {
     select_and_compare(vec![1, 2], vec![4, 5, 6], vec![1, 4, 2, 5, 6]);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn flat_map() {
-    use futures::stream::{self, StreamExt};
+    block_on(async {
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
-    futures::executor::block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
-
-        let values: Vec<_> = st
-            .flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .collect()
-            .await;
+        let values: Vec<_> =
+            st.flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0))).collect().await;
 
         assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 0, 2]);
     });
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn scan() {
-    use futures::stream::{self, StreamExt};
+    block_on(async {
+        let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
+            .scan(1, |mut state, e| async move {
+                state += 1;
+                if e < state {
+                    Some((state, e))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .await;
 
-    futures::executor::block_on(async {
-        assert_eq!(
-            stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
-                .scan(1, |state, e| {
-                    *state += 1;
-                    futures::future::ready(if e < *state { Some(e) } else { None })
-                })
-                .collect::<Vec<_>>()
-                .await,
-            vec![1u8, 2, 3, 4]
-        );
+        assert_eq!(values, vec![1u8, 2, 3, 4]);
+    });
+
+    block_on(async {
+        let mut state = vec![];
+        let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
+            .scan(&mut state, |state, e| async move {
+                state.push(e);
+                Some((state, e))
+            })
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_eq!(values, state);
     });
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn flatten_unordered() {
     use futures::executor::block_on;
@@ -135,11 +144,8 @@ fn flatten_unordered() {
 
     // basic behaviour
     block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
         let mut fl_unordered = st
             .map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
@@ -153,11 +159,8 @@ fn flatten_unordered() {
     });
 
     block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
         let mut fm_unordered = st
             .flat_map_unordered(1, |s| s.filter(|v| futures::future::ready(v % 2 == 0)))
@@ -171,16 +174,12 @@ fn flatten_unordered() {
 
     // wake up immmediately
     block_on(async {
-        let mut fl_unordered = Interchanger {
-            polled: false,
-            base: 0,
-            wake_immediately: true,
-        }
-        .take(10)
-        .map(|s| s.map(identity))
-        .flatten_unordered(10)
-        .collect::<Vec<_>>()
-        .await;
+        let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
+            .take(10)
+            .map(|s| s.map(identity))
+            .flatten_unordered(10)
+            .collect::<Vec<_>>()
+            .await;
 
         fl_unordered.sort();
 
@@ -188,15 +187,11 @@ fn flatten_unordered() {
     });
 
     block_on(async {
-        let mut fm_unordered = Interchanger {
-            polled: false,
-            base: 0,
-            wake_immediately: true,
-        }
-        .take(10)
-        .flat_map_unordered(10, |s| s.map(identity))
-        .collect::<Vec<_>>()
-        .await;
+        let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
+            .take(10)
+            .flat_map_unordered(10, |s| s.map(identity))
+            .collect::<Vec<_>>()
+            .await;
 
         fm_unordered.sort();
 
@@ -205,16 +200,12 @@ fn flatten_unordered() {
 
     // wake up after delay
     block_on(async {
-        let mut fl_unordered = Interchanger {
-            polled: false,
-            base: 0,
-            wake_immediately: false,
-        }
-        .take(10)
-        .map(|s| s.map(identity))
-        .flatten()
-        .collect::<Vec<_>>()
-        .await;
+        let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
+            .take(10)
+            .map(|s| s.map(identity))
+            .flatten()
+            .collect::<Vec<_>>()
+            .await;
 
         fl_unordered.sort();
 
@@ -222,15 +213,11 @@ fn flatten_unordered() {
     });
 
     block_on(async {
-        let mut fm_unordered = Interchanger {
-            polled: false,
-            base: 0,
-            wake_immediately: false,
-        }
-        .take(10)
-        .flat_map_unordered(10, |s| s.map(identity))
-        .collect::<Vec<_>>()
-        .await;
+        let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
+            .take(10)
+            .flat_map_unordered(10, |s| s.map(identity))
+            .collect::<Vec<_>>()
+            .await;
 
         fm_unordered.sort();
 
@@ -239,23 +226,15 @@ fn flatten_unordered() {
 
     block_on(async {
         let (mut fm_unordered, mut fl_unordered) = futures_util::join!(
-            Interchanger {
-                polled: false,
-                base: 0,
-                wake_immediately: false,
-            }
-            .take(10)
-            .flat_map_unordered(10, |s| s.map(identity))
-            .collect::<Vec<_>>(),
-            Interchanger {
-                polled: false,
-                base: 0,
-                wake_immediately: false,
-            }
-            .take(10)
-            .map(|s| s.map(identity))
-            .flatten()
-            .collect::<Vec<_>>()
+            Interchanger { polled: false, base: 0, wake_immediately: false }
+                .take(10)
+                .flat_map_unordered(10, |s| s.map(identity))
+                .collect::<Vec<_>>(),
+            Interchanger { polled: false, base: 0, wake_immediately: false }
+                .take(10)
+                .map(|s| s.map(identity))
+                .flatten()
+                .collect::<Vec<_>>()
         );
 
         fm_unordered.sort();
@@ -269,10 +248,6 @@ fn flatten_unordered() {
 #[cfg(feature = "executor")] // executor::
 #[test]
 fn take_until() {
-    use futures::future::{self, Future};
-    use futures::stream::{self, StreamExt};
-    use futures::task::Poll;
-
     fn make_stop_fut(stop_on: u32) -> impl Future<Output = ()> {
         let mut i = 0;
         future::poll_fn(move |_cx| {
@@ -285,7 +260,7 @@ fn take_until() {
         })
     }
 
-    futures::executor::block_on(async {
+    block_on(async {
         // Verify stopping works:
         let stream = stream::iter(1u32..=10);
         let stop_fut = make_stop_fut(5);
@@ -337,24 +312,22 @@ fn take_until() {
 
 #[test]
 #[should_panic]
-fn ready_chunks_panic_on_cap_zero() {
-    use futures::channel::mpsc;
-    use futures::stream::StreamExt;
+fn chunks_panic_on_cap_zero() {
+    let (_, rx1) = mpsc::channel::<()>(1);
 
+    let _ = rx1.chunks(0);
+}
+
+#[test]
+#[should_panic]
+fn ready_chunks_panic_on_cap_zero() {
     let (_, rx1) = mpsc::channel::<()>(1);
 
     let _ = rx1.ready_chunks(0);
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn ready_chunks() {
-    use futures::channel::mpsc;
-    use futures::sink::SinkExt;
-    use futures::stream::StreamExt;
-    use futures::FutureExt;
-    use futures_test::task::noop_context;
-
     let (mut tx, rx1) = mpsc::channel::<i32>(16);
 
     let mut s = rx1.ready_chunks(2);
@@ -362,7 +335,7 @@ fn ready_chunks() {
     let mut cx = noop_context();
     assert!(s.next().poll_unpin(&mut cx).is_pending());
 
-    futures::executor::block_on(async {
+    block_on(async {
         tx.send(1).await.unwrap();
 
         assert_eq!(s.next().await.unwrap(), vec![1]);

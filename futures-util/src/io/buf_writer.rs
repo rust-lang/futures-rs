@@ -1,38 +1,41 @@
+use super::DEFAULT_BUF_SIZE;
+use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
-use super::DEFAULT_BUF_SIZE;
+use std::ptr;
 
-/// Wraps a writer and buffers its output.
-///
-/// It can be excessively inefficient to work directly with something that
-/// implements [`AsyncWrite`]. A `BufWriter` keeps an in-memory buffer of data and
-/// writes it to an underlying writer in large, infrequent batches.
-///
-/// `BufWriter` can improve the speed of programs that make *small* and
-/// *repeated* write calls to the same file or network socket. It does not
-/// help when writing very large amounts at once, or writing just one or a few
-/// times. It also provides no advantage when writing to a destination that is
-/// in memory, like a `Vec<u8>`.
-///
-/// When the `BufWriter` is dropped, the contents of its buffer will be
-/// discarded. Creating multiple instances of a `BufWriter` on the same
-/// stream can cause data loss. If you need to write out the contents of its
-/// buffer, you must manually call flush before the writer is dropped.
-///
-/// [`AsyncWrite`]: futures_io::AsyncWrite
-/// [`flush`]: super::AsyncWriteExt::flush
-///
-// TODO: Examples
-#[pin_project]
-pub struct BufWriter<W> {
-    #[pin]
-    inner: W,
-    buf: Vec<u8>,
-    written: usize,
+pin_project! {
+    /// Wraps a writer and buffers its output.
+    ///
+    /// It can be excessively inefficient to work directly with something that
+    /// implements [`AsyncWrite`]. A `BufWriter` keeps an in-memory buffer of data and
+    /// writes it to an underlying writer in large, infrequent batches.
+    ///
+    /// `BufWriter` can improve the speed of programs that make *small* and
+    /// *repeated* write calls to the same file or network socket. It does not
+    /// help when writing very large amounts at once, or writing just one or a few
+    /// times. It also provides no advantage when writing to a destination that is
+    /// in memory, like a `Vec<u8>`.
+    ///
+    /// When the `BufWriter` is dropped, the contents of its buffer will be
+    /// discarded. Creating multiple instances of a `BufWriter` on the same
+    /// stream can cause data loss. If you need to write out the contents of its
+    /// buffer, you must manually call flush before the writer is dropped.
+    ///
+    /// [`AsyncWrite`]: futures_io::AsyncWrite
+    /// [`flush`]: super::AsyncWriteExt::flush
+    ///
+    // TODO: Examples
+    pub struct BufWriter<W> {
+        #[pin]
+        inner: W,
+        buf: Vec<u8>,
+        written: usize,
+    }
 }
 
 impl<W: AsyncWrite> BufWriter<W> {
@@ -44,14 +47,10 @@ impl<W: AsyncWrite> BufWriter<W> {
 
     /// Creates a new `BufWriter` with the specified buffer capacity.
     pub fn with_capacity(cap: usize, inner: W) -> Self {
-        Self {
-            inner,
-            buf: Vec::with_capacity(cap),
-            written: 0,
-        }
+        Self { inner, buf: Vec::with_capacity(cap), written: 0 }
     }
 
-    fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    pub(super) fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
 
         let len = this.buf.len();
@@ -84,6 +83,68 @@ impl<W: AsyncWrite> BufWriter<W> {
     /// Returns a reference to the internally buffered data.
     pub fn buffer(&self) -> &[u8] {
         &self.buf
+    }
+
+    /// Capacity of `buf`. how many chars can be held in buffer
+    pub(super) fn capacity(&self) -> usize {
+        self.buf.capacity()
+    }
+
+    /// Remaining number of bytes to reach `buf` 's capacity
+    #[inline]
+    pub(super) fn spare_capacity(&self) -> usize {
+        self.buf.capacity() - self.buf.len()
+    }
+
+    /// Write a byte slice directly into buffer
+    ///
+    /// Will truncate the number of bytes written to `spare_capacity()` so you want to
+    /// calculate the size of your slice to avoid losing bytes
+    ///
+    /// Based on `std::io::BufWriter`
+    pub(super) fn write_to_buf(self: Pin<&mut Self>, buf: &[u8]) -> usize {
+        let available = self.spare_capacity();
+        let amt_to_buffer = available.min(buf.len());
+
+        // SAFETY: `amt_to_buffer` is <= buffer's spare capacity by construction.
+        unsafe {
+            self.write_to_buffer_unchecked(&buf[..amt_to_buffer]);
+        }
+
+        amt_to_buffer
+    }
+
+    /// Write byte slice directly into `self.buf`
+    ///
+    /// Based on `std::io::BufWriter`
+    #[inline]
+    unsafe fn write_to_buffer_unchecked(self: Pin<&mut Self>, buf: &[u8]) {
+        debug_assert!(buf.len() <= self.spare_capacity());
+        let this = self.project();
+        let old_len = this.buf.len();
+        let buf_len = buf.len();
+        let src = buf.as_ptr();
+        let dst = this.buf.as_mut_ptr().add(old_len);
+        ptr::copy_nonoverlapping(src, dst, buf_len);
+        this.buf.set_len(old_len + buf_len);
+    }
+
+    /// Write directly using `inner`, bypassing buffering
+    pub(super) fn inner_poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.project().inner.poll_write(cx, buf)
+    }
+
+    /// Write directly using `inner`, bypassing buffering
+    pub(super) fn inner_poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.project().inner.poll_write_vectored(cx, bufs)
     }
 }
 

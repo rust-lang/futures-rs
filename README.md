@@ -7,16 +7,12 @@
 </p>
 
 <p align="center">
-  <a href="https://travis-ci.com/rust-lang/futures-rs">
-    <img alt="Build Status" src="https://travis-ci.com/rust-lang/futures-rs.svg?branch=master">
+  <a href="https://github.com/rust-lang/futures-rs/actions?query=branch%3Amaster">
+    <img alt="Build Status" src="https://img.shields.io/github/workflow/status/rust-lang/futures-rs/CI/master">
   </a>
 
   <a href="https://crates.io/crates/futures">
     <img alt="Crates.io" src="https://img.shields.io/crates/v/futures.svg">
-  </a>
-
-  <a href="https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html">
-    <img alt="Rustc Version" src="https://img.shields.io/badge/rustc-1.39+-lightgray.svg">
   </a>
 </p>
 
@@ -42,13 +38,7 @@ Add this to your `Cargo.toml`:
 futures = "0.3"
 ```
 
-Now, you can use futures-rs:
-
-```rust
-use futures::future::Future;
-```
-
-The current futures-rs requires Rust 1.39 or later.
+The current `futures` requires Rust 1.45 or later.
 
 ### Feature `std`
 
@@ -58,22 +48,14 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures = { version = "0.3.5", default-features = false }
+futures = { version = "0.3", default-features = false }
 ```
 
-# License
+## License
 
-This project is licensed under either of
-
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-   http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or
-   http://opensource.org/licenses/MIT)
-
-at your option.
-
-### Contribution
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT) at your option.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in futures-rs by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.

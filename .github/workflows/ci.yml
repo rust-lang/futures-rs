@@ -1,0 +1,278 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - '[0-9]+.[0-9]+'
+  schedule:
+    - cron: '0 1 * * *'
+
+env:
+  RUSTFLAGS: -D warnings
+  RUST_BACKTRACE: 1
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: cargo test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update nightly --no-self-update && rustup default nightly
+      - run: cargo test --workspace --all-features
+      - run: cargo test --workspace --all-features --release
+
+  cross:
+    name: cross test --target ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - i686-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cross
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features
+      - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
+        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
+
+  core-msrv:
+    name: cargo +${{ matrix.rust }} build (futures-{core, io, sink, task})
+    strategy:
+      matrix:
+        rust:
+          # This is the minimum Rust version supported by futures-core, futures-io, futures-sink, futures-task.
+          # When updating this, the reminder to update the minimum required version in README.md, Cargo.toml, and .clippy.toml.
+          - 1.36
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+      # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+      - run: cargo +stable install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      # Check no-default-features
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
+      # Check alloc feature
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features --features alloc --ignore-unknown-features \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
+      # Check std feature
+      - run: |
+          cargo hack build --workspace --ignore-private --no-default-features --features std \
+            --exclude futures --exclude futures-util --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
+
+  util-msrv:
+    name: cargo +${{ matrix.rust }} build
+    strategy:
+      matrix:
+        rust:
+          # This is the minimum Rust version supported by futures, futures-util, futures-macro, futures-executor, futures-channel, futures-test.
+          # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
+          - 1.45
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: cargo +stable install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      # Check default features
+      - run: cargo hack build --workspace --ignore-private
+      # Check no-default-features
+      - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features
+      # Check alloc feature
+      - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
+      # Check std feature
+      - run: cargo hack build --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
+      # Check compat feature (futures, futures-util)
+      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,io-compat
+      # Check thread-pool feature (futures, futures-executor)
+      - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
+
+  build:
+    name: cargo +${{ matrix.rust }} build
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: cargo install cargo-hack
+      - run: cargo hack build --workspace --no-dev-deps
+      - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
+
+  minimal-versions:
+    name: cargo build -Z minimal-versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      - run: cargo update -Z minimal-versions
+      - run: cargo build --workspace --all-features
+
+  no-std:
+    name: cargo build --target ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # thumbv7m-none-eabi supports atomic CAS.
+        # thumbv6m-none-eabi supports atomic, but not atomic CAS.
+        target:
+          - thumbv7m-none-eabi
+          - thumbv6m-none-eabi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo install cargo-hack
+      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      - run: cargo hack --remove-dev-deps --workspace
+      - run: |
+          cargo hack build --manifest-path futures/tests/no-std/Cargo.toml \
+            --each-feature --optional-deps \
+            --target ${{ matrix.target }}
+      - run: |
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
+            --no-default-features \
+            --target ${{ matrix.target }}
+      - run: |
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
+            --no-default-features --features alloc --ignore-unknown-features \
+            --target ${{ matrix.target }}
+      - run: |
+          cargo hack build --workspace --ignore-private \
+            --exclude futures-test --exclude futures-macro \
+            --no-default-features --features async-await,alloc --ignore-unknown-features \
+            --target ${{ matrix.target }}
+
+  bench:
+    name: cargo bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo bench --workspace
+      - run: cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
+
+  features:
+    name: cargo hack check --feature-powerset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo install cargo-hack
+      # Check each specified feature works properly
+      # * `--feature-powerset` - run for the feature powerset of the package
+      # * `--depth 2` - limit the max number of simultaneous feature flags of `--feature-powerset`
+      # * `--no-dev-deps` - build without dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
+      # * `--exclude futures-test` - futures-test cannot be compiled with no-default features
+      # * `--features unstable` - some features cannot be compiled without this feature
+      # * `--ignore-unknown-features` - some crates doesn't have 'unstable' feature
+      - run: |
+          cargo hack check \
+            --feature-powerset --depth 2 --no-dev-deps \
+            --workspace --exclude futures-test \
+            --features unstable --ignore-unknown-features
+
+  # When this job failed, run ci/no_atomic_cas.sh and commit result changes.
+  # TODO(taiki-e): Ideally, this should be automated using a bot that creates
+  #                PR when failed, but there is no bandwidth to implement it
+  #                right now...
+  codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: ci/no_atomic_cas.sh
+      - run: git diff --exit-code
+
+  san:
+    name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer:
+          - address
+          - memory
+          - thread
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: rustup component add rust-src
+      - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests
+        env:
+          # TODO: Once `cfg(sanitize = "..")` is stable, replace
+          # `cfg(futures_sanitizer)` with `cfg(sanitize = "..")` and remove
+          # `--cfg futures_sanitizer`.
+          RUSTFLAGS: -D warnings -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup toolchain install nightly --component clippy && rustup default nightly
+      - run: cargo clippy --workspace --all-features --all-targets
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable
+      - run: cargo fmt --all -- --check
+
+  docs:
+    name: cargo doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update nightly && rustup default nightly
+      - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features

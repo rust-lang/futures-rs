@@ -1,4 +1,5 @@
-use crate::never::Never;
+use super::assert_sink;
+use core::convert::Infallible;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
@@ -23,42 +24,30 @@ pub struct Drain<T> {
 ///
 /// let mut drain = sink::drain();
 /// drain.send(5).await?;
-/// # Ok::<(), futures::never::Never>(()) }).unwrap();
+/// # Ok::<(), std::convert::Infallible>(()) }).unwrap();
 /// ```
 pub fn drain<T>() -> Drain<T> {
-    Drain { marker: PhantomData }
+    assert_sink::<T, Infallible, _>(Drain { marker: PhantomData })
 }
 
 impl<T> Unpin for Drain<T> {}
 
 impl<T> Sink<T> for Drain<T> {
-    type Error = Never;
+    type Error = Infallible;
 
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(
-        self: Pin<&mut Self>,
-        _item: T,
-    ) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, _item: T) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 }

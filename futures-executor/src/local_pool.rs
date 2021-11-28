@@ -10,7 +10,10 @@ use futures_util::stream::StreamExt;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread::{self, Thread};
 
 /// A single-threaded task pool for polling futures to completion.
@@ -118,18 +121,13 @@ fn poll_executor<T, F: FnMut(&mut Context<'_>) -> T>(mut f: F) -> T {
 
 impl LocalPool {
     /// Create a new, empty pool of tasks.
-    pub fn new() -> LocalPool {
-        LocalPool {
-            pool: FuturesUnordered::new(),
-            incoming: Default::default(),
-        }
+    pub fn new() -> Self {
+        Self { pool: FuturesUnordered::new(), incoming: Default::default() }
     }
 
     /// Get a clonable handle to the pool as a [`Spawn`].
     pub fn spawner(&self) -> LocalSpawner {
-        LocalSpawner {
-            incoming: Rc::downgrade(&self.incoming),
-        }
+        LocalSpawner { incoming: Rc::downgrade(&self.incoming) }
     }
 
     /// Run all tasks in the pool to completion.

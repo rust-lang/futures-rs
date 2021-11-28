@@ -1,41 +1,38 @@
 use core::cmp;
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::ready;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// Stream for the [`take`](super::StreamExt::take) method.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Take<St> {
-    #[pin]
-    stream: St,
-    remaining: usize,
+pin_project! {
+    /// Stream for the [`take`](super::StreamExt::take) method.
+    #[derive(Debug)]
+    #[must_use = "streams do nothing unless polled"]
+    pub struct Take<St> {
+        #[pin]
+        stream: St,
+        remaining: usize,
+    }
 }
 
 impl<St: Stream> Take<St> {
-    pub(super) fn new(stream: St, n: usize) -> Take<St> {
-        Take {
-            stream,
-            remaining: n,
-        }
+    pub(super) fn new(stream: St, n: usize) -> Self {
+        Self { stream, remaining: n }
     }
 
     delegate_access_inner!(stream, St, ());
 }
 
 impl<St> Stream for Take<St>
-    where St: Stream,
+where
+    St: Stream,
 {
     type Item = St::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
         if self.remaining == 0 {
             Poll::Ready(None)
         } else {
@@ -61,7 +58,7 @@ impl<St> Stream for Take<St>
 
         let upper = match upper {
             Some(x) if x < self.remaining as usize => Some(x),
-            _ => Some(self.remaining as usize)
+            _ => Some(self.remaining as usize),
         };
 
         (lower, upper)
@@ -69,7 +66,8 @@ impl<St> Stream for Take<St>
 }
 
 impl<St> FusedStream for Take<St>
-    where St: FusedStream,
+where
+    St: FusedStream,
 {
     fn is_terminated(&self) -> bool {
         self.remaining == 0 || self.stream.is_terminated()
@@ -79,7 +77,8 @@ impl<St> FusedStream for Take<St>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Take<S>
-    where S: Stream + Sink<Item>,
+where
+    S: Stream + Sink<Item>,
 {
     type Error = S::Error;
 

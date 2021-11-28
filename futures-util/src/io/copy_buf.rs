@@ -1,9 +1,10 @@
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncWrite};
+use pin_project_lite::pin_project;
 use std::io;
 use std::pin::Pin;
-use pin_project::pin_project;
 
 /// Creates a future which copies all the bytes from one object to another.
 ///
@@ -35,27 +36,25 @@ where
     R: AsyncBufRead,
     W: AsyncWrite + Unpin + ?Sized,
 {
-    CopyBuf {
-        reader,
-        writer,
-        amt: 0,
+    CopyBuf { reader, writer, amt: 0 }
+}
+
+pin_project! {
+    /// Future for the [`copy_buf()`] function.
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct CopyBuf<'a, R, W: ?Sized> {
+        #[pin]
+        reader: R,
+        writer: &'a mut W,
+        amt: u64,
     }
 }
 
-/// Future for the [`copy_buf()`] function.
-#[pin_project]
-#[derive(Debug)]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyBuf<'a, R, W: ?Sized> {
-    #[pin]
-    reader: R,
-    writer: &'a mut W,
-    amt: u64,
-}
-
 impl<R, W> Future for CopyBuf<'_, R, W>
-    where R: AsyncBufRead,
-          W: AsyncWrite + Unpin + ?Sized,
+where
+    R: AsyncBufRead,
+    W: AsyncWrite + Unpin + ?Sized,
 {
     type Output = io::Result<u64>;
 
@@ -70,7 +69,7 @@ impl<R, W> Future for CopyBuf<'_, R, W>
 
             let i = ready!(Pin::new(&mut this.writer).poll_write(cx, buffer))?;
             if i == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
             *this.amt += i as u64;
             this.reader.as_mut().consume(i);

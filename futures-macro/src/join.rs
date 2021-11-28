@@ -13,7 +13,7 @@ struct Join {
 
 impl Parse for Join {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let mut join = Join::default();
+        let mut join = Self::default();
 
         while !input.is_empty() {
             join.fut_exprs.push(input.parse::<Expr>()?);
@@ -27,10 +27,7 @@ impl Parse for Join {
     }
 }
 
-fn bind_futures(
-    fut_exprs: Vec<Expr>,
-    span: Span,
-) -> (Vec<TokenStream2>, Vec<Ident>) {
+fn bind_futures(fut_exprs: Vec<Expr>, span: Span) -> (Vec<TokenStream2>, Vec<Ident>) {
     let mut future_let_bindings = Vec::with_capacity(fut_exprs.len());
     let future_names: Vec<_> = fut_exprs
         .into_iter()
@@ -61,12 +58,12 @@ pub(crate) fn join(input: TokenStream) -> TokenStream {
     let poll_futures = future_names.iter().map(|fut| {
         quote! {
             __all_done &= __futures_crate::future::Future::poll(
-                unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }, __cx).is_ready();
+                unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }, __cx).is_ready();
         }
     });
     let take_outputs = future_names.iter().map(|fut| {
         quote! {
-            unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.take_output().unwrap(),
+            unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }.take_output().unwrap(),
         }
     });
 
@@ -99,17 +96,17 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
     let poll_futures = future_names.iter().map(|fut| {
         quote! {
             if __futures_crate::future::Future::poll(
-                unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }, __cx).is_pending()
+                unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }, __cx).is_pending()
             {
                 __all_done = false;
-            } else if unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.output_mut().unwrap().is_err() {
+            } else if unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }.output_mut().unwrap().is_err() {
                 // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
                 // a `T: Debug` bound.
                 // Also, for an error type of ! any code after `err().unwrap()` is unreachable.
                 #[allow(unreachable_code)]
                 return __futures_crate::task::Poll::Ready(
-                    __futures_crate::core_reexport::result::Result::Err(
-                        unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().err().unwrap()
+                    __futures_crate::Err(
+                        unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().err().unwrap()
                     )
                 );
             }
@@ -121,7 +118,7 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
             // an `E: Debug` bound.
             // Also, for an ok type of ! any code after `ok().unwrap()` is unreachable.
             #[allow(unreachable_code)]
-            unsafe { __futures_crate::core_reexport::pin::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().ok().unwrap(),
+            unsafe { __futures_crate::Pin::new_unchecked(&mut #fut) }.take_output().unwrap().ok().unwrap(),
         }
     });
 
@@ -134,7 +131,7 @@ pub(crate) fn try_join(input: TokenStream) -> TokenStream {
             #( #poll_futures )*
             if __all_done {
                 __futures_crate::task::Poll::Ready(
-                    __futures_crate::core_reexport::result::Result::Ok((
+                    __futures_crate::Ok((
                         #( #take_outputs )*
                     ))
                 )

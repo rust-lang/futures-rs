@@ -8,11 +8,14 @@ use core::sync::atomic::{AtomicU8, Ordering};
 use futures_core::future::Future;
 use futures_core::stream::FusedStream;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll, Waker};
+use futures_core::{
+    ready,
+    task::{Context, Poll, Waker},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use futures_task::{waker, ArcWake};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 /// Indicates that there is nothing to poll and stream isn't being polled at
 /// the moment.
@@ -49,9 +52,7 @@ struct SharedPollState {
 impl SharedPollState {
     /// Constructs new `SharedPollState` with given state.
     fn new(state: u8) -> SharedPollState {
-        SharedPollState {
-            state: Arc::new(AtomicU8::new(state)),
-        }
+        SharedPollState { state: Arc::new(AtomicU8::new(state)) }
     }
 
     /// Attempts to start polling, returning stored state in case of success.
@@ -116,8 +117,7 @@ impl InnerWaker {
 
     // Flags state that walking is started for the walker with the given value.
     fn start_waking(&self) -> u8 {
-        self.poll_state
-            .start_waking(self.need_to_poll, self.need_to_poll << 3)
+        self.poll_state.start_waking(self.need_to_poll, self.need_to_poll << 3)
     }
 
     // Flags state that walking is finished for the walker with the given value.
@@ -148,24 +148,23 @@ impl ArcWake for InnerWaker {
     }
 }
 
-/// Future which contains optional stream. If it's `Some`, it will attempt
-/// to call `poll_next` on it, returning `Some((item, next_item_fut))` in
-/// case of `Poll::Ready(Some(...))` or `None` in case of `Poll::Ready(None)`.
-/// If `poll_next` will return `Poll::Pending`, it will be forwared to
-/// the future, and current task will be notified by waker.
-#[pin_project]
-#[must_use = "futures do nothing unless you `.await` or poll them"]
-struct PollStreamFut<St> {
-    #[pin]
-    stream: Option<St>,
+pin_project! {
+    /// Future which contains optional stream. If it's `Some`, it will attempt
+    /// to call `poll_next` on it, returning `Some((item, next_item_fut))` in
+    /// case of `Poll::Ready(Some(...))` or `None` in case of `Poll::Ready(None)`.
+    /// If `poll_next` will return `Poll::Pending`, it will be forwared to
+    /// the future, and current task will be notified by waker.
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    struct PollStreamFut<St> {
+        #[pin]
+        stream: Option<St>,
+    }
 }
 
 impl<St> PollStreamFut<St> {
     /// Constructs new `PollStreamFut` using given `stream`.
     fn new(stream: impl Into<Option<St>>) -> Self {
-        Self {
-            stream: stream.into(),
-        }
+        Self { stream: stream.into() }
     }
 }
 
@@ -181,29 +180,29 @@ impl<St: Stream> Future for PollStreamFut<St> {
             None
         };
 
-        Poll::Ready(item.map(|item| {
-            (
-                item,
-                PollStreamFut::new(unsafe { stream.get_unchecked_mut().take() }),
-            )
-        }))
+        Poll::Ready(
+            item.map(|item| {
+                (item, PollStreamFut::new(unsafe { stream.get_unchecked_mut().take() }))
+            }),
+        )
     }
 }
 
-/// Stream for the [`flatten_unordered`](super::StreamExt::flatten_unordered)
-/// method.
-#[pin_project]
-#[must_use = "streams do nothing unless polled"]
-pub struct FlattenUnordered<St, U> {
-    #[pin]
-    inner_streams: FuturesUnordered<PollStreamFut<U>>,
-    #[pin]
-    stream: St,
-    poll_state: SharedPollState,
-    limit: Option<NonZeroUsize>,
-    is_stream_done: bool,
-    inner_streams_waker: Arc<InnerWaker>,
-    stream_waker: Arc<InnerWaker>,
+pin_project! {
+    /// Stream for the [`flatten_unordered`](super::StreamExt::flatten_unordered)
+    /// method.
+    #[must_use = "streams do nothing unless polled"]
+    pub struct FlattenUnordered<St, U> {
+        #[pin]
+        inner_streams: FuturesUnordered<PollStreamFut<U>>,
+        #[pin]
+        stream: St,
+        poll_state: SharedPollState,
+        limit: Option<NonZeroUsize>,
+        is_stream_done: bool,
+        inner_streams_waker: Arc<InnerWaker>,
+        stream_waker: Arc<InnerWaker>,
+    }
 }
 
 impl<St> fmt::Debug for FlattenUnordered<St, St::Item>
@@ -251,9 +250,7 @@ where
 
     /// Checks if current `inner_streams` size is less than optional limit.
     fn is_exceeded_limit(&self) -> bool {
-        self.limit
-            .map(|limit| self.inner_streams.len() >= limit.get())
-            .unwrap_or(false)
+        self.limit.map(|limit| self.inner_streams.len() >= limit.get()).unwrap_or(false)
     }
 
     delegate_access_inner!(stream, St, ());
@@ -305,9 +302,7 @@ where
                     this.stream.as_mut().poll_next(cx)
                 } {
                     Poll::Ready(Some(inner_stream)) => {
-                        this.inner_streams
-                            .as_mut()
-                            .push(PollStreamFut::new(inner_stream));
+                        this.inner_streams.as_mut().push(PollStreamFut::new(inner_stream));
                         need_to_poll_next |= NEED_TO_POLL_STREAM;
                         // Polling inner streams in current iteration with the same context
                         // is ok because we already received `Poll::Ready` from

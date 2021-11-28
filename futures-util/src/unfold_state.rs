@@ -1,0 +1,53 @@
+use core::pin::Pin;
+
+use pin_project_lite::pin_project;
+
+pin_project! {
+    /// UnfoldState used for stream and sink unfolds
+    #[project = UnfoldStateProj]
+    #[project_replace = UnfoldStateProjReplace]
+    #[derive(Debug)]
+    pub(crate) enum UnfoldState<T, Fut> {
+        Value {
+            value: T,
+        },
+        Future {
+            #[pin]
+            future: Fut,
+        },
+        Empty,
+    }
+}
+
+impl<T, Fut> UnfoldState<T, Fut> {
+    pub(crate) fn is_empty(&self) -> bool {
+        match self {
+            Self::Empty => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_future(&self) -> bool {
+        match self {
+            Self::Future { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut Fut>> {
+        match self.project() {
+            UnfoldStateProj::Future { future } => Some(future),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn take_value(self: Pin<&mut Self>) -> Option<T> {
+        match &*self {
+            UnfoldState::Value { .. } => match self.project_replace(UnfoldState::Empty) {
+                UnfoldStateProjReplace::Value { value } => Some(value),
+                _ => unreachable!(),
+            },
+            _ => None,
+        }
+    }
+}
