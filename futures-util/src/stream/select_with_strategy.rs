@@ -81,7 +81,7 @@ pin_project! {
 /// let mut out = select_with_strategy(left, right, prio_left);
 ///
 /// for _ in 0..100 {
-///     // Whenever we poll out, we will alwas get `1`.
+///     // Whenever we poll out, we will always get `1`.
 ///     assert_eq!(1, out.select_next_some().await);
 /// }
 /// # });
