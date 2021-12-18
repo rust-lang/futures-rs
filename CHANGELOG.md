@@ -1,4 +1,13 @@
+# 0.3.19 - 2021-12-18
+
+* Remove unstable `read-initializer` feature (#2534)
+* Fix panic in `FuturesUnordered` (#2535)
+* Fix compatibility issue with `FuturesUnordered` and tokio's cooperative scheduling (#2527)
+* Add `StreamExt::count` (#2495)
+
 # 0.3.18 - 2021-11-23
+
+NOTE: This release has been yanked. See #2529 for details.
 
 * Fix unusable `Sink` implementation on `stream::Scan` (#2499)
 * Make `task::noop_waker_ref` available without `std` feature (#2505)
@@ -62,9 +71,13 @@
 
 # 0.3.10 - 2021-01-13
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Fixed type-inference in `sink::unfold` by specifying more of its types (breaking change -- see #2311)
 
 # 0.3.9 - 2021-01-08
+
+NOTE: This release has been yanked. See #2310 for details.
 
 * Significantly improved compile time when `async-await` crate feature is disabled (#2273)
 * Added `stream::repeat_with` (#2279)
@@ -77,6 +90,8 @@
 
 # 0.3.8 - 2020-11-04
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Switched proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
 * Added `WeakShared` (#2169)
 * Added `TryStreamExt::try_buffered` (#2245)
@@ -86,11 +101,15 @@
 
 # 0.3.7 - 2020-10-23
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Fixed unsoundness in `MappedMutexGuard` (#2240)
 * Re-exported `TakeUntil` (#2235)
 * futures-test: Prevent double panic in `panic_waker` (#2236)
 
 # 0.3.6 - 2020-10-06
+
+NOTE: This release has been yanked. See #2310 for details.
 
 * Fixed UB due to missing 'static on `task::waker` (#2206)
 * Added `AsyncBufReadExt::fill_buf` (#2225)
@@ -105,6 +124,8 @@
 * futures-test: Implemented more traits for `AssertUnmoved` (#2208)
 
 # 0.3.5 - 2020-05-08
+
+NOTE: This release has been yanked. See #2310 for details.
 
 * Added `StreamExt::flat_map`.
 * Added `StreamExt::ready_chunks`.
@@ -124,13 +145,19 @@
 
 # 0.3.4 - 2020-02-06
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Fixed missing `Drop` for `UnboundedReceiver` (#2064)
 
 # 0.3.3 - 2020-02-04
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Fixed compatibility issue with pinned facade (#2062)
 
 # 0.3.2 - 2020-02-03
+
+NOTE: This release has been yanked. See #2310 for details.
 
 * Improved buffering performance of `SplitSink` (#1969)
 * Added `select_biased!` macro (#1976)
@@ -151,9 +178,13 @@
 
 # 0.3.1 - 2019-11-07
 
+NOTE: This release has been yanked. See #2310 for details.
+
 * Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
 
 # 0.3.0 - 2019-11-05
+
+NOTE: This release has been yanked. See #2310 for details.
 
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
