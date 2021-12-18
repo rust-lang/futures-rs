@@ -33,7 +33,7 @@ write-all-vectored = ["io"]
 futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-features = false }
 futures-task = { path = "../futures-task", version = "=0.4.0-alpha.0", default-features = false }
 futures-channel = { path = "../futures-channel", version = "=0.4.0-alpha.0", default-features = false, features = ["std"], optional = true }
-futures-io = { path = "../futures-io", version = "0.3.18", default-features = false, features = ["std"], optional = true }
+futures-io = { path = "../futures-io", version = "0.3.19", default-features = false, features = ["std"], optional = true }
 futures-sink = { path = "../futures-sink", version = "=0.4.0-alpha.0", default-features = false, optional = true }
 futures-macro = { path = "../futures-macro", version = "=0.4.0-alpha.0", default-features = false, optional = true }
 slab = { version = "0.4.2", optional = true }
