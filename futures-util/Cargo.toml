@@ -27,7 +27,6 @@ channel = ["std", "futures-channel"]
 # `unstable` feature as an explicit opt-in to unstable API.
 unstable = ["futures-core/unstable", "futures-task/unstable"]
 bilock = []
-read-initializer = ["io", "futures-io/read-initializer", "futures-io/unstable"]
 write-all-vectored = ["io"]
 
 # These features are no longer used.

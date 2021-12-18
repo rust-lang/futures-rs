@@ -47,7 +47,6 @@ thread-pool = ["executor", "futures-executor/thread-pool"]
 # `unstable` feature as an explicit opt-in to unstable API.
 unstable = ["futures-core/unstable", "futures-task/unstable", "futures-channel/unstable", "futures-io/unstable", "futures-util/unstable"]
 bilock = ["futures-util/bilock"]
-read-initializer = ["futures-io/read-initializer", "futures-util/read-initializer"]
 write-all-vectored = ["futures-util/write-all-vectored"]
 
 # These features are no longer used.
