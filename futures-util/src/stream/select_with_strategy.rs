@@ -16,6 +16,7 @@ pub enum PollNext {
 
 impl PollNext {
     /// Toggle the value and return the old one.
+    #[must_use]
     pub fn toggle(&mut self) -> Self {
         let old = *self;
 
