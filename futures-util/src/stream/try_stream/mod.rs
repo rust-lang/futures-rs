@@ -368,7 +368,8 @@ pub trait TryStreamExt: TryStream {
     /// # }
     /// fn take_stream(stream: impl Stream<Item = Result<T, E>>) { /* ... */ }
     ///
-    /// take_stream(make_try_stream().into_stream());
+    /// take_stream(make_
+    ().into_stream());
     /// ```
     fn into_stream(self) -> IntoStream<Self>
     where
@@ -663,6 +664,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// let mut stream = rx3.try_flatten();
     /// assert_eq!(stream.next().await, Some(Ok(1)));
+    /// assert_eq!(stream.next().await, Some(Ok(2)));
     /// assert_eq!(stream.next().await, Some(Err(3)));
     /// assert_eq!(stream.next().await, Some(Ok(4)));
     /// assert_eq!(stream.next().await, Some(Err(5)));
