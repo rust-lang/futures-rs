@@ -368,8 +368,7 @@ pub trait TryStreamExt: TryStream {
     /// # }
     /// fn take_stream(stream: impl Stream<Item = Result<T, E>>) { /* ... */ }
     ///
-    /// take_stream(make_
-    ().into_stream());
+    /// take_stream(make_try_stream().into_stream());
     /// ```
     fn into_stream(self) -> IntoStream<Self>
     where
