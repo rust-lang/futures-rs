@@ -237,6 +237,10 @@ mod catch_unwind;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::catch_unwind::CatchUnwind;
 
+mod wait_until;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::wait_until::WaitUntil;
+
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 
 /// An extension trait for `Stream`s that provides a variety of convenient
@@ -1721,5 +1725,52 @@ pub trait StreamExt: Stream {
         Self: Unpin + FusedStream,
     {
         assert_future::<Self::Item, _>(SelectNextSome::new(self))
+    }
+
+    /// Take elements after the provided future resolves to `true`, otherwise fuse the stream.
+    ///
+    /// The stream waits for the future `fut` to resolve. Once the future becomes ready
+    /// The stream starts taking elements if it resolves to `true`. If the future returns `false`,
+    /// this stream combinator will always return that the stream is done.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicBool;
+    /// use std::sync::atomic::Ordering::*;
+    ///
+    /// let is_ready = Arc::new(AtomicBool::new(false));
+    /// let stream = stream::iter(1..=5).inspect(|_| {
+    ///     assert!(is_ready.load(SeqCst));
+    /// });
+    ///
+    /// let mut i = 0;
+    /// let wait_fut = future::poll_fn(|cx| {
+    ///     i += 1;
+    ///     if i <= 5 {
+    ///         cx.waker().wake_by_ref();
+    ///         Poll::Pending
+    ///     } else {
+    ///         is_ready.store(true, SeqCst);
+    ///         Poll::Ready(true)
+    ///     }
+    /// });
+    ///
+    /// let stream = stream.wait_until(wait_fut);
+    ///
+    /// assert_eq!(vec![1, 2, 3, 4, 5], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn wait_until<Fut>(self, fut: Fut) -> WaitUntil<Self, Fut>
+    where
+        Self: Sized,
+        Fut: Future<Output = bool>,
+    {
+        assert_stream::<Self::Item, _>(WaitUntil::new(self, fut))
     }
 }
