@@ -167,6 +167,10 @@ mod try_fold;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_fold::TryFold;
 
+mod try_all;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_all::TryAll;
+
 mod zip;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::zip::Zip;
@@ -1083,6 +1087,30 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<Result<T, Fut::Error>, _>(TryFold::new(self, f, init))
+    }
+
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..4);
+    /// let less_then_three = number_stream.try_all(|x| async move { println!("ITEM: {:?}", x); Ok::<bool, i32>(x < 3) });
+    /// assert_eq!(less_then_three.await, Ok(false));
+    ///
+    /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(42)]);
+    /// let less_then_five_error = number_stream_with_err.try_all(|x| async move { Ok(x? < 5) });
+    /// assert_eq!(less_then_five_error.await, Err(2));
+    /// # })
+    /// ```
+    fn try_all<Fut, F>(self, f: F) -> TryAll<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: TryFuture<Ok = bool>,
+        Self: Sized,
+    {
+        assert_future::<Result<bool, Fut::Error>, _>(TryAll::new(self, f))
     }
 
     /// Attempts to run this stream to completion, executing the provided
