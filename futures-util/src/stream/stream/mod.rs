@@ -1094,7 +1094,6 @@ pub trait StreamExt: Stream {
     }
 
     /// Execute predicate over asynchronous stream, and return `true` if all element in stream satisfied a predicate.
-    /// 
     /// Once the entire stream has been exhausted the returned future will
     /// resolve to this value.
     ///
@@ -1126,7 +1125,6 @@ pub trait StreamExt: Stream {
     }
 
     /// Execute predicate over asynchronous stream, and return `true` if any element in stream satisfied a predicate.
-    /// 
     /// Once the entire stream has been exhausted the returned future will
     /// resolve to this value.
     ///
