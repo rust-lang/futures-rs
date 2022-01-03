@@ -46,7 +46,7 @@ where
 
 impl<St, Fut, F> FusedFuture for TryAll<St, Fut, F>
 where
-    St: Stream ,
+    St: Stream,
     F: FnMut(St::Item) -> Fut,
     Fut: TryFuture<Ok = bool>,
 {
@@ -68,32 +68,23 @@ where
 
         Poll::Ready(loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
-                println!("Some(fut), acc: {:?}", *this.accum);
-                // we're currently processing a future to produce a new accum value
-                let res = ready!(fut.try_poll(cx));
-                this.future.set(None);
-                match res {
+                match ready!(fut.try_poll(cx)) {
                     Ok(a) => {
-                        let acc= this.accum.unwrap() && a;
-                        println!("LAMBDA VALUE: {:?}, acc: {:?}", a, acc);
-                        if !acc{
-                            break Ok(false)
+                        let acc = this.accum.unwrap() && a;
+                        if !acc {
+                            break Ok(false);
                         }
+                        this.future.set(None);
                     }
                     Err(e) => break Err(e),
                 }
             } else if this.accum.is_some() {
-                println!("this.accum.is_some(), acc: {:?}", *this.accum);
-                // we're waiting on a new item from the stream
                 match ready!(this.stream.as_mut().poll_next(cx)) {
-                    Some(item) => {
-                        let v = (this.f)(item);
-                        this.future.set(Some(v))
-                    },
+                    Some(item) => this.future.set(Some((this.f)(item))),
                     None => break Ok(this.accum.take().unwrap()),
                 }
             } else {
-                panic!("Fold polled after completion")
+                panic!("All polled after completion")
             }
         })
     }

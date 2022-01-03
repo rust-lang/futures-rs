@@ -1089,6 +1089,14 @@ pub trait StreamExt: Stream {
         assert_future::<Result<T, Fut::Error>, _>(TryFold::new(self, f, init))
     }
 
+    /// Execute predicate over asynchronous stream, and return `true` if all element in stream satisfied a predicate.
+    /// 
+    /// Once the entire stream has been exhausted the returned future will
+    /// resolve to this value.
+    ///
+    /// This method is similar to [`all`](crate::stream::StreamExt::all), but
+    /// will exit early if an error is encountered in the provided closure.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1096,7 +1104,7 @@ pub trait StreamExt: Stream {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let number_stream = stream::iter(0..4);
-    /// let less_then_three = number_stream.try_all(|x| async move { println!("ITEM: {:?}", x); Ok::<bool, i32>(x < 3) });
+    /// let less_then_three = number_stream.try_all(|x| async move { Ok::<bool, i32>(x < 3) });
     /// assert_eq!(less_then_three.await, Ok(false));
     ///
     /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(42)]);
