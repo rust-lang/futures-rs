@@ -20,7 +20,7 @@ pub use futures_task::noop_waker_ref;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-pub use futures_task::ArcWake;
+pub use futures_core::task::Wake;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]

@@ -2,7 +2,7 @@ use crate::enter;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use futures_task::{waker_ref, ArcWake};
+use futures_task::{waker_ref, Wake};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::pin_mut;
 use futures_util::stream::FuturesUnordered;
@@ -60,17 +60,21 @@ thread_local! {
     });
 }
 
-impl ArcWake for ThreadNotify {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
+impl Wake for ThreadNotify {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
         // Make sure the wakeup is remembered until the next `park()`.
-        let unparked = arc_self.unparked.swap(true, Ordering::Relaxed);
+        let unparked = self.unparked.swap(true, Ordering::Relaxed);
         if !unparked {
             // If the thread has not been unparked yet, it must be done
             // now. If it was actually parked, it will run again,
             // otherwise the token made available by `unpark`
             // may be consumed before reaching `park()`, but `unparked`
             // ensures it is not forgotten.
-            arc_self.thread.unpark();
+            self.thread.unpark();
         }
     }
 }

@@ -21,10 +21,7 @@ pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-mod arc_wake;
-#[cfg(not(futures_no_atomic_cas))]
-#[cfg(feature = "alloc")]
-pub use crate::arc_wake::ArcWake;
+pub use alloc::task::Wake;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]

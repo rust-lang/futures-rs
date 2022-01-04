@@ -4,7 +4,8 @@ use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
 use futures::ready;
 use futures::sink::{self, Sink, SinkErrInto, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
-use futures::task::{self, ArcWake, Context, Poll, Waker};
+use futures::task::{self, Context, Poll, Waker};
+use futures_core::task::Wake;
 use futures_test::task::panic_context;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -53,9 +54,13 @@ impl Flag {
     }
 }
 
-impl ArcWake for Flag {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.set(true)
+impl Wake for Flag {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref()
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.set(true)
     }
 }
 

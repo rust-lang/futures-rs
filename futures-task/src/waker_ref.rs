@@ -1,5 +1,5 @@
-use super::arc_wake::ArcWake;
 use super::waker::waker_vtable;
+use super::Wake;
 use alloc::sync::Arc;
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
@@ -44,14 +44,14 @@ impl Deref for WakerRef<'_> {
     }
 }
 
-/// Creates a reference to a [`Waker`] from a reference to `Arc<impl ArcWake>`.
+/// Creates a reference to a [`Waker`] from a reference to `Arc<impl Wake>`.
 ///
 /// The resulting [`Waker`] will call
-/// [`ArcWake.wake()`](ArcWake::wake) if awoken.
+/// [`Wake.wake()`](Wake::wake) if awoken.
 #[inline]
 pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
-    W: ArcWake,
+    W: Wake,
 {
     // simply copy the pointer instead of using Arc::into_raw,
     // as we don't actually keep a refcount by using ManuallyDrop.<

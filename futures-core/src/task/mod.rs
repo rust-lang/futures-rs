@@ -8,3 +8,7 @@ pub mod __internal;
 
 #[doc(no_inline)]
 pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+
+#[doc(no_inline)]
+#[cfg(feature = "alloc")]
+pub use alloc::task::Wake;

@@ -1,4 +1,4 @@
-use crate::task::{self as task03, ArcWake as ArcWake03, WakerRef};
+use crate::task::{self as task03, Wake as ArcWake03, WakerRef};
 use futures_01::{
     task as task01, Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01,
 };
@@ -184,8 +184,12 @@ impl Current {
 }
 
 impl ArcWake03 for Current {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.0.notify();
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.notify();
     }
 }
 

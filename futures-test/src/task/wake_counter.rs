@@ -1,5 +1,5 @@
-use futures_core::task::Waker;
-use futures_util::task::{self, ArcWake};
+use futures_core::task::{Wake, Waker};
+use futures_util::task;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -29,9 +29,13 @@ struct WakerInner {
     count: AtomicUsize,
 }
 
-impl ArcWake for WakerInner {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        let _ = arc_self.count.fetch_add(1, Ordering::SeqCst);
+impl Wake for WakerInner {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref()
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        let _ = self.count.fetch_add(1, Ordering::SeqCst);
     }
 }
 

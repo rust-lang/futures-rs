@@ -7,7 +7,7 @@ mod bench {
     use futures_util::lock::BiLock;
     use futures_util::lock::BiLockAcquire;
     use futures_util::lock::BiLockAcquired;
-    use futures_util::task::ArcWake;
+    use futures_core::Wake;
 
     use std::sync::Arc;
     use test::Bencher;
@@ -15,11 +15,25 @@ mod bench {
     fn notify_noop() -> Waker {
         struct Noop;
 
-        impl ArcWake for Noop {
+        impl Wake for Noop {
             fn wake(_: &Arc<Self>) {}
         }
 
-        ArcWake::into_waker(Arc::new(Noop))
+        Arc::new(Noop).into()
+    }
+}
+
+
+/// Pseudo-stream which simply calls `lock.poll()` on `poll`
+struct LockStream {
+    lock: BiLockAcquire<u32>,
+}
+
+impl LockStream {
+    fn new(lock: BiLock<u32>) -> Self {
+        Self {
+            lock: lock.lock()
+        }
     }
 
     /// Pseudo-stream which simply calls `lock.poll()` on `poll`
