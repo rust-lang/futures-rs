@@ -1,4 +1,5 @@
 use crate::stream::{Fuse, StreamExt};
+use alloc::vec::Vec;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
