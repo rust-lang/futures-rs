@@ -20,7 +20,7 @@ mod stream;
 pub use self::stream::{
     Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, Fold, ForEach,
     Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan, SelectNextSome,
-    Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then, TryFold,
+    Skip, SkipWhile, StreamExt, StreamFuture, SwitchMap, Take, TakeUntil, TakeWhile, Then, TryFold,
     TryForEach, Unzip, Zip,
 };
 
