@@ -72,7 +72,7 @@ fn scan() {
 #[test]
 fn flatten_unordered() {
     use futures::executor::block_on;
-    use futures::stream::{self, *};
+    use futures::stream::*;
     use futures::task::*;
     use std::convert::identity;
     use std::pin::Pin;
@@ -92,7 +92,8 @@ fn flatten_unordered() {
             if !self.polled {
                 if !self.wake_immediately {
                     let waker = ctx.waker().clone();
-                    let sleep_time = Duration::from_millis(*self.data.last().unwrap_or(&0) as u64);
+                    let sleep_time =
+                        Duration::from_millis(*self.data.first().unwrap_or(&0) as u64 / 10);
                     thread::spawn(move || {
                         thread::sleep(sleep_time);
                         waker.wake_by_ref();
@@ -133,7 +134,7 @@ fn flatten_unordered() {
                 }
                 Poll::Pending
             } else {
-                let data: Vec<_> = (0..6).map(|v| v + self.base * 6).collect();
+                let data: Vec<_> = (0..6).rev().map(|v| v + self.base * 6).collect();
                 self.base += 1;
                 self.polled = false;
                 Poll::Ready(Some(DataStream {
@@ -148,17 +149,11 @@ fn flatten_unordered() {
     // basic behaviour
     block_on(async {
         let st =
-            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(10..=12)]);
 
-        let mut fl_unordered = st
-            .map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .flatten_unordered(1)
-            .collect::<Vec<_>>()
-            .await;
+        let fl_unordered = st.flatten_unordered(3).collect::<Vec<_>>().await;
 
-        fl_unordered.sort();
-
-        assert_eq!(fl_unordered, vec![0, 0, 2, 2, 4, 6, 8, 10]);
+        assert_eq!(fl_unordered, vec![0, 6, 10, 1, 7, 11, 2, 8, 12, 3, 9, 4, 10]);
     });
 
     block_on(async {
@@ -206,7 +201,7 @@ fn flatten_unordered() {
         let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
             .take(10)
             .map(|s| s.map(identity))
-            .flatten()
+            .flatten_unordered(10)
             .collect::<Vec<_>>()
             .await;
 
@@ -236,7 +231,7 @@ fn flatten_unordered() {
             Interchanger { polled: false, base: 0, wake_immediately: false }
                 .take(10)
                 .map(|s| s.map(identity))
-                .flatten()
+                .flatten_unordered(10)
                 .collect::<Vec<_>>()
         );
 
@@ -289,9 +284,40 @@ fn flatten_unordered() {
             assert_eq!(values, (0..60).collect::<Vec<u8>>());
         });
     }
+
+    // stream panics
+    let st = once(async { once(async { panic!("Polled") }).boxed() }.boxed()).chain(
+        Interchanger { polled: false, base: 0, wake_immediately: true }
+            .then(|val| async move { val.boxed() }.boxed())
+            .take(10),
+    );
+
+    let stream = Arc::new(Mutex::new(st.boxed().flat_map_unordered(10, |s| s.map(identity))));
+
+    std::thread::spawn({
+        let stream = stream.clone();
+        move || {
+            let mut st = poll_fn(|cx| {
+                let mut lock = ready!(stream.lock().poll_unpin(cx));
+                let data = ready!(lock.poll_next_unpin(cx));
+
+                Poll::Ready(data)
+            });
+
+            block_on(st.next())
+        }
+    })
+    .join()
+    .unwrap_err();
+
+    block_on(async move {
+        let mut values: Vec<_> = stream.lock().await.by_ref().collect().await;
+        values.sort();
+
+        assert_eq!(values, (0..60).collect::<Vec<u8>>());
+    });
 }
 
-#[cfg(feature = "executor")] // executor::
 #[test]
 fn take_until() {
     fn make_stop_fut(stop_on: u32) -> impl Future<Output = ()> {

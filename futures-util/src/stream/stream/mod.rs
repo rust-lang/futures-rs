@@ -210,7 +210,7 @@ delegate_all!(
     FlattenUnordered<St>(
         flatten_unordered::FlattenUnordered<St, St::Item>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, limit: Option<usize>| flatten_unordered::FlattenUnordered::new(x, limit)]
-    where St: Stream, St::Item: Stream
+    where St: Stream, St::Item: Stream, St::Item: Unpin
 );
 
 #[cfg(not(futures_no_atomic_cas))]
@@ -220,7 +220,7 @@ delegate_all!(
     FlatMapUnordered<St, U, F>(
         FlattenUnordered<Map<St, F>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, limit: Option<usize>, f: F| FlattenUnordered::new(Map::new(x, f), limit)]
-    where St: Stream, U: Stream, F: FnMut(St::Item) -> U
+    where St: Stream, U: Stream, U: Unpin, F: FnMut(St::Item) -> U
 );
 
 #[cfg(not(futures_no_atomic_cas))]
@@ -790,11 +790,11 @@ pub trait StreamExt: Stream {
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # });
     /// ```
-    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
     fn flatten_unordered(self, limit: impl Into<Option<usize>>) -> FlattenUnordered<Self>
     where
-        Self::Item: Stream,
+        Self::Item: Stream + Unpin,
         Self: Sized,
     {
         FlattenUnordered::new(self, limit.into())
@@ -871,7 +871,8 @@ pub trait StreamExt: Stream {
     ///
     /// assert_eq!(vec![1usize, 2, 2, 3, 3, 3, 4, 4, 4, 4], values);
     /// # });
-    #[cfg_attr(feature = "cfg-target-has-atomic", cfg(target_has_atomic = "ptr"))]
+    /// ```
+    #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
     fn flat_map_unordered<U, F>(
         self,
@@ -879,7 +880,7 @@ pub trait StreamExt: Stream {
         f: F,
     ) -> FlatMapUnordered<Self, U, F>
     where
-        U: Stream,
+        U: Stream + Unpin,
         F: FnMut(Self::Item) -> U,
         Self: Sized,
     {
