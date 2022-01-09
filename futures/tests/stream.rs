@@ -165,7 +165,7 @@ fn flatten_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        fm_unordered.sort();
+        fm_unordered.sort_unstable();
 
         assert_eq!(fm_unordered, vec![0, 0, 2, 2, 4, 6, 8, 10]);
     });
@@ -179,7 +179,7 @@ fn flatten_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        fl_unordered.sort();
+        fl_unordered.sort_unstable();
 
         assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
     });
@@ -191,7 +191,7 @@ fn flatten_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        fm_unordered.sort();
+        fm_unordered.sort_unstable();
 
         assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
     });
@@ -205,7 +205,7 @@ fn flatten_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        fl_unordered.sort();
+        fl_unordered.sort_unstable();
 
         assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
     });
@@ -217,7 +217,7 @@ fn flatten_unordered() {
             .collect::<Vec<_>>()
             .await;
 
-        fm_unordered.sort();
+        fm_unordered.sort_unstable();
 
         assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
     });
@@ -235,8 +235,8 @@ fn flatten_unordered() {
                 .collect::<Vec<_>>()
         );
 
-        fm_unordered.sort();
-        fl_unordered.sort();
+        fm_unordered.sort_unstable();
+        fl_unordered.sort_unstable();
 
         assert_eq!(fm_unordered, fl_unordered);
         assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
@@ -245,7 +245,7 @@ fn flatten_unordered() {
     // waker panics
     {
         let stream = Arc::new(Mutex::new(
-            Interchanger { polled: false, base: 0, wake_immediately: false }
+            Interchanger { polled: false, base: 0, wake_immediately: true }
                 .take(10)
                 .flat_map_unordered(10, |s| s.map(identity)),
         ));
@@ -266,7 +266,41 @@ fn flatten_unordered() {
 
                     let panic_waker = waker(Arc::new(PanicWaker));
                     let mut panic_cx = Context::from_waker(&panic_waker);
-                    let data = ready!(lock.poll_next_unpin(&mut panic_cx));
+                    let _ = ready!(lock.poll_next_unpin(&mut panic_cx));
+
+                    Poll::Ready(Some(()))
+                });
+
+                block_on(st.next())
+            }
+        })
+        .join()
+        .unwrap_err();
+
+        block_on(async move {
+            let mut values: Vec<_> = stream.lock().await.by_ref().collect().await;
+            values.sort_unstable();
+
+            assert_eq!(values, (0..60).collect::<Vec<u8>>());
+        });
+    }
+
+    // stream panics
+    {
+        let st = once(async { once(async { panic!("Polled") }).boxed() }.boxed()).chain(
+            Interchanger { polled: false, base: 0, wake_immediately: true }
+                .then(|val| async move { val.boxed() }.boxed())
+                .take(10),
+        );
+
+        let stream = Arc::new(Mutex::new(st.boxed().flat_map_unordered(10, |s| s.map(identity))));
+
+        std::thread::spawn({
+            let stream = stream.clone();
+            move || {
+                let mut st = poll_fn(|cx| {
+                    let mut lock = ready!(stream.lock().poll_unpin(cx));
+                    let data = ready!(lock.poll_next_unpin(cx));
 
                     Poll::Ready(data)
                 });
@@ -279,43 +313,11 @@ fn flatten_unordered() {
 
         block_on(async move {
             let mut values: Vec<_> = stream.lock().await.by_ref().collect().await;
-            values.sort();
+            values.sort_unstable();
 
             assert_eq!(values, (0..60).collect::<Vec<u8>>());
         });
     }
-
-    // stream panics
-    let st = once(async { once(async { panic!("Polled") }).boxed() }.boxed()).chain(
-        Interchanger { polled: false, base: 0, wake_immediately: true }
-            .then(|val| async move { val.boxed() }.boxed())
-            .take(10),
-    );
-
-    let stream = Arc::new(Mutex::new(st.boxed().flat_map_unordered(10, |s| s.map(identity))));
-
-    std::thread::spawn({
-        let stream = stream.clone();
-        move || {
-            let mut st = poll_fn(|cx| {
-                let mut lock = ready!(stream.lock().poll_unpin(cx));
-                let data = ready!(lock.poll_next_unpin(cx));
-
-                Poll::Ready(data)
-            });
-
-            block_on(st.next())
-        }
-    })
-    .join()
-    .unwrap_err();
-
-    block_on(async move {
-        let mut values: Vec<_> = stream.lock().await.by_ref().collect().await;
-        values.sort();
-
-        assert_eq!(values, (0..60).collect::<Vec<u8>>());
-    });
 }
 
 #[test]
