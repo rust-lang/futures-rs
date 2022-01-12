@@ -62,7 +62,7 @@ impl<Fut> ArcWake for Task<Fut> {
         // still.
         let prev = arc_self.queued.swap(true, SeqCst);
         if !prev {
-            inner.enqueue(&**arc_self);
+            inner.enqueue(Arc::as_ptr(arc_self));
             inner.waker.wake();
         }
     }
