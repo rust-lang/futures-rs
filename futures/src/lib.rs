@@ -177,10 +177,12 @@ pub mod prelude {
     pub use crate::stream::{self, Stream, TryStream};
 
     #[doc(no_inline)]
+    #[allow(unreachable_pub)]
     pub use crate::future::{FutureExt as _, TryFutureExt as _};
     #[doc(no_inline)]
     pub use crate::sink::SinkExt as _;
     #[doc(no_inline)]
+    #[allow(unreachable_pub)]
     pub use crate::stream::{StreamExt as _, TryStreamExt as _};
 
     #[cfg(feature = "std")]
@@ -188,6 +190,7 @@ pub mod prelude {
 
     #[cfg(feature = "std")]
     #[doc(no_inline)]
+    #[allow(unreachable_pub)]
     pub use crate::io::{
         AsyncBufReadExt as _, AsyncReadExt as _, AsyncSeekExt as _, AsyncWriteExt as _,
     };
