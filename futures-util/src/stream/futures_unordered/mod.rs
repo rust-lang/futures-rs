@@ -150,7 +150,7 @@ impl<Fut> FuturesUnordered<Fut> {
             queued: AtomicBool::new(true),
             ready_to_run_queue: Weak::new(),
         });
-        let stub_ptr = &*stub as *const Task<Fut>;
+        let stub_ptr = Arc::as_ptr(&stub);
         let ready_to_run_queue = Arc::new(ReadyToRunQueue {
             waker: AtomicWaker::new(),
             head: AtomicPtr::new(stub_ptr as *mut _),
@@ -403,7 +403,7 @@ impl<Fut> FuturesUnordered<Fut> {
         // The `ReadyToRunQueue` stub is never inserted into the `head_all`
         // list, and its pointer value will remain valid for the lifetime of
         // this `FuturesUnordered`, so we can make use of its value here.
-        &*self.ready_to_run_queue.stub as *const _ as *mut _
+        Arc::as_ptr(&self.ready_to_run_queue.stub) as *mut _
     }
 }
 
