@@ -224,7 +224,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Box::from_raw(ptr as *mut F))
+            drop(Box::from_raw(ptr.cast::<F>()))
         }
     }
 
