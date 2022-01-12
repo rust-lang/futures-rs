@@ -894,6 +894,7 @@ pub trait TryStreamExt: TryStream {
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
     /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
     /// ```
+    /// # if cfg!(miri) { return; } // Miri does not support epoll
     /// use futures::future::{FutureExt, TryFutureExt};
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
