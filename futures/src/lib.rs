@@ -25,6 +25,7 @@
 //! within macros and keywords such as async and await!.
 //!
 //! ```rust
+//! # if cfg!(miri) { return; } // https://github.com/rust-lang/miri/issues/1038
 //! # use futures::channel::mpsc;
 //! # use futures::executor; ///standard executors to provide a context for futures and streams
 //! # use futures::executor::ThreadPool;
