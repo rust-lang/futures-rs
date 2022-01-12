@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
@@ -10,8 +13,12 @@ on:
     - cron: '0 1 * * *'
 
 env:
-  RUSTFLAGS: -D warnings
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUSTFLAGS: -D warnings
+  RUSTUP_MAX_RETRIES: 10
 
 defaults:
   run:
@@ -229,6 +236,18 @@ jobs:
       - run: ci/no_atomic_cas.sh
       - run: git diff --exit-code
 
+  miri:
+    name: cargo miri test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup toolchain install nightly --component miri && rustup default nightly
+      # futures-executor uses boxed futures so many tests trigger https://github.com/rust-lang/miri/issues/1038
+      - run: cargo miri test --workspace --exclude futures-executor --all-features
+        env:
+          MIRIFLAGS: -Zmiri-disable-isolation -Zmiri-tag-raw-pointers
+
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
     strategy:
@@ -263,6 +282,7 @@ jobs:
   #     - run: cargo clippy --workspace --all-features --all-targets
 
   fmt:
+    name: cargo fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
