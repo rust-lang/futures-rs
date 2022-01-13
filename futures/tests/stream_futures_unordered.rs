@@ -268,6 +268,8 @@ fn futures_not_moved_after_poll() {
     let fut = future::ready(()).pending_once().assert_unmoved();
     let mut stream = vec![fut; 3].into_iter().collect::<FuturesUnordered<_>>();
     assert_stream_pending!(stream);
+    assert_stream_pending!(stream);
+    assert_stream_pending!(stream);
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
@@ -342,7 +344,7 @@ fn polled_only_once_at_most_per_iteration() {
 
     let mut tasks = FuturesUnordered::from_iter(vec![F::default(); 33]);
     assert!(tasks.poll_next_unpin(cx).is_pending());
-    assert_eq!(32, tasks.iter().filter(|f| f.polled).count());
+    assert_eq!(33, tasks.iter().filter(|f| f.polled).count());
 
     let mut tasks = FuturesUnordered::<F>::new();
     assert_eq!(Poll::Ready(None), tasks.poll_next_unpin(cx));
