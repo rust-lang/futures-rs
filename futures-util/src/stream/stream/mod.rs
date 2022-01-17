@@ -205,13 +205,8 @@ mod flatten_unordered;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-delegate_all!(
-    /// Stream for the [`flatten_unordered`](StreamExt::flatten_unordered) method.
-    FlattenUnordered<St>(
-        flatten_unordered::FlattenUnordered<St, St::Item>
-    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St, limit: Option<usize>| flatten_unordered::FlattenUnordered::new(x, limit)]
-    where St: Stream, St::Item: Stream, St::Item: Unpin
-);
+#[allow(unreachable_pub)]
+pub use self::flatten_unordered::FlattenUnordered;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]

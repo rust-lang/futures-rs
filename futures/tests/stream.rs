@@ -147,100 +147,112 @@ fn flatten_unordered() {
     }
 
     // basic behaviour
-    block_on(async {
-        let st =
-            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(10..=12)]);
+    {
+        block_on(async {
+            let st = stream::iter(vec![
+                stream::iter(0..=4u8),
+                stream::iter(6..=10),
+                stream::iter(10..=12),
+            ]);
 
-        let fl_unordered = st.flatten_unordered(3).collect::<Vec<_>>().await;
+            let fl_unordered = st.flatten_unordered(3).collect::<Vec<_>>().await;
 
-        assert_eq!(fl_unordered, vec![0, 6, 10, 1, 7, 11, 2, 8, 12, 3, 9, 4, 10]);
-    });
+            assert_eq!(fl_unordered, vec![0, 6, 10, 1, 7, 11, 2, 8, 12, 3, 9, 4, 10]);
+        });
 
-    block_on(async {
-        let st =
-            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
+        block_on(async {
+            let st = stream::iter(vec![
+                stream::iter(0..=4u8),
+                stream::iter(6..=10),
+                stream::iter(0..=2),
+            ]);
 
-        let mut fm_unordered = st
-            .flat_map_unordered(1, |s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .collect::<Vec<_>>()
-            .await;
+            let mut fm_unordered = st
+                .flat_map_unordered(1, |s| s.filter(|v| futures::future::ready(v % 2 == 0)))
+                .collect::<Vec<_>>()
+                .await;
 
-        fm_unordered.sort_unstable();
+            fm_unordered.sort_unstable();
 
-        assert_eq!(fm_unordered, vec![0, 0, 2, 2, 4, 6, 8, 10]);
-    });
+            assert_eq!(fm_unordered, vec![0, 0, 2, 2, 4, 6, 8, 10]);
+        });
+    }
 
-    // wake up immmediately
-    block_on(async {
-        let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
-            .take(10)
-            .map(|s| s.map(identity))
-            .flatten_unordered(10)
-            .collect::<Vec<_>>()
-            .await;
-
-        fl_unordered.sort_unstable();
-
-        assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
-    });
-
-    block_on(async {
-        let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
-            .take(10)
-            .flat_map_unordered(10, |s| s.map(identity))
-            .collect::<Vec<_>>()
-            .await;
-
-        fm_unordered.sort_unstable();
-
-        assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
-    });
-
-    // wake up after delay
-    block_on(async {
-        let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
-            .take(10)
-            .map(|s| s.map(identity))
-            .flatten_unordered(10)
-            .collect::<Vec<_>>()
-            .await;
-
-        fl_unordered.sort_unstable();
-
-        assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
-    });
-
-    block_on(async {
-        let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
-            .take(10)
-            .flat_map_unordered(10, |s| s.map(identity))
-            .collect::<Vec<_>>()
-            .await;
-
-        fm_unordered.sort_unstable();
-
-        assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
-    });
-
-    block_on(async {
-        let (mut fm_unordered, mut fl_unordered) = futures_util::join!(
-            Interchanger { polled: false, base: 0, wake_immediately: false }
-                .take(10)
-                .flat_map_unordered(10, |s| s.map(identity))
-                .collect::<Vec<_>>(),
-            Interchanger { polled: false, base: 0, wake_immediately: false }
+    // wake up immediately
+    {
+        block_on(async {
+            let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
                 .take(10)
                 .map(|s| s.map(identity))
                 .flatten_unordered(10)
                 .collect::<Vec<_>>()
-        );
+                .await;
 
-        fm_unordered.sort_unstable();
-        fl_unordered.sort_unstable();
+            fl_unordered.sort_unstable();
 
-        assert_eq!(fm_unordered, fl_unordered);
-        assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
-    });
+            assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
+        });
+
+        block_on(async {
+            let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: true }
+                .take(10)
+                .flat_map_unordered(10, |s| s.map(identity))
+                .collect::<Vec<_>>()
+                .await;
+
+            fm_unordered.sort_unstable();
+
+            assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
+        });
+    }
+
+    // wake up after delay
+    {
+        block_on(async {
+            let mut fl_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
+                .take(10)
+                .map(|s| s.map(identity))
+                .flatten_unordered(10)
+                .collect::<Vec<_>>()
+                .await;
+
+            fl_unordered.sort_unstable();
+
+            assert_eq!(fl_unordered, (0..60).collect::<Vec<u8>>());
+        });
+
+        block_on(async {
+            let mut fm_unordered = Interchanger { polled: false, base: 0, wake_immediately: false }
+                .take(10)
+                .flat_map_unordered(10, |s| s.map(identity))
+                .collect::<Vec<_>>()
+                .await;
+
+            fm_unordered.sort_unstable();
+
+            assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
+        });
+
+        block_on(async {
+            let (mut fm_unordered, mut fl_unordered) = futures_util::join!(
+                Interchanger { polled: false, base: 0, wake_immediately: false }
+                    .take(10)
+                    .flat_map_unordered(10, |s| s.map(identity))
+                    .collect::<Vec<_>>(),
+                Interchanger { polled: false, base: 0, wake_immediately: false }
+                    .take(10)
+                    .map(|s| s.map(identity))
+                    .flatten_unordered(10)
+                    .collect::<Vec<_>>()
+            );
+
+            fm_unordered.sort_unstable();
+            fl_unordered.sort_unstable();
+
+            assert_eq!(fm_unordered, fl_unordered);
+            assert_eq!(fm_unordered, (0..60).collect::<Vec<u8>>());
+        });
+    }
 
     // waker panics
     {
