@@ -501,7 +501,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // deallocating the task if need be.
             let res = {
                 let task = bomb.task.as_ref().unwrap();
-                // We are only interested in whether the future waken before it
+                // We are only interested in whether the future is awoken before it
                 // finishes polling, so reset the flag here.
                 task.woken.store(false, Relaxed);
                 let waker = Task::waker_ref(task);
@@ -517,8 +517,8 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             match res {
                 Poll::Pending => {
                     let task = bomb.task.take().unwrap();
-                    // If the future waken before it finishes polling, we assume
-                    // the future yields.
+                    // If the future was awoken during polling, we assume
+                    // the future wanted to explicitly yield.
                     let yielded = task.woken.load(Relaxed);
                     bomb.queue.link(task);
 
