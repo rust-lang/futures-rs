@@ -1,3 +1,4 @@
+use std::iter;
 use std::sync::Arc;
 
 use futures::channel::mpsc;
@@ -299,13 +300,16 @@ fn flatten_unordered() {
 
     // stream panics
     {
-        let st = once(async { once(async { panic!("Polled") }).boxed() }.boxed()).chain(
+        let st = stream::iter(iter::once(
+            once(Box::pin(async { panic!("Polled") })).left_stream::<DataStream>(),
+        ))
+        .chain(
             Interchanger { polled: false, base: 0, wake_immediately: true }
-                .then(|val| async move { val.boxed() }.boxed())
+                .map(|stream| stream.right_stream())
                 .take(10),
         );
 
-        let stream = Arc::new(Mutex::new(st.boxed().flat_map_unordered(10, |s| s.map(identity))));
+        let stream = Arc::new(Mutex::new(st.flatten_unordered(10)));
 
         std::thread::spawn({
             let stream = stream.clone();
