@@ -43,7 +43,7 @@ const WAKING_INNER_STREAMS: u8 = 0b1000;
 /// The base stream is being woken at the moment.
 const WAKING_STREAM: u8 = 0b10000;
 
-/// The base stream or inner streams are being woken at the moment.
+/// The base stream and inner streams are being woken at the moment.
 const WAKING_ALL: u8 = WAKING_STREAM | WAKING_INNER_STREAMS;
 
 /// Determines what needs to be polled, and is stream being polled at the
@@ -61,7 +61,9 @@ impl SharedPollState {
 
     /// Attempts to start polling, returning stored state in case of success.
     /// Returns `None` if some waker is waking at the moment.
-    fn start_polling(&self) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState)>)> {
+    fn start_polling(
+        &self,
+    ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
                 if value & WAKING_ALL == NONE {
@@ -72,12 +74,9 @@ impl SharedPollState {
             })
             .ok()
             .map(|value| {
-                (
-                    value,
-                    PollStateBomb::new(self, |state| {
-                        state.stop_polling(NEED_TO_POLL_ALL);
-                    }),
-                )
+                let bomb = PollStateBomb::new(self, |state| state.stop_polling(NEED_TO_POLL_ALL));
+
+                (value, bomb)
             })
     }
 
@@ -86,39 +85,39 @@ impl SharedPollState {
         &self,
         to_poll: u8,
         waking: u8,
-    ) -> (u8, PollStateBomb<'_, impl FnOnce(&SharedPollState)>) {
+    ) -> (u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>) {
         let value = self.state.fetch_or(to_poll | waking, Ordering::SeqCst);
+        let bomb = PollStateBomb::new(self, move |state| state.stop_waking(waking));
 
-        (
-            value,
-            PollStateBomb::new(self, move |state| {
-                state.stop_waking(waking);
-            }),
-        )
+        (value, bomb)
+    }
+
+    /// Sets current state to `!POLLING` allowing to use wakers and `!WALING_ALL` as
+    /// - Wakers called during the `POLLING` phase won't propagate their calls
+    /// - `POLLING` phase can't start if some of the wakers are active
+    ///
+    /// So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
+    fn stop_polling(&self, to_poll: u8) -> u8 {
+        self.state
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+                Some((value | to_poll) & !POLLING & !WAKING_ALL)
+            })
+            .unwrap()
     }
 
     /// Toggles state to non-waking, allowing to start polling.
     fn stop_waking(&self, waking: u8) -> u8 {
         self.state.fetch_and(!waking, Ordering::SeqCst)
     }
-
-    /// Sets current state to `!POLLING`, allowing to use wakers.
-    fn stop_polling(&self, to_poll: u8) -> u8 {
-        self.state
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                Some((value | to_poll) & !POLLING)
-            })
-            .unwrap()
-    }
 }
 
 /// Used to execute some function on the given state when dropped.
-struct PollStateBomb<'a, F: FnOnce(&SharedPollState)> {
+struct PollStateBomb<'a, F: FnOnce(&SharedPollState) -> u8> {
     state: &'a SharedPollState,
     drop: Option<F>,
 }
 
-impl<'a, F: FnOnce(&SharedPollState)> PollStateBomb<'a, F> {
+impl<'a, F: FnOnce(&SharedPollState) -> u8> PollStateBomb<'a, F> {
     /// Constructs new bomb with the given state.
     fn new(state: &'a SharedPollState, drop: F) -> Self {
         Self { state, drop: Some(drop) }
@@ -128,9 +127,14 @@ impl<'a, F: FnOnce(&SharedPollState)> PollStateBomb<'a, F> {
     fn deactivate(mut self) {
         self.drop.take();
     }
+
+    /// Manually fires the bomb, returning supplied state.
+    fn fire(mut self) -> Option<u8> {
+        self.drop.take().map(|drop| (drop)(self.state))
+    }
 }
 
-impl<F: FnOnce(&SharedPollState)> Drop for PollStateBomb<'_, F> {
+impl<F: FnOnce(&SharedPollState) -> u8> Drop for PollStateBomb<'_, F> {
     fn drop(&mut self) {
         if let Some(drop) = self.drop.take() {
             (drop)(self.state);
@@ -163,9 +167,14 @@ impl InnerWaker {
         waker(self_arc.clone())
     }
 
-    // Flags state that waking is started for the waker with the given value.
-    fn start_waking(&self) -> (u8, PollStateBomb<'_, impl FnOnce(&SharedPollState)>) {
-        self.poll_state.start_waking(self.need_to_poll, self.need_to_poll << 3)
+    /// Flags state that waking is started for the waker with the given value.
+    fn start_waking(&self) -> (u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>) {
+        self.poll_state.start_waking(self.need_to_poll, self.waking_state())
+    }
+
+    /// Returns the corresponding waking state toggled by this waker.
+    fn waking_state(&self) -> u8 {
+        self.need_to_poll << 3
     }
 }
 
@@ -173,17 +182,31 @@ impl ArcWake for InnerWaker {
     fn wake_by_ref(self_arc: &Arc<Self>) {
         let (poll_state_value, state_bomb) = self_arc.start_waking();
 
-        // Only call waker if stream isn't being polled because of safety reasons.
-        // Waker will be called at the end of polling if state was changed.
+        // Only call waker if stream isn't being polled because of safety reasons
+        //
+        // Waker will be called at the end of polling if state was changed
         if poll_state_value & POLLING == NONE {
-            if let Some(inner_waker) =
-                unsafe { self_arc.inner_waker.get().as_ref().cloned().flatten() }
-            {
-                // First, stop waking to allow polling stream
-                drop(state_bomb);
-                // Wake up inner waker
-                inner_waker.wake();
+            // Safety: now state is not `POLLING`
+            let waker_opt = unsafe { self_arc.inner_waker.get().as_ref().unwrap() };
+
+            if let Some(inner_waker) = waker_opt.clone() {
+                // Stop waking to allow polling stream
+                let poll_state_value = state_bomb.fire().unwrap();
+
+                // Here we want to optimize the case when two wakers are called at the same time
+                //
+                // In this case the best strategy will be to propagate only the latest waker's awake,
+                // and then poll both entities in a single `poll_next` call
+
+                // Check if this is the latest waker being waking
+                if poll_state_value & WAKING_ALL == self_arc.waking_state() {
+                    // Wake up inner waker
+                    inner_waker.wake();
+                }
             }
+        } else {
+            // At the end of polling state will become `!WAKING_ALL`
+            state_bomb.deactivate();
         }
     }
 }
@@ -426,7 +449,6 @@ where
 impl<St, Item> Sink<Item> for FlattenUnordered<St>
 where
     St: Stream + Sink<Item>,
-    St::Item: Stream,
 {
     type Error = St::Error;
 
