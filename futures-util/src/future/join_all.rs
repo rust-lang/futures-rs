@@ -15,7 +15,7 @@ use super::{assert_future, MaybeDone};
 #[cfg(not(futures_no_atomic_cas))]
 use crate::stream::{Collect, FuturesOrdered, StreamExt};
 
-fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
+pub(crate) fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
     // invariants aren't required to transmit through slices. Otherwise this has
     // the same safety as a normal field pin projection.
@@ -32,9 +32,9 @@ where
 }
 
 #[cfg(not(futures_no_atomic_cas))]
-const SMALL: usize = 30;
+pub(crate) const SMALL: usize = 30;
 
-pub(crate) enum JoinAllKind<F>
+enum JoinAllKind<F>
 where
     F: Future,
 {
