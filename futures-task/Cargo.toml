@@ -1,8 +1,8 @@
 [package]
 name = "futures-task"
-version = "0.3.19"
+version = "0.3.20"
 edition = "2018"
-rust-version = "1.36"
+rust-version = "1.45"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"

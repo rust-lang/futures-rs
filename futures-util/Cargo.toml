@@ -1,6 +1,6 @@
 [package]
 name = "futures-util"
-version = "0.3.19"
+version = "0.3.20"
 edition = "2018"
 rust-version = "1.45"
 license = "MIT OR Apache-2.0"
@@ -34,12 +34,12 @@ write-all-vectored = ["io"]
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.19", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.19", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.19", default-features = false, features = ["std"], optional = true }
-futures-io = { path = "../futures-io", version = "0.3.19", default-features = false, features = ["std"], optional = true }
-futures-sink = { path = "../futures-sink", version = "0.3.19", default-features = false, optional = true }
-futures-macro = { path = "../futures-macro", version = "=0.3.19", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.20", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.20", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.20", default-features = false, features = ["std"], optional = true }
+futures-io = { path = "../futures-io", version = "0.3.20", default-features = false, features = ["std"], optional = true }
+futures-sink = { path = "../futures-sink", version = "0.3.20", default-features = false, optional = true }
+futures-macro = { path = "../futures-macro", version = "=0.3.20", default-features = false, optional = true }
 slab = { version = "0.4.2", optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
