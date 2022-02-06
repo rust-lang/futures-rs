@@ -404,9 +404,9 @@ pub trait StreamExt: Stream {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
-    /// let evens = stream.filter(|x| future::ready(x % 2 == 0));
+    /// let events = stream.filter(|x| future::ready(x % 2 == 0));
     ///
-    /// assert_eq!(vec![2, 4, 6, 8, 10], evens.collect::<Vec<_>>().await);
+    /// assert_eq!(vec![2, 4, 6, 8, 10], events.collect::<Vec<_>>().await);
     /// # });
     /// ```
     fn filter<Fut, F>(self, f: F) -> Filter<Self, Fut, F>
@@ -436,11 +436,11 @@ pub trait StreamExt: Stream {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
-    /// let evens = stream.filter_map(|x| async move {
+    /// let events = stream.filter_map(|x| async move {
     ///     if x % 2 == 0 { Some(x + 1) } else { None }
     /// });
     ///
-    /// assert_eq!(vec![3, 5, 7, 9, 11], evens.collect::<Vec<_>>().await);
+    /// assert_eq!(vec![3, 5, 7, 9, 11], events.collect::<Vec<_>>().await);
     /// # });
     /// ```
     fn filter_map<Fut, T, F>(self, f: F) -> FilterMap<Self, Fut, F>
