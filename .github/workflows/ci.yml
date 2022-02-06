@@ -56,7 +56,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: cargo install cross
+      - name: Install cross
+        uses: taiki-e/install-action@cross
       - run: cross test --target ${{ matrix.target }} --workspace --all-features
       - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
         # TODO: https://github.com/rust-lang/futures-rs/issues/2451
@@ -77,7 +78,8 @@ jobs:
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
       # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
-      - run: cargo +stable install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check no-default-features
@@ -106,7 +108,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo +stable install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check default features
@@ -136,7 +139,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - run: cargo hack build --workspace --no-dev-deps
       - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
 
@@ -147,7 +151,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: cargo install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       - run: cargo update -Z minimal-versions
@@ -169,7 +174,8 @@ jobs:
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: rustup target add ${{ matrix.target }}
-      - run: cargo install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       - run: |
@@ -209,7 +215,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: cargo install cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # Check each specified feature works properly
       # * `--feature-powerset` - run for the feature powerset of the package
       # * `--depth 2` - limit the max number of simultaneous feature flags of `--feature-powerset`
