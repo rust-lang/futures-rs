@@ -268,8 +268,6 @@ fn futures_not_moved_after_poll() {
     let fut = future::ready(()).pending_once().assert_unmoved();
     let mut stream = vec![fut; 3].into_iter().collect::<FuturesUnordered<_>>();
     assert_stream_pending!(stream);
-    assert_stream_pending!(stream);
-    assert_stream_pending!(stream);
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());
     assert_stream_next!(stream, ());

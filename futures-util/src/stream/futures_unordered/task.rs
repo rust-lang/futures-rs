@@ -32,7 +32,7 @@ pub(super) struct Task<Fut> {
     // Whether or not this task is currently in the ready to run queue
     pub(super) queued: AtomicBool,
 
-    // Whether the future waken before it finishes polling
+    // Whether the future was awoken during polling
     // It is possible for this flag to be set to true after the polling,
     // but it will be ignored.
     pub(super) woken: AtomicBool,

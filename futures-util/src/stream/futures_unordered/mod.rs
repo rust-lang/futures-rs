@@ -390,6 +390,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
         // Keep track of how many child futures we have polled,
         // in case we want to forcibly yield.
         let mut polled = 0;
+        let mut yielded = 0;
 
         // Ensure `parent` is correctly set.
         self.ready_to_run_queue.waker.register(cx.waker());
@@ -519,7 +520,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     let task = bomb.task.take().unwrap();
                     // If the future was awoken during polling, we assume
                     // the future wanted to explicitly yield.
-                    let yielded = task.woken.load(Relaxed);
+                    yielded += task.woken.load(Relaxed) as usize;
                     bomb.queue.link(task);
 
                     // If a future yields, we respect it and yield here.
@@ -527,7 +528,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     // avoid starving other tasks waiting on the executor.
                     // (polling the same future twice per iteration may cause
                     // the problem: https://github.com/rust-lang/futures-rs/pull/2333)
-                    if yielded || polled == len {
+                    if yielded >= 2 || polled == len {
                         cx.waker().wake_by_ref();
                         return Poll::Pending;
                     }
