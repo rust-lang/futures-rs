@@ -34,7 +34,7 @@ fn main() {
     // `cfg(target_has_atomic = "ptr")` as true when the build script doesn't
     // run. This is needed for compatibility with non-cargo build systems that
     // don't run the build script.
-    if NO_ATOMIC_CAS_TARGETS.contains(&&*target) {
+    if NO_ATOMIC_CAS.contains(&&*target) {
         println!("cargo:rustc-cfg=futures_no_atomic_cas");
     }
 
