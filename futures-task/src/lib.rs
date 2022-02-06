@@ -11,7 +11,6 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
-#![allow(clippy::non_send_fields_in_send_ty)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

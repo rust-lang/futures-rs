@@ -63,7 +63,6 @@ where
     A: TryFuture,
     B: TryFuture,
 {
-    #[allow(clippy::type_complexity)]
     type Output = Result<Either<(A::Ok, B), (B::Ok, A)>, Either<(A::Error, B), (B::Error, A)>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

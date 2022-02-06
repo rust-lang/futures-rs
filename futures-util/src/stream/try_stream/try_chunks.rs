@@ -42,7 +42,6 @@ impl<St: TryStream> TryChunks<St> {
 }
 
 impl<St: TryStream> Stream for TryChunks<St> {
-    #[allow(clippy::type_complexity)]
     type Item = Result<Vec<St::Ok>, TryChunksError<St::Ok, St::Error>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
