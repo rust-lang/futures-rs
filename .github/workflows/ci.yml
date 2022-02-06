@@ -246,7 +246,7 @@ jobs:
       # futures-executor uses boxed futures so many tests trigger https://github.com/rust-lang/miri/issues/1038
       - run: cargo miri test --workspace --exclude futures-executor --all-features
         env:
-          MIRIFLAGS: -Zmiri-disable-isolation -Zmiri-tag-raw-pointers
+          MIRIFLAGS: -Zmiri-check-number-validity -Zmiri-symbolic-alignment-check -Zmiri-tag-raw-pointers -Zmiri-disable-isolation
 
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
