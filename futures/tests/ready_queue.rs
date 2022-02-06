@@ -1,3 +1,5 @@
+#![allow(clippy::needless_borrow)] // https://github.com/rust-lang/rust-clippy/issues/8367
+
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future;
