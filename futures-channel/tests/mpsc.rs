@@ -262,7 +262,6 @@ fn stress_shared_bounded_hard() {
     t.join().unwrap();
 }
 
-#[allow(clippy::same_item_push)]
 #[test]
 fn stress_receiver_multi_task_bounded_hard() {
     #[cfg(miri)]
@@ -411,7 +410,6 @@ async fn stress_poll_ready_sender(mut sender: mpsc::Sender<u32>, count: u32) {
 }
 
 /// Tests that after `poll_ready` indicates capacity a channel can always send without waiting.
-#[allow(clippy::same_item_push)]
 #[test]
 fn stress_poll_ready() {
     #[cfg(miri)]

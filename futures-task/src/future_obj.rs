@@ -25,7 +25,6 @@ pub struct LocalFutureObj<'a, T> {
 impl<T> Unpin for LocalFutureObj<'_, T> {}
 
 #[allow(single_use_lifetimes)]
-#[allow(clippy::transmute_ptr_to_ptr)]
 unsafe fn remove_future_lifetime<'a, T>(
     ptr: *mut (dyn Future<Output = T> + 'a),
 ) -> *mut (dyn Future<Output = T> + 'static) {
