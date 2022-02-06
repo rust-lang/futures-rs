@@ -242,7 +242,7 @@ jobs:
         run: rustup update nightly && rustup default nightly
       - run: ci/no_atomic_cas.sh
       - run: git add -N . && git diff --exit-code
-        if: github.event_name != 'schedule'
+        if: github.repository_owner != 'rust-lang' || github.event_name != 'schedule'
       - id: diff
         run: |
           git config user.name "Taiki Endo"
@@ -253,7 +253,7 @@ jobs:
               git commit -m "Update no_atomic_cas.rs"
               echo "::set-output name=success::false"
           fi
-        if: github.event_name == 'schedule'
+        if: github.repository_owner == 'rust-lang' && github.event_name == 'schedule'
       - uses: peter-evans/create-pull-request@v3
         with:
           title: Update no_atomic_cas.rs
@@ -264,7 +264,7 @@ jobs:
             [1]: https://github.com/peter-evans/create-pull-request
             [2]: https://github.com/peter-evans/create-pull-request/blob/HEAD/docs/concepts-guidelines.md#workarounds-to-trigger-further-workflow-runs
           branch: update-no-atomic-cas-rs
-        if: github.event_name == 'schedule' && steps.diff.outputs.success == 'false'
+        if: github.repository_owner == 'rust-lang' && github.event_name == 'schedule' && steps.diff.outputs.success == 'false'
 
   miri:
     name: cargo miri test
