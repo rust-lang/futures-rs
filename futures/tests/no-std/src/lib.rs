@@ -1,6 +1,5 @@
 #![cfg(nightly)]
 #![no_std]
-#![feature(cfg_target_has_atomic)]
 
 #[cfg(feature = "futures-core-alloc")]
 #[cfg(target_has_atomic = "ptr")]
