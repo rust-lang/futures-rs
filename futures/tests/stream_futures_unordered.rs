@@ -262,6 +262,20 @@ fn into_iter_len() {
 }
 
 #[test]
+fn into_iter_partial() {
+    let stream = vec![future::ready(1), future::ready(2), future::ready(3), future::ready(4)]
+        .into_iter()
+        .collect::<FuturesUnordered<_>>();
+
+    let mut into_iter = stream.into_iter();
+    assert!(into_iter.next().is_some());
+    assert!(into_iter.next().is_some());
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 1);
+    // don't panic when iterator is dropped before completing
+}
+
+#[test]
 fn futures_not_moved_after_poll() {
     // Future that will be ready after being polled twice,
     // asserting that it does not move.
