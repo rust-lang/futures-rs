@@ -133,8 +133,8 @@ impl<T: ?Sized> Mutex<T> {
     ///
     /// This method returns a future that will resolve once the lock has been
     /// successfully acquired.
-    pub fn lock_owned(self: &Arc<Self>) -> OwnedMutexLockFuture<T> {
-        OwnedMutexLockFuture { mutex: Some(self.clone()), wait_key: WAIT_KEY_NONE }
+    pub fn lock_owned(self: Arc<Self>) -> OwnedMutexLockFuture<T> {
+        OwnedMutexLockFuture { mutex: Some(self), wait_key: WAIT_KEY_NONE }
     }
 
     /// Returns a mutable reference to the underlying data.
@@ -514,7 +514,6 @@ impl<T: ?Sized, U: ?Sized> DerefMut for MappedMutexGuard<'_, T, U> {
 // Mutexes can be moved freely between threads and acquired on any thread so long
 // as the inner value can be safely sent between threads.
 unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
-
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 
 // It's safe to switch which thread the acquire is being attempted on so long as
@@ -534,15 +533,12 @@ unsafe impl<T: ?Sized> Sync for OwnedMutexLockFuture<T> {}
 // Safe to send since we don't track any thread-specific details-- the inner
 // lock is essentially spinlock-equivalent (attempt to flip an atomic bool)
 unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
-
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
 
 unsafe impl<T: ?Sized + Send> Send for OwnedMutexGuard<T> {}
-
 unsafe impl<T: ?Sized + Sync> Sync for OwnedMutexGuard<T> {}
 
 unsafe impl<T: ?Sized + Send, U: ?Sized + Send> Send for MappedMutexGuard<'_, T, U> {}
-
 unsafe impl<T: ?Sized + Sync, U: ?Sized + Sync> Sync for MappedMutexGuard<'_, T, U> {}
 
 #[test]
