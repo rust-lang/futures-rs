@@ -1,3 +1,15 @@
+# 0.3.21 - 2022-02-06
+
+* Fix potential data race in `FlattenUnordered` that introduced in 0.3.20 (#2566)
+
+# 0.3.20 - 2022-02-06
+
+NOTE: This release has been yanked due to a bug fixed in 0.3.21.
+
+* Fix stacked borrows violations when `-Zmiri-tag-raw-pointers` is enabled. This raises MSRV of `futures-task` to 1.45. (#2548, #2550)
+* Change `FuturesUnordered` to respect yielding from future (#2551)
+* Add `StreamExt::{flatten_unordered, flat_map_unordered}` (#2083)
+
 # 0.3.19 - 2021-12-18
 
 * Remove unstable `read-initializer` feature (#2534)
