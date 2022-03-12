@@ -52,18 +52,20 @@ where
     A: TryFuture + Unpin,
     B: TryFuture + Unpin,
 {
-    super::assert_future::<
-        Result<Either<(A::Ok, B), (B::Ok, A)>, Either<(A::Error, B), (B::Error, A)>>,
-        _,
-    >(TrySelect { inner: Some((future1, future2)) })
+    super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
+        inner: Some((future1, future2)),
+    })
 }
+
+type EitherOk<A, B> = Either<(<A as TryFuture>::Ok, B), (<B as TryFuture>::Ok, A)>;
+type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::Error, A)>;
 
 impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
 where
     A: TryFuture,
     B: TryFuture,
 {
-    type Output = Result<Either<(A::Ok, B), (B::Ok, A)>, Either<(A::Error, B), (B::Error, A)>>;
+    type Output = Result<EitherOk<A, B>, EitherErr<A, B>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
