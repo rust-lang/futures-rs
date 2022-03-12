@@ -39,7 +39,10 @@ pub use self::stream::Forward;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-pub use self::stream::{BufferUnordered, Buffered, ForEachConcurrent, TryForEachConcurrent};
+pub use self::stream::{
+    BufferUnordered, Buffered, FlatMapUnordered, FlattenUnordered, ForEachConcurrent,
+    TryForEachConcurrent,
+};
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "sink")]
