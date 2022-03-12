@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use core::{
     cell::UnsafeCell,
     convert::identity,

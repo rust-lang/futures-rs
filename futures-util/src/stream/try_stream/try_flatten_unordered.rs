@@ -114,7 +114,6 @@ impl<S, Item> Sink<Item> for TryFlattenSuccessful<S>
 where
     S: TryStream + Sink<Item>,
     S::Ok: TryStream,
-    S::Ok: Stream<Item = Result<<S::Ok as TryStream>::Ok, <S::Ok as TryStream>::Error>>,
     <S::Ok as TryStream>::Error: From<<S as TryStream>::Error>,
 {
     type Error = <S as Sink<Item>>::Error;

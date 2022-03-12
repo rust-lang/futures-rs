@@ -99,7 +99,9 @@ mod try_flatten;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten::TryFlatten;
 
+#[cfg(feature = "alloc")]
 mod try_flatten_unordered;
+#[cfg(feature = "alloc")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten_unordered::TryFlattenUnordered;
 
@@ -676,6 +678,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(values, vec![Ok(1), Ok(2), Ok(4), Err(3), Err(5)]);
     /// # });
     /// ```
+    #[cfg(feature = "alloc")]
     fn try_flatten_unordered(self, limit: impl Into<Option<usize>>) -> TryFlattenUnordered<Self>
     where
         Self: TryStream,
