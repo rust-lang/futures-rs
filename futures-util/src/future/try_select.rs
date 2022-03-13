@@ -12,6 +12,9 @@ pub struct TrySelect<A, B> {
 
 impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
 
+type EitherOk<A, B> = Either<(<A as TryFuture>::Ok, B), (<B as TryFuture>::Ok, A)>;
+type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::Error, A)>;
+
 /// Waits for either one of two differently-typed futures to complete.
 ///
 /// This function will return a new future which awaits for either one of both
@@ -56,9 +59,6 @@ where
         inner: Some((future1, future2)),
     })
 }
-
-type EitherOk<A, B> = Either<(<A as TryFuture>::Ok, B), (<B as TryFuture>::Ok, A)>;
-type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::Error, A)>;
 
 impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
 where

@@ -53,8 +53,8 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 mod try_stream;
 pub use self::try_stream::{
     try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryFlattenUnordered, TryNext,
-    TrySkipWhile, TryStreamExt, TryTakeWhile, TryUnfold,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
+    TryStreamExt, TryTakeWhile, TryUnfold,
 };
 
 #[cfg(feature = "io")]
@@ -64,7 +64,7 @@ pub use self::try_stream::IntoAsyncRead;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-pub use self::try_stream::{TryBufferUnordered, TryBuffered};
+pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered};
 
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]

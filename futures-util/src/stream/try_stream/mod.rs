@@ -14,7 +14,7 @@ use crate::stream::{assert_stream, Inspect, Map};
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
-use futures_core::Stream;
+
 use futures_core::{
     future::{Future, TryFuture},
     stream::TryStream,
@@ -99,8 +99,10 @@ mod try_flatten;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten::TryFlatten;
 
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 mod try_flatten_unordered;
+#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten_unordered::TryFlattenUnordered;
@@ -678,14 +680,16 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(values, vec![Ok(1), Ok(2), Ok(4), Err(3), Err(5)]);
     /// # });
     /// ```
+    #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_flatten_unordered(self, limit: impl Into<Option<usize>>) -> TryFlattenUnordered<Self>
+    fn try_flatten_unordered<I, E>(
+        self,
+        limit: impl Into<Option<usize>>,
+    ) -> TryFlattenUnordered<Self, I, E>
     where
         Self: TryStream,
-        Self::Ok: TryStream
-            // Needed because either way compiler can't infer types properly...
-            + Stream<Item = Result<<Self::Ok as TryStream>::Ok, <Self::Ok as TryStream>::Error>>,
-        <Self::Ok as TryStream>::Error: From<Self::Error>,
+        Self::Ok: futures_core::Stream<Item = Result<I, E>>,
+        E: From<Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryStream>::Ok, <Self::Ok as TryStream>::Error>, _>(
