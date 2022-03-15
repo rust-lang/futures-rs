@@ -918,7 +918,7 @@ pub trait TryStreamExt: TryStream {
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their
-    /// outputs in the order. If the underlying stream returns an error, it will
+    /// outputs in the same order as the underlying stream. If the underlying stream returns an error, it will
     /// be immediately propagated.
     ///
     /// The returned stream will be a stream of results, each containing either
