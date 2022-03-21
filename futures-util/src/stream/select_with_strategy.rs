@@ -13,13 +13,6 @@ pub enum PollNext {
     Right,
 }
 
-enum PollSide {
-    /// Poll the first stream.
-    Left,
-    /// Poll the second stream.
-    Right,
-}
-
 impl PollNext {
     /// Toggle the value and return the old one.
     #[must_use]
@@ -32,6 +25,13 @@ impl PollNext {
         }
 
         old
+    }
+
+    fn other(&self) -> PollNext {
+        match self {
+            PollNext::Left => PollNext::Right,
+            PollNext::Right => PollNext::Left,
+        }
     }
 }
 
@@ -49,16 +49,16 @@ enum InternalState {
 }
 
 impl InternalState {
-    fn finish(&mut self, ps: PollSide) {
+    fn finish(&mut self, ps: &PollNext) {
         match (&self, ps) {
-            (InternalState::Start, PollSide::Left) => {
+            (InternalState::Start, PollNext::Left) => {
                 *self = InternalState::LeftFinished;
             }
-            (InternalState::Start, PollSide::Right) => {
+            (InternalState::Start, PollNext::Right) => {
                 *self = InternalState::RightFinished;
             }
-            (InternalState::LeftFinished, PollSide::Right)
-            | (InternalState::RightFinished, PollSide::Left) => {
+            (InternalState::LeftFinished, PollNext::Right)
+            | (InternalState::RightFinished, PollNext::Left) => {
                 *self = InternalState::BothFinished;
             }
             _ => {}
@@ -69,6 +69,7 @@ impl InternalState {
 pin_project! {
     /// Stream for the [`select_with_strategy()`] function. See function docs for details.
     #[must_use = "streams do nothing unless polled"]
+    #[project = SelectWithStrategyProj]
     pub struct SelectWithStrategy<St1, St2, Clos, State> {
         #[pin]
         stream1: St1,
@@ -210,6 +211,49 @@ where
     }
 }
 
+#[inline]
+fn poll_side<St1, St2, Clos, State>(
+    select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
+    side: &PollNext,
+    cx: &mut Context<'_>,
+) -> Poll<Option<St1::Item>>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
+{
+    match side {
+        PollNext::Left => select.stream1.as_mut().poll_next(cx),
+        PollNext::Right => select.stream2.as_mut().poll_next(cx),
+    }
+}
+
+#[inline]
+fn poll_inner<St1, St2, Clos, State>(
+    select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
+    side: &PollNext,
+    cx: &mut Context<'_>,
+) -> Poll<Option<St1::Item>>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
+{
+    match poll_side(select, side, cx) {
+        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
+        Poll::Ready(None) => {
+            select.internal_state.finish(side);
+        }
+        Poll::Pending => (),
+    };
+    let other = side.other();
+    match poll_side(select, &other, cx) {
+        Poll::Ready(None) => {
+            select.internal_state.finish(&other);
+            Poll::Ready(None)
+        }
+        a => a,
+    }
+}
+
 impl<St1, St2, Clos, State> Stream for SelectWithStrategy<St1, St2, Clos, State>
 where
     St1: Stream,
@@ -219,42 +263,12 @@ where
     type Item = St1::Item;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St1::Item>> {
-        let this = self.project();
+        let mut this = self.project();
 
         match this.internal_state {
             InternalState::Start => match (this.clos)(this.state) {
-                PollNext::Left => {
-                    match this.stream1.poll_next(cx) {
-                        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
-                        Poll::Ready(None) => {
-                            this.internal_state.finish(PollSide::Left);
-                        }
-                        Poll::Pending => (),
-                    };
-                    match this.stream2.poll_next(cx) {
-                        Poll::Ready(None) => {
-                            this.internal_state.finish(PollSide::Right);
-                            Poll::Ready(None)
-                        }
-                        a => a,
-                    }
-                }
-                PollNext::Right => {
-                    match this.stream2.poll_next(cx) {
-                        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
-                        Poll::Ready(None) => {
-                            this.internal_state.finish(PollSide::Right);
-                        }
-                        Poll::Pending => (),
-                    };
-                    match this.stream1.poll_next(cx) {
-                        Poll::Ready(None) => {
-                            this.internal_state.finish(PollSide::Left);
-                            Poll::Ready(None)
-                        }
-                        a => a,
-                    }
-                }
+                PollNext::Left => poll_inner(&mut this, &PollNext::Left, cx),
+                PollNext::Right => poll_inner(&mut this, &PollNext::Right, cx),
             },
             InternalState::LeftFinished => match this.stream2.poll_next(cx) {
                 Poll::Ready(None) => {
