@@ -273,10 +273,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         run: rustup toolchain install nightly --component miri && rustup default nightly
-      # futures-executor uses boxed futures so many tests trigger https://github.com/rust-lang/miri/issues/1038
-      - run: cargo miri test --workspace --exclude futures-executor --all-features
+      - run: cargo miri test --workspace --all-features
         env:
           MIRIFLAGS: -Zmiri-check-number-validity -Zmiri-symbolic-alignment-check -Zmiri-tag-raw-pointers -Zmiri-disable-isolation
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
 
   san:
     name: cargo test -Z sanitizer=${{ matrix.sanitizer }}
