@@ -687,7 +687,7 @@ pub trait TryStreamExt: TryStream {
         limit: impl Into<Option<usize>>,
     ) -> TryFlattenUnordered<Self, I, E>
     where
-        Self::Ok: futures_core::Stream<Item = Result<I, E>>,
+        Self::Ok: futures_core::Stream<Item = Result<I, E>> + Unpin,
         E: From<Self::Error>,
         Self: Sized,
     {

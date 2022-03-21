@@ -219,7 +219,7 @@ delegate_all!(
     FlatMapUnordered<St, U, F>(
         FlattenUnordered<Map<St, F>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, limit: Option<usize>, f: F| FlattenUnordered::new(Map::new(x, f), limit)]
-    where St: Stream, U: Stream, F: FnMut(St::Item) -> U
+    where St: Stream, U: Stream, U: Unpin, F: FnMut(St::Item) -> U
 );
 
 #[cfg(not(futures_no_atomic_cas))]
@@ -832,7 +832,7 @@ pub trait StreamExt: Stream {
     #[cfg(feature = "alloc")]
     fn flatten_unordered(self, limit: impl Into<Option<usize>>) -> FlattenUnordered<Self>
     where
-        Self::Item: Stream,
+        Self::Item: Stream + Unpin,
         Self: Sized,
     {
         assert_stream::<<Self::Item as Stream>::Item, _>(FlattenUnordered::new(self, limit.into()))
@@ -918,7 +918,7 @@ pub trait StreamExt: Stream {
         f: F,
     ) -> FlatMapUnordered<Self, U, F>
     where
-        U: Stream,
+        U: Stream + Unpin,
         F: FnMut(Self::Item) -> U,
         Self: Sized,
     {

@@ -54,6 +54,7 @@ fn try_flatten_unordered() {
                 Err(val)
             }
         })
+        .map_ok(Box::pin)
         .try_flatten_unordered(None);
 
     block_on(async move {

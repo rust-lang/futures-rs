@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc};
+use alloc::sync::Arc;
 use core::{
     cell::UnsafeCell,
     convert::identity,
@@ -285,7 +285,7 @@ pin_project! {
     #[must_use = "streams do nothing unless polled"]
     pub struct FlattenUnordered<St> where St: Stream {
         #[pin]
-        inner_streams: FuturesUnordered<PollStreamFut<Pin<Box<St::Item>>>>,
+        inner_streams: FuturesUnordered<PollStreamFut<St::Item>>,
         #[pin]
         stream: St,
         poll_state: SharedPollState,
@@ -315,7 +315,7 @@ where
 impl<St> FlattenUnordered<St>
 where
     St: Stream,
-    St::Item: Stream,
+    St::Item: Stream + Unpin,
 {
     pub(super) fn new(stream: St, limit: Option<usize>) -> FlattenUnordered<St> {
         let poll_state = SharedPollState::new(NEED_TO_POLL_STREAM);
@@ -346,7 +346,7 @@ impl<St> FlattenUnorderedProj<'_, St>
 where
     St: Stream,
 {
-    /// Checks if current `inner_streams` size is greater than optional limit.
+    /// Checks if current `inner_streams` bucket size is greater than optional limit.
     fn is_exceeded_limit(&self) -> bool {
         self.limit.map_or(false, |limit| self.inner_streams.len() >= limit.get())
     }
@@ -355,7 +355,7 @@ where
 impl<St> FusedStream for FlattenUnordered<St>
 where
     St: FusedStream,
-    St::Item: Stream,
+    St::Item: Stream + Unpin,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated() && self.inner_streams.is_empty()
@@ -365,7 +365,7 @@ where
 impl<St> Stream for FlattenUnordered<St>
 where
     St: Stream,
-    St::Item: Stream,
+    St::Item: Stream + Unpin,
 {
     type Item = <St::Item as Stream>::Item;
 
@@ -410,7 +410,7 @@ where
 
                     match this.stream.as_mut().poll_next(&mut cx) {
                         Poll::Ready(Some(inner_stream)) => {
-                            let next_item_fut = PollStreamFut::new(Box::pin(inner_stream));
+                            let next_item_fut = PollStreamFut::new(inner_stream);
                             // Add new stream to the inner streams bucket
                             this.inner_streams.as_mut().push(next_item_fut);
                             // Inner streams must be polled afterward

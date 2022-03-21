@@ -18,10 +18,10 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 #[allow(clippy::module_inception)]
 mod stream;
 pub use self::stream::{
-    Chain, Collect, Concat, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, Fold, ForEach,
-    Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan, SelectNextSome,
-    Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then, TryFold,
-    TryForEach, Unzip, Zip,
+    All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
+    Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
+    SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then,
+    TryFold, TryForEach, Unzip, Zip,
 };
 
 #[cfg(feature = "std")]
