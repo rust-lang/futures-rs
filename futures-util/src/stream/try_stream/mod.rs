@@ -682,13 +682,10 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
     #[cfg(feature = "alloc")]
-    fn try_flatten_unordered<I, E>(
-        self,
-        limit: impl Into<Option<usize>>,
-    ) -> TryFlattenUnordered<Self, I, E>
+    fn try_flatten_unordered(self, limit: impl Into<Option<usize>>) -> TryFlattenUnordered<Self>
     where
-        Self::Ok: futures_core::Stream<Item = Result<I, E>> + Unpin,
-        E: From<Self::Error>,
+        Self::Ok: TryStream + Unpin,
+        <Self::Ok as TryStream>::Error: From<Self::Error>,
         Self: Sized,
     {
         assert_stream::<Result<<Self::Ok as TryStream>::Ok, <Self::Ok as TryStream>::Error>, _>(
