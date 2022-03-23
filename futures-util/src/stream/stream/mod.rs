@@ -123,6 +123,10 @@ delegate_all!(
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)] + New[|x: St, f: F| flatten::Flatten::new(Map::new(x, f))]
 );
 
+mod switch_map;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::switch_map::SwitchMap;
+
 mod next;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::next::Next;
@@ -469,6 +473,36 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_stream::<T, _>(FilterMap::new(self, f))
+    }
+
+    /// Discards every value but the latest, maps it to a new stream and then returns
+    /// the items from the mapped stream.
+    /// When a new item comes from the root stream, the process is repeated.
+    ///
+    /// # Examples
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter([1,3,5,7]);
+    ///
+    /// // Maps each numbers to a stream of its multiples.
+    /// // Only the latest available item from `stream` is mapped.
+    /// let multiples = stream.switch_map(|x| {
+    ///     stream::iter(1..)
+    ///         .map(move |i| x*i).take(4)
+    /// });
+    ///
+    /// assert_eq!(vec![7, 14, 21, 28], multiples.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn switch_map<T, F>(self, f: F) -> SwitchMap<Self, T, F>
+    where
+        F: FnMut(Self::Item) -> T,
+        T: Stream,
+        Self: Sized,
+    {
+        assert_stream::<T::Item, _>(SwitchMap::new(self, f))
     }
 
     /// Computes from this stream's items new items of a different type using
