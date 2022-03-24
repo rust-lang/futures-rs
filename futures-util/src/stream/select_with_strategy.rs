@@ -18,12 +18,7 @@ impl PollNext {
     #[must_use]
     pub fn toggle(&mut self) -> Self {
         let old = *self;
-
-        match self {
-            PollNext::Left => *self = PollNext::Right,
-            PollNext::Right => *self = PollNext::Left,
-        }
-
+        *self = self.other();
         old
     }
 
