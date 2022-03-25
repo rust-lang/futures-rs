@@ -44,7 +44,7 @@ enum InternalState {
 }
 
 impl InternalState {
-    fn finish(&mut self, ps: &PollNext) {
+    fn finish(&mut self, ps: PollNext) {
         match (&self, ps) {
             (InternalState::Start, PollNext::Left) => {
                 *self = InternalState::LeftFinished;
@@ -209,7 +209,7 @@ where
 #[inline]
 fn poll_side<St1, St2, Clos, State>(
     select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
-    side: &PollNext,
+    side: PollNext,
     cx: &mut Context<'_>,
 ) -> Poll<Option<St1::Item>>
 where
@@ -225,7 +225,7 @@ where
 #[inline]
 fn poll_inner<St1, St2, Clos, State>(
     select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
-    side: &PollNext,
+    side: PollNext,
     cx: &mut Context<'_>,
 ) -> Poll<Option<St1::Item>>
 where
@@ -240,9 +240,9 @@ where
         Poll::Pending => (),
     };
     let other = side.other();
-    match poll_side(select, &other, cx) {
+    match poll_side(select, other, cx) {
         Poll::Ready(None) => {
-            select.internal_state.finish(&other);
+            select.internal_state.finish(other);
             Poll::Ready(None)
         }
         a => a,
@@ -261,10 +261,10 @@ where
         let mut this = self.project();
 
         match this.internal_state {
-            InternalState::Start => match (this.clos)(this.state) {
-                PollNext::Left => poll_inner(&mut this, &PollNext::Left, cx),
-                PollNext::Right => poll_inner(&mut this, &PollNext::Right, cx),
-            },
+            InternalState::Start => {
+                let next_side = (this.clos)(this.state);
+                poll_inner(&mut this, next_side, cx)
+            }
             InternalState::LeftFinished => match this.stream2.poll_next(cx) {
                 Poll::Ready(None) => {
                     *this.internal_state = InternalState::BothFinished;
