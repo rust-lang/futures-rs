@@ -100,10 +100,12 @@ mod poll_immediate;
 pub use self::poll_immediate::{poll_immediate, PollImmediate};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{select, select_early_exit, Select};
 
 mod select_with_strategy;
-pub use self::select_with_strategy::{select_with_strategy, PollNext, SelectWithStrategy};
+pub use self::select_with_strategy::{
+    select_with_strategy, ExitStrategy, PollNext, SelectWithStrategy,
+};
 
 mod unfold;
 pub use self::unfold::{unfold, Unfold};

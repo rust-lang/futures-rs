@@ -36,6 +36,7 @@ impl Default for PollNext {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum InternalState {
     Start,
     LeftFinished,
@@ -61,6 +62,29 @@ impl InternalState {
     }
 }
 
+/// Decides whether to exit when both streams are completed, or only one
+/// is completed. If you need to exit when a specific stream has finished,
+/// feel free to add a case here.
+#[derive(Clone, Copy, Debug)]
+pub enum ExitStrategy {
+    /// Select stream finishes when both substreams finish
+    WhenBothFinish,
+    /// Select stream finishes when either substream finishes
+    WhenEitherFinish,
+}
+
+impl ExitStrategy {
+    #[inline]
+    fn is_finished(self, state: InternalState) -> bool {
+        match (state, self) {
+            (InternalState::BothFinished, _) => true,
+            (InternalState::Start, ExitStrategy::WhenEitherFinish) => false,
+            (_, ExitStrategy::WhenBothFinish) => false,
+            _ => true,
+        }
+    }
+}
+
 pin_project! {
     /// Stream for the [`select_with_strategy()`] function. See function docs for details.
     #[must_use = "streams do nothing unless polled"]
@@ -73,6 +97,7 @@ pin_project! {
         internal_state: InternalState,
         state: State,
         clos: Clos,
+        exit_strategy: ExitStrategy,
     }
 }
 
@@ -95,7 +120,7 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
+/// use futures::stream::{ repeat, select_with_strategy, PollNext, StreamExt, ExitStrategy };
 ///
 /// let left = repeat(1);
 /// let right = repeat(2);
@@ -106,7 +131,7 @@ pin_project! {
 /// // use a function pointer instead of a closure.
 /// fn prio_left(_: &mut ()) -> PollNext { PollNext::Left }
 ///
-/// let mut out = select_with_strategy(left, right, prio_left);
+/// let mut out = select_with_strategy(left, right, prio_left, ExitStrategy::WhenBothFinish);
 ///
 /// for _ in 0..100 {
 ///     // Whenever we poll out, we will always get `1`.
@@ -121,26 +146,54 @@ pin_project! {
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
-/// use futures::stream::{ repeat, select_with_strategy, PollNext, StreamExt };
+/// use futures::stream::{ repeat, select_with_strategy, FusedStream, PollNext, StreamExt, ExitStrategy };
 ///
-/// let left = repeat(1);
-/// let right = repeat(2);
+/// // Finishes when both streams finish
+/// {
+///     let left = repeat(1).take(10);
+///     let right = repeat(2);
 ///
-/// let rrobin = |last: &mut PollNext| last.toggle();
+///     let rrobin = |last: &mut PollNext| last.toggle();
 ///
-/// let mut out = select_with_strategy(left, right, rrobin);
+///     let mut out = select_with_strategy(left, right, rrobin, ExitStrategy::WhenBothFinish);
 ///
-/// for _ in 0..100 {
-///     // We should be alternating now.
-///     assert_eq!(1, out.select_next_some().await);
-///     assert_eq!(2, out.select_next_some().await);
+///     for _ in 0..10 {
+///         // We should be alternating now.
+///         assert_eq!(1, out.select_next_some().await);
+///         assert_eq!(2, out.select_next_some().await);
+///     }
+///     for _ in 0..100 {
+///         // First stream has finished
+///         assert_eq!(2, out.select_next_some().await);
+///     }
+///     assert!(!out.is_terminated());
+/// }
+///
+/// // Finishes when either stream finishes
+/// {
+///     let left = repeat(1).take(10);
+///     let right = repeat(2);
+///
+///     let rrobin = |last: &mut PollNext| last.toggle();
+///
+///     let mut out = select_with_strategy(left, right, rrobin, ExitStrategy::WhenEitherFinish);
+///
+///     for _ in 0..10 {
+///         // We should be alternating now.
+///         assert_eq!(1, out.select_next_some().await);
+///         assert_eq!(2, out.select_next_some().await);
+///     }
+///     assert_eq!(None, out.next().await);
+///     assert!(out.is_terminated());
 /// }
 /// # });
 /// ```
+///
 pub fn select_with_strategy<St1, St2, Clos, State>(
     stream1: St1,
     stream2: St2,
     which: Clos,
+    exit_strategy: ExitStrategy,
 ) -> SelectWithStrategy<St1, St2, Clos, State>
 where
     St1: Stream,
@@ -154,6 +207,7 @@ where
         state: Default::default(),
         internal_state: InternalState::Start,
         clos: which,
+        exit_strategy,
     })
 }
 
@@ -199,10 +253,7 @@ where
     Clos: FnMut(&mut State) -> PollNext,
 {
     fn is_terminated(&self) -> bool {
-        match self.internal_state {
-            InternalState::BothFinished => true,
-            _ => false,
-        }
+        self.exit_strategy.is_finished(self.internal_state)
     }
 }
 
@@ -227,6 +278,7 @@ fn poll_inner<St1, St2, Clos, State>(
     select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
     side: PollNext,
     cx: &mut Context<'_>,
+    exit_strat: ExitStrategy,
 ) -> Poll<Option<St1::Item>>
 where
     St1: Stream,
@@ -236,6 +288,9 @@ where
         Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
         Poll::Ready(None) => {
             select.internal_state.finish(side);
+            if exit_strat.is_finished(*select.internal_state) {
+                return Poll::Ready(None);
+            }
         }
         Poll::Pending => (),
     };
@@ -259,11 +314,16 @@ where
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St1::Item>> {
         let mut this = self.project();
+        let exit_strategy: ExitStrategy = *this.exit_strategy;
+
+        if exit_strategy.is_finished(*this.internal_state) {
+            return Poll::Ready(None);
+        }
 
         match this.internal_state {
             InternalState::Start => {
                 let next_side = (this.clos)(this.state);
-                poll_inner(&mut this, next_side, cx)
+                poll_inner(&mut this, next_side, cx, exit_strategy)
             }
             InternalState::LeftFinished => match this.stream2.poll_next(cx) {
                 Poll::Ready(None) => {

@@ -1,5 +1,5 @@
 use super::assert_stream;
-use crate::stream::{select_with_strategy, PollNext, SelectWithStrategy};
+use crate::stream::{select_with_strategy, ExitStrategy, PollNext, SelectWithStrategy};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -49,12 +49,33 @@ where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
 {
+    select_with_exit(stream1, stream2, ExitStrategy::WhenBothFinish)
+}
+
+/// Same as `select`, but finishes when either stream finishes
+pub fn select_early_exit<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
+{
+    select_with_exit(stream1, stream2, ExitStrategy::WhenEitherFinish)
+}
+
+fn select_with_exit<St1, St2>(
+    stream1: St1,
+    stream2: St2,
+    exit_strategy: ExitStrategy,
+) -> Select<St1, St2>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
+{
     fn round_robin(last: &mut PollNext) -> PollNext {
         last.toggle()
     }
 
     assert_stream::<St1::Item, _>(Select {
-        inner: select_with_strategy(stream1, stream2, round_robin),
+        inner: select_with_strategy(stream1, stream2, round_robin, exit_strategy),
     })
 }
 
