@@ -17,11 +17,11 @@ use super::IntoStream;
 delegate_all!(
     /// Stream for the [`try_flatten_unordered`](super::TryStreamExt::try_flatten_unordered) method.
     TryFlattenUnordered<St>(
-        FlattenUnordered<ResultToEither<St>>
+        FlattenUnordered<TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>>
     ): Debug + Sink + Stream + FusedStream + AccessInner[St, (. .)]
         + New[
             |stream: St, limit: impl Into<Option<usize>>|
-                ResultToEither::new(stream).flatten_unordered(limit)
+                TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams::new(stream).flatten_unordered(limit)
         ]
     where
         St: TryStream,
@@ -35,7 +35,7 @@ pin_project! {
     /// This's a wrapper for `FlattenUnordered` to reuse its logic over `TryStream`.
     #[derive(Debug)]
     #[must_use = "streams do nothing unless polled"]
-    pub struct ResultToEither<St>
+    pub struct TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
         where
             St: TryStream,
             St::Ok: TryStream,
@@ -47,7 +47,7 @@ pin_project! {
         }
 }
 
-impl<St> ResultToEither<St>
+impl<St> TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
 where
     St: TryStream,
     St::Ok: TryStream + Unpin,
@@ -60,7 +60,7 @@ where
     delegate_access_inner!(stream, St, ());
 }
 
-impl<St> FusedStream for ResultToEither<St>
+impl<St> FusedStream for TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
 where
     St: TryStream + FusedStream,
     St::Ok: TryStream + Unpin,
@@ -89,11 +89,9 @@ impl<T> Stream for Single<T> {
     }
 }
 
-type SingleResult<St> = Single<
-    Result<<<St as TryStream>::Ok as TryStream>::Ok, <<St as TryStream>::Ok as TryStream>::Error>,
->;
+type SingleStreamResult<St> = Single<Result<<St as TryStream>::Ok, <St as TryStream>::Error>>;
 
-impl<St> Stream for ResultToEither<St>
+impl<St> Stream for TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
 where
     St: TryStream,
     St::Ok: TryStream + Unpin,
@@ -101,7 +99,7 @@ where
 {
     // Item is either an inner stream or a stream containing a single error.
     // This will allow using `Either`'s `Stream` implementation as both branches are actually streams of `Result`'s.
-    type Item = Either<IntoStream<St::Ok>, SingleResult<St>>;
+    type Item = Either<IntoStream<St::Ok>, SingleStreamResult<St::Ok>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let item = ready!(self.project().stream.try_poll_next(cx));
@@ -123,7 +121,7 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<St, I, E, Item> Sink<Item> for ResultToEither<St>
+impl<St, I, E, Item> Sink<Item> for TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
 where
     St: TryStream + Sink<Item>,
     St::Ok: Stream<Item = Result<I, E>> + Unpin,
