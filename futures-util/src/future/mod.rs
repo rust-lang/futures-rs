@@ -98,6 +98,11 @@ mod try_join_all;
 #[cfg(feature = "alloc")]
 pub use self::try_join_all::{try_join_all, TryJoinAll};
 
+#[cfg(feature = "alloc")]
+mod try_join_all_chunked;
+#[cfg(feature = "alloc")]
+pub use self::try_join_all_chunked::{try_join_all_chunked, TryJoinAllChunked};
+
 mod try_select;
 pub use self::try_select::{try_select, TrySelect};
 
