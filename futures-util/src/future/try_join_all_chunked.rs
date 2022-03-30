@@ -64,7 +64,7 @@ where
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future::{self, try_join_all};
+/// use futures::future::{self, try_join_all_chunked};
 ///
 /// let futures = vec![
 ///     future::ok::<u32, u32>(1),
@@ -80,7 +80,7 @@ where
 ///     future::ok::<u32, u32>(3),
 /// ];
 ///
-/// assert_eq!(try_join_all_chunked(futures).await, Err(2));
+/// assert_eq!(try_join_all_chunked(futures, 1).await, Err(2));
 /// # });
 /// ```
 pub fn try_join_all_chunked<I>(i: I, n: usize) -> TryJoinAllChunked<I::Item>
