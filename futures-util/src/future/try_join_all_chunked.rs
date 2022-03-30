@@ -11,7 +11,6 @@ use core::task::{Context, Poll};
 
 use super::{assert_future, TryFuture, TryMaybeDone};
 
-
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
     // invariants aren't required to transmit through slices. Otherwise this has
@@ -25,7 +24,7 @@ where
     F: TryFuture,
 {
     elems: Pin<Box<[TryMaybeDone<F>]>>,
-    chunk_size: usize
+    chunk_size: usize,
 }
 
 impl<F> fmt::Debug for TryJoinAllChunked<F>
@@ -84,7 +83,7 @@ where
 {
     let elems: Box<[_]> = i.into_iter().map(TryMaybeDone::Future).collect();
     assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
-        TryJoinAllChunked { elems: elems.into(), chunk_size:n },
+        TryJoinAllChunked { elems: elems.into(), chunk_size: n },
     )
 }
 
@@ -99,21 +98,19 @@ where
         let mut in_progress = 0;
 
         for elem in iter_pin_mut(self.elems.as_mut()) {
-            if in_progress < self.chunk_size
-            {
+            if in_progress < self.chunk_size {
                 match elem.try_poll(cx) {
                     Poll::Pending => {
                         in_progress += 1;
                         state = FinalState::Pending;
-                    },
+                    }
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(e)) => {
                         state = FinalState::Error(e);
                         break;
                     }
                 }
-            }
-            else {
+            } else {
                 break;
             }
         }
