@@ -102,9 +102,10 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut state = FinalState::AllDone;
         let mut in_progress = 0;
+        let chunk_size = self.chunk_size
 
         for elem in iter_pin_mut(self.elems.as_mut()) {
-            if in_progress < self.chunk_size {
+            if in_progress < chunk_size {
                 match elem.try_poll(cx) {
                     Poll::Pending => {
                         in_progress += 1;
