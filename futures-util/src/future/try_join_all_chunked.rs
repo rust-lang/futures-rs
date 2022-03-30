@@ -24,6 +24,7 @@ enum FinalState<E = ()> {
     Error(E),
 }
 
+/// Future for the [`try_join_all_chunked`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct TryJoinAllChunked<F>
 where
