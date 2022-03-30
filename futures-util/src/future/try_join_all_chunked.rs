@@ -18,6 +18,12 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     unsafe { slice.get_unchecked_mut() }.iter_mut().map(|t| unsafe { Pin::new_unchecked(t) })
 }
 
+enum FinalState<E = ()> {
+    Pending,
+    AllDone,
+    Error(E),
+}
+
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct TryJoinAllChunked<F>
 where
