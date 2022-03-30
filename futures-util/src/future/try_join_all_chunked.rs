@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 use core::future::Future;
-use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -27,6 +26,17 @@ where
 {
     elems: Pin<Box<[TryMaybeDone<F>]>>,
     chunk_size: usize
+}
+
+impl<F> fmt::Debug for TryJoinAllChunked<F>
+where
+    F: TryFuture + fmt::Debug,
+    F::Ok: fmt::Debug,
+    F::Error: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TryJoinAllChunked").field("elems", &self.elems).finish()
+    }
 }
 
 /// Creates a future which represents either a collection of the results of the
