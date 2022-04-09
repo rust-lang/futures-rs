@@ -110,7 +110,7 @@ where
         }
         // Schedule the task to be woken up again.
         // Never called unless Poll::Pending is returned from io objects.
-        cx.waker().wake_by_ref();
+        self.inner.waker.register(cx.waker());
         Poll::Pending
     }
 }
