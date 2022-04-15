@@ -82,6 +82,9 @@ mod join_all;
 #[cfg(feature = "alloc")]
 pub use self::join_all::{join_all, JoinAll};
 
+mod join_with;
+pub use self::join_with::{join_with, JoinWith};
+
 mod select;
 pub use self::select::{select, Select};
 
