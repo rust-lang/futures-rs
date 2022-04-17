@@ -81,7 +81,7 @@ macro_rules! ready_or_break {
 impl<R, W> Future for CopyBufAbortable<'_, R, W>
 where
     R: AsyncBufRead,
-    W: AsyncWrite + Unpin + ?Sized,
+    W: AsyncWrite + Unpin + Sized,
 {
     type Output = Result<Result<u64, Aborted>, io::Error>;
 
@@ -114,23 +114,11 @@ where
 
         // Check to see if the task was aborted between the first check and
         // registration.
-        // Checking with `is_aborted` which uses `Relaxed` is sufficient because
+        // Checking with  `Relaxed` is sufficient because
         // `register` introduces an `AcqRel` barrier.
-        if self.is_aborted() {
-            return Poll::Ready(Err(Aborted));
+        if this.inner.aborted.load(Ordering::Relaxed) {
+            return Poll::Ready(Ok(Err(Aborted)));
         }
         Poll::Pending
-    }
-}
-
-impl CopyBufAbortable<'_, &'_ [u8], &'_ mut [u8]> {
-    /// Checks whether the task has been aborted. Note that all this
-    /// method indicates is whether [`AbortHandle::abort`] was *called*.
-    /// This means that it will return `true` even if:
-    /// * `abort` was called after the task had completed.
-    /// * `abort` was called while the task was being polled - the task may still be running and
-    /// will not be stopped until `poll` returns.
-    pub fn is_aborted(&self) -> bool {
-        self.inner.aborted.load(Ordering::Relaxed)
     }
 }
