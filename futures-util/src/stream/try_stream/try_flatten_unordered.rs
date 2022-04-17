@@ -27,7 +27,7 @@ delegate_all!(
         St: TryStream,
         St::Ok: TryStream,
         St::Ok: Unpin,
-         <St::Ok as TryStream>::Error: From<St::Error>
+        <St::Ok as TryStream>::Error: From<St::Error>
 );
 
 pin_project! {
@@ -40,7 +40,7 @@ pin_project! {
             St: TryStream,
             St::Ok: TryStream,
             St::Ok: Unpin,
-             <St::Ok as TryStream>::Error: From<St::Error>
+            <St::Ok as TryStream>::Error: From<St::Error>
         {
             #[pin]
             stream: St,
