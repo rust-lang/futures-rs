@@ -137,7 +137,7 @@ impl SharedPollState {
     fn stop_waking(&self) -> u8 {
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                let next_value = value & !WAKING;
+                let next_value = value & !WAKING | WOKEN;
 
                 if next_value != value {
                     Some(next_value)
