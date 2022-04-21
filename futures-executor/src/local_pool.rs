@@ -256,11 +256,13 @@ impl LocalPool {
     /// in the pool will try to make progress.
     pub fn run_until_stalled(&mut self) {
         run_executor(|cx| match self.poll_pool(cx) {
+            // The pool is empty.
             Poll::Ready(()) => Poll::Ready(()),
             Poll::Pending => {
                 if woken() {
                     Poll::Pending
                 } else {
+                    // We're stalled for now.
                     Poll::Ready(())
                 }
             }
