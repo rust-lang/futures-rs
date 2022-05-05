@@ -68,6 +68,9 @@ pub use self::option::OptionFuture;
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
+mod with_context;
+pub use self::with_context::{with_context, WithContext};
+
 mod poll_immediate;
 pub use self::poll_immediate::{poll_immediate, PollImmediate};
 
