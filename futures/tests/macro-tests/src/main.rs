@@ -4,7 +4,7 @@ fn main() {
     use futures04::{executor::block_on, future};
 
     // join! macro
-    let _ = block_on(async {
+    block_on(async {
         let _ = futures04::join!(async {}, async {});
         let _ = macro_reexport::join!(async {}, async {});
         let _ = macro_reexport::join2!(async {}, async {});
@@ -19,48 +19,48 @@ fn main() {
     });
 
     // select! macro
-    let _ = block_on(async {
+    block_on(async {
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = futures04::select! {
+        futures04::select! {
             _ = a => {},
             _ = b => unreachable!(),
         };
 
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = macro_reexport::select! {
+        macro_reexport::select! {
             _ = a => {},
             _ = b => unreachable!(),
         };
 
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = macro_reexport::select2! {
+        macro_reexport::select2! {
             _ = a => {},
             _ = b => unreachable!(),
         };
     });
 
     // select_biased! macro
-    let _ = block_on(async {
+    block_on(async {
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = futures04::select_biased! {
+        futures04::select_biased! {
             _ = a => {},
             _ = b => unreachable!(),
         };
 
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = macro_reexport::select_biased! {
+        macro_reexport::select_biased! {
             _ = a => {},
             _ = b => unreachable!(),
         };
 
         let mut a = future::ready(());
         let mut b = future::pending::<()>();
-        let _ = macro_reexport::select_biased2! {
+        macro_reexport::select_biased2! {
             _ = a => {},
             _ = b => unreachable!(),
         };
