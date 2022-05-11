@@ -459,12 +459,12 @@ impl Future for SelfWaking {
 /// to exit early, even when progress could still be made.
 #[test]
 fn self_waking_run_until_stalled() {
-    let wakeups_remaining = Arc::new(RefCell::new(10));
+    let wakeups_remaining = Rc::new(RefCell::new(10));
 
     let mut pool = LocalPool::new();
     let spawner = pool.spawner();
     for _ in 0..3 {
-        let wakeups_remaining = Arc::clone(&wakeups_remaining);
+        let wakeups_remaining = Rc::clone(&wakeups_remaining);
         spawner.spawn_local(SelfWaking { wakeups_remaining }).unwrap();
     }
 
@@ -480,12 +480,12 @@ fn self_waking_run_until_stalled() {
 /// to exit early, even when progress could still be made.
 #[test]
 fn self_waking_try_run_one() {
-    let wakeups_remaining = Arc::new(RefCell::new(10));
+    let wakeups_remaining = Rc::new(RefCell::new(10));
 
     let mut pool = LocalPool::new();
     let spawner = pool.spawner();
     for _ in 0..3 {
-        let wakeups_remaining = Arc::clone(&wakeups_remaining);
+        let wakeups_remaining = Rc::clone(&wakeups_remaining);
         spawner.spawn_local(SelfWaking { wakeups_remaining }).unwrap();
     }
 
