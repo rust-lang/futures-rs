@@ -437,7 +437,7 @@ fn park_unpark_independence() {
 }
 
 struct SelfWaking {
-    wakeups_remaining: Arc<RefCell<usize>>,
+    wakeups_remaining: Rc<RefCell<usize>>,
 }
 
 impl Future for SelfWaking {
