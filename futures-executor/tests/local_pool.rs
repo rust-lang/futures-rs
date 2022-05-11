@@ -1,7 +1,7 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{self, lazy, poll_fn, Future};
-use futures::task::{Context, LocalSpawn, Poll, Spawn, Waker};
+use futures::task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
@@ -434,4 +434,66 @@ fn park_unpark_independence() {
     });
 
     futures::executor::block_on(future)
+}
+
+struct SelfWaking {
+    wakeups_remaining: Arc<RefCell<usize>>,
+}
+
+impl Future for SelfWaking {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if *self.wakeups_remaining.borrow() != 0 {
+            *self.wakeups_remaining.borrow_mut() -= 1;
+            cx.waker().wake_by_ref();
+        }
+
+        Poll::Pending
+    }
+}
+
+/// Regression test for https://github.com/rust-lang/futures-rs/pull/2593
+///
+/// The issue was that self-waking futures could cause `run_until_stalled`
+/// to exit early, even when progress could still be made.
+#[test]
+fn self_waking_run_until_stalled() {
+    let wakeups_remaining = Arc::new(RefCell::new(10));
+
+    let mut pool = LocalPool::new();
+    let spawner = pool.spawner();
+    for _ in 0..3 {
+        let wakeups_remaining = Arc::clone(&wakeups_remaining);
+        spawner.spawn_local(SelfWaking { wakeups_remaining }).unwrap();
+    }
+
+    // This should keep polling until there are no more wakeups.
+    pool.run_until_stalled();
+
+    assert_eq!(*wakeups_remaining.borrow(), 0);
+}
+
+/// Regression test for https://github.com/rust-lang/futures-rs/pull/2593
+///
+/// The issue was that self-waking futures could cause `try_run_one`
+/// to exit early, even when progress could still be made.
+#[test]
+fn self_waking_try_run_one() {
+    let wakeups_remaining = Arc::new(RefCell::new(10));
+
+    let mut pool = LocalPool::new();
+    let spawner = pool.spawner();
+    for _ in 0..3 {
+        let wakeups_remaining = Arc::clone(&wakeups_remaining);
+        spawner.spawn_local(SelfWaking { wakeups_remaining }).unwrap();
+    }
+
+    spawner.spawn(future::ready(())).unwrap();
+
+    // The `ready` future should complete.
+    assert!(pool.try_run_one());
+
+    // The self-waking futures are each polled once.
+    assert_eq!(*wakeups_remaining.borrow(), 7);
 }
