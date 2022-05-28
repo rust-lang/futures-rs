@@ -56,14 +56,14 @@ impl SharedPollState {
     }
 
     /// Attempts to start polling, returning stored state in case of success.
-    /// Returns `None` if some waker is waking at the moment.
+    /// Returns `None` if either waker is waking at the moment or state is empty.
     fn start_polling(
         &self,
     ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                if value & WAKING == NONE {
+                if value & WAKING == NONE && value & NEED_TO_POLL_ALL != NONE {
                     Some(POLLING)
                 } else {
                     None
@@ -99,8 +99,10 @@ impl SharedPollState {
             })
             .ok()?;
 
+        debug_assert!(value & WAKING == NONE);
+
         // Only start the waking process if we're not in the polling phase and the stream isn't woken already
-        if value & (WOKEN | POLLING | WAKING) == NONE {
+        if value & (WOKEN | POLLING) == NONE {
             let bomb = PollStateBomb::new(self, SharedPollState::stop_waking);
 
             Some((value, bomb))
@@ -135,9 +137,10 @@ impl SharedPollState {
 
     /// Toggles state to non-waking, allowing to start polling.
     fn stop_waking(&self) -> u8 {
-        self.state
+        let value = self
+            .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                let next_value = value & !WAKING;
+                let next_value = value & !WAKING | WOKEN;
 
                 if next_value != value {
                     Some(next_value)
@@ -145,7 +148,10 @@ impl SharedPollState {
                     None
                 }
             })
-            .unwrap_or_else(identity)
+            .unwrap_or_else(identity);
+
+        debug_assert!(value & (WOKEN | POLLING | WAKING) == WAKING);
+        value
     }
 
     /// Resets current state allowing to poll the stream and wake up wakers.
@@ -169,11 +175,6 @@ impl<'a, F: FnOnce(&SharedPollState) -> u8> PollStateBomb<'a, F> {
     /// Deactivates bomb, forces it to not call provided function when dropped.
     fn deactivate(mut self) {
         self.drop.take();
-    }
-
-    /// Manually fires the bomb, returning supplied state.
-    fn fire(mut self) -> Option<u8> {
-        self.drop.take().map(|drop| (drop)(self.state))
     }
 }
 
@@ -225,13 +226,10 @@ impl ArcWake for WrappedWaker {
 
             if let Some(inner_waker) = waker_opt.clone() {
                 // Stop waking to allow polling stream
-                let poll_state_value = state_bomb.fire().unwrap();
+                drop(state_bomb);
 
-                // We want to call waker only if the stream isn't woken yet
-                if poll_state_value & (WOKEN | WAKING) == WAKING {
-                    // Wake up inner waker
-                    inner_waker.wake();
-                }
+                // Wake up inner waker
+                inner_waker.wake();
             }
         }
     }
