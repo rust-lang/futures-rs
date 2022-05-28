@@ -27,7 +27,7 @@ delegate_all!(
         St: TryStream,
         St::Ok: TryStream,
         St::Ok: Unpin,
-         <St::Ok as TryStream>::Error: From<St::Error>
+        <St::Ok as TryStream>::Error: From<St::Error>
 );
 
 pin_project! {
@@ -40,7 +40,7 @@ pin_project! {
             St: TryStream,
             St::Ok: TryStream,
             St::Ok: Unpin,
-             <St::Ok as TryStream>::Error: From<St::Error>
+            <St::Ok as TryStream>::Error: From<St::Error>
         {
             #[pin]
             stream: St,
@@ -121,10 +121,10 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<St, I, E, Item> Sink<Item> for TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
+impl<St, Item> Sink<Item> for TryStreamOfTryStreamsIntoHomogeneousStreamOfTryStreams<St>
 where
     St: TryStream + Sink<Item>,
-    St::Ok: Stream<Item = Result<I, E>> + Unpin,
+    St::Ok: TryStream + Unpin,
     <St::Ok as TryStream>::Error: From<<St as TryStream>::Error>,
 {
     type Error = <St as Sink<Item>>::Error;
