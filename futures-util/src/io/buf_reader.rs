@@ -74,8 +74,8 @@ impl<R: AsyncRead + AsyncSeek> BufReader<R> {
     /// the buffer will not be flushed, allowing for more efficient seeks.
     /// This method does not return the location of the underlying reader, so the caller
     /// must track this information themselves if it is required.
-    pub fn seek_relative(self: Pin<&mut Self>, offset: i64) -> SeeKRelative<'_, R> {
-        SeeKRelative { inner: self, offset, first: true }
+    pub fn seek_relative(self: Pin<&mut Self>, offset: i64) -> SeekRelative<'_, R> {
+        SeekRelative { inner: self, offset, first: true }
     }
 
     /// Attempts to seek relative to the current position. If the new position lies within the buffer,
@@ -232,13 +232,13 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
 /// Future for the [`BufReader::seek_relative`](self::BufReader::seek_relative) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SeeKRelative<'a, R> {
+pub struct SeekRelative<'a, R> {
     inner: Pin<&'a mut BufReader<R>>,
     offset: i64,
     first: bool,
 }
 
-impl<R> Future for SeeKRelative<'_, R>
+impl<R> Future for SeekRelative<'_, R>
 where
     R: AsyncRead + AsyncSeek,
 {
