@@ -1077,8 +1077,8 @@ pub trait StreamExt: Stream {
     /// yielding a future. That future will then be executed to completion
     /// before moving on to the next item.
     ///
-    /// The returned value is a `Future` where the `Output` type is `()`; it is
-    /// executed entirely for its side effects.
+    /// Returns a future that yields the number of completed stream futures or
+    /// [`usize::MAX`] on [`usize`] overflow, i.e. serving as a lower bound.
     ///
     /// To process each item in the stream and produce another stream instead
     /// of a single future, use `then` instead.
@@ -1087,20 +1087,23 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::future;
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// use futures::stream::{self, StreamExt};
     ///
-    /// let mut x = 0;
+    /// let step_size = 2;
+    /// let count = 3;
     ///
-    /// {
-    ///     let fut = stream::repeat(1).take(3).for_each(|item| {
-    ///         x += item;
-    ///         future::ready(())
-    ///     });
-    ///     fut.await;
-    /// }
+    /// let x = AtomicUsize::new(0);
     ///
-    /// assert_eq!(x, 3);
+    /// let num_completed = {
+    ///     let x = &x;
+    ///     stream::repeat(step_size).take(count).for_each(|item| async move {
+    ///         x.fetch_add(item, Ordering::SeqCst);
+    ///     }).await
+    /// };
+    ///
+    /// assert_eq!(x.load(Ordering::SeqCst), step_size * count);
+    /// assert_eq!(num_completed, count);
     /// # });
     /// ```
     fn for_each<Fut, F>(self, f: F) -> ForEach<Self, Fut, F>
@@ -1109,7 +1112,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = ()>,
         Self: Sized,
     {
-        assert_future::<(), _>(ForEach::new(self, f))
+        assert_future::<usize, _>(ForEach::new(self, f))
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
@@ -1131,6 +1134,9 @@ pub trait StreamExt: Stream {
     /// `Some(10)`, or just `10`. Note: a limit of zero is interpreted as
     /// no limit at all, and will have the same result as passing in `None`.
     ///
+    /// Returns a future that yields the number of completed stream futures or
+    /// [`usize::MAX`] on [`usize`] overflow, i.e. serving as a lower bound.
+    ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
@@ -1145,7 +1151,9 @@ pub trait StreamExt: Stream {
     /// let (tx2, rx2) = oneshot::channel();
     /// let (tx3, rx3) = oneshot::channel();
     ///
-    /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
+    /// let items = vec![rx1, rx2, rx3];
+    /// let num_items = items.len();
+    /// let fut = stream::iter(items).for_each_concurrent(
     ///     /* limit */ 2,
     ///     |rx| async move {
     ///         rx.await.unwrap();
@@ -1154,7 +1162,8 @@ pub trait StreamExt: Stream {
     /// tx1.send(()).unwrap();
     /// tx2.send(()).unwrap();
     /// tx3.send(()).unwrap();
-    /// fut.await;
+    /// let num_completed = fut.await;
+    /// assert_eq!(num_completed, num_items);
     /// # })
     /// ```
     #[cfg(not(futures_no_atomic_cas))]
@@ -1169,7 +1178,7 @@ pub trait StreamExt: Stream {
         Fut: Future<Output = ()>,
         Self: Sized,
     {
-        assert_future::<(), _>(ForEachConcurrent::new(self, limit.into(), f))
+        assert_future::<usize, _>(ForEachConcurrent::new(self, limit.into(), f))
     }
 
     /// Attempt to execute an accumulating asynchronous computation over a

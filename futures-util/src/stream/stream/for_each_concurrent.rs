@@ -17,6 +17,7 @@ pin_project! {
         f: F,
         futures: FuturesUnordered<Fut>,
         limit: Option<NonZeroUsize>,
+        completed: usize,
     }
 }
 
@@ -30,6 +31,7 @@ where
             .field("stream", &self.stream)
             .field("futures", &self.futures)
             .field("limit", &self.limit)
+            .field("completed", &self.completed)
             .finish()
     }
 }
@@ -47,6 +49,7 @@ where
             limit: limit.and_then(NonZeroUsize::new),
             f,
             futures: FuturesUnordered::new(),
+            completed: 0,
         }
     }
 }
@@ -68,9 +71,9 @@ where
     F: FnMut(St::Item) -> Fut,
     Fut: Future<Output = ()>,
 {
-    type Output = ();
+    type Output = usize;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<usize> {
         let mut this = self.project();
         loop {
             let mut made_progress_this_iter = false;
@@ -102,13 +105,21 @@ where
             }
 
             match this.futures.poll_next_unpin(cx) {
-                Poll::Ready(Some(())) => made_progress_this_iter = true,
+                Poll::Ready(Some(())) => {
+                    // On overflow the returned count serves as a lower bound
+                    // for the actual number of completed futures.
+                    *this.completed = this.completed.saturating_add(1);
+                    made_progress_this_iter = true;
+                }
                 Poll::Ready(None) => {
+                    debug_assert!(this.futures.is_empty());
                     if this.stream.is_none() {
-                        return Poll::Ready(());
+                        return Poll::Ready(*this.completed);
                     }
                 }
-                Poll::Pending => {}
+                Poll::Pending => {
+                    debug_assert!(!this.futures.is_empty());
+                }
             }
 
             if !made_progress_this_iter {

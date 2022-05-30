@@ -15,6 +15,7 @@ pin_project! {
         f: F,
         #[pin]
         future: Option<Fut>,
+        completed: usize,
     }
 }
 
@@ -27,6 +28,7 @@ where
         f.debug_struct("ForEach")
             .field("stream", &self.stream)
             .field("future", &self.future)
+            .field("completed", &self.completed)
             .finish()
     }
 }
@@ -38,7 +40,7 @@ where
     Fut: Future<Output = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
-        Self { stream, f, future: None }
+        Self { stream, f, future: None, completed: 0 }
     }
 }
 
@@ -59,20 +61,23 @@ where
     F: FnMut(St::Item) -> Fut,
     Fut: Future<Output = ()>,
 {
-    type Output = ();
+    type Output = usize;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<usize> {
         let mut this = self.project();
         loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 ready!(fut.poll(cx));
                 this.future.set(None);
+                // On overflow the returned count serves as a lower bound
+                // for the actual number of completed futures.
+                *this.completed = this.completed.saturating_add(1);
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
                 this.future.set(Some((this.f)(item)));
             } else {
                 break;
             }
         }
-        Poll::Ready(())
+        Poll::Ready(*this.completed)
     }
 }
