@@ -1093,16 +1093,14 @@ pub trait StreamExt: Stream {
     /// let step_size = 2;
     /// let count = 3;
     ///
-    /// let x = AtomicUsize::new(0);
+    /// let x = &AtomicUsize::new(0);
     ///
-    /// let num_completed = {
-    ///     let x = &x;
-    ///     stream::repeat(step_size).take(count).for_each(|item| async move {
-    ///         x.fetch_add(item, Ordering::SeqCst);
-    ///     }).await
-    /// };
+    /// let fut = stream::repeat(step_size).take(count).for_each(|item| async move {
+    ///     x.fetch_add(item, Ordering::Relaxed);
+    /// });
+    /// let num_completed = fut.await;
     ///
-    /// assert_eq!(x.load(Ordering::SeqCst), step_size * count);
+    /// assert_eq!(x.load(Ordering::Relaxed), step_size * count);
     /// assert_eq!(num_completed, count);
     /// # });
     /// ```
