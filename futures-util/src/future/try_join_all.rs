@@ -10,10 +10,11 @@ use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use super::{assert_future, join_all, TryFuture, TryMaybeDone};
+use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
 
 #[cfg(not(futures_no_atomic_cas))]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
+use crate::TryFutureExt;
 
 enum FinalState<E = ()> {
     Pending,
@@ -35,11 +36,11 @@ where
     F: TryFuture,
 {
     Small {
-        elems: Pin<Box<[TryMaybeDone<F>]>>,
+        elems: Pin<Box<[TryMaybeDone<IntoFuture<F>>]>>,
     },
     #[cfg(not(futures_no_atomic_cas))]
     Big {
-        fut: TryCollect<FuturesOrdered<F>, Vec<F::Ok>>,
+        fut: TryCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
     },
 }
 
@@ -102,20 +103,21 @@ where
 pub fn try_join_all<I>(iter: I) -> TryJoinAll<I::Item>
 where
     I: IntoIterator,
-    I::Item: TryFuture
-        + Future<Output = Result<<I::Item as TryFuture>::Ok, <I::Item as TryFuture>::Error>>,
+    I::Item: TryFuture,
 {
+    let iter = iter.into_iter().map(TryFutureExt::into_future);
+
     #[cfg(futures_no_atomic_cas)]
     {
-        let elems = iter.into_iter().map(TryMaybeDone::Future).try_collect::<Box<[_]>>().into();
+        let elems = iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into();
         let kind = TryJoinAllKind::Small { elems };
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
             TryJoinAll { kind },
         )
     }
+
     #[cfg(not(futures_no_atomic_cas))]
     {
-        let iter = iter.into_iter();
         let kind = match iter.size_hint().1 {
             None => TryJoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().try_collect() },
             Some(max) => {
@@ -135,7 +137,7 @@ where
 
 impl<F> Future for TryJoinAll<F>
 where
-    F: TryFuture + Future<Output = Result<F::Ok, F::Error>>,
+    F: TryFuture,
 {
     type Output = Result<Vec<F::Ok>, F::Error>;
 
@@ -178,7 +180,7 @@ where
 
 impl<F> FromIterator<F> for TryJoinAll<F>
 where
-    F: TryFuture + Future<Output = Result<F::Ok, F::Error>>,
+    F: TryFuture,
 {
     fn from_iter<T: IntoIterator<Item = F>>(iter: T) -> Self {
         try_join_all(iter)
