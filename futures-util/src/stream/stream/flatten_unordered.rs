@@ -99,10 +99,8 @@ impl SharedPollState {
             })
             .ok()?;
 
-        debug_assert!(value & WAKING == NONE);
-
-        // Only start the waking process if we're not in the polling phase and the stream isn't woken already
-        if value & (WOKEN | POLLING) == NONE {
+        // Only start the waking process if we're not in the polling/waking phase and the stream isn't woken already
+        if value & (WOKEN | POLLING | WAKING) == NONE {
             let bomb = PollStateBomb::new(self, SharedPollState::stop_waking);
 
             Some((value, bomb))
@@ -236,7 +234,7 @@ impl ArcWake for WrappedWaker {
 }
 
 pin_project! {
-    /// Future which contains optional stream.
+    /// Future which polls optional inner stream.
     ///
     /// If it's `Some`, it will attempt to call `poll_next` on it,
     /// returning `Some((item, next_item_fut))` in case of `Poll::Ready(Some(...))`
