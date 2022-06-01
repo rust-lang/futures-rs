@@ -104,7 +104,7 @@ pub use self::select::{select, select_early_exit, Select};
 
 mod select_with_strategy;
 pub use self::select_with_strategy::{
-    select_with_strategy, ExitStrategy, PollNext, SelectWithStrategy,
+    select_with_strategy, ClosedStreams, ExitStrategy, PollNext, SelectWithStrategy,
 };
 
 mod unfold;
