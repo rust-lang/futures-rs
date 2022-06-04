@@ -109,8 +109,10 @@ where
 
     #[cfg(futures_no_atomic_cas)]
     {
-        let elems = iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into();
-        let kind = TryJoinAllKind::Small { elems };
+        let kind = TryJoinAllKind::Small {
+            elems: iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into(),
+        };
+
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
             TryJoinAll { kind },
         )
@@ -119,16 +121,12 @@ where
     #[cfg(not(futures_no_atomic_cas))]
     {
         let kind = match iter.size_hint().1 {
-            None => TryJoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().try_collect() },
-            Some(max) => {
-                if max <= join_all::SMALL {
-                    let elems = iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into();
-                    TryJoinAllKind::Small { elems }
-                } else {
-                    TryJoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().try_collect() }
-                }
-            }
+            Some(max) if max <= join_all::SMALL => TryJoinAllKind::Small {
+                elems: iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into(),
+            },
+            _ => TryJoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().try_collect() },
         };
+
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
             TryJoinAll { kind },
         )
