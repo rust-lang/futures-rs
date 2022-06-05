@@ -135,7 +135,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     /// This function will not call `poll` on the submitted future. The caller
     /// must ensure that `FuturesOrdered::poll` is called in order to receive
     /// task notifications.
-    #[deprecated]
+    #[deprecated(note = "use `push_back` instead")]
     pub fn push(&mut self, future: Fut) {
         let wrapped = OrderWrapper { data: future, index: self.next_incoming_index };
         self.next_incoming_index += 1;
