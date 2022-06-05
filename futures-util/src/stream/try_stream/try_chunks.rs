@@ -84,7 +84,7 @@ impl<St: TryStream> Stream for TryChunks<St> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let chunk_len = if self.items.is_empty() { 0 } else { 1 };
         let (lower, upper) = self.stream.size_hint();
-        let lower = lower.saturating_add(chunk_len);
+        let lower = (lower / self.cap).saturating_add(chunk_len);
         let upper = match upper {
             Some(x) => x.checked_add(chunk_len),
             None => None,
