@@ -129,6 +129,19 @@ impl<Fut: Future> FuturesOrdered<Fut> {
         self.in_progress_queue.is_empty() && self.queued_outputs.is_empty()
     }
 
+    /// Push a future into the queue.
+    ///
+    /// This function submits the given future to the internal set for managing.
+    /// This function will not call `poll` on the submitted future. The caller
+    /// must ensure that `FuturesOrdered::poll` is called in order to receive
+    /// task notifications.
+    #[deprecated]
+    pub fn push(&mut self, future: Fut) {
+        let wrapped = OrderWrapper { data: future, index: self.next_incoming_index };
+        self.next_incoming_index += 1;
+        self.in_progress_queue.push(wrapped);
+    }
+
     /// Pushes a future to the back of the queue.
     ///
     /// This function submits the given future to the internal set for managing.
