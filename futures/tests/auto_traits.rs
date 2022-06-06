@@ -1536,15 +1536,15 @@ pub mod stream {
     assert_not_impl!(Scan<PinnedStream, (), (), ()>: Unpin);
     assert_not_impl!(Scan<UnpinStream, (), PhantomPinned, ()>: Unpin);
 
-    assert_impl!(Select<(), ()>: Send);
-    assert_not_impl!(Select<*const (), ()>: Send);
-    assert_not_impl!(Select<(), *const ()>: Send);
-    assert_impl!(Select<(), ()>: Sync);
-    assert_not_impl!(Select<*const (), ()>: Sync);
-    assert_not_impl!(Select<(), *const ()>: Sync);
-    assert_impl!(Select<(), ()>: Unpin);
-    assert_not_impl!(Select<PhantomPinned, ()>: Unpin);
-    assert_not_impl!(Select<(), PhantomPinned>: Unpin);
+    assert_impl!(Select<(), (), ()>: Send);
+    assert_not_impl!(Select<*const (), (), ()>: Send);
+    assert_not_impl!(Select<(), *const (), ()>: Send);
+    assert_impl!(Select<(), (), ()>: Sync);
+    assert_not_impl!(Select<*const (), (), ()>: Sync);
+    assert_not_impl!(Select<(), *const (), ()>: Sync);
+    assert_impl!(Select<(), (), ()>: Unpin);
+    assert_not_impl!(Select<PhantomPinned, (), ()>: Unpin);
+    assert_not_impl!(Select<(), PhantomPinned, ()>: Unpin);
 
     assert_impl!(SelectAll<()>: Send);
     assert_not_impl!(SelectAll<*const ()>: Send);

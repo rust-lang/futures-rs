@@ -26,6 +26,22 @@ fn select() {
 }
 
 #[test]
+fn select_early_exit() {
+    fn select_and_compare(a: Vec<u32>, b: Vec<u32>, expected: Vec<u32>) {
+        let a = stream::iter(a);
+        let b = stream::iter(b);
+        let vec = block_on(stream::select_early_exit(a, b).collect::<Vec<_>>());
+        assert_eq!(vec, expected);
+    }
+
+    select_and_compare(vec![1, 2, 3], vec![4, 5, 6], vec![1, 4, 2, 5, 3, 6]);
+    select_and_compare(vec![], vec![4, 5], vec![]);
+    select_and_compare(vec![4, 5], vec![], vec![4]);
+    select_and_compare(vec![1, 2, 3], vec![4, 5], vec![1, 4, 2, 5, 3]);
+    select_and_compare(vec![1, 2], vec![4, 5, 6], vec![1, 4, 2, 5]);
+}
+
+#[test]
 fn flat_map() {
     block_on(async {
         let st =
