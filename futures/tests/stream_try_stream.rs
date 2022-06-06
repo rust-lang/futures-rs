@@ -105,8 +105,7 @@ fn try_flatten_unordered() {
     block_on(async move {
         let mut st = ErrorStream { error_after: 3, polled: 0 }.try_flatten_unordered(None);
         let mut ctr = 0;
-        while let Ok(item) = st.try_next().await {
-            assert_eq!(item, Some(()));
+        while let Ok(_) = st.try_next().await {
             ctr += 1;
         }
         assert_eq!(ctr, 0);
@@ -114,18 +113,22 @@ fn try_flatten_unordered() {
         assert_eq!(
             ErrorStream { error_after: 10, polled: 0 }
                 .try_flatten_unordered(None)
+                .inspect_ok(|_| panic!("Unexpected `Ok`"))
                 .try_collect::<Vec<_>>()
                 .await,
             Err(())
         );
 
+        let mut taken = 0;
         assert_eq!(
             ErrorStream { error_after: 10, polled: 0 }
                 .map_ok(|st| st.take(3))
                 .try_flatten_unordered(1)
+                .inspect(|_| taken += 1)
                 .try_fold((), |(), res| async move { res })
                 .await,
             Err(())
         );
+        assert_eq!(taken, 31);
     })
 }
