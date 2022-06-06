@@ -105,7 +105,7 @@ fn try_flatten_unordered() {
     block_on(async move {
         let mut st = ErrorStream { error_after: 3, polled: 0 }.try_flatten_unordered(None);
         let mut ctr = 0;
-        while let Ok(_) = st.try_next().await {
+        while (st.try_next().await).is_ok() {
             ctr += 1;
         }
         assert_eq!(ctr, 0);
