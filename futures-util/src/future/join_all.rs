@@ -86,6 +86,21 @@ where
 ///  * Only polling the specific futures that have been woken. In cases where
 ///    you have a lot of futures this will result in much more efficient polling.
 ///
+/// When awaiting a collection of spawned tasks, consider iterating over them with
+/// a for loop instead of using `join_all`, since `join_all` is more expensive than
+/// simple iteration and will not warn you if there are errors.
+///
+/// This extra expense come from `join_all` being designed to work with all types of
+/// futures.  For most futures, simply iterating over a collection of them would make
+/// the futures run sequentially. To ensure they always run at the same time,
+/// `join_all` must do something significantly more complicated.
+///
+/// Consider using `join_all` if the following conditions are met:
+///     1. You don't want to spawn the tasks. (Usually because they are not `'static`),
+///     2. You care about getting their return values back in the same order, and you
+///        can't use any of them until you have all of them, and
+///     3. You don't want any limit on the number of futures running at the same time.
+///
 /// # Examples
 ///
 /// ```
