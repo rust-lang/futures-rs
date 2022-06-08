@@ -174,7 +174,8 @@ where
     fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
         let mut wakers_guard = self.notifier.wakers.lock().unwrap();
 
-        let wakers = match wakers_guard.as_mut() {
+        let waker_opt = wakers_guard.as_mut();
+        let wakers = match waker_opt {
             Some(wakers) => wakers,
             None => return,
         };

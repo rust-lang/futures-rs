@@ -162,7 +162,8 @@ impl<T: ?Sized> Mutex<T> {
     fn remove_waker(&self, wait_key: usize, wake_another: bool) {
         if wait_key != WAIT_KEY_NONE {
             let mut waiters = self.waiters.lock().unwrap();
-            match waiters.remove(wait_key) {
+            let waiter = waiters.remove(wait_key);
+            match waiter {
                 Waiter::Waiting(_) => {}
                 Waiter::Woken => {
                     // We were awoken, but then dropped before we could
