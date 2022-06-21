@@ -18,7 +18,7 @@ alloc = []
 [dependencies]
 
 [dev-dependencies]
-futures = { path = "../futures" }
+futures = { path = "../futures", version = "=0.4.0-alpha.0" }
 
 [package.metadata.docs.rs]
 all-features = true

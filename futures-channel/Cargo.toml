@@ -21,8 +21,8 @@ futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-f
 futures-sink = { path = "../futures-sink", version = "=0.4.0-alpha.0", default-features = false, optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", default-features = true }
-futures-test = { path = "../futures-test", default-features = true }
+futures = { path = "../futures", version = "=0.4.0-alpha.0", default-features = true }
+futures-test = { path = "../futures-test", version = "=0.4.0-alpha.0", default-features = true }
 
 [package.metadata.docs.rs]
 all-features = true

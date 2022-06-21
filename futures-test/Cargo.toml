@@ -22,7 +22,7 @@ pin-utils = { version = "0.1.0", default-features = false }
 pin-project = "1.0.1"
 
 [dev-dependencies]
-futures = { path = "../futures", default-features = false, features = ["std", "executor"] }
+futures = { path = "../futures", version = "=0.4.0-alpha.0", default-features = false, features = ["std", "executor"] }
 
 [features]
 default = ["std"]
