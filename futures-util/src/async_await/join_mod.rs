@@ -29,7 +29,7 @@ macro_rules! document_join_macro {
         /// assert_eq!(join!(c, d, e), (3, 4, 5));
         /// # });
         /// ```
-        /// 
+        ///
         /// As an array of async, you should use `join_all` method.
         $join
 
