@@ -137,9 +137,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     /// task notifications.
     #[deprecated(note = "use `push_back` instead")]
     pub fn push(&mut self, future: Fut) {
-        let wrapped = OrderWrapper { data: future, index: self.next_incoming_index };
-        self.next_incoming_index += 1;
-        self.in_progress_queue.push(wrapped);
+        self.push_back(future);
     }
 
     /// Pushes a future to the back of the queue.
