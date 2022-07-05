@@ -19,7 +19,7 @@ futures-executor = { version = "0.3.21", path = "../futures-executor", default-f
 futures-sink = { version = "0.3.21", path = "../futures-sink", default-features = false }
 futures-macro = { version = "=0.3.21", path = "../futures-macro", default-features = false }
 pin-utils = { version = "0.1.0", default-features = false }
-pin-project = "1.0.1"
+pin-project = "1.0.11"
 
 [dev-dependencies]
 futures = { path = "../futures", default-features = false, features = ["std", "executor"] }
