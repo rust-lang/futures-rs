@@ -4,8 +4,10 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+type MockReaderFun = Box<dyn FnMut(&mut [u8]) -> Poll<io::Result<usize>>>;
+
 struct MockReader {
-    fun: Box<dyn FnMut(&mut [u8]) -> Poll<io::Result<usize>>>,
+    fun: MockReaderFun,
 }
 
 impl MockReader {

@@ -19,7 +19,7 @@ fn select_streams(b: &mut Bencher) {
         let stream6 = repeat(6).take(STREAM_COUNT);
         let stream7 = repeat(7).take(STREAM_COUNT);
         let count = block_on(async {
-            let count = select(
+            select(
                 stream1,
                 select(
                     stream2,
@@ -27,8 +27,7 @@ fn select_streams(b: &mut Bencher) {
                 ),
             )
             .count()
-            .await;
-            count
+            .await
         });
         assert_eq!(count, STREAM_COUNT * 7);
     });
