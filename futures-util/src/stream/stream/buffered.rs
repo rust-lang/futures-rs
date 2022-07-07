@@ -69,7 +69,7 @@ where
         // our queue of futures.
         while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
             match this.stream.as_mut().poll_next(cx) {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push(fut),
+                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
