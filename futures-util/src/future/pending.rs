@@ -33,7 +33,7 @@ impl<T> FusedFuture for Pending<T> {
 /// unreachable!();
 /// # });
 /// ```
-#[doc(alias = "never")]
+#[cfg_attr(docsrs, doc(alias = "never"))]
 pub fn pending<T>() -> Pending<T> {
     assert_future::<T, _>(Pending { _data: marker::PhantomData })
 }
