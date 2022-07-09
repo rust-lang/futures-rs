@@ -68,6 +68,7 @@ pub trait FutureTestExt: Future {
     ///
     /// assert_eq!(rx.await, Ok(5));
     /// # });
+    /// # std::thread::sleep(std::time::Duration::from_secs(1)); // wait for background threads closed
     /// ```
     fn run_in_background(self)
     where
