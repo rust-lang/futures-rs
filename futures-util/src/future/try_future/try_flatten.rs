@@ -29,10 +29,7 @@ where
     Fut::Ok: TryFuture<Error = Fut::Error>,
 {
     fn is_terminated(&self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
+        matches!(self, Self::Empty)
     }
 }
 
@@ -70,10 +67,7 @@ where
     Fut::Ok: TryStream<Error = Fut::Error>,
 {
     fn is_terminated(&self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
+        matches!(self, Self::Empty)
     }
 }
 

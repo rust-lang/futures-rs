@@ -63,10 +63,7 @@ impl Parse for Select {
 
             // Commas after the expression are only optional if it's a `Block`
             // or it is the last branch in the `match`.
-            let is_block = match expr {
-                Expr::Block(_) => true,
-                _ => false,
-            };
+            let is_block = matches!(expr, Expr::Block(_));
             if is_block || input.is_empty() {
                 input.parse::<Option<Token![,]>>()?;
             } else {

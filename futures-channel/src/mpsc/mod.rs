@@ -192,18 +192,12 @@ impl std::error::Error for SendError {}
 impl SendError {
     /// Returns `true` if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
-        match self.kind {
-            SendErrorKind::Full => true,
-            _ => false,
-        }
+        matches!(self.kind, SendErrorKind::Full)
     }
 
     /// Returns `true` if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
-        match self.kind {
-            SendErrorKind::Disconnected => true,
-            _ => false,
-        }
+        matches!(self.kind, SendErrorKind::Disconnected)
     }
 }
 

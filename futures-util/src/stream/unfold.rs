@@ -81,11 +81,7 @@ where
     Fut: Future<Output = Option<(Item, T)>>,
 {
     fn is_terminated(&self) -> bool {
-        if let UnfoldState::Empty = self.state {
-            true
-        } else {
-            false
-        }
+        matches!(self.state, UnfoldState::Empty)
     }
 }
 
