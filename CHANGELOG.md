@@ -192,7 +192,7 @@ NOTE: This release has been yanked. See #2310 for details.
 
 NOTE: This release has been yanked. See #2310 for details.
 
-* Fix signature of `LocalSpawn` trait (breaking change -- see #1959)
+* Fix signature of `SpawnExt` and `LocalSpawnExt` trait (breaking change -- see #1959)
 
 # 0.3.0 - 2019-11-05
 
