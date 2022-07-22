@@ -138,7 +138,7 @@ impl<T: Unpin> ManualFlush<T> {
         for task in self.waiting_tasks.drain(..) {
             task.wake()
         }
-        mem::replace(&mut self.data, Vec::new())
+        mem::take(&mut self.data)
     }
 }
 

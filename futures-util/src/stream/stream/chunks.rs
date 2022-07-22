@@ -66,7 +66,7 @@ impl<St: Stream> Stream for Chunks<St> {
                     let last = if this.items.is_empty() {
                         None
                     } else {
-                        let full_buf = mem::replace(this.items, Vec::new());
+                        let full_buf = mem::take(this.items);
                         Some(full_buf)
                     };
 
