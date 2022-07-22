@@ -65,5 +65,5 @@ fn mutex_contested() {
             assert_eq!(num_tasks, *lock);
         });
     }
-    std::thread::sleep(std::time::Duration::from_secs(1)); // wait for background threads closed
+    std::thread::sleep(std::time::Duration::from_millis(500)); // wait for background threads closed: https://github.com/rust-lang/miri/issues/1371
 }
