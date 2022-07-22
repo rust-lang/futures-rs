@@ -199,10 +199,7 @@ where
     Clos: FnMut(&mut State) -> PollNext,
 {
     fn is_terminated(&self) -> bool {
-        match self.internal_state {
-            InternalState::BothFinished => true,
-            _ => false,
-        }
+        matches!(self.internal_state, InternalState::BothFinished)
     }
 }
 
