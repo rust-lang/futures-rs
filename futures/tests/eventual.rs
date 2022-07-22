@@ -134,10 +134,7 @@ fn select3() {
 
 #[test]
 fn select4() {
-    #[cfg(miri)]
-    const N: usize = 100;
-    #[cfg(not(miri))]
-    const N: usize = 10000;
+    const N: usize = if cfg!(miri) { 100 } else { 10000 };
 
     let (tx, rx) = mpsc::channel::<oneshot::Sender<i32>>();
 

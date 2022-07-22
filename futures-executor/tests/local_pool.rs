@@ -288,10 +288,7 @@ fn run_until_stalled_runs_spawned_sub_futures() {
 
 #[test]
 fn run_until_stalled_executes_all_ready() {
-    #[cfg(miri)]
-    const ITER: usize = 50;
-    #[cfg(not(miri))]
-    const ITER: usize = 200;
+    const ITER: usize = if cfg!(miri) { 50 } else { 200 };
     const PER_ITER: usize = 3;
 
     let cnt = Rc::new(Cell::new(0));
