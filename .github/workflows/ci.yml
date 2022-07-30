@@ -97,6 +97,8 @@ jobs:
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         rust:
