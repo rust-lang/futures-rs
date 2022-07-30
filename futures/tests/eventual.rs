@@ -15,7 +15,7 @@ fn join1() {
     let (tx, rx) = mpsc::channel();
     run(future::try_join(ok::<i32, i32>(1), ok(2)).map_ok(move |v| tx.send(v).unwrap()));
     assert_eq!(rx.recv(), Ok((1, 2)));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -24,12 +24,12 @@ fn join2() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_join(p1, p2).map_ok(move |v| tx.send(v).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c1.send(1).unwrap();
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok((1, 2)));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -38,10 +38,10 @@ fn join3() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_join(p1, p2).map_err(move |_v| tx.send(1).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     drop(c1);
     assert_eq!(rx.recv(), Ok(1));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
     drop(c2);
 }
 
@@ -51,11 +51,11 @@ fn join4() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_join(p1, p2).map_err(move |v| tx.send(v).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     drop(c1);
-    assert!(rx.recv().is_ok());
+    rx.recv().unwrap();
     drop(c2);
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -65,14 +65,14 @@ fn join5() {
     let (c3, p3) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_join(future::try_join(p1, p2), p3).map_ok(move |v| tx.send(v).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c1.send(1).unwrap();
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c2.send(2).unwrap();
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c3.send(3).unwrap();
     assert_eq!(rx.recv(), Ok(((1, 2), 3)));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -81,17 +81,17 @@ fn select1() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_select(p1, p2).map_ok(move |v| tx.send(v).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     c1.send(1).unwrap();
     let (v, p2) = rx.recv().unwrap().into_inner();
     assert_eq!(v, 1);
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 
     let (tx, rx) = mpsc::channel();
     run(p2.map_ok(move |v| tx.send(v).unwrap()));
     c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -100,17 +100,17 @@ fn select2() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 
     let (tx, rx) = mpsc::channel();
     run(p2.map_ok(move |v| tx.send(v).unwrap()));
     c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]
@@ -119,17 +119,17 @@ fn select3() {
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
     run(future::try_select(p1, p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()));
-    assert!(rx.try_recv().is_err());
+    rx.try_recv().unwrap_err();
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 
     let (tx, rx) = mpsc::channel();
     run(p2.map_err(move |_v| tx.send(2).unwrap()));
     drop(c2);
     assert_eq!(rx.recv(), Ok(2));
-    assert!(rx.recv().is_err());
+    rx.recv().unwrap_err();
 }
 
 #[test]

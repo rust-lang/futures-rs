@@ -41,7 +41,7 @@ fn drop_rx() {
     let (mut tx, rx) = mpsc::channel::<u32>(1);
     block_on(tx.send(1)).unwrap();
     drop(rx);
-    assert!(block_on(tx.send(1)).is_err());
+    block_on(tx.send(1)).unwrap_err();
 }
 
 #[test]
@@ -61,6 +61,6 @@ fn drop_order() {
     assert_eq!(DROPS.load(Ordering::SeqCst), 0);
     drop(rx);
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
-    assert!(block_on(tx.send(A)).is_err());
+    block_on(tx.send(A)).unwrap_err();
     assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }

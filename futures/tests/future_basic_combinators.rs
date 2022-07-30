@@ -23,12 +23,12 @@ fn basic_future_combinators() {
             tx3.send(x).unwrap(); // Send 5
         });
 
-    assert!(rx.try_recv().is_err()); // Not started yet
+    rx.try_recv().unwrap_err(); // Not started yet
     fut.run_in_background(); // Start it
     for i in 1..=5 {
         assert_eq!(rx.recv(), Ok(i));
     } // Check it
-    assert!(rx.recv().is_err()); // Should be done
+    rx.recv().unwrap_err(); // Should be done
 }
 
 #[test]
@@ -95,10 +95,10 @@ fn basic_try_future_combinators() {
             tx10.send(12).unwrap(); // Send 12
         });
 
-    assert!(rx.try_recv().is_err()); // Not started yet
+    rx.try_recv().unwrap_err(); // Not started yet
     fut.run_in_background(); // Start it
     for i in 1..=12 {
         assert_eq!(rx.recv(), Ok(i));
     } // Check it
-    assert!(rx.recv().is_err()); // Should be done
+    rx.recv().unwrap_err(); // Should be done
 }
