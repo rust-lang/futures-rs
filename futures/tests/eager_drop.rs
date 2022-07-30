@@ -19,7 +19,7 @@ fn map_ok() {
             panic!("should not run");
         })
         .map(move |_| {
-            assert!(rx1.recv().is_err());
+            rx1.recv().unwrap_err();
             tx2.send(()).unwrap()
         })
         .run_in_background();
@@ -40,7 +40,7 @@ fn map_err() {
             panic!("should not run");
         })
         .map(move |_| {
-            assert!(rx1.recv().is_err());
+            rx1.recv().unwrap_err();
             tx2.send(()).unwrap()
         })
         .run_in_background();
@@ -71,7 +71,7 @@ fn then_drops_eagerly() {
 
     FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| panic!()) }
         .then(move |_| {
-            assert!(rx1.recv().is_err()); // tx1 should have been dropped
+            rx1.recv().unwrap_err(); // tx1 should have been dropped
             tx2.send(()).unwrap();
             future::ready(())
         })
@@ -90,7 +90,7 @@ fn and_then_drops_eagerly() {
 
     FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| panic!()) }
         .and_then(move |_| {
-            assert!(rx1.recv().is_err()); // tx1 should have been dropped
+            rx1.recv().unwrap_err(); // tx1 should have been dropped
             tx2.send(()).unwrap();
             future::ready(Ok(()))
         })
@@ -109,7 +109,7 @@ fn or_else_drops_eagerly() {
 
     FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| panic!()) }
         .or_else(move |_| {
-            assert!(rx1.recv().is_err()); // tx1 should have been dropped
+            rx1.recv().unwrap_err(); // tx1 should have been dropped
             tx2.send(()).unwrap();
             future::ready::<Result<(), ()>>(Ok(()))
         })

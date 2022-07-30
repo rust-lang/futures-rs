@@ -20,7 +20,7 @@ fn read_to_string() {
 
     let mut c = Cursor::new(&b"\xff"[..]);
     let mut v = String::new();
-    assert!(block_on(c.read_to_string(&mut v)).is_err());
+    block_on(c.read_to_string(&mut v)).unwrap_err();
 }
 
 #[test]
