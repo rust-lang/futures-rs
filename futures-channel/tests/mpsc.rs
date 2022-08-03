@@ -35,7 +35,7 @@ fn send_recv_no_buffer() {
         assert!(tx.as_mut().poll_ready(cx).is_ready());
 
         // Send first message
-        tx.as_mut().start_send(1).unwrap();
+        assert!(tx.as_mut().start_send(1).is_ok());
         assert!(tx.as_mut().poll_ready(cx).is_pending());
 
         // poll_ready said Pending, so no room in buffer, therefore new sends
@@ -49,7 +49,7 @@ fn send_recv_no_buffer() {
 
         // Send second message
         assert!(tx.as_mut().poll_ready(cx).is_ready());
-        tx.as_mut().start_send(2).unwrap();
+        assert!(tx.as_mut().start_send(2).is_ok());
         assert!(tx.as_mut().poll_ready(cx).is_pending());
 
         // Take the value
@@ -484,7 +484,7 @@ fn try_send_fail() {
     tx.try_send("hello").unwrap();
 
     // This should fail
-    tx.try_send("fail").unwrap_err();
+    assert!(tx.try_send("fail").is_err());
 
     assert_eq!(rx.next(), Some("hello"));
 

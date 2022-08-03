@@ -519,7 +519,7 @@ fn sink_unfold() {
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(3), Ok(()));
         assert_eq!(rx.try_next().unwrap(), Some(2));
-        rx.try_next().unwrap_err();
+        assert!(rx.try_next().is_err());
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(4), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Pending); // Channel full

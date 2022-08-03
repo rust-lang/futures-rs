@@ -10,7 +10,7 @@ fn panic_in_the_middle_of_the_stream() {
     let mut iter = block_on_stream(stream_panicking.catch_unwind());
 
     assert_eq!(10, iter.next().unwrap().ok().unwrap());
-    iter.next().unwrap().unwrap_err();
+    assert!(iter.next().unwrap().is_err());
     assert!(iter.next().is_none());
 }
 
