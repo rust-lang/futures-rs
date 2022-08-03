@@ -161,7 +161,7 @@ fn test_buffered_reader_seek() {
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
-        reader.seek(SeekFrom::Current(i64::MIN)).await.unwrap_err();
+        assert!(reader.seek(SeekFrom::Current(i64::MIN)).await.is_err());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
         assert_eq!(reader.seek(SeekFrom::Current(1)).await.unwrap(), 4);
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[1, 2][..]);
@@ -177,15 +177,15 @@ fn test_buffered_reader_seek_relative() {
         let reader = BufReader::with_capacity(2, Cursor::new(inner));
         pin_mut!(reader);
 
-        reader.as_mut().seek_relative(3).await.unwrap();
+        assert!(reader.as_mut().seek_relative(3).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
-        reader.as_mut().seek_relative(0).await.unwrap();
+        assert!(reader.as_mut().seek_relative(0).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
-        reader.as_mut().seek_relative(1).await.unwrap();
+        assert!(reader.as_mut().seek_relative(1).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[1][..]);
-        reader.as_mut().seek_relative(-1).await.unwrap();
+        assert!(reader.as_mut().seek_relative(-1).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
-        reader.as_mut().seek_relative(2).await.unwrap();
+        assert!(reader.as_mut().seek_relative(2).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[2, 3][..]);
     });
 }
@@ -204,7 +204,7 @@ fn test_buffered_reader_invalidated_after_read() {
         assert_eq!(reader.read(&mut buffer).await.unwrap(), 5);
         assert_eq!(buffer, [0, 1, 2, 3, 4]);
 
-        reader.as_mut().seek_relative(-2).await.unwrap();
+        assert!(reader.as_mut().seek_relative(-2).await.is_ok());
         let mut buffer = [0, 0];
         assert_eq!(reader.read(&mut buffer).await.unwrap(), 2);
         assert_eq!(buffer, [3, 4]);
@@ -221,9 +221,9 @@ fn test_buffered_reader_invalidated_after_seek() {
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[5, 6, 7][..]);
         reader.as_mut().consume(3);
 
-        reader.seek(SeekFrom::Current(5)).await.unwrap();
+        assert!(reader.seek(SeekFrom::Current(5)).await.is_ok());
 
-        reader.as_mut().seek_relative(-2).await.unwrap();
+        assert!(reader.as_mut().seek_relative(-2).await.is_ok());
         let mut buffer = [0, 0];
         assert_eq!(reader.read(&mut buffer).await.unwrap(), 2);
         assert_eq!(buffer, [3, 4]);

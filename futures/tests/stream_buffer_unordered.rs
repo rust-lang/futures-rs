@@ -39,7 +39,7 @@ fn works() {
     let o2 = rx3.recv().unwrap();
     let o3 = rx3.recv().unwrap();
     let o4 = rx3.recv().unwrap();
-    rx4.try_recv().unwrap_err();
+    assert!(rx4.try_recv().is_err());
 
     o1.send(1).unwrap();
     assert_eq!(rx4.recv(), Ok(1));

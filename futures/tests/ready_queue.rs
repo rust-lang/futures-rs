@@ -141,7 +141,7 @@ fn panicking_future_dropped() {
         queue.push(future::poll_fn(|_| -> Poll<Result<i32, i32>> { panic!() }));
 
         let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next_unpin(cx)));
-        r.unwrap_err();
+        assert!(r.is_err());
         assert!(queue.is_empty());
         assert_eq!(Poll::Ready(None), queue.poll_next_unpin(cx));
     }));
