@@ -1,3 +1,7 @@
+# 0.3.23 - 2022-08-14
+
+* Work around MSRV increase due to a cargo bug.
+
 # 0.3.22 - 2022-08-14
 
 * Fix `Sync` impl of `BiLockGuard` (#2570)
