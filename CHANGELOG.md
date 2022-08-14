@@ -1,3 +1,24 @@
+# 0.3.23 - 2022-08-14
+
+* Work around MSRV increase due to a cargo bug.
+
+# 0.3.22 - 2022-08-14
+
+* Fix `Sync` impl of `BiLockGuard` (#2570)
+* Fix partial iteration in `FuturesUnordered` (#2574)
+* Fix false detection of inner panics in `Shared` (#2576)
+* Add `Mutex::lock_owned` and `Mutex::try_lock_owned` (#2571)
+* Add `io::copy_buf_abortable` (#2507)
+* Remove `Unpin` bound from `TryStreamExt::into_async_read` (#2599)
+* Make `run_until_stalled` handle self-waking futures (#2593)
+* Use `FuturesOrdered` in `try_join_all` (#2556)
+* Fix orderings in `LocalPool` waker (#2608)
+* Fix `stream::Chunk` adapters size hints (#2611)
+* Add `push_front` and `push_back` to `FuturesOrdered` (#2591)
+* Deprecate `FuturesOrdered::push` in favor of `FuturesOrdered::push_back` (#2591)
+* Performance improvements (#2583, #2626)
+* Documentation improvements (#2579, #2604, #2613)
+
 # 0.3.21 - 2022-02-06
 
 * Fix potential data race in `FlattenUnordered` that introduced in 0.3.20 (#2566)
