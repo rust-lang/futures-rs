@@ -25,7 +25,7 @@ set -x
 for i in "${!MEMBERS[@]}"; do
     (
         cd "${MEMBERS[${i}]}"
-        cargo publish
+        cargo +stable publish
     )
     if [[ $((i + 1)) != "${#MEMBERS[@]}" ]]; then
         sleep 45
