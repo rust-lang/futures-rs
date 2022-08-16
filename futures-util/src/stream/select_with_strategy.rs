@@ -52,8 +52,8 @@ impl InternalState {
             (InternalState::Start, PollNext::Right) => {
                 *self = InternalState::RightFinished;
             }
-            (InternalState::LeftFinished, PollNext::Right)
-            | (InternalState::RightFinished, PollNext::Left) => {
+            (InternalState::LeftFinished, PollNext::Left)
+            | (InternalState::RightFinished, PollNext::Right) => {
                 *self = InternalState::BothFinished;
             }
             _ => {}
