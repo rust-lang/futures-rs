@@ -52,8 +52,8 @@ impl InternalState {
             (InternalState::Start, PollNext::Right) => {
                 *self = InternalState::RightFinished;
             }
-            (InternalState::LeftFinished, PollNext::Left)
-            | (InternalState::RightFinished, PollNext::Right) => {
+            (InternalState::LeftFinished, PollNext::Right)
+            | (InternalState::RightFinished, PollNext::Left) => {
                 *self = InternalState::BothFinished;
             }
             _ => {}
@@ -229,18 +229,23 @@ where
     St1: Stream,
     St2: Stream<Item = St1::Item>,
 {
-    match poll_side(select, side, cx) {
+    let first_done = match poll_side(select, side, cx) {
         Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
         Poll::Ready(None) => {
             select.internal_state.finish(side);
+            true
         }
-        Poll::Pending => (),
+        Poll::Pending => false,
     };
     let other = side.other();
     match poll_side(select, other, cx) {
         Poll::Ready(None) => {
             select.internal_state.finish(other);
-            Poll::Ready(None)
+            if first_done {
+                Poll::Ready(None)
+            } else {
+                Poll::Pending
+            }
         }
         a => a,
     }

@@ -455,7 +455,7 @@ impl Stream for SlowStream {
             cx.waker().wake_by_ref();
             return Poll::Pending;
         }
-        if self.times_polled.get() == self.times_should_poll {
+        if self.times_polled.get() >= self.times_should_poll {
             return Poll::Ready(None);
         }
         Poll::Ready(Some(self.times_polled.get()))
@@ -464,15 +464,17 @@ impl Stream for SlowStream {
 
 #[test]
 fn select_with_strategy_doesnt_terminate_early() {
-    let times_should_poll = 10;
-    let count = Rc::new(Cell::new(0));
-    let b = stream::iter([10, 20]);
+    for side in [stream::PollNext::Left, stream::PollNext::Right] {
+        let times_should_poll = 10;
+        let count = Rc::new(Cell::new(0));
+        let b = stream::iter([10, 20]);
 
-    let selected = stream::select_with_strategy(
-        SlowStream { times_should_poll, times_polled: count.clone() },
-        b,
-        |_: &mut ()| stream::PollNext::Left,
-    );
-    block_on(selected.for_each(|v| async move { println!("{}", v) }));
-    assert_eq!(count.get(), times_should_poll);
+        let mut selected = stream::select_with_strategy(
+            SlowStream { times_should_poll, times_polled: count.clone() },
+            b,
+            |_: &mut ()| side,
+        );
+        block_on(async move { while selected.next().await.is_some() {} });
+        assert_eq!(count.get(), times_should_poll + 1);
+    }
 }
