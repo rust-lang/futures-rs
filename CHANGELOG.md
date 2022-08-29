@@ -1,3 +1,7 @@
+# 0.3.24 - 2022-08-29
+
+* Fix incorrect termination of `select_with_strategy` streams (#2635)
+
 # 0.3.23 - 2022-08-14
 
 * Work around MSRV increase due to a cargo bug.
