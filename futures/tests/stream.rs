@@ -410,7 +410,7 @@ fn take_until() {
 fn chunks_panic_on_cap_zero() {
     let (_, rx1) = mpsc::channel::<()>(1);
 
-    let _ = rx1.chunks(0);
+    let _ = rx1.chunks::<Vec<_>>(0);
 }
 
 #[test]
@@ -418,14 +418,14 @@ fn chunks_panic_on_cap_zero() {
 fn ready_chunks_panic_on_cap_zero() {
     let (_, rx1) = mpsc::channel::<()>(1);
 
-    let _ = rx1.ready_chunks(0);
+    let _ = rx1.ready_chunks::<Vec<_>>(0);
 }
 
 #[test]
 fn ready_chunks() {
     let (mut tx, rx1) = mpsc::channel::<i32>(16);
 
-    let mut s = rx1.ready_chunks(2);
+    let mut s = rx1.ready_chunks::<Vec<_>>(2);
 
     let mut cx = noop_context();
     assert!(s.next().poll_unpin(&mut cx).is_pending());

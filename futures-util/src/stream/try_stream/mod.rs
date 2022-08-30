@@ -11,8 +11,6 @@ use crate::fns::{
 };
 use crate::future::assert_future;
 use crate::stream::{assert_stream, Inspect, Map};
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
 use core::pin::Pin;
 
 use futures_core::{
@@ -510,15 +508,17 @@ pub trait TryStreamExt: TryStream {
         assert_future::<Result<C, Self::Error>, _>(TryCollect::new(self))
     }
 
-    /// An adaptor for chunking up successful items of the stream inside a vector.
+    /// An adaptor for chunking up successful items of the stream inside a collection.
     ///
     /// This combinator will attempt to pull successful items from this stream and buffer
-    /// them into a local vector. At most `capacity` items will get buffered
+    /// them into a local collection. At most `capacity` items will get buffered
     /// before they're yielded from the returned stream.
     ///
-    /// Note that the vectors returned from this iterator may not always have
+    /// Note that the collections returned from this iterator may not always have
     /// `capacity` elements. If the underlying stream ended and only a partial
-    /// vector was created, it'll be returned. Additionally if an error happens
+    /// collection was created, it'll be returned. Furthermore, some
+    /// collections may replace elements (e.g. a HashMap if it receives two
+    /// elements with identical keys). Additionally if an error happens
     /// from the underlying stream then the currently buffered items will be
     /// yielded.
     ///
@@ -548,13 +548,13 @@ pub trait TryStreamExt: TryStream {
     ///
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
-    fn try_chunks(self, capacity: usize) -> TryChunks<Self>
+    fn try_chunks<C: Default + Extend<Self::Ok>>(self, capacity: usize) -> TryChunks<Self, C>
     where
         Self: Sized,
     {
-        assert_stream::<Result<Vec<Self::Ok>, TryChunksError<Self::Ok, Self::Error>>, _>(
-            TryChunks::new(self, capacity),
-        )
+        assert_stream::<Result<C, TryChunksError<C, Self::Error>>, _>(TryChunks::new(
+            self, capacity,
+        ))
     }
 
     /// Attempt to filter the values produced by this stream according to the

@@ -1142,14 +1142,14 @@ pub mod stream {
     assert_not_impl!(Chain<(), PhantomPinned>: Unpin);
     assert_not_impl!(Chain<PhantomPinned, ()>: Unpin);
 
-    assert_impl!(Chunks<SendStream<()>>: Send);
-    assert_not_impl!(Chunks<SendStream>: Send);
-    assert_not_impl!(Chunks<LocalStream>: Send);
-    assert_impl!(Chunks<SyncStream<()>>: Sync);
-    assert_not_impl!(Chunks<SyncStream>: Sync);
-    assert_not_impl!(Chunks<LocalStream>: Sync);
-    assert_impl!(Chunks<UnpinStream>: Unpin);
-    assert_not_impl!(Chunks<PinnedStream>: Unpin);
+    assert_impl!(Chunks<SendStream<()>, ()>: Send);
+    assert_not_impl!(Chunks<SendStream, *const ()>: Send);
+    assert_not_impl!(Chunks<LocalStream, ()>: Send);
+    assert_impl!(Chunks<SyncStream<()>, ()>: Sync);
+    assert_not_impl!(Chunks<SyncStream, *const ()>: Sync);
+    assert_not_impl!(Chunks<LocalStream, ()>: Sync);
+    assert_impl!(Chunks<UnpinStream, ()>: Unpin);
+    assert_not_impl!(Chunks<PinnedStream, ()>: Unpin);
 
     assert_impl!(Collect<(), ()>: Send);
     assert_not_impl!(Collect<*const (), ()>: Send);
@@ -1491,14 +1491,14 @@ pub mod stream {
     assert_impl!(PollImmediate<UnpinStream>: Unpin);
     assert_not_impl!(PollImmediate<PinnedStream>: Unpin);
 
-    assert_impl!(ReadyChunks<SendStream<()>>: Send);
-    assert_not_impl!(ReadyChunks<SendStream>: Send);
-    assert_not_impl!(ReadyChunks<LocalStream>: Send);
-    assert_impl!(ReadyChunks<SyncStream<()>>: Sync);
-    assert_not_impl!(ReadyChunks<SyncStream>: Sync);
-    assert_not_impl!(ReadyChunks<LocalStream>: Sync);
-    assert_impl!(ReadyChunks<UnpinStream>: Unpin);
-    assert_not_impl!(ReadyChunks<PinnedStream>: Unpin);
+    assert_impl!(ReadyChunks<SendStream<()>, ()>: Send);
+    assert_not_impl!(ReadyChunks<SendStream, *const ()>: Send);
+    assert_not_impl!(ReadyChunks<LocalStream, ()>: Send);
+    assert_impl!(ReadyChunks<SyncStream<()>, ()>: Sync);
+    assert_not_impl!(ReadyChunks<SyncStream, *const ()>: Sync);
+    assert_not_impl!(ReadyChunks<LocalStream, ()>: Sync);
+    assert_impl!(ReadyChunks<UnpinStream, ()>: Unpin);
+    assert_not_impl!(ReadyChunks<PinnedStream, ()>: Unpin);
 
     assert_impl!(Repeat<()>: Send);
     assert_not_impl!(Repeat<*const ()>: Send);

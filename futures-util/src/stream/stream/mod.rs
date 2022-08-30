@@ -7,8 +7,6 @@ use crate::future::{assert_future, Either};
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
 use core::pin::Pin;
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
@@ -1647,17 +1645,17 @@ pub trait StreamExt: Stream {
         assert_stream::<Self::Item, _>(Peekable::new(self))
     }
 
-    /// An adaptor for chunking up items of the stream inside a vector.
+    /// An adaptor for chunking up items of the stream inside a collection.
     ///
     /// This combinator will attempt to pull items from this stream and buffer
-    /// them into a local vector. At most `capacity` items will get buffered
+    /// them into a local collection. At most `capacity` items will get buffered
     /// before they're yielded from the returned stream.
     ///
-    /// Note that the vectors returned from this iterator may not always have
-    /// `capacity` elements. If the underlying stream ended and only a partial
-    /// vector was created, it'll be returned. Additionally if an error happens
-    /// from the underlying stream then the currently buffered items will be
-    /// yielded.
+    /// Note that the collections returned from this iterator may not always
+    /// have `capacity` elements. If the underlying stream ended and only a
+    /// partial collection was created, it'll be returned. Furthermore, some
+    /// collections may replace elements (e.g. a HashMap if it receives two
+    /// elements with identical keys).
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
@@ -1665,25 +1663,39 @@ pub trait StreamExt: Stream {
     /// # Panics
     ///
     /// This method will panic if `capacity` is zero.
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec![1, 2, 3]);
+    ///
+    /// let result: Vec<Vec<_>> = stream.chunks::<Vec<_>>(2).collect::<Vec<_>>().await;
+    /// assert_eq!(result, vec![
+    ///     vec![1, 2],
+    ///     vec![3],
+    /// ]);
+    /// # });
+    /// ```
     #[cfg(feature = "alloc")]
-    fn chunks(self, capacity: usize) -> Chunks<Self>
+    fn chunks<C: Default + Extend<Self::Item>>(self, capacity: usize) -> Chunks<Self, C>
     where
         Self: Sized,
     {
-        assert_stream::<Vec<Self::Item>, _>(Chunks::new(self, capacity))
+        assert_stream::<C, _>(Chunks::new(self, capacity))
     }
 
-    /// An adaptor for chunking up ready items of the stream inside a vector.
+    /// An adaptor for chunking up ready items of the stream inside a collection.
     ///
     /// This combinator will attempt to pull ready items from this stream and
-    /// buffer them into a local vector. At most `capacity` items will get
+    /// buffer them into a local collection. At most `capacity` items will get
     /// buffered before they're yielded from the returned stream. If underlying
     /// stream returns `Poll::Pending`, and collected chunk is not empty, it will
     /// be immediately returned.
     ///
-    /// If the underlying stream ended and only a partial vector was created,
-    /// it'll be returned. Additionally if an error happens from the underlying
-    /// stream then the currently buffered items will be yielded.
+    /// If the underlying stream ended and only a partial collection was created,
+    /// it'll be returned. The same caveats for collections that can be replaced
+    /// that apply to `chunks` also apply to `ready_chunks`.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
@@ -1692,11 +1704,11 @@ pub trait StreamExt: Stream {
     ///
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
-    fn ready_chunks(self, capacity: usize) -> ReadyChunks<Self>
+    fn ready_chunks<C: Default + Extend<Self::Item>>(self, capacity: usize) -> ReadyChunks<Self, C>
     where
         Self: Sized,
     {
-        assert_stream::<Vec<Self::Item>, _>(ReadyChunks::new(self, capacity))
+        assert_stream::<C, _>(ReadyChunks::new(self, capacity))
     }
 
     /// A future that completes after the given stream has been fully processed
