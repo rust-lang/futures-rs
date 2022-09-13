@@ -6,15 +6,12 @@ use core::mem;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use rand::prelude::SliceRandom;
-use rand::rngs::SmallRng;
 
 /// Future for the [`select_ok`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectOk<Fut> {
     inner: Vec<Fut>,
-    rng: SmallRng,
 }
 
 impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
@@ -48,7 +45,7 @@ where
     I: IntoIterator,
     I::Item: TryFuture + Unpin,
 {
-    let ret = SelectOk { inner: iter.into_iter().collect(), rng: crate::gen_rng() };
+    let ret = SelectOk { inner: iter.into_iter().collect() };
     assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
     assert_future::<
         Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>,
@@ -60,8 +57,9 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
     type Output = Result<(Fut::Ok, Vec<Fut>), Fut::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { inner, rng } = &mut *self;
-        inner.shuffle(rng);
+        let Self { inner } = &mut *self;
+        #[cfg(feature = "std")]
+        crate::shuffle(inner);
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = inner.iter_mut().enumerate().find_map(|(i, f)| match f.try_poll_unpin(cx) {
@@ -74,7 +72,7 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
                     drop(inner.remove(idx));
                     match res {
                         Ok(e) => {
-                            let rest = mem::take(&mut self.inner);
+                            let rest = mem::take(inner);
                             return Poll::Ready(Ok((e, rest)));
                         }
                         Err(e) => {

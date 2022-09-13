@@ -35,10 +35,8 @@ mod stream_select_mod;
 pub use self::stream_select_mod::*;
 
 #[cfg(feature = "std")]
-#[cfg(feature = "async-await-macro")]
 mod random;
 #[cfg(feature = "std")]
-#[cfg(feature = "async-await-macro")]
 pub use self::random::*;
 
 #[doc(hidden)]

@@ -26,8 +26,6 @@ extern crate std;
 // Macro re-exports
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;
-use rand::rngs::SmallRng;
-use rand::SeedableRng;
 
 #[cfg(feature = "async-await")]
 #[macro_use]
@@ -333,18 +331,3 @@ mod abortable;
 
 mod fns;
 mod unfold_state;
-
-fn gen_rng() -> SmallRng {
-    #[cfg(feature = "std")]
-    {
-        SmallRng::from_rng(rand::thread_rng()).expect("generating SmallRng via thread_rng failed")
-    }
-    #[cfg(all(feature = "getrandom", not(feature = "std")))]
-    {
-        SmallRng::from_entropy()
-    }
-    #[cfg(not(any(feature = "getrandom", feature = "std")))]
-    {
-        SmallRng::seed_from_u64(0)
-    }
-}

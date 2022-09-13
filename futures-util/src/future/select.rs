@@ -3,15 +3,12 @@ use crate::future::{Either, FutureExt};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
-use rand::rngs::SmallRng;
-use rand::Rng;
 
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct Select<A, B> {
     inner: Option<(A, B)>,
-    rng: SmallRng,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
@@ -94,7 +91,6 @@ where
 {
     assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
         inner: Some((future1, future2)),
-        rng: crate::gen_rng(),
     })
 }
 
@@ -116,7 +112,6 @@ where
             }
         }
 
-        let a_polls_first = self.rng.gen::<bool>();
         let (a, b) = self.inner.as_mut().expect("cannot poll Select twice");
 
         macro_rules! poll_wrap {
@@ -127,12 +122,19 @@ where
             };
         }
 
-        if a_polls_first {
+        #[cfg(feature = "std")]
+        if crate::gen_index(2) == 0 {
             poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
             poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
         } else {
             poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
             poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
+            poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
         }
         Poll::Pending
     }

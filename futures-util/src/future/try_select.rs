@@ -2,15 +2,12 @@ use crate::future::{Either, TryFutureExt};
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
-use rand::rngs::SmallRng;
-use rand::Rng;
 
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct TrySelect<A, B> {
     inner: Option<(A, B)>,
-    rng: SmallRng,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
@@ -63,7 +60,6 @@ where
 {
     super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
         inner: Some((future1, future2)),
-        rng: crate::gen_rng(),
     })
 }
 
@@ -92,10 +88,17 @@ where
                 }
             };
         }
-        if self.rng.gen::<bool>() {
+
+        #[cfg(feature = "std")]
+        if crate::gen_index(2) == 0 {
             poll_wrap!(a, b, Either::Left, Either::Right)
         } else {
             poll_wrap!(b, a, Either::Right, Either::Left)
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            poll_wrap!(a, b, Either::Left, Either::Right)
         }
     }
 }
