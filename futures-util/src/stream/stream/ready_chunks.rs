@@ -20,10 +20,7 @@ pin_project! {
     }
 }
 
-impl<St: Stream> ReadyChunks<St>
-where
-    St: Stream,
-{
+impl<St: Stream> ReadyChunks<St> {
     pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 
