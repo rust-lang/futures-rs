@@ -59,7 +59,9 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let Self { inner } = &mut *self;
         #[cfg(feature = "std")]
-        crate::shuffle(inner);
+        {
+            crate::shuffle(inner);
+        }
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = inner.iter_mut().enumerate().find_map(|(i, f)| match f.try_poll_unpin(cx) {
