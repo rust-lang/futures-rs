@@ -279,7 +279,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
 
     let shuffle = if random {
         quote! {
-            __futures_crate::async_await::shuffle(&mut __select_arr);
+            __futures_crate::shuffle(&mut __select_arr);
         }
     } else {
         quote!()

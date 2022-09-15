@@ -37,12 +37,6 @@ mod stream_select_mod;
 #[cfg(feature = "async-await-macro")]
 pub use self::stream_select_mod::*;
 
-#[cfg(feature = "std")]
-mod random;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/64762
-#[cfg(feature = "std")]
-pub use self::random::*;
-
 #[doc(hidden)]
 #[inline(always)]
 pub fn assert_unpin<T: Unpin>(_: &T) {}

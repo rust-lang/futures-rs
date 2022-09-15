@@ -90,10 +90,12 @@ where
         }
 
         #[cfg(feature = "std")]
-        if crate::gen_index(2) == 0 {
-            poll_wrap!(a, b, Either::Left, Either::Right)
-        } else {
-            poll_wrap!(b, a, Either::Right, Either::Left)
+        {
+            if crate::gen_index(2) == 0 {
+                poll_wrap!(a, b, Either::Left, Either::Right)
+            } else {
+                poll_wrap!(b, a, Either::Right, Either::Left)
+            }
         }
 
         #[cfg(not(feature = "std"))]
