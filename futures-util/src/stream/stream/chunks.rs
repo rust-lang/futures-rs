@@ -21,10 +21,7 @@ pin_project! {
     }
 }
 
-impl<St: Stream> Chunks<St>
-where
-    St: Stream,
-{
+impl<St: Stream> Chunks<St> {
     pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 

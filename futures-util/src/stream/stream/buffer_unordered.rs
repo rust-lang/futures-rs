@@ -42,11 +42,7 @@ where
     St: Stream,
     St::Item: Future,
 {
-    pub(super) fn new(stream: St, n: Option<usize>) -> Self
-    where
-        St: Stream,
-        St::Item: Future,
-    {
+    pub(super) fn new(stream: St, n: Option<usize>) -> Self {
         Self {
             stream: super::Fuse::new(stream),
             in_progress_queue: FuturesUnordered::new(),
