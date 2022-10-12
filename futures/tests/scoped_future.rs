@@ -20,24 +20,32 @@ async fn test_transaction<'a, 'b>(
     err: &'b str,
     is_ok: bool,
 ) -> Result<&'a str, &'b str> {
-    db.transaction(|db| async move {
-        db.count += 1;
-        if is_ok {
-            Ok(ok)
-        } else {
-            Err(err)
+    db.transaction(|db| {
+        async move {
+            db.count += 1;
+            if is_ok {
+                Ok(ok)
+            } else {
+                Err(err)
+            }
         }
-    }.scope_boxed()).await?;
+        .scope_boxed()
+    })
+    .await?;
 
     // note that `async` is used instead of `async move`
     // since the callback parameter is unused
-    db.transaction(|_| async {
-        if is_ok {
-            Ok(ok)
-        } else {
-            Err(err)
+    db.transaction(|_| {
+        async {
+            if is_ok {
+                Ok(ok)
+            } else {
+                Err(err)
+            }
         }
-    }.scope_boxed()).await
+        .scope_boxed()
+    })
+    .await
 }
 
 #[test]
