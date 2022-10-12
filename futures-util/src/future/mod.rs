@@ -38,6 +38,12 @@ pub use self::future::{Remote, RemoteHandle};
 #[cfg(feature = "std")]
 pub use self::future::{Shared, WeakShared};
 
+mod scoped_future;
+pub use self::scoped_future::{ScopedFuture, ScopedFutureExt};
+
+#[cfg(feature = "alloc")]
+pub use self::scoped_future::{ScopedBoxFuture, ScopedLocalBoxFuture};
+
 mod try_future;
 pub use self::try_future::{
     AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
