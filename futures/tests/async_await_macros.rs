@@ -346,6 +346,7 @@ fn stream_select() {
     });
 }
 
+#[cfg_attr(not(target_pointer_width = "64"), ignore)]
 #[test]
 fn join_size() {
     let fut = async {
@@ -362,6 +363,7 @@ fn join_size() {
     assert_eq!(mem::size_of_val(&fut), 40);
 }
 
+#[cfg_attr(not(target_pointer_width = "64"), ignore)]
 #[test]
 fn try_join_size() {
     let fut = async {
