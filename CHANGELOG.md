@@ -1,3 +1,8 @@
+# 0.3.25 - 2022-10-20
+
+* Fix soundness issue in `join!` and `try_join!` macros (#2649)
+* Implement `Clone` for `sink::Drain` (#2650)
+
 # 0.3.24 - 2022-08-29
 
 * Fix incorrect termination of `select_with_strategy` streams (#2635)
