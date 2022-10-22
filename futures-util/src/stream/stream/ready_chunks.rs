@@ -45,12 +45,8 @@ impl<St: Stream> Stream for ReadyChunks<St> {
                 }
 
                 // Push the ready item into the buffer and check whether it is full.
-                // If so, replace our buffer with a new and empty one and return
-                // the full one.
+                // If so, return it.
                 Poll::Ready(Some(item)) => {
-                    if items.is_empty() {
-                        items.reserve(*this.cap);
-                    }
                     items.push(item);
                     if items.len() >= *this.cap {
                         return Poll::Ready(Some(items));
