@@ -59,10 +59,6 @@ where
 {
     fn is_terminated(&self) -> bool {
         // the cycle stream is either empty or infinite
-        if let (0, Some(0)) = self.size_hint() {
-            true
-        } else {
-            false
-        }
+        matches!(self.size_hint(), (0, Some(0)))
     }
 }

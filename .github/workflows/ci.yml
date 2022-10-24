@@ -69,8 +69,8 @@ jobs:
       matrix:
         rust:
           # This is the minimum Rust version supported by futures-core, futures-io, futures-sink.
-          # When updating this, the reminder to update the minimum required version in README.md, Cargo.toml, and .clippy.toml.
-          - 1.36
+          # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
+          - '1.36'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -97,12 +97,14 @@ jobs:
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         rust:
           # This is the minimum Rust version supported by futures, futures-util, futures-task, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
-          - 1.45
+          - '1.45'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

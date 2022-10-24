@@ -1,6 +1,6 @@
 [package]
 name = "futures-io"
-version = "0.3.21"
+version = "0.3.25"
 edition = "2018"
 rust-version = "1.36"
 license = "MIT OR Apache-2.0"

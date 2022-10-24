@@ -1,5 +1,3 @@
-#![allow(clippy::needless_borrow)] // https://github.com/rust-lang/rust-clippy/issues/8367
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future;
@@ -95,10 +93,7 @@ fn dropping_ready_queue() {
 
 #[test]
 fn stress() {
-    #[cfg(miri)]
-    const ITER: usize = 30;
-    #[cfg(not(miri))]
-    const ITER: usize = 300;
+    const ITER: usize = if cfg!(miri) { 30 } else { 300 };
 
     for i in 0..ITER {
         let n = (i % 10) + 1;

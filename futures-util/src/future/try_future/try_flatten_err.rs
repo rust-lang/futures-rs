@@ -26,10 +26,7 @@ where
     Fut::Error: TryFuture<Ok = Fut::Ok>,
 {
     fn is_terminated(&self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
+        matches!(self, Self::Empty)
     }
 }
 

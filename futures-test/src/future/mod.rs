@@ -68,6 +68,7 @@ pub trait FutureTestExt: Future {
     ///
     /// assert_eq!(rx.await, Ok(5));
     /// # });
+    /// # std::thread::sleep(std::time::Duration::from_millis(500)); // wait for background threads closed: https://github.com/rust-lang/miri/issues/1371
     /// ```
     fn run_in_background(self)
     where

@@ -43,7 +43,7 @@ pub trait SpawnExt: Spawn {
     /// let future = async { /* ... */ };
     /// executor.spawn(future).unwrap();
     /// # }
-    /// # std::thread::sleep(std::time::Duration::from_secs(1)); // wait for background threads closed
+    /// # std::thread::sleep(std::time::Duration::from_millis(500)); // wait for background threads closed: https://github.com/rust-lang/miri/issues/1371
     /// ```
     #[cfg(feature = "alloc")]
     fn spawn<Fut>(&self, future: Fut) -> Result<(), SpawnError>
@@ -72,7 +72,7 @@ pub trait SpawnExt: Spawn {
     /// let join_handle_fut = executor.spawn_with_handle(future).unwrap();
     /// assert_eq!(block_on(join_handle_fut), 1);
     /// # }
-    /// # std::thread::sleep(std::time::Duration::from_secs(1)); // wait for background threads closed
+    /// # std::thread::sleep(std::time::Duration::from_millis(500)); // wait for background threads closed: https://github.com/rust-lang/miri/issues/1371
     /// ```
     #[cfg(feature = "channel")]
     #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]

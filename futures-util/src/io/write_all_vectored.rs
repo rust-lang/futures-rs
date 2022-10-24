@@ -181,13 +181,13 @@ mod tests {
         for (mut input, wanted) in tests {
             let mut dst = test_writer(2, 2);
             {
-                let mut future = dst.write_all_vectored(&mut *input);
+                let mut future = dst.write_all_vectored(&mut input);
                 match Pin::new(&mut future).poll(&mut cx) {
                     Poll::Ready(Ok(())) => {}
                     other => panic!("unexpected result polling future: {:?}", other),
                 }
             }
-            assert_eq!(&*dst.written, &*wanted);
+            assert_eq!(&*dst.written, wanted);
         }
     }
 
@@ -207,7 +207,7 @@ mod tests {
             let data = vec![1, 2, 3, 4];
             {
                 let mut slices = WrapVec(data.chunks(2).map(IoSlice::new).collect());
-                let mut future = dst.write_all_vectored(&mut *slices.0);
+                let mut future = dst.write_all_vectored(&mut slices.0);
                 match Pin::new(&mut future).poll(&mut cx) {
                     Poll::Ready(Ok(())) => {}
                     other => panic!("unexpected result polling future: {:?}", other),

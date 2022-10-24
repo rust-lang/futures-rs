@@ -29,10 +29,7 @@ where
     Fut::Output: Future,
 {
     fn is_terminated(&self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
+        matches!(self, Self::Empty)
     }
 }
 
@@ -67,10 +64,7 @@ where
     Fut::Output: Stream,
 {
     fn is_terminated(&self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
+        matches!(self, Self::Empty)
     }
 }
 

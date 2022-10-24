@@ -63,7 +63,7 @@ thread_local! {
 impl ArcWake for ThreadNotify {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         // Make sure the wakeup is remembered until the next `park()`.
-        let unparked = arc_self.unparked.swap(true, Ordering::Relaxed);
+        let unparked = arc_self.unparked.swap(true, Ordering::Release);
         if !unparked {
             // If the thread has not been unparked yet, it must be done
             // now. If it was actually parked, it will run again,
@@ -90,17 +90,13 @@ fn run_executor<T, F: FnMut(&mut Context<'_>) -> Poll<T>>(mut f: F) -> T {
             if let Poll::Ready(t) = f(&mut cx) {
                 return t;
             }
-            // Consume the wakeup that occurred while executing `f`, if any.
-            let unparked = thread_notify.unparked.swap(false, Ordering::Acquire);
-            if !unparked {
+
+            // Wait for a wakeup.
+            while !thread_notify.unparked.swap(false, Ordering::Acquire) {
                 // No wakeup occurred. It may occur now, right before parking,
                 // but in that case the token made available by `unpark()`
                 // is guaranteed to still be available and `park()` is a no-op.
                 thread::park();
-                // When the thread is unparked, `unparked` will have been set
-                // and needs to be unset before the next call to `f` to avoid
-                // a redundant loop iteration.
-                thread_notify.unparked.store(false, Ordering::Release);
             }
         }
     })
@@ -108,7 +104,7 @@ fn run_executor<T, F: FnMut(&mut Context<'_>) -> Poll<T>>(mut f: F) -> T {
 
 /// Check for a wakeup, but don't consume it.
 fn woken() -> bool {
-    CURRENT_THREAD_NOTIFY.with(|thread_notify| thread_notify.unparked.load(Ordering::SeqCst))
+    CURRENT_THREAD_NOTIFY.with(|thread_notify| thread_notify.unparked.load(Ordering::Acquire))
 }
 
 impl LocalPool {
