@@ -44,5 +44,5 @@ fn main() {
     // to drive all futures. Eventually fut_values will be driven to completion.
     let values: Vec<i32> = executor::block_on(fut_values);
 
-    println!("Values={:?}", values);
+    println!("Values={values:?}");
 }
