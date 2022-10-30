@@ -1,5 +1,6 @@
 use crate::stream::Fuse;
 use alloc::vec::Vec;
+use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -49,7 +50,11 @@ impl<St: Stream> Stream for ReadyChunks<St> {
                 // the full one.
                 Poll::Ready(Some(item)) => {
                     if items.is_empty() {
-                        items.reserve(*this.cap);
+                        // Note we reserve capacity here, not when `items` is created,
+                        // because stream may know the remaining size,
+                        // but items might not be readily available.
+                        let size_hint = this.stream.as_mut().size_hint().0.wrapping_add(1);
+                        items.reserve(cmp::min(*this.cap, size_hint));
                     }
                     items.push(item);
                     if items.len() >= *this.cap {
