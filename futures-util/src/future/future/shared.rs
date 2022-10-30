@@ -103,7 +103,6 @@ impl<Fut: Future> Shared<Fut> {
 impl<Fut> Shared<Fut>
 where
     Fut: Future,
-    Fut::Output: Clone,
 {
     /// Returns [`Some`] containing a reference to this [`Shared`]'s output if
     /// it has already been computed by a clone or [`None`] if it hasn't been
@@ -160,7 +159,6 @@ where
 impl<Fut> Inner<Fut>
 where
     Fut: Future,
-    Fut::Output: Clone,
 {
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
@@ -170,6 +168,13 @@ where
             FutureOrOutput::Future(_) => unreachable!(),
         }
     }
+}
+
+impl<Fut> Inner<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
     /// Registers the current task to receive a wakeup when we are awoken.
     fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
         let mut wakers_guard = self.notifier.wakers.lock().unwrap();
