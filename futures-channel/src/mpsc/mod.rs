@@ -1069,6 +1069,14 @@ impl<T> Stream for Receiver<T> {
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if let Some(inner) = &self.inner {
+            decode_state(inner.state.load(SeqCst)).size_hint()
+        } else {
+            (0, Some(0))
+        }
+    }
 }
 
 impl<T> Drop for Receiver<T> {
@@ -1201,6 +1209,14 @@ impl<T> Stream for UnboundedReceiver<T> {
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if let Some(inner) = &self.inner {
+            decode_state(inner.state.load(SeqCst)).size_hint()
+        } else {
+            (0, Some(0))
+        }
+    }
 }
 
 impl<T> Drop for UnboundedReceiver<T> {
@@ -1278,6 +1294,14 @@ unsafe impl<T: Send> Sync for BoundedInner<T> {}
 impl State {
     fn is_closed(&self) -> bool {
         !self.is_open && self.num_messages == 0
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.is_open {
+            (self.num_messages, None)
+        } else {
+            (self.num_messages, Some(self.num_messages))
+        }
     }
 }
 
