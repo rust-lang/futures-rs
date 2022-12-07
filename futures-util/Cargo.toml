@@ -21,6 +21,7 @@ io-compat = ["io", "compat", "tokio-io"]
 sink = ["futures-sink"]
 io = ["std", "futures-io", "memchr"]
 channel = ["std", "futures-channel"]
+portable-atomic = ["futures-core/portable-atomic"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
