@@ -16,6 +16,7 @@ std = ["alloc"]
 alloc = []
 
 [dependencies]
+portable-atomic = { version = "0.3.15", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures" }
