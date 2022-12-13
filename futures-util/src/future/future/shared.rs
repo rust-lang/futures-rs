@@ -176,8 +176,8 @@ where
     /// `Arc::ptr_eq`).
     ///
     /// Returns `false` if either `Shared` has terminated.
-    pub fn ptr_eq(lhs: &Self, rhs: &Self) -> bool {
-        let lhs = match lhs.inner.as_ref() {
+    pub fn ptr_eq(&self, rhs: &Self) -> bool {
+        let lhs = match self.inner.as_ref() {
             Some(lhs) => lhs,
             None => return false,
         };

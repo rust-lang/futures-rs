@@ -165,7 +165,9 @@ fn ptr_eq() {
 
     // Because these two futures share the same underlying future,
     // `ptr_eq` should return true.
-    assert!(Shared::ptr_eq(&shared, &shared2));
+    assert!(shared.ptr_eq(&shared2));
+    // Equivalence relations are symmetric
+    assert!(shared2.ptr_eq(&shared));
 
     // If `ptr_eq` returns true, they should hash to the same value.
     shared.ptr_hash(&mut hasher);
@@ -177,12 +179,12 @@ fn ptr_eq() {
 
     // Now that `shared2` has completed, `ptr_eq` should return false.
     assert!(shared2.is_terminated());
-    assert!(!Shared::ptr_eq(&shared, &shared2));
+    assert!(!shared.ptr_eq(&shared2));
 
     // `ptr_eq` should continue to work for the other `Shared`.
     let shared3 = shared.clone();
     let mut hasher3 = DefaultHasher::new();
-    assert!(Shared::ptr_eq(&shared, &shared3));
+    assert!(shared.ptr_eq(&shared3));
 
     shared3.ptr_hash(&mut hasher3);
     assert_eq!(hasher.finish(), hasher3.finish());
@@ -192,7 +194,7 @@ fn ptr_eq() {
 
     // And `ptr_eq` should return false for two futures that don't share
     // the underlying future.
-    assert!(!Shared::ptr_eq(&shared, &shared4));
+    assert!(!shared.ptr_eq(&shared4));
 }
 
 #[test]
