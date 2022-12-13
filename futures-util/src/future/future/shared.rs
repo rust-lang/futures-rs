@@ -156,6 +156,22 @@ where
     pub fn weak_count(&self) -> Option<usize> {
         self.inner.as_ref().map(Arc::weak_count)
     }
+
+    /// Returns `true` if the two `Shared`s point to the same future (in a vein similar to
+    /// `Arc::ptr_eq`).
+    ///
+    /// Returns `false` if either `Shared` has terminated.
+    pub fn ptr_eq(lhs: &Self, rhs: &Self) -> bool {
+        let lhs = match lhs.inner.as_ref() {
+            Some(lhs) => lhs,
+            None => return false,
+        };
+        let rhs = match rhs.inner.as_ref() {
+            Some(rhs) => rhs,
+            None => return false,
+        };
+        Arc::ptr_eq(lhs, rhs)
+    }
 }
 
 impl<Fut> Inner<Fut>
