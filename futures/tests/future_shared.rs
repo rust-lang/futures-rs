@@ -153,7 +153,7 @@ fn downgrade() {
 
 #[test]
 fn ptr_eq() {
-    use future::{FusedFuture, Shared};
+    use future::FusedFuture;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hasher;
 
