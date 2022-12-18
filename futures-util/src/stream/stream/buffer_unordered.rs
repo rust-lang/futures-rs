@@ -52,6 +52,32 @@ where
     }
 
     delegate_access_inner!(stream, St, (.));
+
+    /// Poll the underlying `Stream`, allowing the buffer to fill up.
+    ///
+    /// This does not poll the futures produced by the stream,
+    /// `Stream::poll_next` should be used to progress instead.
+    ///
+    /// When `Poll::Ready` is returned, the underlying stream has been
+    /// exhausted, and all of its futures have been buffered or consumed.
+    pub fn poll_stream(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let mut this = self.project();
+
+        // First up, try to spawn off as many futures as possible by filling up
+        // our queue of futures.
+        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
+            match this.stream.as_mut().poll_next(cx) {
+                Poll::Ready(Some(fut)) => this.in_progress_queue.push(fut),
+                Poll::Ready(None) | Poll::Pending => break,
+            }
+        }
+
+        if this.stream.is_done() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    }
 }
 
 impl<St> Stream for BufferUnordered<St>
@@ -62,7 +88,7 @@ where
     type Item = <St::Item as Future>::Output;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let stream_res = self.as_mut().poll(cx);
+        let stream_res = self.as_mut().poll_stream(cx);
 
         let this = self.project();
 
@@ -73,7 +99,7 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        let () = ready!(stream_res);
+        ready!(stream_res);
         Poll::Ready(None)
     }
 
@@ -96,33 +122,6 @@ where
 {
     fn is_terminated(&self) -> bool {
         self.in_progress_queue.is_terminated() && self.stream.is_terminated()
-    }
-}
-
-impl<St> Future for BufferUnordered<St>
-where
-    St: Stream,
-    St::Item: Future,
-{
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut this = self.project();
-
-        // First up, try to spawn off as many futures as possible by filling up
-        // our queue of futures.
-        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
-            match this.stream.as_mut().poll_next(cx) {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push(fut),
-                Poll::Ready(None) | Poll::Pending => break,
-            }
-        }
-
-        if this.stream.is_done() {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        }
     }
 }
 

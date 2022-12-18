@@ -1,4 +1,3 @@
-use crate::future::FutureExt;
 use crate::stream::{FuturesUnordered, StreamExt};
 use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
 use core::cmp::Ordering;
@@ -169,41 +168,13 @@ impl<Fut: Future> FuturesOrdered<Fut> {
             self.in_progress_queue.push(wrapped);
         }
     }
-}
 
-impl<Fut: Future> Default for FuturesOrdered<Fut> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<Fut: Future> Stream for FuturesOrdered<Fut> {
-    type Item = Fut::Output;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = &mut *self;
-
-        // Check to see if we've already received the next value
-        if let Some(next_output) = this.queued_outputs.peek_mut() {
-            if next_output.index == this.next_outgoing_index {
-                this.next_outgoing_index += 1;
-                return Poll::Ready(Some(PeekMut::pop(next_output).data));
-            }
-        }
-
-        this.poll_unpin(cx).map(|()| None)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-        (len, Some(len))
-    }
-}
-
-impl<Fut: Future> Future for FuturesOrdered<Fut> {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    /// Poll the contained futures in this queue.
+    ///
+    /// `Stream::poll_next` must be used in order to retrieve the outputs.
+    ///
+    /// `Poll::Ready` indicates that the underlying futures are all completed.
+    pub fn poll_all(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         let this = &mut *self;
 
         loop {
@@ -220,6 +191,80 @@ impl<Fut: Future> Future for FuturesOrdered<Fut> {
                 None => break Poll::Ready(()),
             }
         }
+    }
+
+    /// `Some` if an output is immediately available
+    fn peek_wrapper(&self) -> Option<()> {
+        match self.queued_outputs.peek() {
+            Some(next_output) if next_output.index == self.next_outgoing_index => Some(()),
+            _ => None,
+        }
+    }
+
+    /// `None` if `Stream::is_terminated`
+    fn poll_peek_wrapper(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<()>> {
+        let res = self.as_mut().poll_all(cx);
+        let peek = self.peek_wrapper();
+
+        match res {
+            Poll::Pending => match peek {
+                None => Poll::Pending,
+                output => Poll::Ready(output),
+            },
+            Poll::Ready(()) => Poll::Ready(peek),
+        }
+    }
+
+    /// WIP: if a value is immediately available, borrow it
+    pub fn peek(&self) -> Option<&Fut::Output> {
+        let peek = self.peek_wrapper().map(drop);
+        peek.and_then(move |_| self.queued_outputs.peek()).map(|wrapper| &wrapper.data)
+    }
+
+    /// WIP: `None` indicates the end of the stream
+    pub fn poll_peek<'a>(
+        mut self: Pin<&'a mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<&'a Fut::Output>> {
+        let peek = ready!(self.as_mut().poll_peek_wrapper(cx));
+        let this = self.get_mut();
+        Poll::Ready(peek.and_then(move |_| this.queued_outputs.peek()).map(|wrapper| &wrapper.data))
+    }
+}
+
+impl<Fut: Future> Default for FuturesOrdered<Fut> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<Fut: Future> Stream for FuturesOrdered<Fut> {
+    type Item = Fut::Output;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+
+        // Check to see if we've already received the next value
+        let next_output = match this.peek_wrapper() {
+            Some(_) => this.queued_outputs.peek_mut(),
+            // otherwise poll for it
+            None => match ready!(Pin::new(&mut *this).poll_peek_wrapper(cx)) {
+                Some(_) => this.queued_outputs.peek_mut(),
+                None => None,
+            },
+        };
+
+        if let Some(next_output) = next_output {
+            this.next_outgoing_index += 1;
+            Poll::Ready(Some(PeekMut::pop(next_output).data))
+        } else {
+            Poll::Ready(None)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
     }
 }
 
