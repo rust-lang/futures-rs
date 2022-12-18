@@ -1,3 +1,4 @@
+use crate::future::FutureExt;
 use crate::stream::{FuturesUnordered, StreamExt};
 use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
 use core::cmp::Ordering;
@@ -190,24 +191,35 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
             }
         }
 
-        loop {
-            match ready!(this.in_progress_queue.poll_next_unpin(cx)) {
-                Some(output) => {
-                    if output.index == this.next_outgoing_index {
-                        this.next_outgoing_index += 1;
-                        return Poll::Ready(Some(output.data));
-                    } else {
-                        this.queued_outputs.push(output)
-                    }
-                }
-                None => return Poll::Ready(None),
-            }
-        }
+        this.poll_unpin(cx).map(|()| None)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
+    }
+}
+
+impl<Fut: Future> Future for FuturesOrdered<Fut> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+
+        loop {
+            match ready!(this.in_progress_queue.poll_next_unpin(cx)) {
+                Some(output) => {
+                    let index = output.index;
+                    this.queued_outputs.push(output);
+                    if index == this.next_outgoing_index {
+                        // the Stream is now ready to be polled
+                        cx.waker().wake_by_ref();
+                        break Poll::Pending;
+                    }
+                }
+                None => break Poll::Ready(()),
+            }
+        }
     }
 }
 

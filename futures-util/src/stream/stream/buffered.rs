@@ -1,3 +1,4 @@
+use crate::future::FutureExt;
 use crate::stream::{Fuse, FuturesOrdered, StreamExt};
 use core::fmt;
 use core::num::NonZeroUsize;
@@ -62,17 +63,10 @@ where
 {
     type Item = <St::Item as Future>::Output;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut this = self.project();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let _stream_res = self.as_mut().poll(cx);
 
-        // First up, try to spawn off as many futures as possible by filling up
-        // our queue of futures.
-        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
-            match this.stream.as_mut().poll_next(cx) {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
-                Poll::Ready(None) | Poll::Pending => break,
-            }
-        }
+        let this = self.project();
 
         // Attempt to pull the next value from the in_progress_queue
         let res = this.in_progress_queue.poll_next_unpin(cx);
@@ -97,6 +91,35 @@ where
             None => None,
         };
         (lower, upper)
+    }
+}
+
+impl<St> Future for Buffered<St>
+where
+    St: Stream,
+    St::Item: Future,
+{
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+
+        // First up, try to spawn off as many futures as possible by filling up
+        // our queue of futures.
+        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
+            match this.stream.as_mut().poll_next(cx) {
+                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
+                Poll::Ready(None) | Poll::Pending => break,
+            }
+        }
+
+        let queue_res = this.in_progress_queue.poll_unpin(cx);
+
+        if this.stream.is_done() {
+            queue_res
+        } else {
+            Poll::Pending
+        }
     }
 }
 
