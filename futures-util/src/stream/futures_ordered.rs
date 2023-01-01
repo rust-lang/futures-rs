@@ -58,7 +58,7 @@ where
 
 /// An unbounded queue of futures.
 ///
-/// This "combinator" is similar to `FuturesUnordered`, but it imposes an order
+/// This "combinator" is similar to [`FuturesUnordered`], but it imposes a FIFO order
 /// on top of the set of futures. While futures in the set will race to
 /// completion in parallel, results will only be returned in the order their
 /// originating futures were added to the queue.
