@@ -34,12 +34,7 @@ pub enum Either<A, B> {
 
 impl<A, B> Either<A, B> {
     fn project(self: Pin<&mut Self>) -> Either<Pin<&mut A>, Pin<&mut B>> {
-        unsafe {
-            match self.get_unchecked_mut() {
-                Either::Left(a) => Either::Left(Pin::new_unchecked(a)),
-                Either::Right(b) => Either::Right(Pin::new_unchecked(b)),
-            }
-        }
+        self.as_pin_mut()
     }
 
     /// Convert `Pin<&Either<L, R>>` to `Either<Pin<&L>, Pin<&R>>`,
