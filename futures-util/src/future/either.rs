@@ -33,10 +33,6 @@ pub enum Either<A, B> {
 }
 
 impl<A, B> Either<A, B> {
-    fn project(self: Pin<&mut Self>) -> Either<Pin<&mut A>, Pin<&mut B>> {
-        self.as_pin_mut()
-    }
-
     /// Convert `Pin<&Either<L, R>>` to `Either<Pin<&L>, Pin<&R>>`,
     /// pinned projections of the inner variants.
     pub fn as_pin_ref(self: Pin<&Self>) -> Either<Pin<&A>, Pin<&B>> {
@@ -109,7 +105,7 @@ where
     type Output = A::Output;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.poll(cx),
             Either::Right(x) => x.poll(cx),
         }
@@ -137,7 +133,7 @@ where
     type Item = A::Item;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.poll_next(cx),
             Either::Right(x) => x.poll_next(cx),
         }
@@ -173,28 +169,28 @@ where
     type Error = A::Error;
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.poll_ready(cx),
             Either::Right(x) => x.poll_ready(cx),
         }
     }
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.start_send(item),
             Either::Right(x) => x.start_send(item),
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.poll_flush(cx),
             Either::Right(x) => x.poll_flush(cx),
         }
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match self.project() {
+        match self.as_pin_mut() {
             Either::Left(x) => x.poll_close(cx),
             Either::Right(x) => x.poll_close(cx),
         }
@@ -222,7 +218,7 @@ mod if_std {
             cx: &mut Context<'_>,
             buf: &mut [u8],
         ) -> Poll<Result<usize>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_read(cx, buf),
                 Either::Right(x) => x.poll_read(cx, buf),
             }
@@ -233,7 +229,7 @@ mod if_std {
             cx: &mut Context<'_>,
             bufs: &mut [IoSliceMut<'_>],
         ) -> Poll<Result<usize>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_read_vectored(cx, bufs),
                 Either::Right(x) => x.poll_read_vectored(cx, bufs),
             }
@@ -250,7 +246,7 @@ mod if_std {
             cx: &mut Context<'_>,
             buf: &[u8],
         ) -> Poll<Result<usize>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_write(cx, buf),
                 Either::Right(x) => x.poll_write(cx, buf),
             }
@@ -261,21 +257,21 @@ mod if_std {
             cx: &mut Context<'_>,
             bufs: &[IoSlice<'_>],
         ) -> Poll<Result<usize>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_write_vectored(cx, bufs),
                 Either::Right(x) => x.poll_write_vectored(cx, bufs),
             }
         }
 
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_flush(cx),
                 Either::Right(x) => x.poll_flush(cx),
             }
         }
 
         fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_close(cx),
                 Either::Right(x) => x.poll_close(cx),
             }
@@ -292,7 +288,7 @@ mod if_std {
             cx: &mut Context<'_>,
             pos: SeekFrom,
         ) -> Poll<Result<u64>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_seek(cx, pos),
                 Either::Right(x) => x.poll_seek(cx, pos),
             }
@@ -305,14 +301,14 @@ mod if_std {
         B: AsyncBufRead,
     {
         fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8]>> {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.poll_fill_buf(cx),
                 Either::Right(x) => x.poll_fill_buf(cx),
             }
         }
 
         fn consume(self: Pin<&mut Self>, amt: usize) {
-            match self.project() {
+            match self.as_pin_mut() {
                 Either::Left(x) => x.consume(amt),
                 Either::Right(x) => x.consume(amt),
             }
