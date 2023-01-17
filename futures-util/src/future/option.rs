@@ -62,3 +62,15 @@ impl<T> From<Option<T>> for OptionFuture<T> {
         Self { inner: option }
     }
 }
+
+impl<T> OptionFuture<T> {
+    /// Returns `true` if the future is present.
+    pub fn is_some(&self) -> bool {
+        self.inner.is_some()
+    }
+
+    /// Returns `true` if the future is absent.
+    pub fn is_node(&self) -> bool {
+        self.inner.is_none()
+    }
+}
