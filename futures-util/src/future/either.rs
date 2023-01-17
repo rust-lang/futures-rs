@@ -41,6 +41,35 @@ impl<A, B> Either<A, B> {
             }
         }
     }
+
+    /// Convert `Pin<&Either<L, R>>` to `Either<Pin<&L>, Pin<&R>>`,
+    /// pinned projections of the inner variants.
+    pub fn as_pin_ref(self: Pin<&Self>) -> Either<Pin<&A>, Pin<&B>> {
+        // SAFETY: We can use `new_unchecked` because the `inner` parts are
+        // guaranteed to be pinned, as they come from `self` which is pinned.
+        unsafe {
+            match *Pin::get_ref(self) {
+                Either::Left(ref inner) => Either::Left(Pin::new_unchecked(inner)),
+                Either::Right(ref inner) => Either::Right(Pin::new_unchecked(inner)),
+            }
+        }
+    }
+
+    /// Convert `Pin<&mut Either<L, R>>` to `Either<Pin<&mut L>, Pin<&mut R>>`,
+    /// pinned projections of the inner variants.
+    pub fn as_pin_mut(self: Pin<&mut Self>) -> Either<Pin<&mut A>, Pin<&mut B>> {
+        // SAFETY: `get_unchecked_mut` is fine because we don't move anything.
+        // We can use `new_unchecked` because the `inner` parts are guaranteed
+        // to be pinned, as they come from `self` which is pinned, and we never
+        // offer an unpinned `&mut L` or `&mut R` through `Pin<&mut Self>`. We
+        // also don't have an implementation of `Drop`, nor manual `Unpin`.
+        unsafe {
+            match *Pin::get_unchecked_mut(self) {
+                Either::Left(ref mut inner) => Either::Left(Pin::new_unchecked(inner)),
+                Either::Right(ref mut inner) => Either::Right(Pin::new_unchecked(inner)),
+            }
+        }
+    }
 }
 
 impl<A, B, T> Either<(T, A), (T, B)> {
