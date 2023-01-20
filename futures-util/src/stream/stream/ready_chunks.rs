@@ -1,4 +1,4 @@
-use crate::stream::Fuse;
+use crate::stream::{Fuse, StreamExt};
 use alloc::vec::Vec;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
@@ -22,7 +22,7 @@ impl<St: Stream> ReadyChunks<St> {
     pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 
-        Self { stream: super::Fuse::new(stream), cap: capacity }
+        Self { stream: stream.fuse(), cap: capacity }
     }
 
     delegate_access_inner!(stream, St, (.));
@@ -75,7 +75,7 @@ impl<St: Stream> Stream for ReadyChunks<St> {
     }
 }
 
-impl<St: FusedStream> FusedStream for ReadyChunks<St> {
+impl<St: Stream> FusedStream for ReadyChunks<St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
