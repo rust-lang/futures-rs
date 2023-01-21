@@ -33,7 +33,7 @@ pub enum Either<A, B> {
 }
 
 impl<A, B> Either<A, B> {
-    /// Convert `Pin<&Either<L, R>>` to `Either<Pin<&L>, Pin<&R>>`,
+    /// Convert `Pin<&Either<A, B>>` to `Either<Pin<&A>, Pin<&B>>`,
     /// pinned projections of the inner variants.
     pub fn as_pin_ref(self: Pin<&Self>) -> Either<Pin<&A>, Pin<&B>> {
         // SAFETY: We can use `new_unchecked` because the `inner` parts are
