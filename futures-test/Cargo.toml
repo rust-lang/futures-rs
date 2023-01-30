@@ -1,6 +1,6 @@
 [package]
 name = "futures-test"
-version = "0.3.25"
+version = "0.3.26"
 edition = "2018"
 rust-version = "1.45"
 license = "MIT OR Apache-2.0"
@@ -11,13 +11,13 @@ Common utilities for testing components built off futures-rs.
 """
 
 [dependencies]
-futures-core = { version = "0.3.25", path = "../futures-core", default-features = false }
-futures-task = { version = "0.3.25", path = "../futures-task", default-features = false }
-futures-io = { version = "0.3.25", path = "../futures-io", default-features = false }
-futures-util = { version = "0.3.25", path = "../futures-util", default-features = false }
-futures-executor = { version = "0.3.25", path = "../futures-executor", default-features = false }
-futures-sink = { version = "0.3.25", path = "../futures-sink", default-features = false }
-futures-macro = { version = "=0.3.25", path = "../futures-macro", default-features = false }
+futures-core = { version = "0.3.26", path = "../futures-core", default-features = false }
+futures-task = { version = "0.3.26", path = "../futures-task", default-features = false }
+futures-io = { version = "0.3.26", path = "../futures-io", default-features = false }
+futures-util = { version = "0.3.26", path = "../futures-util", default-features = false }
+futures-executor = { version = "0.3.26", path = "../futures-executor", default-features = false }
+futures-sink = { version = "0.3.26", path = "../futures-sink", default-features = false }
+futures-macro = { version = "=0.3.26", path = "../futures-macro", default-features = false }
 pin-utils = { version = "0.1.0", default-features = false }
 pin-project = "1.0.11"
 
