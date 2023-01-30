@@ -1,3 +1,13 @@
+# 0.3.26 - 2023-01-30
+
+* Add `Either::as_pin_mut` and `Either::as_pin_ref` (#2691)
+* Add `Shared::ptr_eq` and `Shared::ptr_hash` (#2691)
+* Implement `FusedStream` for `Buffered` (#2676)
+* Implement `FusedStream` for all streams in `ReadyChunks` (#2693)
+* Fix bug in `FuturesOrdered::push_front` (#2664)
+* Remove `Fut::Output: Clone` bounds from some `Shared` methods (#2662)
+* Remove `T: Debug` bounds from `Debug` implementations of `mpsc` and `oneshot` types (#2666, #2667)
+
 # 0.3.25 - 2022-10-20
 
 * Fix soundness issue in `join!` and `try_join!` macros (#2649)

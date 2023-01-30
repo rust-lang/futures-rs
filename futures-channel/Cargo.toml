@@ -1,6 +1,6 @@
 [package]
 name = "futures-channel"
-version = "0.3.25"
+version = "0.3.26"
 edition = "2018"
 rust-version = "1.45"
 license = "MIT OR Apache-2.0"
@@ -22,8 +22,8 @@ unstable = []
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.25", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.25", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.26", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.26", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", default-features = true }

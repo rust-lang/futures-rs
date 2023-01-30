@@ -1,6 +1,6 @@
 [package]
 name = "futures"
-version = "0.3.25"
+version = "0.3.26"
 edition = "2018"
 rust-version = "1.45"
 license = "MIT OR Apache-2.0"
@@ -15,13 +15,13 @@ composability, and iterator-like interfaces.
 categories = ["asynchronous"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.25", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.25", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.25", default-features = false, features = ["sink"] }
-futures-executor = { path = "../futures-executor", version = "0.3.25", default-features = false, optional = true }
-futures-io = { path = "../futures-io", version = "0.3.25", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.25", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.25", default-features = false, features = ["sink"] }
+futures-core = { path = "../futures-core", version = "0.3.26", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.26", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.26", default-features = false, features = ["sink"] }
+futures-executor = { path = "../futures-executor", version = "0.3.26", default-features = false, optional = true }
+futures-io = { path = "../futures-io", version = "0.3.26", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.26", default-features = false }
+futures-util = { path = "../futures-util", version = "0.3.26", default-features = false, features = ["sink"] }
 
 [dev-dependencies]
 futures-executor = { path = "../futures-executor", features = ["thread-pool"] }
