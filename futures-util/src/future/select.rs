@@ -99,17 +99,16 @@ where
     type Output = Either<(A::Output, B), (B::Output, A)>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
+        let (a, b) = self.inner.as_mut().expect("cannot poll Select twice");
 
         if let Poll::Ready(val) = a.poll_unpin(cx) {
-            return Poll::Ready(Either::Left((val, b)));
+            return Poll::Ready(Either::Left((val, self.inner.take().unwrap().1)));
         }
 
         if let Poll::Ready(val) = b.poll_unpin(cx) {
-            return Poll::Ready(Either::Right((val, a)));
+            return Poll::Ready(Either::Right((val, self.inner.take().unwrap().0)));
         }
 
-        self.inner = Some((a, b));
         Poll::Pending
     }
 }
