@@ -175,6 +175,8 @@ impl<T> PinnedDrop for AssertUnmoved<T> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::extra_unused_type_parameters)] // https://github.com/rust-lang/rust-clippy/issues/10319
+
     use futures_core::future::Future;
     use futures_core::task::{Context, Poll};
     use futures_util::future::pending;
@@ -183,6 +185,7 @@ mod tests {
 
     use super::AssertUnmoved;
 
+    // TODO: move this to futures/tests/auto_traits.rs
     #[test]
     fn assert_send_sync() {
         fn assert<T: Send + Sync>() {}
