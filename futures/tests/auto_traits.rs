@@ -1,4 +1,5 @@
 #![cfg(feature = "compat")]
+#![allow(clippy::extra_unused_type_parameters)] // https://github.com/rust-lang/rust-clippy/issues/10318
 
 //! Assert Send/Sync/Unpin for all public types.
 
