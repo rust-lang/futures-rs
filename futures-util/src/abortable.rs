@@ -183,8 +183,8 @@ impl AbortHandle {
         self.inner.waker.wake();
     }
 
-    /// Checks whether [`AbortHandle::abort`] was *called* on any associated 
-    /// [`AbortHandle`]s, which includes all the [`AbortHandle`]s linked with 
+    /// Checks whether [`AbortHandle::abort`] was *called* on any associated
+    /// [`AbortHandle`]s, which includes all the [`AbortHandle`]s linked with
     /// the same [`AbortRegistration`].
     ///
     /// This operation has a Relaxed ordering.
