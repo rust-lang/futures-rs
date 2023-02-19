@@ -182,4 +182,17 @@ impl AbortHandle {
         self.inner.aborted.store(true, Ordering::Relaxed);
         self.inner.waker.wake();
     }
+
+    /// Checks whether [`AbortHandle::abort`] was *called* on any associated
+    /// [`AbortHandle`]s, which includes all the [`AbortHandle`]s linked with
+    /// the same [`AbortRegistration`]. This means that it will return `true`
+    /// even if:
+    /// * `abort` was called after the task had completed.
+    /// * `abort` was called while the task was being polled - the task may still be running and
+    /// will not be stopped until `poll` returns.
+    ///
+    /// This operation has a Relaxed ordering.
+    pub fn is_aborted(&self) -> bool {
+        self.inner.aborted.load(Ordering::Relaxed)
+    }
 }
