@@ -39,7 +39,8 @@ use self::ready_to_run_queue::{Dequeue, ReadyToRunQueue};
 /// This structure is optimized to manage a large number of futures.
 /// Futures managed by [`FuturesUnordered`] will only be polled when they
 /// generate wake-up notifications. This reduces the required amount of work
-/// needed to poll large numbers of futures.
+/// needed to poll large numbers of futures. Note that the futures run to
+/// completion concurrently and not in parallel.
 ///
 /// [`FuturesUnordered`] can be filled by [`collect`](Iterator::collect)ing an
 /// iterator of futures into a [`FuturesUnordered`], or by
