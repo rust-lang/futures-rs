@@ -77,6 +77,9 @@ impl<S: Stream> fmt::Debug for Inner<S> {
 unsafe impl<T> Send for Slot<T> where T: Send {}
 unsafe impl<T> Sync for Slot<T> where T: Send + Sync {}
 
+/// If the idx is set to this, then the stream has reached the end.
+const TERMINATED: usize = usize::MAX;
+
 impl<S: Stream> Shared<S> {
     pub(super) fn new(stream: S, cap: usize) -> Shared<S> {
         assert!(cap > 0, "Shared stream must have capacity of at least 1");
@@ -109,16 +112,11 @@ impl<S: Stream> Shared<S> {
     }
 }
 
-/// If the idx is set to this, then the stream has reached the end.
-const TERMINATED: usize = usize::MAX;
-
 impl<S: Stream> Shared<S>
 where
     S::Item: Clone,
 {
     fn take_next(&mut self) -> Option<S::Item> {
-        // FIXME: should we stop moving if we reach the end of the
-        // stream?
         let (result, idx) = self.inner.take(self.idx);
         self.idx = idx;
         result
@@ -198,7 +196,7 @@ impl<S: Stream> Inner<S> {
 
     fn prev_idx(&self, idx: usize) -> usize {
         match idx.checked_sub(1) {
-            Some(prev) => prev % self.cap(),
+            Some(prev) => prev,
             None => self.cap() - 1,
         }
     }
@@ -232,7 +230,7 @@ impl<S: Stream> Inner<S> {
             return;
         }
         let slot = &self.buffer[idx];
-        let old = slot.state.fetch_sub(1, Release);
+        let old = slot.state.fetch_sub(1, Relaxed);
         let refcount = old & REFCOUNT_MASK;
         debug_assert!(refcount > 0);
 
@@ -347,9 +345,14 @@ where
         // if we've gotten this far, the slot is already filled.
         let state = slot.state.load(Acquire);
         debug_assert!(state & FILLED != 0, "Attempt to read from unfilled slot");
+
+        // We need to increment the next slot first, to ensure that another thread
+        // doesn't think it owns the next slot after we clear this slot.
+        let next_idx = self.next_idx(idx);
+        self.buffer[next_idx].inc_refcount();
         // This is valid because the previous buffer shouldn't be written to
         // until this one is empty.
-        let value = if state == FILLED | 1 && self.is_first(idx) {
+        let value = if state == (FILLED | 1) && self.is_first(idx) {
             // This is safe because there is only a single
             // stream that still has access to this slot, and it
             // is the one currently taking a value out.
@@ -365,11 +368,10 @@ where
             result
         };
         if value.is_some() {
-            let next_idx = self.next_idx(idx);
-            self.buffer[next_idx].inc_refcount();
             (value, next_idx)
         } else {
             // we've reached the end of the stream, so fuse the outer stream
+            self.drop_ref(next_idx);
             (value, TERMINATED)
         }
     }

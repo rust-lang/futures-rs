@@ -4,10 +4,10 @@ use futures::future;
 use futures::sink::SinkExt;
 use futures::stream::{self, LocalBoxStream, StreamExt};
 use std::cell::{Cell, RefCell};
-use std::rc::Rc;
 use std::panic::AssertUnwindSafe;
-use std::thread;
+use std::rc::Rc;
 use std::task::Poll;
+use std::thread;
 
 struct CountClone(Rc<Cell<i32>>);
 
@@ -157,7 +157,8 @@ fn panic_while_poll() {
     let mut stream_captured = stream.clone();
     std::panic::catch_unwind(AssertUnwindSafe(|| {
         block_on(stream_captured.next());
-    })).unwrap_err();
+    }))
+    .unwrap_err();
 
     block_on(stream.next());
 }
@@ -179,4 +180,3 @@ fn poll_while_panic() {
 
     panic!("test_marker");
 }
-
