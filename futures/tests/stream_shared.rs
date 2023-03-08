@@ -1,10 +1,13 @@
 use futures::channel::mpsc;
 use futures::executor::{block_on, block_on_stream};
+use futures::future;
 use futures::sink::SinkExt;
-use futures::stream::{self, StreamExt};
-use std::cell::Cell;
+use futures::stream::{self, LocalBoxStream, StreamExt};
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::panic::AssertUnwindSafe;
 use std::thread;
+use std::task::Poll;
 
 struct CountClone(Rc<Cell<i32>>);
 
@@ -86,3 +89,94 @@ fn drop_on_one_task_ok() {
     assert_eq!(result, [42, 43]);
     t2.join().unwrap();
 }
+
+#[test]
+fn drop_in_poll() {
+    let slot1 = Rc::new(RefCell::new(None));
+    let slot2 = slot1.clone();
+
+    let mut stream1 = stream::once(future::lazy(move |_| {
+        slot2.replace(None);
+        1
+    }))
+    .shared(1);
+
+    let stream2: LocalBoxStream<_> = Box::pin(stream1.clone());
+    slot1.replace(Some(stream2));
+
+    assert_eq!(block_on(stream1.next()), Some(1));
+}
+
+#[test]
+fn dont_clone_in_single_owner_shared_stream() {
+    let counter = CountClone(Rc::new(Cell::new(0)));
+    let (mut tx, rx) = mpsc::channel(2);
+
+    let mut rx = rx.shared(1);
+
+    block_on(tx.send(counter)).unwrap();
+
+    assert_eq!(block_on(rx.next()).unwrap().0.get(), 0);
+}
+
+#[test]
+fn dont_do_unnecessary_clones_on_output() {
+    let counter = CountClone(Rc::new(Cell::new(0)));
+    let (mut tx, rx) = mpsc::channel(2);
+
+    let mut rx = rx.shared(1);
+
+    block_on(tx.send(counter)).unwrap();
+
+    assert_eq!(block_on(rx.clone().next()).unwrap().0.get(), 1);
+    assert_eq!(block_on(rx.clone().next()).unwrap().0.get(), 2);
+    assert_eq!(block_on(rx.next()).unwrap().0.get(), 2);
+}
+
+#[test]
+fn shared_stream_that_wakes_itself_until_pending_is_returned() {
+    let proceed = Cell::new(false);
+    let mut stream = stream::poll_fn(|cx| {
+        if proceed.get() {
+            Poll::Ready(Some(()))
+        } else {
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    })
+    .shared(3);
+
+    assert_eq!(block_on(future::join(stream.next(), async { proceed.set(true) })), (Some(()), ()));
+}
+
+#[test]
+#[should_panic(expected = "inner stream panicked during poll")]
+fn panic_while_poll() {
+    let mut stream = stream::poll_fn::<i8, _>(|_| panic!("test")).shared(1);
+
+    let mut stream_captured = stream.clone();
+    std::panic::catch_unwind(AssertUnwindSafe(|| {
+        block_on(stream_captured.next());
+    })).unwrap_err();
+
+    block_on(stream.next());
+}
+
+#[test]
+#[should_panic(expected = "test_marker")]
+fn poll_while_panic() {
+    struct S;
+
+    impl Drop for S {
+        fn drop(&mut self) {
+            let mut stream = stream::repeat(1).shared(2);
+            assert_eq!(block_on(stream.clone().next()), Some(1));
+            assert_eq!(block_on(stream.next()), Some(1));
+        }
+    }
+
+    let _s = S {};
+
+    panic!("test_marker");
+}
+
