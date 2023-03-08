@@ -349,7 +349,7 @@ where
         debug_assert!(state & FILLED != 0, "Attempt to read from unfilled slot");
         // This is valid because the previous buffer shouldn't be written to
         // until this one is empty.
-        let value = if state == FILLED & 1 && self.is_first(idx) {
+        let value = if state == FILLED | 1 && self.is_first(idx) {
             // This is safe because there is only a single
             // stream that still has access to this slot, and it
             // is the one currently taking a value out.
