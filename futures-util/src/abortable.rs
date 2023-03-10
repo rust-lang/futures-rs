@@ -78,6 +78,17 @@ pub struct AbortRegistration {
     pub(crate) inner: Arc<AbortInner>,
 }
 
+impl AbortRegistration {
+    /// Create an [`AbortHandle`] from the given [`AbortRegistration`].
+    ///
+    /// The created [`AbortHandle`] is functionally the same as any other
+    /// [`AbortHandle`]s that are associated with the same [`AbortRegistration`],
+    /// such as the one created by [`AbortHandle::new_pair`].
+    pub fn handle(&self) -> AbortHandle {
+        AbortHandle { inner: self.inner.clone() }
+    }
+}
+
 /// A handle to an `Abortable` task.
 #[derive(Debug, Clone)]
 pub struct AbortHandle {
