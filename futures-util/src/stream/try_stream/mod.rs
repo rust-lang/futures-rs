@@ -721,7 +721,8 @@ pub trait TryStreamExt: TryStream {
     }
 
     /// Flattens a stream of streams into just one continuous stream. Produced streams
-    /// will be polled concurrently and any errors are passed through without looking at them.
+    /// will be polled concurrently and any errors will be passed through without looking at them.
+    /// If the underlying base stream returns an error, it will be **immediately** propagated.
     ///
     /// The only argument is an optional limit on the number of concurrently
     /// polled streams. If this limit is not `None`, no more than `limit` streams
