@@ -8,6 +8,7 @@ use futures::executor::block_on;
 use futures::future;
 use futures::stream::{self, StreamExt};
 use futures::task::Poll;
+use futures_util::FutureExt;
 use std::collections::VecDeque;
 use std::thread;
 
@@ -34,17 +35,9 @@ fn oneshot_streams(b: &mut Bencher) {
             }
         });
 
-        let mut flatten = stream::unfold(rxs.into_iter(), |mut vals| {
-            Box::pin(async {
-                if let Some(next) = vals.next() {
-                    let val = next.await.unwrap();
-                    Some((val, vals))
-                } else {
-                    None
-                }
-            })
-        })
-        .flatten_unordered(None);
+        let mut flatten = stream::iter(rxs)
+            .map(|recv| recv.into_stream().map(|val| val.unwrap()).flatten())
+            .flatten_unordered(None);
 
         block_on(future::poll_fn(move |cx| {
             let mut count = 0;

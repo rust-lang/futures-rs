@@ -3,6 +3,7 @@ use core::{
     cell::UnsafeCell,
     convert::identity,
     fmt,
+    marker::PhantomData,
     num::NonZeroUsize,
     pin::Pin,
     sync::atomic::{AtomicU8, Ordering},
@@ -21,6 +22,10 @@ use futures_sink::Sink;
 use futures_task::{waker, ArcWake};
 
 use crate::stream::FuturesUnordered;
+
+/// Stream for the [`flatten_unordered`](super::StreamExt::flatten_unordered)
+/// method.
+pub type FlattenUnordered<St> = FlattenUnorderedWithFlowController<St, ()>;
 
 /// There is nothing to poll and stream isn't being polled/waking/woken at the moment.
 const NONE: u8 = 0;
@@ -154,7 +159,7 @@ impl SharedPollState {
 
     /// Resets current state allowing to poll the stream and wake up wakers.
     fn reset(&self) -> u8 {
-        self.state.swap(NEED_TO_POLL_ALL, Ordering::AcqRel)
+        self.state.swap(NEED_TO_POLL_ALL, Ordering::SeqCst)
     }
 }
 
@@ -276,10 +281,10 @@ impl<St: Stream + Unpin> Future for PollStreamFut<St> {
 
 pin_project! {
     /// Stream for the [`flatten_unordered`](super::StreamExt::flatten_unordered)
-    /// method.
-    #[project = FlattenUnorderedProj]
+    /// method with ability to specify flow controller.
+    #[project = FlattenUnorderedWithFlowControllerProj]
     #[must_use = "streams do nothing unless polled"]
-    pub struct FlattenUnordered<St> where St: Stream {
+    pub struct FlattenUnorderedWithFlowController<St, Fc> where St: Stream {
         #[pin]
         inner_streams: FuturesUnordered<PollStreamFut<St::Item>>,
         #[pin]
@@ -289,34 +294,40 @@ pin_project! {
         is_stream_done: bool,
         inner_streams_waker: Arc<WrappedWaker>,
         stream_waker: Arc<WrappedWaker>,
+        flow_controller: PhantomData<Fc>
     }
 }
 
-impl<St> fmt::Debug for FlattenUnordered<St>
+impl<St, Fc> fmt::Debug for FlattenUnorderedWithFlowController<St, Fc>
 where
     St: Stream + fmt::Debug,
     St::Item: Stream + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FlattenUnordered")
+        f.debug_struct("FlattenUnorderedWithFlowController")
             .field("poll_state", &self.poll_state)
             .field("inner_streams", &self.inner_streams)
             .field("limit", &self.limit)
             .field("stream", &self.stream)
             .field("is_stream_done", &self.is_stream_done)
+            .field("flow_controller", &self.flow_controller)
             .finish()
     }
 }
 
-impl<St> FlattenUnordered<St>
+impl<St, Fc> FlattenUnorderedWithFlowController<St, Fc>
 where
     St: Stream,
+    Fc: FlowController<St::Item, <St::Item as Stream>::Item>,
     St::Item: Stream + Unpin,
 {
-    pub(super) fn new(stream: St, limit: Option<usize>) -> FlattenUnordered<St> {
+    pub(crate) fn new(
+        stream: St,
+        limit: Option<usize>,
+    ) -> FlattenUnorderedWithFlowController<St, Fc> {
         let poll_state = SharedPollState::new(NEED_TO_POLL_STREAM);
 
-        FlattenUnordered {
+        FlattenUnorderedWithFlowController {
             inner_streams: FuturesUnordered::new(),
             stream,
             is_stream_done: false,
@@ -332,13 +343,35 @@ where
                 need_to_poll: NEED_TO_POLL_STREAM,
             }),
             poll_state,
+            flow_controller: PhantomData,
         }
     }
 
     delegate_access_inner!(stream, St, ());
 }
 
-impl<St> FlattenUnorderedProj<'_, St>
+/// Returns the next flow step based on the received item.
+pub trait FlowController<I, O> {
+    /// Handles an item producing `FlowStep` describing the next flow step.
+    fn next_step(item: I) -> FlowStep<I, O>;
+}
+
+impl<I, O> FlowController<I, O> for () {
+    fn next_step(item: I) -> FlowStep<I, O> {
+        FlowStep::Continue(item)
+    }
+}
+
+/// Describes the next flow step.
+#[derive(Debug, Clone)]
+pub enum FlowStep<C, R> {
+    /// Just yields an item and continues standard flow.
+    Continue(C),
+    /// Immediately returns an underlying item from the function.
+    Return(R),
+}
+
+impl<St, Fc> FlattenUnorderedWithFlowControllerProj<'_, St, Fc>
 where
     St: Stream,
 {
@@ -348,9 +381,10 @@ where
     }
 }
 
-impl<St> FusedStream for FlattenUnordered<St>
+impl<St, Fc> FusedStream for FlattenUnorderedWithFlowController<St, Fc>
 where
     St: FusedStream,
+    Fc: FlowController<St::Item, <St::Item as Stream>::Item>,
     St::Item: Stream + Unpin,
 {
     fn is_terminated(&self) -> bool {
@@ -358,9 +392,10 @@ where
     }
 }
 
-impl<St> Stream for FlattenUnordered<St>
+impl<St, Fc> Stream for FlattenUnorderedWithFlowController<St, Fc>
 where
     St: Stream,
+    Fc: FlowController<St::Item, <St::Item as Stream>::Item>,
     St::Item: Stream + Unpin,
 {
     type Item = <St::Item as Stream>::Item;
@@ -405,8 +440,23 @@ where
                     let mut cx = Context::from_waker(stream_waker.as_ref().unwrap());
 
                     match this.stream.as_mut().poll_next(&mut cx) {
-                        Poll::Ready(Some(inner_stream)) => {
-                            let next_item_fut = PollStreamFut::new(inner_stream);
+                        Poll::Ready(Some(item)) => {
+                            let next_item_fut = match Fc::next_step(item) {
+                                // Propagates an item immediately (the main use-case is for errors)
+                                FlowStep::Return(item) => {
+                                    need_to_poll_next |= NEED_TO_POLL_STREAM
+                                        | (poll_state_value & NEED_TO_POLL_INNER_STREAMS);
+                                    poll_state_value &= !NEED_TO_POLL_INNER_STREAMS;
+
+                                    next_item = Some(item);
+
+                                    break;
+                                }
+                                // Yields an item and continues processing (normal case)
+                                FlowStep::Continue(inner_stream) => {
+                                    PollStreamFut::new(inner_stream)
+                                }
+                            };
                             // Add new stream to the inner streams bucket
                             this.inner_streams.as_mut().push(next_item_fut);
                             // Inner streams must be polled afterward
@@ -478,7 +528,7 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<St, Item> Sink<Item> for FlattenUnordered<St>
+impl<St, Item, Fc> Sink<Item> for FlattenUnorderedWithFlowController<St, Fc>
 where
     St: Stream + Sink<Item>,
 {
