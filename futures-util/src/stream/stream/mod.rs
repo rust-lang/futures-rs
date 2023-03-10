@@ -199,7 +199,7 @@ pub use self::buffered::Buffered;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
-mod flatten_unordered;
+pub(crate) mod flatten_unordered;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
