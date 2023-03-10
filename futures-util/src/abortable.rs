@@ -84,7 +84,7 @@ impl AbortRegistration {
     /// The created [`AbortHandle`] is functionally the same as any other
     /// [`AbortHandle`]s that are associated with the same [`AbortRegistration`],
     /// such as the one created by [`AbortHandle::new_pair`].
-    pub fn create_handle(&self) -> AbortHandle {
+    pub fn handle(&self) -> AbortHandle {
         AbortHandle { inner: self.inner.clone() }
     }
 }
