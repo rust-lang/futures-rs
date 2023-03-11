@@ -3,7 +3,7 @@
 * Add `TryFlattenUnordered` (#2577, #2590, #2606, #2607)
 * Add `AbortHandle::is_aborted` (#2710)
 * Add `AbortRegistration::handle` (#2712)
-* Make BiLock strict-provenance compatible (#2716)
+* Make `BiLock` strict-provenance compatible (#2716)
 
 # 0.3.26 - 2023-01-30
 
