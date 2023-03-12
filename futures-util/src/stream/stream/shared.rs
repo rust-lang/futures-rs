@@ -6,7 +6,7 @@ use core::cell::UnsafeCell;
 use core::marker::Unpin;
 use core::pin::Pin;
 use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
@@ -230,7 +230,7 @@ impl<S: Stream> Inner<S> {
             return;
         }
         let slot = &self.buffer[idx];
-        let old = slot.state.fetch_sub(1, Relaxed);
+        let old = slot.state.fetch_sub(1, AcqRel);
         let refcount = old & REFCOUNT_MASK;
         debug_assert!(refcount > 0);
 
@@ -383,7 +383,7 @@ impl<T> Slot<T> {
     }
 
     fn inc_refcount(&self) {
-        let old = self.state.fetch_add(1, Relaxed);
+        let old = self.state.fetch_add(1, Release);
         assert!(old & REFCOUNT_MASK != REFCOUNT_MASK);
     }
 
