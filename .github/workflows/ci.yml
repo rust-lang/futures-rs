@@ -48,24 +48,24 @@ jobs:
       - run: cargo test --workspace --all-features --release
 
   cross:
-    name: cross test --target ${{ matrix.target }}
+    name: cargo test --target ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
         target:
-          - i686-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf
+          - i686-unknown-linux-gnu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - name: Install cross
-        uses: taiki-e/install-action@cross
-      - run: cross test --target ${{ matrix.target }} --workspace --all-features
-      - run: cross test --target ${{ matrix.target }} --workspace --all-features --release
-        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
-        if: matrix.target != 'aarch64-unknown-linux-gnu'
+      - uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      - run: cargo test --target ${{ matrix.target }} --workspace --all-features $DOCTEST_XCOMPILE
+      - run: cargo test --target ${{ matrix.target }} --workspace --all-features --release $DOCTEST_XCOMPILE
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink})
