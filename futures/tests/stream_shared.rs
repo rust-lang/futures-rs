@@ -180,3 +180,28 @@ fn poll_while_panic() {
 
     panic!("test_marker");
 }
+
+#[test]
+#[should_panic(expected = "Shared stream must have capacity of at least 1")]
+fn panic_for_zero_capacity() {
+    let _ = stream::empty::<i32>().shared(0);
+}
+
+#[test]
+fn empty_stream() {
+    let mut s1 = stream::empty::<i32>().shared(1);
+    let mut s2 = s1.clone();
+
+    assert!(block_on(s1.next()).is_none());
+    assert!(block_on(s2.next()).is_none());
+    assert!(block_on(s1.clone().next()).is_none());
+}
+
+#[test]
+fn fused() {
+    use stream::FusedStream;
+    let mut s = stream::empty::<i32>().shared(1);
+
+    assert!(block_on(s.next()).is_none());
+    assert!(s.is_terminated());
+}

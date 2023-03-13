@@ -1519,6 +1519,8 @@ pub trait StreamExt: Stream {
     /// # Panics
     /// If the capacity is zero. It must have space for at least one item.
     ///
+    /// If the capacity is too large. The maximum size may be les than `usize::MAX`.
+    ///
     /// # Examples
     ///
     /// ```
