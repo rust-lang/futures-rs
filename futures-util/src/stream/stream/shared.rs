@@ -176,7 +176,9 @@ where
             Arc::strong_count(&inner) < REFCOUNT_MASK,
             "Created too many clones of shared stream"
         );
-        self.slot().inc_refcount();
+        if !self.is_terminated() {
+            self.slot().inc_refcount();
+        }
         Shared { idx: self.idx, waker_key: WakerKey::NULL, inner }
     }
 }
