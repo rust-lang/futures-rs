@@ -430,3 +430,16 @@ fn maybe_pending_seek() {
     Pin::new(&mut reader).consume(1);
     assert_eq!(run(reader.seek(SeekFrom::Current(-2))).ok(), Some(3));
 }
+
+#[test]
+fn fill_buf_pending_after_eof() {
+    let inner: &[u8] = &[1, 2];
+    let mut reader = BufReader::with_capacity(inner.len(), MaybePending::new(inner));
+
+    let buf = run(reader.fill_buf()).unwrap();
+    assert_eq!(buf, inner);
+    reader.consume_unpin(2);
+
+    let buf = run(reader.fill_buf()).unwrap();
+    assert_eq!(buf, []);
+}

@@ -30,6 +30,11 @@ where
         let reader = this.reader.take().expect("Polled FillBuf after completion");
 
         match Pin::new(&mut *reader).poll_fill_buf(cx) {
+            // The reader can try to fill its buffer again if it returned no data, according to the
+            // AsyncBufRead contract. Don't poll again in that case, in order to make the
+            // Poll::Pending match arm below truly unreachable.
+            Poll::Ready(Ok([])) => Poll::Ready(Ok(&[])),
+
             // With polonius it is possible to remove this inner match and just have the correct
             // lifetime of the reference inferred based on which branch is taken
             Poll::Ready(Ok(_)) => match Pin::new(reader).poll_fill_buf(cx) {
