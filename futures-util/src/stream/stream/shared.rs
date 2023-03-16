@@ -293,8 +293,9 @@ impl<S: Stream> Inner<S> {
         loop {
             let next_idx = self.next_idx(idx);
             let next_slot = &self.buffer[next_idx];
-            // Use relaxed ordering because, we don't actually read the value of the next slot
-            if next_slot.state.load(Relaxed) & FILLED != 0 {
+            // Use acquire ordering, so that we don't try writing to the next slot until
+            // we can see that it has been emptied.
+            if next_slot.state.load(Acquire) & FILLED != 0 {
                 // We have filled the buffer, return whether we
                 // filled any other slots
                 break;
