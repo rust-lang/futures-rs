@@ -414,8 +414,13 @@ where
             }
         };
 
+        // Safety: now state is `POLLING`.
+        let stream_waker = unsafe { WrappedWaker::replace_waker(this.stream_waker, cx) };
+        let inner_streams_waker =
+            unsafe { WrappedWaker::replace_waker(this.inner_streams_waker, cx) };
+
         if poll_state_value & NEED_TO_POLL_STREAM != NONE {
-            let mut stream_waker = None;
+            let mut cx = Context::from_waker(&stream_waker);
 
             // Here we need to poll the base stream.
             //
@@ -431,14 +436,6 @@ where
 
                     break;
                 } else {
-                    // Initialize base stream waker if it's not yet initialized
-                    if stream_waker.is_none() {
-                        // Safety: now state is `POLLING`.
-                        stream_waker
-                            .replace(unsafe { WrappedWaker::replace_waker(this.stream_waker, cx) });
-                    }
-                    let mut cx = Context::from_waker(stream_waker.as_ref().unwrap());
-
                     match this.stream.as_mut().poll_next(&mut cx) {
                         Poll::Ready(Some(item)) => {
                             let next_item_fut = match Fc::next_step(item) {
@@ -475,9 +472,6 @@ where
         }
 
         if poll_state_value & NEED_TO_POLL_INNER_STREAMS != NONE {
-            // Safety: now state is `POLLING`.
-            let inner_streams_waker =
-                unsafe { WrappedWaker::replace_waker(this.inner_streams_waker, cx) };
             let mut cx = Context::from_waker(&inner_streams_waker);
 
             match this.inner_streams.as_mut().poll_next(&mut cx) {
