@@ -344,40 +344,42 @@ fn flatten_unordered() {
 
     // nested `flatten_unordered`
     let te = ThreadPool::new().unwrap();
-    let handle = te.spawn_with_handle(async move {
-        let inner = stream::iter(0..10)
-            .then(|_| {
-                let task = Arc::new(AtomicBool::new(false));
-                let mut spawned = false;
+    let handle = te
+        .spawn_with_handle(async move {
+            let inner = stream::iter(0..10)
+                .then(|_| {
+                    let task = Arc::new(AtomicBool::new(false));
+                    let mut spawned = false;
 
-                future::poll_fn(move |cx| {
-                    if !spawned {
-                        let waker = cx.waker().clone();
-                        let task = task.clone();
+                    future::poll_fn(move |cx| {
+                        if !spawned {
+                            let waker = cx.waker().clone();
+                            let task = task.clone();
 
-                        std::thread::spawn(move || {
-                            std::thread::sleep(Duration::from_millis(500));
-                            task.store(true, Ordering::Release);
+                            std::thread::spawn(move || {
+                                std::thread::sleep(Duration::from_millis(500));
+                                task.store(true, Ordering::Release);
 
-                            waker.wake_by_ref()
-                        });
-                        spawned = true;
-                    }
+                                waker.wake_by_ref()
+                            });
+                            spawned = true;
+                        }
 
-                    if task.load(Ordering::Acquire) {
-                        Poll::Ready(Some(()))
-                    } else {
-                        Poll::Pending
-                    }
+                        if task.load(Ordering::Acquire) {
+                            Poll::Ready(Some(()))
+                        } else {
+                            Poll::Pending
+                        }
+                    })
                 })
-            })
-            .map(|_| stream::once(future::ready(())))
-            .flatten_unordered(None);
+                .map(|_| stream::once(future::ready(())))
+                .flatten_unordered(None);
 
-        let stream = stream::once(future::ready(inner)).flatten_unordered(None);
+            let stream = stream::once(future::ready(inner)).flatten_unordered(None);
 
-        assert_eq!(stream.count().await, 10);
-    }).unwrap();
+            assert_eq!(stream.count().await, 10);
+        })
+        .unwrap();
 
     block_on(handle);
 }
