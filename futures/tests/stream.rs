@@ -342,46 +342,77 @@ fn flatten_unordered() {
         });
     }
 
+    fn timeout<I: Clone>(time: Duration, value: I) -> impl Future<Output = I> {
+        let ready = Arc::new(AtomicBool::new(false));
+        let mut spawned = false;
+
+        future::poll_fn(move |cx| {
+            if !spawned {
+                let waker = cx.waker().clone();
+                let ready = ready.clone();
+
+                std::thread::spawn(move || {
+                    std::thread::sleep(time);
+                    ready.store(true, Ordering::Release);
+
+                    waker.wake_by_ref()
+                });
+                spawned = true;
+            }
+
+            if ready.load(Ordering::Acquire) {
+                Poll::Ready(value.clone())
+            } else {
+                Poll::Pending
+            }
+        })
+    }
+
+    fn build_nested_fu<S: Stream + Unpin>(st: S) -> impl Stream<Item = S::Item> + Unpin
+    where
+        S::Item: Clone,
+    {
+        let inner = st
+            .then(|item| timeout(Duration::from_millis(50), item))
+            .enumerate()
+            .map(|(idx, value)| {
+                stream::once(if idx % 2 == 0 {
+                    future::ready(value).left_future()
+                } else {
+                    timeout(Duration::from_millis(100), value).right_future()
+                })
+            })
+            .flatten_unordered(None);
+
+        stream::once(future::ready(inner)).flatten_unordered(None)
+    }
+
     // nested `flatten_unordered`
     let te = ThreadPool::new().unwrap();
-    let handle = te
+    let base_handle = te
         .spawn_with_handle(async move {
-            let inner = stream::iter(0..10)
-                .then(|_| {
-                    let task = Arc::new(AtomicBool::new(false));
-                    let mut spawned = false;
+            let fu = build_nested_fu(stream::iter(1..=10));
 
-                    future::poll_fn(move |cx| {
-                        if !spawned {
-                            let waker = cx.waker().clone();
-                            let task = task.clone();
-
-                            std::thread::spawn(move || {
-                                std::thread::sleep(Duration::from_millis(500));
-                                task.store(true, Ordering::Release);
-
-                                waker.wake_by_ref()
-                            });
-                            spawned = true;
-                        }
-
-                        if task.load(Ordering::Acquire) {
-                            Poll::Ready(Some(()))
-                        } else {
-                            Poll::Pending
-                        }
-                    })
-                })
-                .map(|_| stream::once(future::ready(())))
-                .flatten_unordered(None);
-
-            let stream = stream::once(future::ready(inner)).flatten_unordered(None);
-
-            assert_eq!(stream.count().await, 10);
+            assert_eq!(fu.count().await, 10);
         })
         .unwrap();
 
-    block_on(handle);
+    block_on(base_handle);
+
+    let empty_state_move_handle = te
+        .spawn_with_handle(async move {
+            let mut fu = build_nested_fu(stream::iter(1..10));
+            {
+                let mut cx = noop_context();
+                let _ = fu.poll_next_unpin(&mut cx);
+                let _ = fu.poll_next_unpin(&mut cx);
+            }
+
+            assert_eq!(fu.count().await, 9);
+        })
+        .unwrap();
+
+    block_on(empty_state_move_handle);
 }
 
 #[test]
