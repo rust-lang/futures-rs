@@ -61,14 +61,14 @@ impl SharedPollState {
     }
 
     /// Attempts to start polling, returning stored state in case of success.
-    /// Returns `None` if either waker is waking at the moment or state is empty.
+    /// Returns `None` if either waker is waking at the moment.
     fn start_polling(
         &self,
     ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                if value & WAKING == NONE && value & NEED_TO_POLL_ALL != NONE {
+                if value & WAKING == NONE {
                     Some(POLLING)
                 } else {
                     None
@@ -405,11 +405,10 @@ where
 
         let mut this = self.as_mut().project();
 
-        let (mut poll_state_value, state_bomb) = match this.poll_state.start_polling() {
-            Some(value) => value,
-            _ => {
-                // Waker was called, just wait for the next poll
-                return Poll::Pending;
+        // Attempt to start polling, in case some waker is holding the lock, wait in loop
+        let (mut poll_state_value, state_bomb) = loop {
+            if let Some(value) = this.poll_state.start_polling() {
+                break value;
             }
         };
 
