@@ -61,7 +61,7 @@ impl SharedPollState {
     }
 
     /// Attempts to start polling, returning stored state in case of success.
-    /// Returns `None` if either waker is waking at the moment or state is empty.
+    /// Returns `None` if either waker is waking at the moment.
     fn start_polling(
         &self,
     ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
