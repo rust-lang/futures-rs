@@ -209,9 +209,8 @@ impl WrappedWaker {
     ///
     /// This function will modify waker's `inner_waker` via `UnsafeCell`, so
     /// it should be used only during `POLLING` phase by one thread at the time.
-    unsafe fn replace_waker(self_arc: &mut Arc<Self>, cx: &Context<'_>) -> Waker {
+    unsafe fn replace_waker(self_arc: &mut Arc<Self>, cx: &Context<'_>) {
         *self_arc.inner_waker.get() = cx.waker().clone().into();
-        waker(self_arc.clone())
     }
 
     /// Attempts to start the waking process for the waker with the given value.
@@ -414,6 +413,12 @@ where
             }
         };
 
+        // Safety: now state is `POLLING`.
+        unsafe {
+            WrappedWaker::replace_waker(this.stream_waker, cx);
+            WrappedWaker::replace_waker(this.inner_streams_waker, cx)
+        };
+
         if poll_state_value & NEED_TO_POLL_STREAM != NONE {
             let mut stream_waker = None;
 
@@ -431,13 +436,9 @@ where
 
                     break;
                 } else {
-                    // Initialize base stream waker if it's not yet initialized
-                    if stream_waker.is_none() {
-                        // Safety: now state is `POLLING`.
-                        stream_waker
-                            .replace(unsafe { WrappedWaker::replace_waker(this.stream_waker, cx) });
-                    }
-                    let mut cx = Context::from_waker(stream_waker.as_ref().unwrap());
+                    let mut cx = Context::from_waker(
+                        stream_waker.get_or_insert_with(|| waker(this.stream_waker.clone())),
+                    );
 
                     match this.stream.as_mut().poll_next(&mut cx) {
                         Poll::Ready(Some(item)) => {
@@ -475,9 +476,7 @@ where
         }
 
         if poll_state_value & NEED_TO_POLL_INNER_STREAMS != NONE {
-            // Safety: now state is `POLLING`.
-            let inner_streams_waker =
-                unsafe { WrappedWaker::replace_waker(this.inner_streams_waker, cx) };
+            let inner_streams_waker = waker(this.inner_streams_waker.clone());
             let mut cx = Context::from_waker(&inner_streams_waker);
 
             match this.inner_streams.as_mut().poll_next(&mut cx) {

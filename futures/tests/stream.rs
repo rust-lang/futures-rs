@@ -14,6 +14,7 @@ use futures::stream::{self, StreamExt};
 use futures::task::Poll;
 use futures::{ready, FutureExt};
 use futures_core::Stream;
+use futures_executor::ThreadPool;
 use futures_test::task::noop_context;
 
 #[test]
@@ -82,6 +83,7 @@ fn flatten_unordered() {
     use futures::task::*;
     use std::convert::identity;
     use std::pin::Pin;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::thread;
     use std::time::Duration;
 
@@ -339,6 +341,47 @@ fn flatten_unordered() {
             assert_eq!(values, (0..60).collect::<Vec<u8>>());
         });
     }
+
+    // nested `flatten_unordered`
+    let te = ThreadPool::new().unwrap();
+    let handle = te
+        .spawn_with_handle(async move {
+            let inner = stream::iter(0..10)
+                .then(|_| {
+                    let task = Arc::new(AtomicBool::new(false));
+                    let mut spawned = false;
+
+                    future::poll_fn(move |cx| {
+                        if !spawned {
+                            let waker = cx.waker().clone();
+                            let task = task.clone();
+
+                            std::thread::spawn(move || {
+                                std::thread::sleep(Duration::from_millis(500));
+                                task.store(true, Ordering::Release);
+
+                                waker.wake_by_ref()
+                            });
+                            spawned = true;
+                        }
+
+                        if task.load(Ordering::Acquire) {
+                            Poll::Ready(Some(()))
+                        } else {
+                            Poll::Pending
+                        }
+                    })
+                })
+                .map(|_| stream::once(future::ready(())))
+                .flatten_unordered(None);
+
+            let stream = stream::once(future::ready(inner)).flatten_unordered(None);
+
+            assert_eq!(stream.count().await, 10);
+        })
+        .unwrap();
+
+    block_on(handle);
 }
 
 #[test]
