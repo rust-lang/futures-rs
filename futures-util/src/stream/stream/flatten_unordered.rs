@@ -68,7 +68,7 @@ impl SharedPollState {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                if value & WAKING == NONE && value & NEED_TO_POLL_ALL != NONE {
+                if value & WAKING == NONE {
                     Some(POLLING)
                 } else {
                     None
