@@ -1,6 +1,6 @@
 #![cfg(nightly)]
 #![no_std]
-#![allow(useless_anonymous_reexport)]
+#![allow(unused_imports)]
 
 #[cfg(feature = "futures-core-alloc")]
 #[cfg(target_has_atomic = "ptr")]
