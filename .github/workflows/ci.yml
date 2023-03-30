@@ -108,7 +108,7 @@ jobs:
         rust:
           # This is the minimum Rust version supported by futures, futures-util, futures-task, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
-          - '1.45'
+          - '1.56'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
