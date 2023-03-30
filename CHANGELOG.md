@@ -1,3 +1,8 @@
+# 0.3.28 - 2023-03-30
+
+* Update to syn 2. This raises MSRV of utility crates to 1.56. (#2730, #2733)
+* Fix bug in `FlattenUnordered` (#2726, #2728)
+
 # 0.3.27 - 2023-03-11
 
 * Add `TryFlattenUnordered` (#2577, #2590, #2606, #2607)
