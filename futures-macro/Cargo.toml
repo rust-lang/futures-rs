@@ -2,7 +2,7 @@
 name = "futures-macro"
 version = "0.3.27"
 edition = "2018"
-rust-version = "1.45"
+rust-version = "1.56"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
