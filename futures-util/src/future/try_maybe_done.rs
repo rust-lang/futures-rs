@@ -10,7 +10,7 @@ use futures_core::task::{Context, Poll};
 /// A future that may have completed with an error.
 ///
 /// This is created by the [`try_maybe_done()`] function.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TryMaybeDone<Fut: TryFuture> {
     /// A not-yet-completed future
     Future(/* #[pin] */ Fut),

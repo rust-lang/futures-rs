@@ -8,6 +8,7 @@ use futures_core::task::{Context, Poll};
 
 /// Future for the [`poll_fn`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
+#[derive(Clone)]
 pub struct PollFn<F> {
     f: F,
 }
