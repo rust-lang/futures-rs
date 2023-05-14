@@ -12,7 +12,8 @@ Common utilities and extension traits for the futures-rs library.
 
 [features]
 default = ["std", "async-await", "async-await-macro"]
-std = ["alloc", "futures-core/std", "futures-task/std", "slab"]
+std = ["alloc", "futures-core/std", "futures-task/std", "rand/std", "rand/std_rng", "slab"]
+getrandom = ["rand/getrandom"]
 alloc = ["futures-core/alloc", "futures-task/alloc"]
 async-await = []
 async-await-macro = ["async-await", "futures-macro"]
@@ -43,6 +44,7 @@ futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0"
 pin-project-lite = "0.2.6"
+rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 
 [dev-dependencies]
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }

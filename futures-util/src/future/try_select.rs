@@ -2,12 +2,15 @@ use crate::future::{Either, TryFutureExt};
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
+use rand::rngs::SmallRng;
+use rand::Rng;
 
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct TrySelect<A, B> {
     inner: Option<(A, B)>,
+    rng: SmallRng,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
@@ -23,6 +26,9 @@ type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::E
 ///
 /// Note that this function consumes the receiving futures and returns a
 /// wrapped version of them.
+///
+/// If both futures are ready when this is polled, the winner will be pseudo-randomly
+/// selected.
 ///
 /// Also note that if both this and the second future have the same
 /// success/error type you can use the `Either::factor_first` method to
@@ -57,6 +63,7 @@ where
 {
     super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
         inner: Some((future1, future2)),
+        rng: crate::gen_rng(),
     })
 }
 
@@ -69,17 +76,26 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
-        match a.try_poll_unpin(cx) {
-            Poll::Ready(Err(x)) => Poll::Ready(Err(Either::Left((x, b)))),
-            Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Left((x, b)))),
-            Poll::Pending => match b.try_poll_unpin(cx) {
-                Poll::Ready(Err(x)) => Poll::Ready(Err(Either::Right((x, a)))),
-                Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Right((x, a)))),
-                Poll::Pending => {
-                    self.inner = Some((a, b));
-                    Poll::Pending
+        macro_rules! poll_wrap {
+            ($poll_first:expr, $poll_second:expr, $wrap_first:expr, $wrap_second:expr) => {
+                match $poll_first.try_poll_unpin(cx) {
+                    Poll::Ready(Err(x)) => Poll::Ready(Err($wrap_first((x, $poll_second)))),
+                    Poll::Ready(Ok(x)) => Poll::Ready(Ok($wrap_first((x, $poll_second)))),
+                    Poll::Pending => match $poll_second.try_poll_unpin(cx) {
+                        Poll::Ready(Err(x)) => Poll::Ready(Err($wrap_second((x, $poll_first)))),
+                        Poll::Ready(Ok(x)) => Poll::Ready(Ok($wrap_second((x, $poll_first)))),
+                        Poll::Pending => {
+                            self.inner = Some((a, b));
+                            Poll::Pending
+                        }
+                    },
                 }
-            },
+            };
+        }
+        if self.rng.gen::<bool>() {
+            poll_wrap!(a, b, Either::Left, Either::Right)
+        } else {
+            poll_wrap!(b, a, Either::Right, Either::Left)
         }
     }
 }

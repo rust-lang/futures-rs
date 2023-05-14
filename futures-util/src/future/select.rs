@@ -3,12 +3,15 @@ use crate::future::{Either, FutureExt};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
+use rand::rngs::SmallRng;
+use rand::Rng;
 
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct Select<A, B> {
     inner: Option<(A, B)>,
+    rng: SmallRng,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
@@ -21,6 +24,9 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///
 /// Note that this function consumes the receiving futures and returns a
 /// wrapped version of them.
+///
+/// If both futures are ready when this is polled, the winner will be pseudo-randomly
+/// selected.
 ///
 /// Also note that if both this and the second future have the same
 /// output type you can use the `Either::factor_first` method to
@@ -88,6 +94,7 @@ where
 {
     assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
         inner: Some((future1, future2)),
+        rng: crate::gen_rng(),
     })
 }
 
@@ -109,16 +116,24 @@ where
             }
         }
 
+        let a_polls_first = self.rng.gen::<bool>();
         let (a, b) = self.inner.as_mut().expect("cannot poll Select twice");
 
-        if let Poll::Ready(val) = a.poll_unpin(cx) {
-            return Poll::Ready(Either::Left((val, unwrap_option(self.inner.take()).1)));
+        macro_rules! poll_wrap {
+            ($to_poll:expr, $unpolled:expr, $wrap:expr) => {
+                if let Poll::Ready(val) = $to_poll.poll_unpin(cx) {
+                    return Poll::Ready($wrap((val, $unpolled)));
+                }
+            };
         }
 
-        if let Poll::Ready(val) = b.poll_unpin(cx) {
-            return Poll::Ready(Either::Right((val, unwrap_option(self.inner.take()).0)));
+        if a_polls_first {
+            poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
+            poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
+        } else {
+            poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
+            poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
         }
-
         Poll::Pending
     }
 }
