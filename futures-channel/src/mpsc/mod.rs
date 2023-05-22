@@ -624,6 +624,7 @@ impl<T> BoundedSenderInner<T> {
     ///
     /// - `Poll::Ready(()` if there are no messages in the channel;
     /// - `Poll::Pending` if there are messages in the channel.
+    #[cfg(feature = "sink")]
     fn poll_is_empty(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if state.num_messages == 0 {
@@ -783,6 +784,7 @@ impl<T> Sender<T> {
     ///
     /// - `Poll::Ready(()` if there are no messages in the channel or the [`Receiver`] is disconnected.
     /// - `Poll::Pending` if there are messages in the channel.
+    #[cfg(feature = "sink")]
     pub(crate) fn poll_is_empty(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         let inner = match self.0.as_mut() {
             None => return Poll::Ready(()),
