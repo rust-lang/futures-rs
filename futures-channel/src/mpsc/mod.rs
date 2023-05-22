@@ -632,7 +632,7 @@ impl<T> BoundedSenderInner<T> {
 
         // If there are messages in the channel, we must park the task unconditionally.
         self.sender_task.lock().unwrap().task = Some(cx.waker().clone());
-        return Poll::Pending;
+        Poll::Pending
     }
 
     /// Returns whether the senders send to the same receiver.
