@@ -90,8 +90,8 @@ fn select_streams() {
             _ = rx1.next() => panic!(),
             _ = rx2.next() => panic!(),
             default => {
-                tx1.send(2).await.unwrap();
-                tx2.send(3).await.unwrap();
+                tx1.feed(2).await.unwrap();
+                tx2.feed(3).await.unwrap();
                 tx1_opt = Some(tx1);
                 tx2_opt = Some(tx2);
             }
