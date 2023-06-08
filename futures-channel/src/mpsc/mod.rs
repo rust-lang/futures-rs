@@ -842,6 +842,15 @@ impl<T> UnboundedSender<T> {
         let ptr = self.0.as_ref().map(|inner| inner.ptr());
         ptr.hash(hasher);
     }
+
+    /// Return the number of messages in the queue or 0 if channel is disconnected.
+    pub fn num_messages(&self) -> usize {
+        if let Some(sender) = &self.0 {
+            decode_state(sender.inner.state.load(SeqCst)).num_messages
+        } else {
+            0
+        }
+    }
 }
 
 impl<T> Clone for Sender<T> {
