@@ -309,6 +309,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
         None
     }
 
+    /// Returns an iterator of keys in the mapping.
     pub fn keys<'a>(&'a self) -> Keys<'a, K, Fut> {
         Keys {
             inner: self.hash_set.iter().map(Box::new(|hash_task| HashTask::key_unwrap(hash_task))),
