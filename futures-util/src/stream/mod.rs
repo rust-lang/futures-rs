@@ -125,6 +125,14 @@ pub use self::futures_unordered::FuturesUnordered;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
+pub mod mapped_futures;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use self::mapped_futures::MappedFutures;
+
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
 pub mod select_all;
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
