@@ -321,8 +321,7 @@ fn stream_select() {
         assert_eq!(endless_ones.next().await, Some(1));
         assert_eq!(endless_ones.next().await, Some(1));
 
-        let mut finite_list =
-            stream_select!(stream::iter(vec![1].into_iter()), stream::iter(vec![1].into_iter()));
+        let mut finite_list = stream_select!(stream::iter(vec![1]), stream::iter(vec![1]));
         assert_eq!(finite_list.next().await, Some(1));
         assert_eq!(finite_list.next().await, Some(1));
         assert_eq!(finite_list.next().await, None);
