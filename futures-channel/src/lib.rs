@@ -26,6 +26,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
