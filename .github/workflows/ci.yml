@@ -152,7 +152,7 @@ jobs:
       - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
 
   minimal-versions:
-    name: cargo build -Z minimal-versions
+    name: cargo minimal-versions build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -160,10 +160,9 @@ jobs:
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-      - run: cargo hack --remove-dev-deps --workspace
-      - run: cargo update -Z minimal-versions
-      - run: cargo build --workspace --all-features
+      - name: Install cargo-minimal-versions
+        uses: taiki-e/install-action@cargo-minimal-versions
+      - run: cargo minimal-versions build --workspace --ignore-private --all-features
 
   no-std:
     name: cargo build --target ${{ matrix.target }}
