@@ -19,6 +19,7 @@
 ))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_borrow)] // https://github.com/rust-lang/futures-rs/pull/2558#issuecomment-1030745203
+#![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
