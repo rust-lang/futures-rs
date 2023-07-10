@@ -79,8 +79,7 @@ fn works_1() {
 
 #[test]
 fn clear() {
-    let mut tasks =
-        select_all(vec![stream::iter(vec![1].into_iter()), stream::iter(vec![2].into_iter())]);
+    let mut tasks = select_all(vec![stream::iter(vec![1]), stream::iter(vec![2])]);
 
     assert_eq!(block_on(tasks.next()), Some(1));
     assert!(!tasks.is_empty());
@@ -88,7 +87,7 @@ fn clear() {
     tasks.clear();
     assert!(tasks.is_empty());
 
-    tasks.push(stream::iter(vec![3].into_iter()));
+    tasks.push(stream::iter(vec![3]));
     assert!(!tasks.is_empty());
 
     tasks.clear();
