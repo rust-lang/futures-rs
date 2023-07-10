@@ -127,7 +127,8 @@ jobs:
       # Check std feature
       - run: cargo hack build --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
       # Check compat feature (futures, futures-util)
-      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,io-compat
+      # Exclude io-compat feature because the MSRV when it is enabled depends on the MSRV of tokio 0.1.
+      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,compat
       # Check thread-pool feature (futures, futures-executor)
       - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
 
