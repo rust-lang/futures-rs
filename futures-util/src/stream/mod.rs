@@ -68,7 +68,7 @@ pub use self::try_stream::{
 };
 
 #[cfg(feature = "alloc")]
-pub use self::try_stream::{TryChunks, TryChunksError};
+pub use self::try_stream::{TryChunks, TryChunksError, TryReadyChunks, TryReadyChunksError};
 
 // Primitive streams
 
