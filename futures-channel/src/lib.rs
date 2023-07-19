@@ -27,6 +27,7 @@
     )
 ))]
 #![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
+#![allow(clippy::needless_pass_by_ref_mut)]
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]

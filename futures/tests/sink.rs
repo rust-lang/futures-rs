@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_ref_mut)]
+
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
