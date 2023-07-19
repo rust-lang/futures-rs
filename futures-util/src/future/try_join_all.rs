@@ -10,11 +10,10 @@ use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
+use super::{assert_future, join_all, TryFuture, TryMaybeDone};
 
 #[cfg(not(futures_no_atomic_cas))]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
-use crate::TryFutureExt;
 
 enum FinalState<E = ()> {
     Pending,
@@ -36,11 +35,11 @@ where
     F: TryFuture,
 {
     Small {
-        elems: Pin<Box<[TryMaybeDone<IntoFuture<F>>]>>,
+        elems: Pin<Box<[TryMaybeDone<F>]>>,
     },
     #[cfg(not(futures_no_atomic_cas))]
     Big {
-        fut: TryCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
+        fut: TryCollect<FuturesOrdered<F>, Vec<F::Ok>>,
     },
 }
 
@@ -119,7 +118,7 @@ where
     I: IntoIterator,
     I::Item: TryFuture,
 {
-    let iter = iter.into_iter().map(TryFutureExt::into_future);
+    let iter = iter.into_iter();
 
     #[cfg(futures_no_atomic_cas)]
     {
