@@ -5,12 +5,7 @@
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
-use core::pin::Pin;
-use futures_core::{
-    future::TryFuture,
-    stream::TryStream,
-    task::{Context, Poll},
-};
+use futures_core::{future::TryFuture, stream::TryStream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
@@ -612,14 +607,5 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized,
     {
         assert_future::<Result<Self::Ok, Self::Error>, _>(IntoFuture::new(self))
-    }
-
-    /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]
-    /// future types.
-    fn try_poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<Self::Ok, Self::Error>>
-    where
-        Self: Unpin,
-    {
-        Pin::new(self).try_poll(cx)
     }
 }

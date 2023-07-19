@@ -43,7 +43,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First { f } => match ready!(f.try_poll(cx)) {
+                TryFlattenProj::First { f } => match ready!(f.poll(cx)) {
                     Ok(f) => self.set(Self::Second { f }),
                     Err(e) => {
                         self.set(Self::Empty);
@@ -51,7 +51,7 @@ where
                     }
                 },
                 TryFlattenProj::Second { f } => {
-                    let output = ready!(f.try_poll(cx));
+                    let output = ready!(f.poll(cx));
                     self.set(Self::Empty);
                     break output;
                 }
@@ -81,7 +81,7 @@ where
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First { f } => match ready!(f.try_poll(cx)) {
+                TryFlattenProj::First { f } => match ready!(f.poll(cx)) {
                     Ok(f) => self.set(Self::Second { f }),
                     Err(e) => {
                         self.set(Self::Empty);
@@ -112,7 +112,7 @@ where
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenProj::First { f } => match ready!(f.try_poll(cx)) {
+                TryFlattenProj::First { f } => match ready!(f.poll(cx)) {
                     Ok(f) => self.set(Self::Second { f }),
                     Err(e) => {
                         self.set(Self::Empty);

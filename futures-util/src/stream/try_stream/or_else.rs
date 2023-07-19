@@ -59,7 +59,7 @@ where
 
         Poll::Ready(loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
-                let item = ready!(fut.try_poll(cx));
+                let item = ready!(fut.poll(cx));
                 this.future.set(None);
                 break Some(item);
             } else {

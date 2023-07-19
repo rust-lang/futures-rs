@@ -1,5 +1,5 @@
 use super::assert_future;
-use crate::future::TryFutureExt;
+use crate::future::FutureExt;
 use alloc::vec::Vec;
 use core::iter::FromIterator;
 use core::mem;
@@ -49,7 +49,7 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item =
-                self.inner.iter_mut().enumerate().find_map(|(i, f)| match f.try_poll_unpin(cx) {
+                self.inner.iter_mut().enumerate().find_map(|(i, f)| match f.poll_unpin(cx) {
                     Poll::Pending => None,
                     Poll::Ready(e) => Some((i, e)),
                 });

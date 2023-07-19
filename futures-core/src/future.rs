@@ -2,7 +2,6 @@
 
 use core::ops::DerefMut;
 use core::pin::Pin;
-use core::task::{Context, Poll};
 
 #[doc(no_inline)]
 pub use core::future::Future;
@@ -20,10 +19,10 @@ pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 
 /// should no longer be polled.
 ///
 /// `is_terminated` will return `true` if a future should no longer be polled.
-/// Usually, this state occurs after `poll` (or `try_poll`) returned
-/// `Poll::Ready`. However, `is_terminated` may also return `true` if a future
-/// has become inactive and can no longer make progress and should be ignored
-/// or dropped rather than being `poll`ed again.
+/// Usually, this state occurs after `poll` returned `Poll::Ready`. However,
+/// `is_terminated` may also return `true` if a future has become inactive
+/// and can no longer make progress and should be ignored or dropped rather
+/// than being `poll`ed again.
 pub trait FusedFuture: Future {
     /// Returns `true` if the underlying future should no longer be polled.
     fn is_terminated(&self) -> bool;
@@ -63,13 +62,6 @@ pub trait TryFuture:
 
     /// The type of failures yielded by this future
     type Error;
-
-    /// Poll this `TryFuture` as if it were a `Future`.
-    ///
-    /// This method is a stopgap for a compiler limitation that prevents us from
-    /// directly inheriting from the `Future` trait; in the future it won't be
-    /// needed.
-    fn try_poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Self::Ok, Self::Error>>;
 }
 
 impl<F, T, E> TryFuture for F
@@ -78,11 +70,6 @@ where
 {
     type Ok = T;
     type Error = E;
-
-    #[inline]
-    fn try_poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.poll(cx)
-    }
 }
 
 #[cfg(feature = "alloc")]

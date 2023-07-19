@@ -31,6 +31,6 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.project().future.try_poll(cx)
+        self.project().future.poll(cx)
     }
 }

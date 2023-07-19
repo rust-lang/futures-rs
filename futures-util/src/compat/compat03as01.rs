@@ -102,7 +102,7 @@ where
     type Error = Fut::Error;
 
     fn poll(&mut self) -> Poll01<Self::Item, Self::Error> {
-        with_context(self, |inner, cx| poll_03_to_01(inner.try_poll(cx)))
+        with_context(self, |inner, cx| poll_03_to_01(inner.poll(cx)))
     }
 }
 

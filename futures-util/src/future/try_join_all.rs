@@ -158,7 +158,7 @@ where
                 let mut state = FinalState::AllDone;
 
                 for elem in join_all::iter_pin_mut(elems.as_mut()) {
-                    match elem.try_poll(cx) {
+                    match elem.poll(cx) {
                         Poll::Pending => state = FinalState::Pending,
                         Poll::Ready(Ok(())) => {}
                         Poll::Ready(Err(e)) => {

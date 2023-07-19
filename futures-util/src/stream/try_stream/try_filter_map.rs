@@ -67,7 +67,7 @@ where
         Poll::Ready(loop {
             if let Some(p) = this.pending.as_mut().as_pin_mut() {
                 // We have an item in progress, poll that until it's done
-                let res = ready!(p.try_poll(cx));
+                let res = ready!(p.poll(cx));
                 this.pending.set(None);
                 let item = res?;
                 if item.is_some() {

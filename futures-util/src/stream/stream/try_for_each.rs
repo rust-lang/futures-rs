@@ -54,7 +54,7 @@ where
         let mut this = self.project();
         loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
-                ready!(fut.try_poll(cx))?;
+                ready!(fut.poll(cx))?;
                 this.future.set(None);
             } else {
                 match ready!(this.stream.as_mut().poll_next(cx)) {

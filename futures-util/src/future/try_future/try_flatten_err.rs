@@ -40,7 +40,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(loop {
             match self.as_mut().project() {
-                TryFlattenErrProj::First { f } => match ready!(f.try_poll(cx)) {
+                TryFlattenErrProj::First { f } => match ready!(f.poll(cx)) {
                     Err(f) => self.set(Self::Second { f }),
                     Ok(e) => {
                         self.set(Self::Empty);
@@ -48,7 +48,7 @@ where
                     }
                 },
                 TryFlattenErrProj::Second { f } => {
-                    let output = ready!(f.try_poll(cx));
+                    let output = ready!(f.poll(cx));
                     self.set(Self::Empty);
                     break output;
                 }
