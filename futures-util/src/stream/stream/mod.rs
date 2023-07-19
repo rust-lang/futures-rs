@@ -323,6 +323,9 @@ pub trait StreamExt: Stream {
     /// wrapped version of it, similar to the existing `map` methods in the
     /// standard library.
     ///
+    /// See [`StreamExt::then`](Self::then) if you want to use a closure that
+    /// returns a future instead of a value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -466,6 +469,9 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it.
+    ///
+    /// See [`StreamExt::map`](Self::map) if you want to use a closure that
+    /// returns a value instead of a future.
     ///
     /// # Examples
     ///
