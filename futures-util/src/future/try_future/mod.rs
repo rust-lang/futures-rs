@@ -18,7 +18,6 @@ use crate::future::{assert_future, Inspect, Map};
 use crate::stream::assert_stream;
 
 // Combinators
-mod into_future;
 mod try_flatten;
 mod try_flatten_err;
 
@@ -94,9 +93,6 @@ delegate_all!(
         Inspect<Fut, InspectErrFn<F>>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(x, inspect_err_fn(f))]
 );
-
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::into_future::IntoFuture;
 
 delegate_all!(
     /// Future for the [`map_ok`](TryFutureExt::map_ok) method.
@@ -579,33 +575,5 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized + Unpin,
     {
         Compat::new(self)
-    }
-
-    /// Wraps a [`TryFuture`] into a type that implements
-    /// [`Future`](std::future::Future).
-    ///
-    /// [`TryFuture`]s currently do not implement the
-    /// [`Future`](std::future::Future) trait due to limitations of the
-    /// compiler.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::future::{Future, TryFuture, TryFutureExt};
-    ///
-    /// # type T = i32;
-    /// # type E = ();
-    /// fn make_try_future() -> impl TryFuture<Ok = T, Error = E> { // ... }
-    /// # async { Ok::<i32, ()>(1) }
-    /// # }
-    /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
-    ///
-    /// take_future(make_try_future().into_future());
-    /// ```
-    fn into_future(self) -> IntoFuture<Self>
-    where
-        Self: Sized,
-    {
-        assert_future::<Result<Self::Ok, Self::Error>, _>(IntoFuture::new(self))
     }
 }

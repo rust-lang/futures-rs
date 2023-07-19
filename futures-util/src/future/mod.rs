@@ -40,8 +40,8 @@ pub use self::future::{Shared, WeakShared};
 
 mod try_future;
 pub use self::try_future::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
-    OrElse, TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
+    AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, MapOkOrElse, OkInto, OrElse,
+    TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
 };
 
 #[cfg(feature = "sink")]
