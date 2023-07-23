@@ -399,7 +399,7 @@ pub trait Stream {
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens_plus_one = rx.filter_map(|x| {
-    ///     if x % 0 == 2 {
+    ///     if x % 2 == 0 {
     ///         Some(x + 1)
     ///     } else {
     ///         None
