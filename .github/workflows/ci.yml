@@ -30,42 +30,36 @@ concurrency:
 
 jobs:
   test:
-    name: cargo test (${{ matrix.os }})
+    name: cargo test
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+          - os: windows-latest
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+          - os: ubuntu-latest
+            target: armv5te-unknown-linux-gnueabi
+          - os: ubuntu-latest
+            target: i686-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
         # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
         run: rustup update nightly --no-self-update && rustup default nightly
-      - run: cargo test --workspace --all-features
-      - run: cargo test --workspace --all-features --release
-
-  cross:
-    name: cargo test --target ${{ matrix.target }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - aarch64-unknown-linux-gnu
-          - armv7-unknown-linux-gnueabihf
-          - i686-unknown-linux-gnu
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust
-        run: rustup update nightly && rustup default nightly
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
-      - run: cargo test --target ${{ matrix.target }} --workspace --all-features $DOCTEST_XCOMPILE
-      - run: cargo test --target ${{ matrix.target }} --workspace --all-features --release $DOCTEST_XCOMPILE
+        if: matrix.target != ''
+      - run: cargo test --workspace --all-features $DOCTEST_XCOMPILE
+      - run: cargo test --workspace --all-features --release $DOCTEST_XCOMPILE
+        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink})
@@ -260,7 +254,7 @@ jobs:
               echo "::set-output name=success::false"
           fi
         if: github.repository_owner == 'rust-lang' && github.event_name == 'schedule'
-      - uses: peter-evans/create-pull-request@v3
+      - uses: peter-evans/create-pull-request@v5
         with:
           title: Update no_atomic_cas.rs
           body: |
@@ -297,8 +291,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: rustup component add rust-src
+        run: rustup toolchain install nightly --component rust-src && rustup default nightly
       - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
