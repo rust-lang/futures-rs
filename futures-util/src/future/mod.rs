@@ -86,7 +86,7 @@ mod join_all;
 pub use self::join_all::{join_all, JoinAll};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{select, select_biased, Select};
 
 #[cfg(feature = "alloc")]
 mod select_all;
@@ -102,12 +102,12 @@ mod try_join_all;
 pub use self::try_join_all::{try_join_all, TryJoinAll};
 
 mod try_select;
-pub use self::try_select::{try_select, TrySelect};
+pub use self::try_select::{try_select, try_select_biased, TrySelect};
 
 #[cfg(feature = "alloc")]
 mod select_ok;
 #[cfg(feature = "alloc")]
-pub use self::select_ok::{select_ok, SelectOk};
+pub use self::select_ok::{select_ok, select_ok_biased, SelectOk};
 
 mod either;
 pub use self::either::Either;

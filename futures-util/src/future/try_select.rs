@@ -8,6 +8,7 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 pub struct TrySelect<A, B> {
     inner: Option<(A, B)>,
+    _biased: bool,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
@@ -25,7 +26,8 @@ type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::E
 /// wrapped version of them.
 ///
 /// If both futures are ready when this is polled, the winner will be pseudo-randomly
-/// selected.
+/// selected, unless the `std` feature is disabled. If the std feature is disabled,
+/// the first argument will always win.
 ///
 /// Also note that if both this and the second future have the same
 /// success/error type you can use the `Either::factor_first` method to
@@ -60,6 +62,55 @@ where
 {
     super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
         inner: Some((future1, future2)),
+        _biased: false,
+    })
+}
+
+/// Waits for either one of two differently-typed futures to complete, giving preferential treatment to the first one.
+///
+/// This function will return a new future which awaits for either one of both
+/// futures to complete. The returned future will finish with both the value
+/// resolved and a future representing the completion of the other work.
+///
+/// Note that this function consumes the receiving futures and returns a
+/// wrapped version of them.
+///
+/// If both futures are ready when this is polled, the winner will always be the first one.
+///
+/// Also note that if both this and the second future have the same
+/// success/error type you can use the `Either::factor_first` method to
+/// conveniently extract out the value at the end.
+///
+/// # Examples
+///
+/// ```
+/// use futures::future::{self, Either, Future, FutureExt, TryFuture, TryFutureExt};
+///
+/// // A poor-man's try_join implemented on top of select
+///
+/// fn try_join<A, B, E>(a: A, b: B) -> impl TryFuture<Ok=(A::Ok, B::Ok), Error=E>
+///      where A: TryFuture<Error = E> + Unpin + 'static,
+///            B: TryFuture<Error = E> + Unpin + 'static,
+///            E: 'static,
+/// {
+///     future::try_select_biased(a, b).then(|res| -> Box<dyn Future<Output = Result<_, _>> + Unpin> {
+///         match res {
+///             Ok(Either::Left((x, b))) => Box::new(b.map_ok(move |y| (x, y))),
+///             Ok(Either::Right((y, a))) => Box::new(a.map_ok(move |x| (x, y))),
+///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
+///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
+///         }
+///     })
+/// }
+/// ```
+pub fn try_select_biased<A, B>(future1: A, future2: B) -> TrySelect<A, B>
+where
+    A: TryFuture + Unpin,
+    B: TryFuture + Unpin,
+{
+    super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
+        inner: Some((future1, future2)),
+        _biased: true,
     })
 }
 
@@ -91,7 +142,7 @@ where
 
         #[cfg(feature = "std")]
         {
-            if crate::gen_index(2) == 0 {
+            if self._biased || crate::gen_index(2) == 0 {
                 poll_wrap!(a, b, Either::Left, Either::Right)
             } else {
                 poll_wrap!(b, a, Either::Right, Either::Left)
