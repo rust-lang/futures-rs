@@ -12,6 +12,7 @@ use futures_core::task::{Context, Poll};
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectOk<Fut> {
     inner: Vec<Fut>,
+    _biased: bool,
 }
 
 impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
@@ -35,7 +36,7 @@ impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
 /// Some futures that would have been polled and had errors get dropped, may now instead
 /// remain in the collection without being polled.
 ///
-/// If you were relying on this biased behavior, consider switching to the [`select_biased!`](crate::select_biased) macro.
+/// If you were relying on this biased behavior, consider switching to the [`select_ok_biased`] function.
 ///
 /// # Panics
 ///
@@ -45,7 +46,36 @@ where
     I: IntoIterator,
     I::Item: TryFuture + Unpin,
 {
-    let ret = SelectOk { inner: iter.into_iter().collect() };
+    let ret = SelectOk { inner: iter.into_iter().collect(), _biased: false };
+    assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
+    assert_future::<
+        Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>,
+        _,
+    >(ret)
+}
+
+/// Creates a new future which will select the first successful future over a list of futures.
+///
+/// The returned future will wait for any future within `iter` to be ready and Ok. Unlike
+/// `select_all`, this will only return the first successful completion, or the last
+/// failure. This is useful in contexts where any success is desired and failures
+/// are ignored, unless all the futures fail.
+///
+///  This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
+/// If multiple futures are ready at the same time this function is biased towards
+/// entries that are earlier in the list.
+///
+/// # Panics
+///
+/// This function will panic if the iterator specified contains no items.
+pub fn select_ok_biased<I>(iter: I) -> SelectOk<I::Item>
+where
+    I: IntoIterator,
+    I::Item: TryFuture + Unpin,
+{
+    let ret = SelectOk { inner: iter.into_iter().collect(), _biased: true };
     assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
     assert_future::<
         Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>,
@@ -57,10 +87,12 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
     type Output = Result<(Fut::Ok, Vec<Fut>), Fut::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { inner } = &mut *self;
+        let Self { inner, _biased } = &mut *self;
         #[cfg(feature = "std")]
         {
-            crate::shuffle(inner);
+            if !*_biased {
+                crate::shuffle(inner);
+            }
         }
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {

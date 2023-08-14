@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use futures::executor::block_on;
-use futures::future::{err, ok, select_ok, Future};
+use futures::future::{err, ok, select_ok, select_ok_biased, Future};
 use futures_channel::oneshot;
 use std::thread;
 
@@ -64,4 +64,16 @@ fn is_fair() {
     const THRESHOLD: usize = 30;
     assert_eq!(results.iter().filter(|i| **i == 3).take(THRESHOLD).count(), THRESHOLD);
     assert_eq!(results.iter().filter(|i| **i == 4).take(THRESHOLD).count(), THRESHOLD);
+}
+
+#[test]
+fn is_biased() {
+    let mut results = Vec::with_capacity(100);
+    for _ in 0..100 {
+        let v = vec![err(1), err(2), ok(3), ok(4)];
+
+        let (i, _v) = block_on(select_ok_biased(v)).ok().unwrap();
+        results.push(i);
+    }
+    assert!(results.iter().all(|i| *i == 3));
 }

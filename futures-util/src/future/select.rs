@@ -9,6 +9,7 @@ use futures_core::task::{Context, Poll};
 #[derive(Debug)]
 pub struct Select<A, B> {
     inner: Option<(A, B)>,
+    _biased: bool,
 }
 
 impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
@@ -23,7 +24,8 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// wrapped version of them.
 ///
 /// If both futures are ready when this is polled, the winner will be pseudo-randomly
-/// selected.
+/// selected, unless the std feature is not enabled. If std is enabled, the first
+/// argument will always win.
 ///
 /// Also note that if both this and the second future have the same
 /// output type you can use the `Either::factor_first` method to
@@ -91,6 +93,88 @@ where
 {
     assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
         inner: Some((future1, future2)),
+        _biased: false,
+    })
+}
+
+/// Waits for either one of two differently-typed futures to complete, giving preferential treatment to the first one.
+///
+/// This function will return a new future which awaits for either one of both
+/// futures to complete. The returned future will finish with both the value
+/// resolved and a future representing the completion of the other work.
+///
+/// Note that this function consumes the receiving futures and returns a
+/// wrapped version of them.
+///
+/// If both futures are ready when this is polled, the winner will always be the first argument.
+///
+/// Also note that if both this and the second future have the same
+/// output type you can use the `Either::factor_first` method to
+/// conveniently extract out the value at the end.
+///
+/// # Examples
+///
+/// A simple example
+///
+/// ```
+/// # futures::executor::block_on(async {
+/// use futures::{
+///     pin_mut,
+///     future::Either,
+///     future::self,
+/// };
+///
+/// // These two futures have different types even though their outputs have the same type.
+/// let future1 = async {
+///     future::pending::<()>().await; // will never finish
+///     1
+/// };
+/// let future2 = async {
+///     future::ready(2).await
+/// };
+///
+/// // 'select_biased' requires Future + Unpin bounds
+/// pin_mut!(future1);
+/// pin_mut!(future2);
+///
+/// let value = match future::select_biased(future1, future2).await {
+///     Either::Left((value1, _)) => value1,  // `value1` is resolved from `future1`
+///                                           // `_` represents `future2`
+///     Either::Right((value2, _)) => value2, // `value2` is resolved from `future2`
+///                                           // `_` represents `future1`
+/// };
+///
+/// assert!(value == 2);
+/// # });
+/// ```
+///
+/// A more complex example
+///
+/// ```
+/// use futures::future::{self, Either, Future, FutureExt};
+///
+/// // A poor-man's join implemented on top of select
+///
+/// fn join<A, B>(a: A, b: B) -> impl Future<Output=(A::Output, B::Output)>
+///     where A: Future + Unpin,
+///           B: Future + Unpin,
+/// {
+///     future::select_biased(a, b).then(|either| {
+///         match either {
+///             Either::Left((x, b)) => b.map(move |y| (x, y)).left_future(),
+///             Either::Right((y, a)) => a.map(move |x| (x, y)).right_future(),
+///         }
+///     })
+/// }
+/// ```
+pub fn select_biased<A, B>(future1: A, future2: B) -> Select<A, B>
+where
+    A: Future + Unpin,
+    B: Future + Unpin,
+{
+    assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
+        inner: Some((future1, future2)),
+        _biased: true,
     })
 }
 
@@ -111,6 +195,7 @@ where
                 Some(value) => value,
             }
         }
+        let _biased = self._biased;
 
         let (a, b) = self.inner.as_mut().expect("cannot poll Select twice");
 
@@ -123,7 +208,7 @@ where
         }
 
         #[cfg(feature = "std")]
-        if crate::gen_index(2) == 0 {
+        if _biased || crate::gen_index(2) == 0 {
             poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
             poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
         } else {
