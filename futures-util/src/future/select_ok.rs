@@ -1,7 +1,9 @@
 use super::assert_future;
+use super::{Biased, Fair, IsBiased};
 use crate::future::TryFutureExt;
 use alloc::vec::Vec;
 use core::iter::FromIterator;
+use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
@@ -10,12 +12,12 @@ use futures_core::task::{Context, Poll};
 /// Future for the [`select_ok`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct SelectOk<Fut> {
+pub struct SelectOk<Fut, BIASED = Fair> {
     inner: Vec<Fut>,
-    _biased: bool,
+    _phantom: PhantomData<BIASED>,
 }
 
-impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
+impl<Fut: Unpin, BIASED> Unpin for SelectOk<Fut, BIASED> {}
 
 /// Creates a new future which will select the first successful future over a list of futures.
 ///
@@ -41,12 +43,12 @@ impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.
-pub fn select_ok<I>(iter: I) -> SelectOk<I::Item>
+pub fn select_ok<I>(iter: I) -> SelectOk<I::Item, Fair>
 where
     I: IntoIterator,
     I::Item: TryFuture + Unpin,
 {
-    let ret = SelectOk { inner: iter.into_iter().collect(), _biased: false };
+    let ret = SelectOk { inner: iter.into_iter().collect(), _phantom: PhantomData };
     assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
     assert_future::<
         Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>,
@@ -70,12 +72,12 @@ where
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.
-pub fn select_ok_biased<I>(iter: I) -> SelectOk<I::Item>
+pub fn select_ok_biased<I>(iter: I) -> SelectOk<I::Item, Biased>
 where
     I: IntoIterator,
     I::Item: TryFuture + Unpin,
 {
-    let ret = SelectOk { inner: iter.into_iter().collect(), _biased: true };
+    let ret = SelectOk { inner: iter.into_iter().collect(), _phantom: PhantomData };
     assert!(!ret.inner.is_empty(), "iterator provided to select_ok was empty");
     assert_future::<
         Result<(<I::Item as TryFuture>::Ok, Vec<I::Item>), <I::Item as TryFuture>::Error>,
@@ -83,14 +85,14 @@ where
     >(ret)
 }
 
-impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
+impl<Fut: TryFuture + Unpin, BIASED: IsBiased> Future for SelectOk<Fut, BIASED> {
     type Output = Result<(Fut::Ok, Vec<Fut>), Fut::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { inner, _biased } = &mut *self;
+        let Self { inner, _phantom } = &mut *self;
         #[cfg(feature = "std")]
         {
-            if !*_biased {
+            if !BIASED::IS_BIASED {
                 crate::shuffle(inner);
             }
         }

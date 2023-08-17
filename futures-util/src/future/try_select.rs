@@ -1,4 +1,6 @@
+use super::{Biased, Fair, IsBiased};
 use crate::future::{Either, TryFutureExt};
+use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
@@ -6,12 +8,12 @@ use futures_core::task::{Context, Poll};
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
-pub struct TrySelect<A, B> {
+pub struct TrySelect<A, B, BIASED = Fair> {
     inner: Option<(A, B)>,
-    _biased: bool,
+    _phantom: PhantomData<BIASED>,
 }
 
-impl<A: Unpin, B: Unpin> Unpin for TrySelect<A, B> {}
+impl<A: Unpin, B: Unpin, BIASED> Unpin for TrySelect<A, B, BIASED> {}
 
 type EitherOk<A, B> = Either<(<A as TryFuture>::Ok, B), (<B as TryFuture>::Ok, A)>;
 type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::Error, A)>;
@@ -55,14 +57,14 @@ type EitherErr<A, B> = Either<(<A as TryFuture>::Error, B), (<B as TryFuture>::E
 ///     })
 /// }
 /// ```
-pub fn try_select<A, B>(future1: A, future2: B) -> TrySelect<A, B>
+pub fn try_select<A, B>(future1: A, future2: B) -> TrySelect<A, B, Fair>
 where
     A: TryFuture + Unpin,
     B: TryFuture + Unpin,
 {
     super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
         inner: Some((future1, future2)),
-        _biased: false,
+        _phantom: PhantomData,
     })
 }
 
@@ -103,21 +105,22 @@ where
 ///     })
 /// }
 /// ```
-pub fn try_select_biased<A, B>(future1: A, future2: B) -> TrySelect<A, B>
+pub fn try_select_biased<A, B>(future1: A, future2: B) -> TrySelect<A, B, Biased>
 where
     A: TryFuture + Unpin,
     B: TryFuture + Unpin,
 {
     super::assert_future::<Result<EitherOk<A, B>, EitherErr<A, B>>, _>(TrySelect {
         inner: Some((future1, future2)),
-        _biased: true,
+        _phantom: PhantomData,
     })
 }
 
-impl<A: Unpin, B: Unpin> Future for TrySelect<A, B>
+impl<A: Unpin, B: Unpin, BIASED> Future for TrySelect<A, B, BIASED>
 where
     A: TryFuture,
     B: TryFuture,
+    BIASED: IsBiased,
 {
     type Output = Result<EitherOk<A, B>, EitherErr<A, B>>;
 
@@ -142,7 +145,7 @@ where
 
         #[cfg(feature = "std")]
         {
-            if self._biased || crate::gen_index(2) == 0 {
+            if BIASED::IS_BIASED || crate::gen_index(2) == 0 {
                 poll_wrap!(a, b, Either::Left, Either::Right)
             } else {
                 poll_wrap!(b, a, Either::Right, Either::Left)
