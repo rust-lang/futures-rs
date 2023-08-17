@@ -1,5 +1,6 @@
-use super::assert_future;
+use super::{assert_future, Biased, Fair, IsBiased};
 use crate::future::{Either, FutureExt};
+use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
@@ -7,12 +8,12 @@ use futures_core::task::{Context, Poll};
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
-pub struct Select<A, B> {
+pub struct Select<A, B, BIASED = Fair> {
     inner: Option<(A, B)>,
-    _biased: bool,
+    _phantom: PhantomData<BIASED>,
 }
 
-impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
+impl<A: Unpin, B: Unpin, BIASED> Unpin for Select<A, B, BIASED> {}
 
 /// Waits for either one of two differently-typed futures to complete.
 ///
@@ -86,14 +87,14 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///     })
 /// }
 /// ```
-pub fn select<A, B>(future1: A, future2: B) -> Select<A, B>
+pub fn select<A, B>(future1: A, future2: B) -> Select<A, B, Fair>
 where
     A: Future + Unpin,
     B: Future + Unpin,
 {
     assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
         inner: Some((future1, future2)),
-        _biased: false,
+        _phantom: PhantomData,
     })
 }
 
@@ -167,21 +168,22 @@ where
 ///     })
 /// }
 /// ```
-pub fn select_biased<A, B>(future1: A, future2: B) -> Select<A, B>
+pub fn select_biased<A, B>(future1: A, future2: B) -> Select<A, B, Biased>
 where
     A: Future + Unpin,
     B: Future + Unpin,
 {
     assert_future::<Either<(A::Output, B), (B::Output, A)>, _>(Select {
         inner: Some((future1, future2)),
-        _biased: true,
+        _phantom: PhantomData,
     })
 }
 
-impl<A, B> Future for Select<A, B>
+impl<A, B, BIASED> Future for Select<A, B, BIASED>
 where
     A: Future + Unpin,
     B: Future + Unpin,
+    BIASED: IsBiased,
 {
     type Output = Either<(A::Output, B), (B::Output, A)>;
 
@@ -195,7 +197,6 @@ where
                 Some(value) => value,
             }
         }
-        let _biased = self._biased;
 
         let (a, b) = self.inner.as_mut().expect("cannot poll Select twice");
 
@@ -208,7 +209,7 @@ where
         }
 
         #[cfg(feature = "std")]
-        if _biased || crate::gen_index(2) == 0 {
+        if BIASED::IS_BIASED || crate::gen_index(2) == 0 {
             poll_wrap!(a, unwrap_option(self.inner.take()).1, Either::Left);
             poll_wrap!(b, unwrap_option(self.inner.take()).0, Either::Right);
         } else {
@@ -225,10 +226,11 @@ where
     }
 }
 
-impl<A, B> FusedFuture for Select<A, B>
+impl<A, B, BIASED> FusedFuture for Select<A, B, BIASED>
 where
     A: Future + Unpin,
     B: Future + Unpin,
+    BIASED: IsBiased,
 {
     fn is_terminated(&self) -> bool {
         self.inner.is_none()

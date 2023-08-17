@@ -85,6 +85,9 @@ mod join_all;
 #[cfg(feature = "alloc")]
 pub use self::join_all::{join_all, JoinAll};
 
+mod select_strategy;
+pub use select_strategy::{Biased, Fair, IsBiased};
+
 mod select;
 pub use self::select::{select, select_biased, Select};
 
