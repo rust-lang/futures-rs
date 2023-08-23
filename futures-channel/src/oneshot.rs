@@ -14,7 +14,7 @@ use crate::lock::Lock;
 
 /// A future for a value that will be provided by another asynchronous task.
 ///
-/// This is created by the [`channel`](channel) function.
+/// This is created by the [`channel`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
@@ -22,7 +22,7 @@ pub struct Receiver<T> {
 
 /// A means of transmitting a single value to another task.
 ///
-/// This is created by the [`channel`](channel) function.
+/// This is created by the [`channel`] function.
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
@@ -332,8 +332,8 @@ impl<T> Sender<T> {
     /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
-    /// [`Receiver`](Receiver), that the value provided is the result of the
-    /// computation this represents.
+    /// [`Receiver`], that the value provided is the result of the computation
+    /// this represents.
     ///
     /// If the value is successfully enqueued for the remote end to receive,
     /// then `Ok(())` is returned. If the receiving end was dropped before
@@ -343,7 +343,7 @@ impl<T> Sender<T> {
     }
 
     /// Polls this `Sender` half to detect whether its associated
-    /// [`Receiver`](Receiver) has been dropped.
+    /// [`Receiver`] has been dropped.
     ///
     /// # Return values
     ///
@@ -359,10 +359,10 @@ impl<T> Sender<T> {
     }
 
     /// Creates a future that resolves when this `Sender`'s corresponding
-    /// [`Receiver`](Receiver) half has hung up.
+    /// [`Receiver`] half has hung up.
     ///
     /// This is a utility wrapping [`poll_canceled`](Sender::poll_canceled)
-    /// to expose a [`Future`](core::future::Future).
+    /// to expose a [`Future`].
     pub fn cancellation(&mut self) -> Cancellation<'_, T> {
         Cancellation { inner: self }
     }
@@ -413,8 +413,8 @@ impl<T> Future for Cancellation<'_, T> {
     }
 }
 
-/// Error returned from a [`Receiver`](Receiver) when the corresponding
-/// [`Sender`](Sender) is dropped.
+/// Error returned from a [`Receiver`] when the corresponding [`Sender`] is
+/// dropped.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
 
