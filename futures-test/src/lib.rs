@@ -61,7 +61,7 @@ mod interleave_pending;
 mod track_closed;
 
 /// Enables an `async` test function. The generated future will be run to completion with
-/// [`futures_executor::block_on`](futures_executor::block_on).
+/// [`futures_executor::block_on`].
 ///
 /// ```
 /// #[futures_test::test]
