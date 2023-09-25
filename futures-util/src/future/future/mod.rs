@@ -463,10 +463,6 @@ pub trait FutureExt: Future {
     /// ```
     ///
     /// ```
-    /// // Note, unlike most examples this is written in the context of a
-    /// // synchronous function to better illustrate the cross-thread aspect of
-    /// // the `shared` combinator.
-    ///
     /// # futures::executor::block_on(async {
     /// use futures::future::FutureExt;
     /// use futures::executor::block_on;
