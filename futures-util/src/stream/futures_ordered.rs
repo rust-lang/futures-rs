@@ -60,8 +60,9 @@ where
 ///
 /// This "combinator" is similar to [`FuturesUnordered`], but it imposes a FIFO order
 /// on top of the set of futures. While futures in the set will race to
-/// completion in parallel, results will only be returned in the order their
-/// originating futures were added to the queue.
+/// completion, results will only be returned in the order their originating futures
+/// were added to the queue. Note that the futures run to completion concurrently and
+/// not in parallel.
 ///
 /// Futures are pushed into this queue and their realized values are yielded in
 /// order. This structure is optimized to manage a large number of futures.
