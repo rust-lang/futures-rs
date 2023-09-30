@@ -429,15 +429,15 @@ pub mod tests {
     fn map_futures() {
         let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
         insert_millis(&mut futures, 1, 50);
-        // insert_millis(&mut futures, 2, 50);
-        // insert_millis(&mut futures, 3, 150);
-        // insert_millis(&mut futures, 4, 200);
-        //
+        insert_millis(&mut futures, 2, 50);
+        insert_millis(&mut futures, 3, 150);
+        insert_millis(&mut futures, 4, 200);
+
         assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        // assert_eq!(futures.cancel(&3), true);
-        // assert_eq!(block_on(futures.next()).unwrap().0, 2);
-        // assert_eq!(block_on(futures.next()).unwrap().0, 4);
-        // assert_eq!(block_on(futures.next()), None);
+        assert_eq!(futures.cancel(&3), true);
+        assert_eq!(block_on(futures.next()).unwrap().0, 2);
+        assert_eq!(block_on(futures.next()).unwrap().0, 4);
+        assert_eq!(block_on(futures.next()), None);
     }
 
     #[test]
