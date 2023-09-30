@@ -167,8 +167,8 @@ impl<K: Hash + Eq, Fut> Deref for HashTask<K, Fut> {
 impl<K: Hash + Eq, Fut> Borrow<K> for HashTask<K, Fut> {
     fn borrow(&self) -> &K {
         // Never use the borrowed form after the key has been removed from the task
-        // Never use Task in a context where this method may be called
         // IE. The Stub task never goes into the HashSet
+        // Or removing Task from HashSet using key, after key removed from task
         unsafe { (*self.key.get()).as_ref().unwrap() }
     }
 }
