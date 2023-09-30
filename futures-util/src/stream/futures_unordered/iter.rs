@@ -1,10 +1,12 @@
 use crate::stream::futures_keyed;
 use core::pin::Pin;
 
+use super::DummyStruct;
+
 /// Mutable iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IterPinMut<'a, Fut> {
-    pub(super) inner: futures_keyed::IterPinMut<'a, (), Fut>,
+    pub(super) inner: futures_keyed::IterPinMut<'a, (), Fut, DummyStruct>,
 }
 
 /// Mutable iterator over all futures in the unordered set.
@@ -14,7 +16,7 @@ pub struct IterMut<'a, Fut: Unpin>(pub(super) IterPinMut<'a, Fut>);
 /// Immutable iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IterPinRef<'a, Fut> {
-    pub(super) inner: futures_keyed::IterPinRef<'a, (), Fut>,
+    pub(super) inner: futures_keyed::IterPinRef<'a, (), Fut, DummyStruct>,
 }
 
 /// Immutable iterator over all the futures in the unordered set.
@@ -24,14 +26,14 @@ pub struct Iter<'a, Fut: Unpin>(pub(super) IterPinRef<'a, Fut>);
 /// Owned iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IntoIter<Fut: Unpin> {
-    pub(super) inner: futures_keyed::IntoIter<(), Fut>,
+    pub(super) inner: futures_keyed::IntoIter<(), Fut, DummyStruct>,
 }
 
 impl<Fut: Unpin> Iterator for IntoIter<Fut> {
     type Item = Fut;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|opt| opt.1)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -45,7 +47,7 @@ impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = Pin<&'a mut Fut>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|opt| opt.1)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -73,7 +75,7 @@ impl<'a, Fut> Iterator for IterPinRef<'a, Fut> {
     type Item = Pin<&'a Fut>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|opt| opt.1)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

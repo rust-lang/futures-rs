@@ -14,7 +14,6 @@ use crate::task::AtomicWaker;
 use alloc::sync::{Arc, Weak};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
-use core::hash::Hash;
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 use core::mem;
@@ -33,7 +32,7 @@ mod iter;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/102352
 pub(super) use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 
-mod task;
+pub(crate) mod task;
 use self::task::Task;
 
 mod ready_to_run_queue;
@@ -63,24 +62,30 @@ use self::ready_to_run_queue::{Dequeue, ReadyToRunQueue};
 /// This type is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
 #[must_use = "streams do nothing unless polled"]
-pub(super) struct FuturesKeyed<K: Hash + Eq, Fut> {
+pub(super) struct FuturesKeyed<K, Fut, S: ReleasesTask<K>> {
     ready_to_run_queue: Arc<ReadyToRunQueue<K, Fut>>,
     head_all: AtomicPtr<Task<K, Fut>>,
     is_terminated: AtomicBool,
+    pub(crate) inner: S,
 }
 
-unsafe impl<K: Hash + Eq, Fut: Send> Send for FuturesKeyed<K, Fut> {}
-unsafe impl<K: Hash + Eq, Fut: Sync> Sync for FuturesKeyed<K, Fut> {}
-impl<K: Hash + Eq, Fut> Unpin for FuturesKeyed<K, Fut> {}
+pub(crate) trait ReleasesTask<K> {
+    fn release_task(&mut self, key: &K);
+    fn new() -> Self;
+}
 
-// impl<K: Hash + Eq> Spawn for FuturesKeyed<K, FutureObj<'_, ()>> {
+unsafe impl<K, Fut: Send, S: ReleasesTask<K>> Send for FuturesKeyed<K, Fut, S> {}
+unsafe impl<K, Fut: Sync, S: ReleasesTask<K>> Sync for FuturesKeyed<K, Fut, S> {}
+impl<K, Fut, S: ReleasesTask<K>> Unpin for FuturesKeyed<K, Fut, S> {}
+
+// impl<K> Spawn for FuturesKeyed<K, FutureObj<'_, ()>> {
 //     fn spawn_obj(&self, key: K, future_obj: FutureObj<'static, ()>) -> Result<(), SpawnError> {
 //         self.push(key, future_obj);
 //         Ok(())
 //     }
 // }
 //
-// impl<K: Hash + Eq> LocalSpawn for FuturesKeyed<K, LocalFutureObj<'_, ()>> {
+// impl<K> LocalSpawn for FuturesKeyed<K, LocalFutureObj<'_, ()>> {
 //     fn spawn_local_obj(
 //         &self,
 //         key: K,
@@ -116,18 +121,24 @@ impl<K: Hash + Eq, Fut> Unpin for FuturesKeyed<K, Fut> {}
 // notification is received, the task will only be inserted into the ready to
 // run queue if it isn't inserted already.
 
-impl<K: Hash + Eq, Fut> Default for FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> Default for FuturesKeyed<K, Fut, S> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> FuturesKeyed<K, Fut, S> {
     /// Constructs a new, empty [`FuturesKeyed`].
     ///
     /// The returned [`FuturesKeyed`] does not contain any futures.
     /// In this state, [`FuturesKeyed::poll_next`](Stream::poll_next) will
     /// return [`Poll::Ready(None)`](Poll::Ready).
+    ///
+    /// Note that the key type over which this struct is generic does not have trait bounds
+    /// This is because, while I intend to use it as a key into hashmap structs, which would
+    /// require K: Hash + Eq, you could also use K for any other purpose. What is important is that
+    /// if you are storing the Task in another struct, if release_task is called, then you probably
+    /// want to remove the Task from anywhere else you're keeping it; use K for this.
     pub(super) fn new() -> Self {
         let stub = Arc::new(Task {
             future: UnsafeCell::new(None),
@@ -152,6 +163,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
             head_all: AtomicPtr::new(ptr::null_mut()),
             ready_to_run_queue,
             is_terminated: AtomicBool::new(false),
+            inner: S::new(),
         }
     }
 
@@ -176,7 +188,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     /// call [`poll`](core::future::Future::poll) on the submitted future. The caller must
     /// ensure that [`FuturesKeyed::poll_next`](Stream::poll_next) is called
     /// in order to receive wake-up notifications for the given future.
-    pub(super) fn push(&self, key: K, future: Fut) {
+    pub(super) fn push(&self, key: K, future: Fut) -> Arc<Task<K, Fut>> {
         let task = Arc::new(Task {
             future: UnsafeCell::new(Some(future)),
             key: UnsafeCell::new(Some(key)),
@@ -196,17 +208,18 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
         // Right now our task has a strong reference count of 1. We transfer
         // ownership of this reference count to our internal linked list
         // and we'll reclaim ownership through the `unlink` method below.
-        let ptr = self.link(task);
+        let ptr = self.link(task.clone());
 
         // We'll need to get the future "into the system" to start tracking it,
         // e.g. getting its wake-up notifications going to us tracking which
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.ready_to_run_queue.enqueue(ptr);
+        task
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
-    pub(super) fn iter(&self) -> Iter<'_, K, Fut>
+    pub(super) fn iter(&self) -> Iter<'_, K, Fut, S>
     where
         Fut: Unpin,
     {
@@ -214,7 +227,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
-    pub(super) fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, K, Fut> {
+    pub(super) fn iter_pin_ref(self: Pin<&Self>) -> IterPinRef<'_, K, Fut, S> {
         let (task, len) = self.atomic_load_head_and_len_all();
         let pending_next_all = self.pending_next_all();
 
@@ -222,7 +235,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub(super) fn iter_mut(&mut self) -> IterMut<'_, K, Fut>
+    pub(super) fn iter_mut(&mut self) -> IterMut<'_, K, Fut, S>
     where
         Fut: Unpin,
     {
@@ -230,7 +243,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub(super) fn iter_pin_mut(mut self: Pin<&mut Self>) -> IterPinMut<'_, K, Fut> {
+    pub(super) fn iter_pin_mut(mut self: Pin<&mut Self>) -> IterPinMut<'_, K, Fut, S> {
         // `head_all` can be accessed directly and we don't need to spin on
         // `Task::next_all` since we have exclusive access to the set.
         let task = *self.head_all.get_mut();
@@ -260,6 +273,9 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     /// the `Arc<Task>` or transfers ownership to the ready to run queue.
     /// The task this method is called on must have been unlinked before.
     fn release_task(&mut self, task: Arc<Task<K, Fut>>) {
+        if let Some(key) = task.key() {
+            self.inner.release_task(key);
+        }
         // `release_task` must only be called on unlinked tasks
         debug_assert_eq!(task.next_all.load(Relaxed), self.pending_next_all());
         unsafe {
@@ -337,7 +353,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     /// managed by `FuturesKeyed`.
     /// This method is unsafe because it has be guaranteed that `task` is a
     /// valid pointer.
-    unsafe fn unlink(&mut self, task: *const Task<K, Fut>) -> Arc<Task<K, Fut>> {
+    pub(crate) unsafe fn unlink(&mut self, task: *const Task<K, Fut>) -> Arc<Task<K, Fut>> {
         // Compute the new list length now in case we're removing the head node
         // and won't be able to retrieve the correct length later.
         let head = *self.head_all.get_mut();
@@ -399,7 +415,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut: Future> Stream for FuturesKeyed<K, Fut> {
+impl<K, Fut: Future, S: ReleasesTask<K>> Stream for FuturesKeyed<K, Fut, S> {
     type Item = (Arc<Task<K, Fut>>, Fut::Output);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -492,12 +508,12 @@ impl<K: Hash + Eq, Fut: Future> Stream for FuturesKeyed<K, Fut> {
             // * We unlink the task from our internal queue to preemptively
             //   assume it'll panic, in which case we'll want to discard it
             //   regardless.
-            struct Bomb<'a, K: Hash + Eq, Fut> {
-                queue: &'a mut FuturesKeyed<K, Fut>,
+            struct Bomb<'a, K, Fut, S: ReleasesTask<K>> {
+                queue: &'a mut FuturesKeyed<K, Fut, S>,
                 task: Option<Arc<Task<K, Fut>>>,
             }
 
-            impl<K: Hash + Eq, Fut> Drop for Bomb<'_, K, Fut> {
+            impl<K, Fut, S: ReleasesTask<K>> Drop for Bomb<'_, K, Fut, S> {
                 fn drop(&mut self) {
                     if let Some(task) = self.task.take() {
                         self.queue.release_task(task);
@@ -553,7 +569,9 @@ impl<K: Hash + Eq, Fut: Future> Stream for FuturesKeyed<K, Fut> {
                     continue;
                 }
                 Poll::Ready(output) => {
-                    return Poll::Ready(Some((bomb.task.take().unwrap(), output)))
+                    let task = bomb.task.take().unwrap();
+                    unsafe { (*task.future.get()).take() };
+                    return Poll::Ready(Some((task, output)));
                 }
             }
         }
@@ -565,13 +583,13 @@ impl<K: Hash + Eq, Fut: Future> Stream for FuturesKeyed<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut> Debug for FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> Debug for FuturesKeyed<K, Fut, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "FuturesKeyed {{ ... }}")
     }
 }
 
-impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> FuturesKeyed<K, Fut, S> {
     /// Clears the set, removing all futures.
     pub(super) fn clear(&mut self) {
         self.clear_head_all();
@@ -591,7 +609,7 @@ impl<K: Hash + Eq, Fut> FuturesKeyed<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut> Drop for FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> Drop for FuturesKeyed<K, Fut, S> {
     fn drop(&mut self) {
         // When a `FuturesKeyed` is dropped we want to drop all futures
         // associated with it. At the same time though there may be tons of
@@ -614,27 +632,27 @@ impl<K: Hash + Eq, Fut> Drop for FuturesKeyed<K, Fut> {
     }
 }
 
-impl<'a, K: Hash + Eq, Fut: Unpin> IntoIterator for &'a FuturesKeyed<K, Fut> {
-    type Item = &'a Fut;
-    type IntoIter = Iter<'a, K, Fut>;
+impl<'a, K, Fut: Unpin, S: ReleasesTask<K>> IntoIterator for &'a FuturesKeyed<K, Fut, S> {
+    type Item = (&'a K, &'a Fut);
+    type IntoIter = Iter<'a, K, Fut, S>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, K: Hash + Eq, Fut: Unpin> IntoIterator for &'a mut FuturesKeyed<K, Fut> {
-    type Item = &'a mut Fut;
-    type IntoIter = IterMut<'a, K, Fut>;
+impl<'a, K, Fut: Unpin, S: ReleasesTask<K>> IntoIterator for &'a mut FuturesKeyed<K, Fut, S> {
+    type Item = (&'a K, &'a mut Fut);
+    type IntoIter = IterMut<'a, K, Fut, S>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
 }
 
-impl<K: Hash + Eq, Fut: Unpin> IntoIterator for FuturesKeyed<K, Fut> {
-    type Item = Fut;
-    type IntoIter = IntoIter<K, Fut>;
+impl<K, Fut: Unpin, S: ReleasesTask<K>> IntoIterator for FuturesKeyed<K, Fut, S> {
+    type Item = (K, Fut);
+    type IntoIter = IntoIter<K, Fut, S>;
 
     fn into_iter(mut self) -> Self::IntoIter {
         // `head_all` can be accessed directly and we don't need to spin on
@@ -646,7 +664,7 @@ impl<K: Hash + Eq, Fut: Unpin> IntoIterator for FuturesKeyed<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut> FromIterator<(K, Fut)> for FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> FromIterator<(K, Fut)> for FuturesKeyed<K, Fut, S> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, Fut)>,
@@ -659,13 +677,13 @@ impl<K: Hash + Eq, Fut> FromIterator<(K, Fut)> for FuturesKeyed<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut: Future> FusedStream for FuturesKeyed<K, Fut> {
+impl<K, Fut: Future, S: ReleasesTask<K>> FusedStream for FuturesKeyed<K, Fut, S> {
     fn is_terminated(&self) -> bool {
         self.is_terminated.load(Relaxed)
     }
 }
 
-impl<K: Hash + Eq, Fut> Extend<(K, Fut)> for FuturesKeyed<K, Fut> {
+impl<K, Fut, S: ReleasesTask<K>> Extend<(K, Fut)> for FuturesKeyed<K, Fut, S> {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (K, Fut)>,

@@ -18,6 +18,8 @@ pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 
 use crate::stream::futures_keyed::FuturesKeyed;
 
+use super::futures_keyed::ReleasesTask;
+
 /// A set of futures which may complete in any order.
 ///
 /// See [`FuturesOrdered`](crate::stream::FuturesOrdered) for a version of this
@@ -43,7 +45,23 @@ use crate::stream::futures_keyed::FuturesKeyed;
 /// library is activated, and it is activated by default.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
-    inner: FuturesKeyed<(), Fut>,
+    inner: FuturesKeyed<(), Fut, DummyStruct>,
+}
+
+struct DummyStruct {}
+
+impl fmt::Debug for DummyStruct {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "")
+    }
+}
+
+impl ReleasesTask<()> for DummyStruct {
+    fn release_task(&mut self, _key: &()) {}
+
+    fn new() -> Self {
+        DummyStruct {}
+    }
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
