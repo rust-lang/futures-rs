@@ -70,18 +70,18 @@ where
 /// large numbers of futures.
 ///
 /// When a `FuturesOrdered` is first created, it does not contain any futures.
-/// Calling `poll` in this state will result in `Poll::Ready(None))` to be
-/// returned. Futures are submitted to the queue using `push`; however, the
+/// Calling `poll_next` in this state will result in `Poll::Ready(None))` to be
+/// returned. Futures are submitted to the queue using `push_back` (or `push_front`); however, the
 /// future will **not** be polled at this point. `FuturesOrdered` will only
-/// poll managed futures when `FuturesOrdered::poll` is called. As such, it
-/// is important to call `poll` after pushing new futures.
+/// poll managed futures when `FuturesOrdered::poll_next` is called. As such, it
+/// is important to call `poll_next` after pushing new futures.
 ///
-/// If `FuturesOrdered::poll` returns `Poll::Ready(None)` this means that
+/// If `FuturesOrdered::poll_next` returns `Poll::Ready(None)` this means that
 /// the queue is currently not managing any futures. A future may be submitted
 /// to the queue at a later time. At that point, a call to
-/// `FuturesOrdered::poll` will either return the future's resolved value
+/// `FuturesOrdered::poll_next` will either return the future's resolved value
 /// **or** `Poll::Pending` if the future has not yet completed. When
-/// multiple futures are submitted to the queue, `FuturesOrdered::poll` will
+/// multiple futures are submitted to the queue, `FuturesOrdered::poll_next` will
 /// return `Poll::Pending` until the first future completes, even if
 /// some of the later futures have already completed.
 ///
@@ -133,7 +133,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     ///
     /// This function submits the given future to the internal set for managing.
     /// This function will not call `poll` on the submitted future. The caller
-    /// must ensure that `FuturesOrdered::poll` is called in order to receive
+    /// must ensure that `FuturesOrdered::poll_next` is called in order to receive
     /// task notifications.
     #[deprecated(note = "use `push_back` instead")]
     pub fn push(&mut self, future: Fut) {
@@ -144,7 +144,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     ///
     /// This function submits the given future to the internal set for managing.
     /// This function will not call `poll` on the submitted future. The caller
-    /// must ensure that `FuturesOrdered::poll` is called in order to receive
+    /// must ensure that `FuturesOrdered::poll_next` is called in order to receive
     /// task notifications.
     pub fn push_back(&mut self, future: Fut) {
         let wrapped = OrderWrapper { data: future, index: self.next_incoming_index };
@@ -156,7 +156,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     ///
     /// This function submits the given future to the internal set for managing.
     /// This function will not call `poll` on the submitted future. The caller
-    /// must ensure that `FuturesOrdered::poll` is called in order to receive
+    /// must ensure that `FuturesOrdered::poll_next` is called in order to receive
     /// task notifications. This future will be the next future to be returned
     /// complete.
     pub fn push_front(&mut self, future: Fut) {
