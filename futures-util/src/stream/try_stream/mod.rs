@@ -168,6 +168,10 @@ mod try_all;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_all::TryAll;
 
+mod try_any;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_any::TryAny;
+
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
@@ -1103,5 +1107,34 @@ pub trait TryStreamExt: TryStream {
         Fut: Future<Output = bool>,
     {
         assert_future::<Result<bool, Self::Error>, _>(TryAll::new(self, f))
+    }
+
+    /// Attempt to execute a predicate over an asynchronous stream and evaluate if any items
+    /// satisfy the predicate. Exits early if an `Err` is encountered or if an `Ok` item is found
+    /// that satisfies the predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use std::convert::Infallible;
+    ///
+    /// let number_stream = stream::iter(0..10).map(Ok::<_, Infallible>);
+    /// let contain_three = number_stream.try_any(|i| async move { i == 3 });
+    /// assert_eq!(contain_three.await, Ok(true));
+    ///
+    /// let stream_with_errors = stream::iter([Ok(1), Err("err"), Ok(3)]);
+    /// let contain_three = stream_with_errors.try_any(|i| async move { i == 3 });
+    /// assert_eq!(contain_three.await, Err("err"));
+    /// # });
+    /// ```
+    fn try_any<Fut, F>(self, f: F) -> TryAny<Self, Fut, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: Future<Output = bool>,
+    {
+        assert_future::<Result<bool, Self::Error>, _>(TryAny::new(self, f))
     }
 }
