@@ -1,4 +1,5 @@
 use core::pin::Pin;
+use std::convert::Infallible;
 
 use futures::{
     stream::{self, repeat, Repeat, StreamExt, TryStreamExt},
@@ -131,4 +132,30 @@ fn try_flatten_unordered() {
         );
         assert_eq!(taken, 31);
     })
+}
+
+async fn is_even(number: u8) -> bool {
+    number % 2 == 0
+}
+
+#[test]
+fn try_all() {
+    block_on(async {
+        let empty: [Result<u8, Infallible>; 0] = [];
+        let st = stream::iter(empty);
+        let all = st.try_all(is_even).await;
+        assert_eq!(Ok(true), all);
+
+        let st = stream::iter([Ok::<_, Infallible>(2), Ok(4), Ok(6), Ok(8)]);
+        let all = st.try_all(is_even).await;
+        assert_eq!(Ok(true), all);
+
+        let st = stream::iter([Ok::<_, Infallible>(2), Ok(3), Ok(4)]);
+        let all = st.try_all(is_even).await;
+        assert_eq!(Ok(false), all);
+
+        let st = stream::iter([Ok(2), Ok(4), Err("err"), Ok(8)]);
+        let all = st.try_all(is_even).await;
+        assert_eq!(Err("err"), all);
+    });
 }
