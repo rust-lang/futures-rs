@@ -159,3 +159,25 @@ fn try_all() {
         assert_eq!(Err("err"), all);
     });
 }
+
+#[test]
+fn try_any() {
+    block_on(async {
+        let empty: [Result<u8, Infallible>; 0] = [];
+        let st = stream::iter(empty);
+        let any = st.try_any(is_even).await;
+        assert_eq!(Ok(false), any);
+
+        let st = stream::iter([Ok::<_, Infallible>(1), Ok(2), Ok(3)]);
+        let any = st.try_any(is_even).await;
+        assert_eq!(Ok(true), any);
+
+        let st = stream::iter([Ok::<_, Infallible>(1), Ok(3), Ok(5)]);
+        let any = st.try_any(is_even).await;
+        assert_eq!(Ok(false), any);
+
+        let st = stream::iter([Ok(1), Ok(3), Err("err"), Ok(8)]);
+        let any = st.try_any(is_even).await;
+        assert_eq!(Err("err"), any);
+    });
+}
