@@ -166,6 +166,10 @@ mod into_async_read;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
 
+mod try_all;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_all::TryAll;
+
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
@@ -1181,5 +1185,34 @@ pub trait TryStreamExt: TryStream {
         Self::Ok: AsRef<[u8]>,
     {
         crate::io::assert_read(IntoAsyncRead::new(self))
+    }
+
+    /// Attempt to execute a predicate over an asynchronous stream and evaluate if all items
+    /// satisfy the predicate. Exits early if an `Err` is encountered or if an `Ok` item is found
+    /// that does not satisfy the predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use std::convert::Infallible;
+    ///
+    /// let number_stream = stream::iter(1..10).map(Ok::<_, Infallible>);
+    /// let positive = number_stream.try_all(|i| async move { i > 0 });
+    /// assert_eq!(positive.await, Ok(true));
+    ///
+    /// let stream_with_errors = stream::iter([Ok(1), Err("err"), Ok(3)]);
+    /// let positive = stream_with_errors.try_all(|i| async move { i > 0 });
+    /// assert_eq!(positive.await, Err("err"));
+    /// # });
+    /// ```
+    fn try_all<Fut, F>(self, f: F) -> TryAll<Self, Fut, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: Future<Output = bool>,
+    {
+        assert_future::<Result<bool, Self::Error>, _>(TryAll::new(self, f))
     }
 }
