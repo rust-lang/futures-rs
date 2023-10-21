@@ -69,11 +69,12 @@ where
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 // we're currently processing a future to produce a new accum value
                 let acc = this.accum.unwrap() || ready!(fut.poll(cx));
+                this.future.set(None);
                 if acc {
+                    this.accum.take().unwrap();
                     break true;
                 } // early exit
                 *this.accum = Some(acc);
-                this.future.set(None);
             } else if this.accum.is_some() {
                 // we're waiting on a new item from the stream
                 match ready!(this.stream.as_mut().poll_next(cx)) {
