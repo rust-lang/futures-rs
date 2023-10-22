@@ -535,3 +535,43 @@ fn select_with_strategy_doesnt_terminate_early() {
         assert_eq!(count.get(), times_should_poll + 1);
     }
 }
+
+async fn is_even(number: u8) -> bool {
+    number % 2 == 0
+}
+
+#[test]
+fn all() {
+    block_on(async {
+        let empty: [u8; 0] = [];
+        let st = stream::iter(empty);
+        let all = st.all(is_even).await;
+        assert!(all);
+
+        let st = stream::iter([2, 4, 6, 8]);
+        let all = st.all(is_even).await;
+        assert!(all);
+
+        let st = stream::iter([2, 3, 4]);
+        let all = st.all(is_even).await;
+        assert!(!all);
+    });
+}
+
+#[test]
+fn any() {
+    block_on(async {
+        let empty: [u8; 0] = [];
+        let st = stream::iter(empty);
+        let any = st.any(is_even).await;
+        assert!(!any);
+
+        let st = stream::iter([1, 2, 3]);
+        let any = st.any(is_even).await;
+        assert!(any);
+
+        let st = stream::iter([1, 3, 5]);
+        let any = st.any(is_even).await;
+        assert!(!any);
+    });
+}
