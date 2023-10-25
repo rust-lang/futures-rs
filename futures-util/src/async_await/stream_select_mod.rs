@@ -1,6 +1,5 @@
 //! The `stream_select` macro.
 
-#[cfg(feature = "std")]
 #[allow(unreachable_pub)]
 #[doc(hidden)]
 pub use futures_macro::stream_select_internal;
@@ -28,7 +27,6 @@ pub use futures_macro::stream_select_internal;
 /// }
 /// # });
 /// ```
-#[cfg(feature = "std")]
 #[macro_export]
 macro_rules! stream_select {
     ($($tokens:tt)*) => {{
