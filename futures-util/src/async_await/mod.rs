@@ -31,9 +31,11 @@ mod select_mod;
 pub use self::select_mod::*;
 
 // Primary export is a macro
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await-macro")]
 mod stream_select_mod;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/64762
+#[cfg(feature = "std")]
 #[cfg(feature = "async-await-macro")]
 pub use self::stream_select_mod::*;
 
