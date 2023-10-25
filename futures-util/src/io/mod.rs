@@ -804,11 +804,11 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// use futures::io::{AsyncBufReadExt, Cursor};
     /// use futures::stream::StreamExt;
     ///
-    /// let cursor = Cursor::new(b"lorem\nipsum\r\ndolor");
+    /// let cursor = Cursor::new(b"lorem\nipsum\xc2\r\ndolor");
     ///
-    /// let mut lines_stream = cursor.lines().map(|l| l.unwrap());
+    /// let mut lines_stream = cursor.lines().map(|l| l.unwrap_or(String::from("invalid UTF_8")));
     /// assert_eq!(lines_stream.next().await, Some(String::from("lorem")));
-    /// assert_eq!(lines_stream.next().await, Some(String::from("ipsum")));
+    /// assert_eq!(lines_stream.next().await, Some(String::from("invalid UTF_8")));
     /// assert_eq!(lines_stream.next().await, Some(String::from("dolor")));
     /// assert_eq!(lines_stream.next().await, None);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
