@@ -7,7 +7,6 @@ use futures_io::{
 use futures_sink::Sink;
 use pin_project::{pin_project, pinned_drop};
 use std::pin::Pin;
-use std::ptr;
 use std::thread::panicking;
 
 /// Combinator that asserts that the underlying type is not moved after being polled.
@@ -24,26 +23,21 @@ use std::thread::panicking;
 pub struct AssertUnmoved<T> {
     #[pin]
     inner: T,
-    this_ptr: *const Self,
+    this_addr: usize,
 }
-
-// Safety: having a raw pointer in a struct makes it `!Send`, however the
-// pointer is never dereferenced so this is safe.
-unsafe impl<T: Send> Send for AssertUnmoved<T> {}
-unsafe impl<T: Sync> Sync for AssertUnmoved<T> {}
 
 impl<T> AssertUnmoved<T> {
     pub(crate) fn new(inner: T) -> Self {
-        Self { inner, this_ptr: ptr::null() }
+        Self { inner, this_addr: 0 }
     }
 
     fn poll_with<'a, U>(mut self: Pin<&'a mut Self>, f: impl FnOnce(Pin<&'a mut T>) -> U) -> U {
-        let cur_this = &*self as *const Self;
-        if self.this_ptr.is_null() {
+        let cur_this = &*self as *const Self as usize;
+        if self.this_addr == 0 {
             // First time being polled
-            *self.as_mut().project().this_ptr = cur_this;
+            *self.as_mut().project().this_addr = cur_this;
         } else {
-            assert_eq!(self.this_ptr, cur_this, "AssertUnmoved moved between poll calls");
+            assert_eq!(self.this_addr, cur_this, "AssertUnmoved moved between poll calls");
         }
         f(self.project().inner)
     }
@@ -166,9 +160,9 @@ impl<T> PinnedDrop for AssertUnmoved<T> {
     fn drop(self: Pin<&mut Self>) {
         // If the thread is panicking then we can't panic again as that will
         // cause the process to be aborted.
-        if !panicking() && !self.this_ptr.is_null() {
-            let cur_this = &*self as *const Self;
-            assert_eq!(self.this_ptr, cur_this, "AssertUnmoved moved before drop");
+        if !panicking() && self.this_addr != 0 {
+            let cur_this = &*self as *const Self as usize;
+            assert_eq!(self.this_addr, cur_this, "AssertUnmoved moved before drop");
         }
     }
 }
