@@ -1,3 +1,12 @@
+# 0.3.29 - 2023-10-26
+
+* Add `TryStreamExt::try_ready_chunks` (#2757)
+* Add `TryStreamExt::{try_all,try_any}` (#2783)
+* Add `UnboundedSender::{len,is_empty}` (#2750)
+* Fix `Sync` impl of `FuturesUnordered` (#2788)
+* Fix infinite loop caused by invalid UTF-8 bytes (#2785)
+* Fix build error with -Z minimal-versions (#2761)
+
 # 0.3.28 - 2023-03-30
 
 * Update to syn 2. This raises MSRV of utility crates to 1.56. (#2730, #2733)
