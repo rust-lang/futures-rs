@@ -18,6 +18,8 @@ pub type SendFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send>>;
 pub type SendTryFuture<T = *const (), E = *const ()> = SendFuture<Result<T, E>>;
 pub type SyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Sync>>;
 pub type SyncTryFuture<T = *const (), E = *const ()> = SyncFuture<Result<T, E>>;
+pub type SendSyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+pub type SendSyncTryFuture<T = *const (), E = *const ()> = SendSyncFuture<Result<T, E>>;
 pub type UnpinFuture<T = PhantomPinned> = LocalFuture<T>;
 pub type UnpinTryFuture<T = PhantomPinned, E = PhantomPinned> = UnpinFuture<Result<T, E>>;
 pub struct PinnedFuture<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
@@ -35,6 +37,8 @@ pub type SendStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send>>;
 pub type SendTryStream<T = *const (), E = *const ()> = SendStream<Result<T, E>>;
 pub type SyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Sync>>;
 pub type SyncTryStream<T = *const (), E = *const ()> = SyncStream<Result<T, E>>;
+pub type SendSyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
+pub type SendSyncTryStream<T = *const (), E = *const ()> = SendSyncStream<Result<T, E>>;
 pub type UnpinStream<T = PhantomPinned> = LocalStream<T>;
 pub type UnpinTryStream<T = PhantomPinned, E = PhantomPinned> = UnpinStream<Result<T, E>>;
 pub struct PinnedStream<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
@@ -365,9 +369,10 @@ pub mod future {
     assert_impl!(JoinAll<SendFuture<()>>: Send);
     assert_not_impl!(JoinAll<LocalFuture>: Send);
     assert_not_impl!(JoinAll<SendFuture>: Send);
-    assert_impl!(JoinAll<SyncFuture<()>>: Sync);
-    assert_not_impl!(JoinAll<LocalFuture>: Sync);
-    assert_not_impl!(JoinAll<SyncFuture>: Sync);
+    assert_impl!(JoinAll<SendSyncFuture<()>>: Sync);
+    assert_not_impl!(JoinAll<SendFuture<()>>: Sync);
+    assert_not_impl!(JoinAll<SyncFuture<()>>: Sync);
+    assert_not_impl!(JoinAll<SendSyncFuture>: Sync);
     assert_impl!(JoinAll<PinnedFuture>: Unpin);
 
     assert_impl!(Lazy<()>: Send);
@@ -579,9 +584,10 @@ pub mod future {
     assert_impl!(TryJoinAll<SendTryFuture<(), ()>>: Send);
     assert_not_impl!(TryJoinAll<LocalTryFuture>: Send);
     assert_not_impl!(TryJoinAll<SendTryFuture>: Send);
-    assert_impl!(TryJoinAll<SyncTryFuture<(), ()>>: Sync);
-    assert_not_impl!(TryJoinAll<LocalTryFuture>: Sync);
-    assert_not_impl!(TryJoinAll<SyncTryFuture>: Sync);
+    assert_impl!(TryJoinAll<SendSyncTryFuture<(), ()>>: Sync);
+    assert_not_impl!(TryJoinAll<SendTryFuture<(), ()>>: Sync);
+    assert_not_impl!(TryJoinAll<SyncTryFuture<(), ()>>: Sync);
+    assert_not_impl!(TryJoinAll<SendSyncTryFuture>: Sync);
     assert_impl!(TryJoinAll<PinnedTryFuture>: Unpin);
 
     assert_impl!(TrySelect<SendFuture, SendFuture>: Send);
@@ -1118,10 +1124,9 @@ pub mod stream {
     assert_not_impl!(Buffered<SendStream<SendFuture>>: Send);
     assert_not_impl!(Buffered<SendStream<LocalFuture>>: Send);
     assert_not_impl!(Buffered<LocalStream<SendFuture<()>>>: Send);
-    assert_impl!(Buffered<SyncStream<SyncFuture<()>>>: Sync);
-    assert_not_impl!(Buffered<SyncStream<SyncFuture>>: Sync);
-    assert_not_impl!(Buffered<SyncStream<LocalFuture>>: Sync);
-    assert_not_impl!(Buffered<LocalStream<SyncFuture<()>>>: Sync);
+    assert_impl!(Buffered<SyncStream<SendSyncFuture<()>>>: Sync);
+    assert_not_impl!(Buffered<SyncStream<SyncFuture<()>>>: Sync);
+    assert_not_impl!(Buffered<LocalStream<SendSyncFuture<()>>>: Sync);
     assert_impl!(Buffered<UnpinStream<PinnedFuture>>: Unpin);
     assert_not_impl!(Buffered<PinnedStream<PinnedFuture>>: Unpin);
 
@@ -1303,9 +1308,10 @@ pub mod stream {
     assert_impl!(FuturesOrdered<SendFuture<()>>: Send);
     assert_not_impl!(FuturesOrdered<SendFuture>: Send);
     assert_not_impl!(FuturesOrdered<SendFuture>: Send);
-    assert_impl!(FuturesOrdered<SyncFuture<()>>: Sync);
-    assert_not_impl!(FuturesOrdered<LocalFuture<()>>: Sync);
-    assert_not_impl!(FuturesOrdered<LocalFuture<()>>: Sync);
+    assert_impl!(FuturesOrdered<SendSyncFuture<()>>: Sync);
+    assert_not_impl!(FuturesOrdered<SyncFuture<()>>: Sync);
+    assert_not_impl!(FuturesOrdered<SendFuture<()>>: Sync);
+    assert_not_impl!(FuturesOrdered<SendSyncFuture>: Sync);
     assert_impl!(FuturesOrdered<PinnedFuture>: Unpin);
 
     assert_impl!(FuturesUnordered<()>: Send);
@@ -1647,11 +1653,12 @@ pub mod stream {
     assert_not_impl!(TryBuffered<SendTryStream<SendTryFuture<(), *const ()>>>: Send);
     assert_not_impl!(TryBuffered<SendTryStream<LocalTryFuture<(), ()>>>: Send);
     assert_not_impl!(TryBuffered<LocalTryStream<SendTryFuture<(), ()>>>: Send);
-    assert_impl!(TryBuffered<SyncTryStream<SyncTryFuture<(), ()>>>: Sync);
-    assert_not_impl!(TryBuffered<SyncTryStream<SyncTryFuture<*const (), ()>>>: Sync);
-    assert_not_impl!(TryBuffered<SyncTryStream<SyncTryFuture<(), *const ()>>>: Sync);
-    assert_not_impl!(TryBuffered<SyncTryStream<LocalTryFuture<(), ()>>>: Sync);
-    assert_not_impl!(TryBuffered<LocalTryStream<SyncTryFuture<(), ()>>>: Sync);
+    assert_impl!(TryBuffered<SyncTryStream<SendSyncTryFuture<(), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<SendSyncTryFuture<*const (), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<SendSyncTryFuture<(), *const ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<SendTryFuture<(), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<SyncTryStream<SyncTryFuture<(), ()>>>: Sync);
+    assert_not_impl!(TryBuffered<LocalTryStream<SendSyncTryFuture<(), ()>>>: Sync);
     assert_impl!(TryBuffered<UnpinTryStream<PinnedTryFuture>>: Unpin);
     assert_not_impl!(TryBuffered<PinnedTryStream<UnpinTryFuture>>: Unpin);
 

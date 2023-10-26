@@ -62,7 +62,7 @@ pub struct FuturesUnordered<Fut> {
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
-unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
+unsafe impl<Fut: Send + Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
 
 impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
