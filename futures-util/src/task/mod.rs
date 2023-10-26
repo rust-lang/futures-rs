@@ -30,7 +30,7 @@ pub use futures_task::waker;
 #[cfg(feature = "alloc")]
 pub use futures_task::{waker_ref, WakerRef};
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg(any(not(futures_no_atomic_cas), feature = "portable-atomic"))]
 pub use futures_core::task::__internal::AtomicWaker;
 
 mod spawn;
