@@ -21,7 +21,7 @@ unstable = []
 cfg-target-has-atomic = []
 
 [dependencies]
-portable-atomic = { version = "1", default-features = false, optional = true }
+portable-atomic = { version = "1.3", optional = true, default-features = false, features = ["require-cas"] }
 
 [dev-dependencies]
 futures = { path = "../futures" }
