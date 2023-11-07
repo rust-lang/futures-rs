@@ -149,6 +149,11 @@ impl<T> BiLock<T> {
         BiLockAcquire { bilock: self }
     }
 
+    /// Returns `true` only if the other `BiLock<T>` originated from the same call to `BiLock::new`.
+    pub fn is_pair_of(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.arc, &other.arc)
+    }
+
     /// Attempts to put the two "halves" of a `BiLock<T>` back together and
     /// recover the original value. Succeeds only if the two `BiLock<T>`s
     /// originated from the same call to `BiLock::new`.
@@ -156,7 +161,7 @@ impl<T> BiLock<T> {
     where
         T: Unpin,
     {
-        if Arc::ptr_eq(&self.arc, &other.arc) {
+        if self.is_pair_of(&other) {
             drop(other);
             let inner = Arc::try_unwrap(self.arc)
                 .ok()
