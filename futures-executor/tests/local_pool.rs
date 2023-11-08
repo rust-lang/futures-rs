@@ -414,8 +414,8 @@ fn park_unpark_independence() {
             return Poll::Ready(());
         }
         done = true;
-        cx.waker().clone().wake(); // (*)
-                                   // some user-code that temporarily parks the thread
+        cx.waker().wake_by_ref(); // (*)
+                                  // some user-code that temporarily parks the thread
         let test = thread::current();
         let latch = Arc::new(AtomicBool::new(false));
         let signal = latch.clone();
