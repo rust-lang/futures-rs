@@ -37,10 +37,6 @@ impl<Fut: Future> Clone for WeakShared<Fut> {
     }
 }
 
-// The future itself is polled behind the `Arc`, so it won't be moved
-// when `Shared` is moved.
-impl<Fut: Future> Unpin for Shared<Fut> {}
-
 impl<Fut: Future> fmt::Debug for Shared<Fut> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Shared")
