@@ -30,6 +30,8 @@ where
         let reader = this.reader.take().expect("Polled FillBuf after completion");
 
         match Pin::new(&mut *reader).poll_fill_buf(cx) {
+            // We don't need to poll a second time for EOF, and doing so is likely to return Poll::Pending
+            Poll::Ready(Ok(&[])) => Poll::Ready(Ok(&[])),
             // With polonius it is possible to remove this inner match and just have the correct
             // lifetime of the reference inferred based on which branch is taken
             Poll::Ready(Ok(_)) => match Pin::new(reader).poll_fill_buf(cx) {
