@@ -8,27 +8,27 @@ use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 use super::abort::abort;
 use super::task::Task;
 
-pub(super) enum Dequeue<Fut> {
-    Data(*const Task<Fut>),
+pub(super) enum Dequeue<K, Fut> {
+    Data(*const Task<K, Fut>),
     Empty,
     Inconsistent,
 }
 
-pub(super) struct ReadyToRunQueue<Fut> {
-    // The waker of the task using `FuturesUnordered`.
+pub(super) struct ReadyToRunQueue<K, Fut> {
+    // The waker of the task using `FuturesKeyed`.
     pub(super) waker: AtomicWaker,
 
     // Head/tail of the readiness queue
-    pub(super) head: AtomicPtr<Task<Fut>>,
-    pub(super) tail: UnsafeCell<*const Task<Fut>>,
-    pub(super) stub: Arc<Task<Fut>>,
+    pub(super) head: AtomicPtr<Task<K, Fut>>,
+    pub(super) tail: UnsafeCell<*const Task<K, Fut>>,
+    pub(super) stub: Arc<Task<K, Fut>>,
 }
 
 /// An MPSC queue into which the tasks containing the futures are inserted
 /// whenever the future inside is scheduled for polling.
-impl<Fut> ReadyToRunQueue<Fut> {
+impl<K, Fut> ReadyToRunQueue<K, Fut> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
-    pub(super) fn enqueue(&self, task: *const Task<Fut>) {
+    pub(super) fn enqueue(&self, task: *const Task<K, Fut>) {
         unsafe {
             debug_assert!((*task).queued.load(Relaxed));
 
@@ -46,7 +46,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
     ///
     /// Note that this is unsafe as it required mutual exclusion (only one
     /// thread can call this) to be guaranteed elsewhere.
-    pub(super) unsafe fn dequeue(&self) -> Dequeue<Fut> {
+    pub(super) unsafe fn dequeue(&self) -> Dequeue<K, Fut> {
         let mut tail = *self.tail.get();
         let mut next = (*tail).next_ready_to_run.load(Acquire);
 
@@ -82,7 +82,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
         Dequeue::Inconsistent
     }
 
-    pub(super) fn stub(&self) -> *const Task<Fut> {
+    pub(super) fn stub(&self) -> *const Task<K, Fut> {
         Arc::as_ptr(&self.stub)
     }
 
@@ -94,7 +94,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
     //
     // # Safety
     //
-    // - All tasks **must** have had their futures dropped already (by FuturesUnordered::clear)
+    // - All tasks **must** have had their futures dropped already (by FuturesKeyed::clear)
     // - The caller **must** guarantee unique access to `self`
     pub(crate) unsafe fn clear(&self) {
         loop {
@@ -108,12 +108,12 @@ impl<Fut> ReadyToRunQueue<Fut> {
     }
 }
 
-impl<Fut> Drop for ReadyToRunQueue<Fut> {
+impl<K, Fut> Drop for ReadyToRunQueue<K, Fut> {
     fn drop(&mut self) {
         // Once we're in the destructor for `Inner<Fut>` we need to clear out
         // the ready to run queue of tasks if there's anything left in there.
 
-        // All tasks have had their futures dropped already by the `FuturesUnordered`
+        // All tasks have had their futures dropped already by the `FuturesKeyed`
         // destructor above, and we have &mut self, so this is safe.
         unsafe {
             self.clear();

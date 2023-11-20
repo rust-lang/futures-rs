@@ -115,6 +115,7 @@ mod futures_ordered;
 #[cfg(feature = "alloc")]
 pub use self::futures_ordered::FuturesOrdered;
 
+mod futures_keyed;
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 pub mod futures_unordered;
@@ -122,6 +123,14 @@ pub mod futures_unordered;
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::futures_unordered::FuturesUnordered;
+
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+pub mod mapped_futures;
+#[cfg(not(futures_no_atomic_cas))]
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use self::mapped_futures::MappedFutures;
 
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
