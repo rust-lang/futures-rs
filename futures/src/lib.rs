@@ -194,7 +194,7 @@ pub mod executor {
     //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
     pub use futures_executor::{
-        block_on, block_on_stream, enter, BlockingStream, Enter, EnterError, LocalPool,
+        block_on, block_on_stream, enter, BlockAwait, BlockingStream, Enter, EnterError, LocalPool,
         LocalSpawner,
     };
 

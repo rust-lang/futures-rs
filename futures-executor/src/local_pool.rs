@@ -325,6 +325,25 @@ pub fn block_on_stream<S: Stream + Unpin>(stream: S) -> BlockingStream<S> {
     BlockingStream { stream }
 }
 
+/// A trait for awaiting a future in a non-async context. This is automatically implemented for anything implementing [`Future`].
+///
+/// This functions the same as [`block_on`], but allows for a chaining style similar to `.await` syntax.
+pub trait BlockAwait<F: Future> {
+    /// The output of running the future.
+    type Output;
+
+    /// Block until the future completes by passing the future to [`block_on`].
+    fn block_await(self) -> Self::Output;
+}
+
+impl<F: Future> BlockAwait<F> for F {
+    type Output = F::Output;
+
+    fn block_await(self) -> Self::Output {
+        block_on(self)
+    }
+}
+
 /// An iterator which blocks on values from a stream until they become available.
 #[derive(Debug)]
 pub struct BlockingStream<S: Stream + Unpin> {
