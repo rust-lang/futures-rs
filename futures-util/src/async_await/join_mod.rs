@@ -9,7 +9,7 @@ macro_rules! document_join_macro {
         /// `join!` polls both futures concurrently and therefore is more efficient.
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
-        /// It is also gated behind the `async-await` feature of this library, which is
+        /// It is also gated behind the `async-await-macro` feature of this library, which is
         /// activated by default.
         ///
         /// # Examples
@@ -38,7 +38,7 @@ macro_rules! document_join_macro {
         /// the futures return an error.
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
-        /// It is also gated behind the `async-await` feature of this library, which is
+        /// It is also gated behind the `async-await-macro` feature of this library, which is
         /// activated by default.
         ///
         /// # Examples
