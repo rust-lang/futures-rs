@@ -14,4 +14,5 @@ const NO_ATOMIC_CAS: &[&str] = &[
     "thumbv4t-none-eabi",
     "thumbv5te-none-eabi",
     "thumbv6m-none-eabi",
+    "xtensa-esp32s2-none-elf",
 ];

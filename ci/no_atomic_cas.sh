@@ -26,6 +26,8 @@ EOF
 for target in "${no_atomic_cas[@]}"; do
     echo "    \"${target}\"," >>"${file}"
 done
+# special case: xtensa-esp32s2-none-elf only exists in the esp-rs/rust compiler
+echo "    \"xtensa-esp32s2-none-elf\"," >>"${file}"
 cat >>"${file}" <<EOF
 ];
 EOF
