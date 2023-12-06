@@ -1,5 +1,6 @@
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::{fmt, io};
 
@@ -55,6 +56,25 @@ impl<T> AllowStdIo<T> {
     /// Consumes self and returns the contained IO object.
     pub fn into_inner(self) -> T {
         self.0
+    }
+}
+
+impl<T> Deref for AllowStdIo<T>
+where
+    T: io::Write,
+{
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.get_ref()
+    }
+}
+
+impl<T> DerefMut for AllowStdIo<T>
+where
+    T: io::Write,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.get_mut()
     }
 }
 
