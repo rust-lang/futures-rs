@@ -558,20 +558,7 @@ impl<Fut> Debug for FuturesUnordered<Fut> {
 impl<Fut> FuturesUnordered<Fut> {
     /// Clears the set, removing all futures.
     pub fn clear(&mut self) {
-        self.clear_head_all();
-
-        // we just cleared all the tasks, and we have &mut self, so this is safe.
-        unsafe { self.ready_to_run_queue.clear() };
-
-        self.is_terminated.store(false, Relaxed);
-    }
-
-    fn clear_head_all(&mut self) {
-        while !self.head_all.get_mut().is_null() {
-            let head = *self.head_all.get_mut();
-            let task = unsafe { self.unlink(head) };
-            self.release_task(task);
-        }
+        *self = Self::new();
     }
 }
 
@@ -581,7 +568,11 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // associated with it. At the same time though there may be tons of
         // wakers flying around which contain `Task<Fut>` references
         // inside them. We'll let those naturally get deallocated.
-        self.clear_head_all();
+        while !self.head_all.get_mut().is_null() {
+            let head = *self.head_all.get_mut();
+            let task = unsafe { self.unlink(head) };
+            self.release_task(task);
+        }
 
         // Note that at this point we could still have a bunch of tasks in the
         // ready to run queue. None of those tasks, however, have futures
