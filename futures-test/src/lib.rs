@@ -14,6 +14,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![allow(clippy::test_attr_in_doctest)]
 
 #[cfg(not(feature = "std"))]
 compile_error!(
