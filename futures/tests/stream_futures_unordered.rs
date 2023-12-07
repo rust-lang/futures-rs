@@ -381,3 +381,28 @@ fn clear() {
     tasks.clear();
     assert!(!tasks.is_terminated());
 }
+
+// https://github.com/rust-lang/futures-rs/issues/2529#issuecomment-997290279
+#[test]
+fn clear_in_loop() {
+    const N: usize =
+        if cfg!(miri) || option_env!("QEMU_LD_PREFIX").is_some() { 100 } else { 10_000 };
+    futures::executor::block_on(async {
+        async fn task() {
+            let (s, r) = oneshot::channel();
+            std::thread::spawn(|| {
+                std::thread::sleep(std::time::Duration::from_micros(100));
+                let _ = s.send(());
+            });
+            r.await.unwrap()
+        }
+        let mut futures = FuturesUnordered::new();
+        for _ in 0..N {
+            for _ in 0..24 {
+                futures.push(task());
+            }
+            let _ = futures.next().await;
+            futures.clear();
+        }
+    });
+}
