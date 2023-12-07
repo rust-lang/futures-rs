@@ -29,16 +29,16 @@
 #![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 #![allow(clippy::needless_pass_by_ref_mut)]
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod lock;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "std")]
 pub mod mpsc;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod oneshot;
