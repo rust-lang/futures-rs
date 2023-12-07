@@ -111,13 +111,13 @@ pub use self::select_ok::{select_ok, SelectOk};
 mod either;
 pub use self::either::Either;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod abortable;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use abortable::abortable;
 

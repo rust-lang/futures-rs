@@ -18,24 +18,24 @@ extern crate alloc;
 mod spawn;
 pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod arc_wake;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use crate::arc_wake::ArcWake;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod waker;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use crate::waker::waker;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod waker_ref;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use crate::waker_ref::{waker_ref, WakerRef};
 
