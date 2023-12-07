@@ -168,7 +168,7 @@ mod if_alloc {
         }
     }
 
-    #[cfg(not(futures_no_atomic_cas))]
+    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     impl<Sp: ?Sized + Spawn> Spawn for alloc::sync::Arc<Sp> {
         fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_obj(future)
@@ -179,7 +179,7 @@ mod if_alloc {
         }
     }
 
-    #[cfg(not(futures_no_atomic_cas))]
+    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     impl<Sp: ?Sized + LocalSpawn> LocalSpawn for alloc::sync::Arc<Sp> {
         fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_local_obj(future)
