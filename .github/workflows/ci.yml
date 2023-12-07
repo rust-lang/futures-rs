@@ -317,11 +317,12 @@ jobs:
         run: rustup update stable
       - run: cargo fmt --all -- --check
 
-  docs:
-    name: cargo doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features
+  # TODO: upstream bug https://github.com/rust-lang/rust/issues/118670
+  # docs:
+  #   name: cargo doc
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust
+  #       run: rustup update nightly && rustup default nightly
+  #     - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features
