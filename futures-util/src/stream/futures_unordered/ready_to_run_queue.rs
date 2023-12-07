@@ -85,38 +85,25 @@ impl<Fut> ReadyToRunQueue<Fut> {
     pub(super) fn stub(&self) -> *const Task<Fut> {
         Arc::as_ptr(&self.stub)
     }
-
-    // Clear the queue of tasks.
-    //
-    // Note that each task has a strong reference count associated with it
-    // which is owned by the ready to run queue. This method just pulls out
-    // tasks and drops their refcounts.
-    //
-    // # Safety
-    //
-    // - All tasks **must** have had their futures dropped already (by FuturesUnordered::clear)
-    // - The caller **must** guarantee unique access to `self`
-    pub(crate) unsafe fn clear(&self) {
-        loop {
-            // SAFETY: We have the guarantee of mutual exclusion required by `dequeue`.
-            match self.dequeue() {
-                Dequeue::Empty => break,
-                Dequeue::Inconsistent => abort("inconsistent in drop"),
-                Dequeue::Data(ptr) => drop(Arc::from_raw(ptr)),
-            }
-        }
-    }
 }
 
 impl<Fut> Drop for ReadyToRunQueue<Fut> {
     fn drop(&mut self) {
         // Once we're in the destructor for `Inner<Fut>` we need to clear out
         // the ready to run queue of tasks if there's anything left in there.
-
-        // All tasks have had their futures dropped already by the `FuturesUnordered`
-        // destructor above, and we have &mut self, so this is safe.
+        //
+        // Note that each task has a strong reference count associated with it
+        // which is owned by the ready to run queue. All tasks should have had
+        // their futures dropped already by the `FuturesUnordered` destructor
+        // above, so we're just pulling out tasks and dropping their refcounts.
         unsafe {
-            self.clear();
+            loop {
+                match self.dequeue() {
+                    Dequeue::Empty => break,
+                    Dequeue::Inconsistent => abort("inconsistent in drop"),
+                    Dequeue::Data(ptr) => drop(Arc::from_raw(ptr)),
+                }
+            }
         }
     }
 }
