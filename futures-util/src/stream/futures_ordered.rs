@@ -19,7 +19,8 @@ pin_project! {
     struct OrderWrapper<T> {
         #[pin]
         data: T, // A future or a future's output
-        index: isize,
+        // Use i64 for index since isize may overflow in 32-bit targets.
+        index: i64,
     }
 }
 
@@ -98,8 +99,8 @@ where
 pub struct FuturesOrdered<T: Future> {
     in_progress_queue: FuturesUnordered<OrderWrapper<T>>,
     queued_outputs: BinaryHeap<OrderWrapper<T::Output>>,
-    next_incoming_index: isize,
-    next_outgoing_index: isize,
+    next_incoming_index: i64,
+    next_outgoing_index: i64,
 }
 
 impl<T: Future> Unpin for FuturesOrdered<T> {}
