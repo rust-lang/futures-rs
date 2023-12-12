@@ -57,7 +57,7 @@ where
 }
 
 pin_project! {
-    /// Future for the [`copy_buf()`] function.
+    /// Future for the [`copy_buf_abortable()`] function.
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct CopyBufAbortable<'a, R, W: ?Sized> {
