@@ -72,7 +72,7 @@ where
 
         Poll::Ready(loop {
             if let Some(fut) = this.pending_fut.as_mut().as_pin_mut() {
-                let res = ready!(fut.try_poll(cx));
+                let res = ready!(fut.poll(cx));
                 this.pending_fut.set(None);
                 let take = res?;
                 let item = this.pending_item.take();

@@ -1,4 +1,3 @@
-use crate::future::{IntoFuture, TryFutureExt};
 use crate::stream::{Fuse, FuturesOrdered, IntoStream, StreamExt};
 use core::num::NonZeroUsize;
 use core::pin::Pin;
@@ -20,7 +19,7 @@ pin_project! {
     {
         #[pin]
         stream: Fuse<IntoStream<St>>,
-        in_progress_queue: FuturesOrdered<IntoFuture<St::Ok>>,
+        in_progress_queue: FuturesOrdered<St::Ok>,
         max: Option<NonZeroUsize>,
     }
 }
@@ -55,7 +54,7 @@ where
         // our queue of futures. Propagate errors from the stream immediately.
         while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
             match this.stream.as_mut().poll_next(cx)? {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut.into_future()),
+                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }

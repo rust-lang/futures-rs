@@ -5,12 +5,7 @@
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
-use core::pin::Pin;
-use futures_core::{
-    future::TryFuture,
-    stream::TryStream,
-    task::{Context, Poll},
-};
+use futures_core::{future::TryFuture, stream::TryStream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
@@ -23,7 +18,6 @@ use crate::future::{assert_future, Inspect, Map};
 use crate::stream::assert_stream;
 
 // Combinators
-mod into_future;
 mod try_flatten;
 mod try_flatten_err;
 
@@ -89,46 +83,43 @@ delegate_all!(
 delegate_all!(
     /// Future for the [`inspect_ok`](super::TryFutureExt::inspect_ok) method.
     InspectOk<Fut, F>(
-        Inspect<IntoFuture<Fut>, InspectOkFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_ok_fn(f))]
+        Inspect<Fut, InspectOkFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(x, inspect_ok_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`inspect_err`](super::TryFutureExt::inspect_err) method.
     InspectErr<Fut, F>(
-        Inspect<IntoFuture<Fut>, InspectErrFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_err_fn(f))]
+        Inspect<Fut, InspectErrFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(x, inspect_err_fn(f))]
 );
-
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-pub use self::into_future::IntoFuture;
 
 delegate_all!(
     /// Future for the [`map_ok`](TryFutureExt::map_ok) method.
     MapOk<Fut, F>(
-        Map<IntoFuture<Fut>, MapOkFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_ok_fn(f))]
+        Map<Fut, MapOkFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(x, map_ok_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`map_err`](TryFutureExt::map_err) method.
     MapErr<Fut, F>(
-        Map<IntoFuture<Fut>, MapErrFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), map_err_fn(f))]
+        Map<Fut, MapErrFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(x, map_err_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`map_ok_or_else`](TryFutureExt::map_ok_or_else) method.
     MapOkOrElse<Fut, F, G>(
-        Map<IntoFuture<Fut>, MapOkOrElseFn<F, G>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F, g: G| Map::new(IntoFuture::new(x), map_ok_or_else_fn(f, g))]
+        Map<Fut, MapOkOrElseFn<F, G>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F, g: G| Map::new(x, map_ok_or_else_fn(f, g))]
 );
 
 delegate_all!(
     /// Future for the [`unwrap_or_else`](TryFutureExt::unwrap_or_else) method.
     UnwrapOrElse<Fut, F>(
-        Map<IntoFuture<Fut>, UnwrapOrElseFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(IntoFuture::new(x), unwrap_or_else_fn(f))]
+        Map<Fut, UnwrapOrElseFn<F>>
+    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Map::new(x, unwrap_or_else_fn(f))]
 );
 
 impl<Fut: ?Sized + TryFuture> TryFutureExt for Fut {}
@@ -584,42 +575,5 @@ pub trait TryFutureExt: TryFuture {
         Self: Sized + Unpin,
     {
         Compat::new(self)
-    }
-
-    /// Wraps a [`TryFuture`] into a type that implements
-    /// [`Future`](std::future::Future).
-    ///
-    /// [`TryFuture`]s currently do not implement the
-    /// [`Future`](std::future::Future) trait due to limitations of the
-    /// compiler.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::future::{Future, TryFuture, TryFutureExt};
-    ///
-    /// # type T = i32;
-    /// # type E = ();
-    /// fn make_try_future() -> impl TryFuture<Ok = T, Error = E> { // ... }
-    /// # async { Ok::<i32, ()>(1) }
-    /// # }
-    /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
-    ///
-    /// take_future(make_try_future().into_future());
-    /// ```
-    fn into_future(self) -> IntoFuture<Self>
-    where
-        Self: Sized,
-    {
-        assert_future::<Result<Self::Ok, Self::Error>, _>(IntoFuture::new(self))
-    }
-
-    /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]
-    /// future types.
-    fn try_poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Result<Self::Ok, Self::Error>>
-    where
-        Self: Unpin,
-    {
-        Pin::new(self).try_poll(cx)
     }
 }

@@ -10,11 +10,10 @@ use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
+use super::{assert_future, join_all, TryFuture, TryMaybeDone};
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
-use crate::TryFutureExt;
 
 enum FinalState<E = ()> {
     Pending,
@@ -36,11 +35,11 @@ where
     F: TryFuture,
 {
     Small {
-        elems: Pin<Box<[TryMaybeDone<IntoFuture<F>>]>>,
+        elems: Pin<Box<[TryMaybeDone<F>]>>,
     },
     #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     Big {
-        fut: TryCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
+        fut: TryCollect<FuturesOrdered<F>, Vec<F::Ok>>,
     },
 }
 
@@ -119,7 +118,7 @@ where
     I: IntoIterator,
     I::Item: TryFuture,
 {
-    let iter = iter.into_iter().map(TryFutureExt::into_future);
+    let iter = iter.into_iter();
 
     #[cfg(target_os = "none")]
     #[cfg_attr(target_os = "none", cfg(not(target_has_atomic = "ptr")))]
@@ -160,7 +159,7 @@ where
                 let mut state = FinalState::AllDone;
 
                 for elem in join_all::iter_pin_mut(elems.as_mut()) {
-                    match elem.try_poll(cx) {
+                    match elem.poll(cx) {
                         Poll::Pending => state = FinalState::Pending,
                         Poll::Ready(Ok(())) => {}
                         Poll::Ready(Err(e)) => {

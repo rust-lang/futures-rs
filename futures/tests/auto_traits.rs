@@ -337,13 +337,6 @@ pub mod future {
     assert_impl!(InspectOk<UnpinFuture, PhantomPinned>: Unpin);
     assert_not_impl!(InspectOk<PhantomPinned, PhantomPinned>: Unpin);
 
-    assert_impl!(IntoFuture<SendFuture>: Send);
-    assert_not_impl!(IntoFuture<LocalFuture>: Send);
-    assert_impl!(IntoFuture<SyncFuture>: Sync);
-    assert_not_impl!(IntoFuture<LocalFuture>: Sync);
-    assert_impl!(IntoFuture<UnpinFuture>: Unpin);
-    assert_not_impl!(IntoFuture<PinnedFuture>: Unpin);
-
     assert_impl!(IntoStream<SendFuture>: Send);
     assert_not_impl!(IntoStream<LocalFuture>: Send);
     assert_impl!(IntoStream<SyncFuture>: Sync);

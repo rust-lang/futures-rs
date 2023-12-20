@@ -70,7 +70,7 @@ where
         Poll::Ready(loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 // we're currently processing a future to produce a new accum value
-                let res = ready!(fut.try_poll(cx));
+                let res = ready!(fut.poll(cx));
                 this.future.set(None);
                 match res {
                     Ok(a) => *this.accum = Some(a),
