@@ -36,7 +36,7 @@ use pin_project_lite::pin_project;
 /// let stream = stream::unfold(0, |state| async move {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
-///         let yielded = state  * 2;
+///         let yielded = state * 2;
 ///         Some((yielded, next_state))
 ///     } else {
 ///         None
