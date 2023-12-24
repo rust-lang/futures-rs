@@ -124,9 +124,11 @@ impl<W: AsyncWrite> BufWriter<W> {
         let old_len = this.buf.len();
         let buf_len = buf.len();
         let src = buf.as_ptr();
-        let dst = this.buf.as_mut_ptr().add(old_len);
-        ptr::copy_nonoverlapping(src, dst, buf_len);
-        this.buf.set_len(old_len + buf_len);
+        unsafe {
+            let dst = this.buf.as_mut_ptr().add(old_len);
+            ptr::copy_nonoverlapping(src, dst, buf_len);
+            this.buf.set_len(old_len + buf_len);
+        }
     }
 
     /// Write directly using `inner`, bypassing buffering
