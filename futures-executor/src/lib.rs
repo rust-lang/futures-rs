@@ -37,7 +37,7 @@
 //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![doc(test(
     no_crate_inject,
     attr(

@@ -324,35 +324,37 @@ impl<Fut> FuturesUnordered<Fut> {
     /// This method is unsafe because it has be guaranteed that `task` is a
     /// valid pointer.
     unsafe fn unlink(&mut self, task: *const Task<Fut>) -> Arc<Task<Fut>> {
-        // Compute the new list length now in case we're removing the head node
-        // and won't be able to retrieve the correct length later.
-        let head = *self.head_all.get_mut();
-        debug_assert!(!head.is_null());
-        let new_len = *(*head).len_all.get() - 1;
+        unsafe {
+            // Compute the new list length now in case we're removing the head node
+            // and won't be able to retrieve the correct length later.
+            let head = *self.head_all.get_mut();
+            debug_assert!(!head.is_null());
+            let new_len = *(*head).len_all.get() - 1;
 
-        let task = Arc::from_raw(task);
-        let next = task.next_all.load(Relaxed);
-        let prev = *task.prev_all.get();
-        task.next_all.store(self.pending_next_all(), Relaxed);
-        *task.prev_all.get() = ptr::null_mut();
+            let task = Arc::from_raw(task);
+            let next = task.next_all.load(Relaxed);
+            let prev = *task.prev_all.get();
+            task.next_all.store(self.pending_next_all(), Relaxed);
+            *task.prev_all.get() = ptr::null_mut();
 
-        if !next.is_null() {
-            *(*next).prev_all.get() = prev;
+            if !next.is_null() {
+                *(*next).prev_all.get() = prev;
+            }
+
+            if !prev.is_null() {
+                (*prev).next_all.store(next, Relaxed);
+            } else {
+                *self.head_all.get_mut() = next;
+            }
+
+            // Store the new list length in the head node.
+            let head = *self.head_all.get_mut();
+            if !head.is_null() {
+                *(*head).len_all.get() = new_len;
+            }
+
+            task
         }
-
-        if !prev.is_null() {
-            (*prev).next_all.store(next, Relaxed);
-        } else {
-            *self.head_all.get_mut() = next;
-        }
-
-        // Store the new list length in the head node.
-        let head = *self.head_all.get_mut();
-        if !head.is_null() {
-            *(*head).len_all.get() = new_len;
-        }
-
-        task
     }
 
     /// Returns the reserved value for `Task::next_all` to indicate a pending

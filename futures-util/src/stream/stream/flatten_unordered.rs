@@ -208,7 +208,7 @@ impl WrappedWaker {
     /// This function will modify waker's `inner_waker` via `UnsafeCell`, so
     /// it should be used only during `POLLING` phase by one thread at the time.
     unsafe fn replace_waker(self_arc: &mut Arc<Self>, cx: &Context<'_>) {
-        *self_arc.inner_waker.get() = cx.waker().clone().into();
+        unsafe { *self_arc.inner_waker.get() = cx.waker().clone().into() }
     }
 
     /// Attempts to start the waking process for the waker with the given value.

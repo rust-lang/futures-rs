@@ -39,7 +39,7 @@ const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 /// A buffer is currently always initialized.
 #[inline]
 unsafe fn initialize<R: AsyncRead>(_reader: &R, buf: &mut [u8]) {
-    ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len())
+    unsafe { ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len()) }
 }
 
 mod allow_std;
