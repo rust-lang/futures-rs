@@ -14,9 +14,11 @@ on:
 
 env:
   CARGO_INCREMENTAL: 0
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUSTDOCFLAGS: -D warnings
   RUSTFLAGS: -D warnings
   RUSTUP_MAX_RETRIES: 10
 
@@ -95,8 +97,6 @@ jobs:
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
-    env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         rust:
@@ -240,6 +240,7 @@ jobs:
       - run: cargo miri test --workspace --all-features
         env:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
+          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} -Z randomize-layout
           RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
 
   san:
@@ -261,7 +262,7 @@ jobs:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
           # `cfg(futures_sanitizer)` with `cfg(sanitize = "..")` and remove
           # `--cfg futures_sanitizer`.
-          RUSTFLAGS: -D warnings -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
 
   clippy:
     name: cargo clippy
@@ -288,4 +289,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features
+      - run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} --cfg docsrs
