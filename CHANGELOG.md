@@ -1,3 +1,11 @@
+# 0.3.30 - 2023-12-24
+
+* Add `{BiLock,SplitStream,SplitSink,ReadHalf,WriteHalf}::is_pair_of` (#2797)
+* Fix panic in `FuturesUnordered::clear` (#2809)
+* Fix panic in `AsyncBufReadExt::fill_buf` (#2801, #2812)
+* Improve support for targets without atomic CAS (#2811)
+* Remove build scripts (#2811)
+
 # 0.3.29 - 2023-10-26
 
 * Add `TryStreamExt::try_ready_chunks` (#2757)
