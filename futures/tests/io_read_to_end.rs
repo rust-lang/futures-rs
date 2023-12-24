@@ -14,7 +14,7 @@ fn issue2310() {
 
     impl MyRead {
         fn new() -> Self {
-            MyRead { first: false }
+            Self { first: false }
         }
     }
 
@@ -41,7 +41,7 @@ fn issue2310() {
 
     impl VecWrapper {
         fn new() -> Self {
-            VecWrapper { inner: Vec::new() }
+            Self { inner: Vec::new() }
         }
     }
 

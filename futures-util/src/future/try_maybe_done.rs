@@ -38,7 +38,7 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
     pub fn output_mut(self: Pin<&mut Self>) -> Option<&mut Fut::Ok> {
         unsafe {
             match self.get_unchecked_mut() {
-                TryMaybeDone::Done(res) => Some(res),
+                Self::Done(res) => Some(res),
                 _ => None,
             }
         }
@@ -54,7 +54,7 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
         }
         unsafe {
             match mem::replace(self.get_unchecked_mut(), Self::Gone) {
-                TryMaybeDone::Done(output) => Some(output),
+                Self::Done(output) => Some(output),
                 _ => unreachable!(),
             }
         }
@@ -76,15 +76,15 @@ impl<Fut: TryFuture> Future for TryMaybeDone<Fut> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         unsafe {
             match self.as_mut().get_unchecked_mut() {
-                TryMaybeDone::Future(f) => match ready!(Pin::new_unchecked(f).try_poll(cx)) {
+                Self::Future(f) => match ready!(Pin::new_unchecked(f).try_poll(cx)) {
                     Ok(res) => self.set(Self::Done(res)),
                     Err(e) => {
                         self.set(Self::Gone);
                         return Poll::Ready(Err(e));
                     }
                 },
-                TryMaybeDone::Done(_) => {}
-                TryMaybeDone::Gone => panic!("TryMaybeDone polled after value taken"),
+                Self::Done(_) => {}
+                Self::Gone => panic!("TryMaybeDone polled after value taken"),
             }
         }
         Poll::Ready(Ok(()))
