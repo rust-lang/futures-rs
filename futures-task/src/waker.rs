@@ -30,29 +30,29 @@ where
 
 unsafe fn increase_refcount<T: ArcWake>(data: *const ()) {
     // Retain Arc, but don't touch refcount by wrapping in ManuallyDrop
-    let arc = mem::ManuallyDrop::new(Arc::<T>::from_raw(data.cast::<T>()));
+    let arc = mem::ManuallyDrop::new(unsafe { Arc::<T>::from_raw(data.cast::<T>()) });
     // Now increase refcount, but don't drop new refcount either
     let _arc_clone: mem::ManuallyDrop<_> = arc.clone();
 }
 
 // used by `waker_ref`
 unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
-    increase_refcount::<T>(data);
+    unsafe { increase_refcount::<T>(data) }
     RawWaker::new(data, waker_vtable::<T>())
 }
 
 unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
-    let arc: Arc<T> = Arc::from_raw(data.cast::<T>());
+    let arc: Arc<T> = unsafe { Arc::from_raw(data.cast::<T>()) };
     ArcWake::wake(arc);
 }
 
 // used by `waker_ref`
 unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
     // Retain Arc, but don't touch refcount by wrapping in ManuallyDrop
-    let arc = mem::ManuallyDrop::new(Arc::<T>::from_raw(data.cast::<T>()));
+    let arc = mem::ManuallyDrop::new(unsafe { Arc::<T>::from_raw(data.cast::<T>()) });
     ArcWake::wake_by_ref(&arc);
 }
 
 unsafe fn drop_arc_raw<T: ArcWake>(data: *const ()) {
-    drop(Arc::<T>::from_raw(data.cast::<T>()))
+    drop(unsafe { Arc::<T>::from_raw(data.cast::<T>()) })
 }

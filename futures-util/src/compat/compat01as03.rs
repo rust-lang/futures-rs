@@ -345,7 +345,7 @@ unsafe impl UnsafeNotify01 for NotifyWaker {
 
     unsafe fn drop_raw(&self) {
         let ptr: *const dyn UnsafeNotify01 = self;
-        drop(Box::from_raw(ptr as *mut dyn UnsafeNotify01));
+        drop(unsafe { Box::from_raw(ptr as *mut dyn UnsafeNotify01) });
     }
 }
 

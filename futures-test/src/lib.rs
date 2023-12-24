@@ -1,6 +1,6 @@
 //! Utilities to make testing [`Future`s](futures_core::future::Future) easier
 
-#![warn(missing_docs)]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![doc(test(
     no_crate_inject,
     attr(
