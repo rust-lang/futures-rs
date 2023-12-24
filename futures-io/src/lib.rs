@@ -28,7 +28,6 @@ mod if_std {
 
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     #[doc(no_inline)]
     pub use io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 

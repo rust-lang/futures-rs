@@ -13,7 +13,6 @@ use std::task::Context;
 
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite

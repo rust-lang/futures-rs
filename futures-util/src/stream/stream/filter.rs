@@ -39,7 +39,6 @@ where
     }
 }
 
-#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Filter<St, Fut, F>
 where
     St: Stream,
@@ -64,7 +63,6 @@ where
     }
 }
 
-#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for Filter<St, Fut, F>
 where
     St: Stream,

@@ -100,7 +100,6 @@ delegate_all!(
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| Inspect::new(IntoFuture::new(x), inspect_err_fn(f))]
 );
 
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::IntoFuture;
 
 delegate_all!(

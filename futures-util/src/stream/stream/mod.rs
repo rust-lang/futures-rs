@@ -23,39 +23,30 @@ use futures_sink::Sink;
 use crate::fns::{inspect_fn, InspectFn};
 
 mod chain;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chain::Chain;
 
 mod collect;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::collect::Collect;
 
 mod unzip;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::unzip::Unzip;
 
 mod concat;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::concat::Concat;
 
 mod count;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::count::Count;
 
 mod cycle;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::cycle::Cycle;
 
 mod enumerate;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::enumerate::Enumerate;
 
 mod filter;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::filter::Filter;
 
 mod filter_map;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::filter_map::FilterMap;
 
 mod flatten;
@@ -69,15 +60,12 @@ delegate_all!(
 );
 
 mod fold;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fold::Fold;
 
 mod any;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::any::Any;
 
 mod all;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::all::All;
 
 #[cfg(feature = "sink")]
@@ -94,15 +82,12 @@ delegate_all!(
 );
 
 mod for_each;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::for_each::ForEach;
 
 mod fuse;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fuse::Fuse;
 
 mod into_future;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::StreamFuture;
 
 delegate_all!(
@@ -113,7 +98,6 @@ delegate_all!(
 );
 
 mod map;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::map::Map;
 
 delegate_all!(
@@ -124,67 +108,52 @@ delegate_all!(
 );
 
 mod next;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::next::Next;
 
 mod select_next_some;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::select_next_some::SelectNextSome;
 
 mod peek;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::peek::{NextIf, NextIfEq, Peek, PeekMut, Peekable};
 
 mod skip;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::skip::Skip;
 
 mod skip_while;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::skip_while::SkipWhile;
 
 mod take;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::take::Take;
 
 mod take_while;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::take_while::TakeWhile;
 
 mod take_until;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::take_until::TakeUntil;
 
 mod then;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::then::Then;
 
 mod try_for_each;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_for_each::TryForEach;
 
 mod try_fold;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_fold::TryFold;
 
 mod zip;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::zip::Zip;
 
 #[cfg(feature = "alloc")]
 mod chunks;
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::chunks::Chunks;
 
 #[cfg(feature = "alloc")]
 mod ready_chunks;
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::ready_chunks::ReadyChunks;
 
 mod scan;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::scan::Scan;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -192,7 +161,6 @@ pub use self::scan::Scan;
 mod buffer_unordered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::buffer_unordered::BufferUnordered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -200,7 +168,6 @@ pub use self::buffer_unordered::BufferUnordered;
 mod buffered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::buffered::Buffered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -209,7 +176,6 @@ pub(crate) mod flatten_unordered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)]
 pub use self::flatten_unordered::FlattenUnordered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -227,7 +193,6 @@ delegate_all!(
 mod for_each_concurrent;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::for_each_concurrent::ForEachConcurrent;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -239,7 +204,6 @@ mod split;
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::split::{ReuniteError, SplitSink, SplitStream};
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -247,13 +211,11 @@ pub use self::split::{ReuniteError, SplitSink, SplitStream};
 mod try_for_each_concurrent;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_for_each_concurrent::TryForEachConcurrent;
 
 #[cfg(feature = "std")]
 mod catch_unwind;
 #[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::catch_unwind::CatchUnwind;
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}

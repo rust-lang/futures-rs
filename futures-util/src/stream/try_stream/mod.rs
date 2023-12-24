@@ -24,7 +24,6 @@ use futures_core::{
 use futures_sink::Sink;
 
 mod and_then;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::and_then::AndThen;
 
 delegate_all!(
@@ -49,7 +48,6 @@ delegate_all!(
 );
 
 mod into_stream;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_stream::IntoStream;
 
 delegate_all!(
@@ -67,15 +65,12 @@ delegate_all!(
 );
 
 mod or_else;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::or_else::OrElse;
 
 mod try_next;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_next::TryNext;
 
 mod try_filter;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter::TryFilter;
 
 #[cfg(feature = "sink")]
@@ -92,11 +87,9 @@ delegate_all!(
 );
 
 mod try_filter_map;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_filter_map::TryFilterMap;
 
 mod try_flatten;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten::TryFlatten;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -104,39 +97,31 @@ pub use self::try_flatten::TryFlatten;
 mod try_flatten_unordered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_flatten_unordered::TryFlattenUnordered;
 
 mod try_collect;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_collect::TryCollect;
 
 mod try_concat;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_concat::TryConcat;
 
 #[cfg(feature = "alloc")]
 mod try_chunks;
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_chunks::{TryChunks, TryChunksError};
 
 #[cfg(feature = "alloc")]
 mod try_ready_chunks;
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_ready_chunks::{TryReadyChunks, TryReadyChunksError};
 
 mod try_unfold;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_unfold::{try_unfold, TryUnfold};
 
 mod try_skip_while;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_skip_while::TrySkipWhile;
 
 mod try_take_while;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_take_while::TryTakeWhile;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -144,7 +129,6 @@ pub use self::try_take_while::TryTakeWhile;
 mod try_buffer_unordered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_buffer_unordered::TryBufferUnordered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
@@ -152,7 +136,6 @@ pub use self::try_buffer_unordered::TryBufferUnordered;
 mod try_buffered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_buffered::TryBuffered;
 
 #[cfg(feature = "io")]
@@ -161,15 +144,12 @@ mod into_async_read;
 #[cfg(feature = "io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_async_read::IntoAsyncRead;
 
 mod try_all;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_all::TryAll;
 
 mod try_any;
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::try_any::TryAny;
 
 impl<S: ?Sized + TryStream> TryStreamExt for S {}

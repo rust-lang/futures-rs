@@ -136,7 +136,6 @@ where
     /// This method by itself is safe, but using it correctly requires extra care. Another thread
     /// can change the strong count at any time, including potentially between calling this method
     /// and acting on the result.
-    #[allow(clippy::unnecessary_safety_doc)]
     pub fn strong_count(&self) -> Option<usize> {
         self.inner.as_ref().map(Arc::strong_count)
     }
@@ -150,7 +149,6 @@ where
     /// This method by itself is safe, but using it correctly requires extra care. Another thread
     /// can change the weak count at any time, including potentially between calling this method
     /// and acting on the result.
-    #[allow(clippy::unnecessary_safety_doc)]
     pub fn weak_count(&self) -> Option<usize> {
         self.inner.as_ref().map(Arc::weak_count)
     }
