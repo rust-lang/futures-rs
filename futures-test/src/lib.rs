@@ -1,12 +1,6 @@
 //! Utilities to make testing [`Future`s](futures_core::future::Future) easier
 
-#![warn(
-    missing_debug_implementations,
-    missing_docs,
-    rust_2018_idioms,
-    single_use_lifetimes,
-    unreachable_pub
-)]
+#![warn(missing_docs)]
 #![doc(test(
     no_crate_inject,
     attr(

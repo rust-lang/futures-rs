@@ -55,3 +55,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.playground]
 features = ["std", "async-await", "compat", "io-compat", "executor", "thread-pool"]
+
+[lints]
+workspace = true
