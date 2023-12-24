@@ -12,7 +12,7 @@
 //! library is activated, and it is activated by default.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![doc(test(
     no_crate_inject,
     attr(

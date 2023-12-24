@@ -1,7 +1,7 @@
 //! Core traits and types for asynchronous operations in Rust.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
+#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
 #![doc(test(
     no_crate_inject,
     attr(
