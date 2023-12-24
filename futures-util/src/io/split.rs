@@ -45,7 +45,7 @@ impl<T: Unpin> ReadHalf<T> {
     pub fn reunite(self, other: WriteHalf<T>) -> Result<T, ReuniteError<T>> {
         self.handle
             .reunite(other.handle)
-            .map_err(|err| ReuniteError(ReadHalf { handle: err.0 }, WriteHalf { handle: err.1 }))
+            .map_err(|err| ReuniteError(Self { handle: err.0 }, WriteHalf { handle: err.1 }))
     }
 }
 

@@ -29,7 +29,7 @@ impl<T, R> UnfoldState<T, R> {
 
     pub(crate) fn take_value(self: Pin<&mut Self>) -> Option<T> {
         match &*self {
-            UnfoldState::Value { .. } => match self.project_replace(UnfoldState::Empty) {
+            Self::Value { .. } => match self.project_replace(Self::Empty) {
                 UnfoldStateProjReplace::Value { value } => Some(value),
                 _ => unreachable!(),
             },
