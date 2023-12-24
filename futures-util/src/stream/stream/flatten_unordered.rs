@@ -56,15 +56,13 @@ struct SharedPollState {
 
 impl SharedPollState {
     /// Constructs new `SharedPollState` with the given state.
-    fn new(value: u8) -> SharedPollState {
-        SharedPollState { state: Arc::new(AtomicU8::new(value)) }
+    fn new(value: u8) -> Self {
+        Self { state: Arc::new(AtomicU8::new(value)) }
     }
 
     /// Attempts to start polling, returning stored state in case of success.
     /// Returns `None` if either waker is waking at the moment.
-    fn start_polling(
-        &self,
-    ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
+    fn start_polling(&self) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
@@ -75,7 +73,7 @@ impl SharedPollState {
                 }
             })
             .ok()?;
-        let bomb = PollStateBomb::new(self, SharedPollState::reset);
+        let bomb = PollStateBomb::new(self, Self::reset);
 
         Some((value, bomb))
     }
@@ -87,7 +85,7 @@ impl SharedPollState {
     fn start_waking(
         &self,
         to_poll: u8,
-    ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&SharedPollState) -> u8>)> {
+    ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
@@ -106,7 +104,7 @@ impl SharedPollState {
 
         // Only start the waking process if we're not in the polling/waking phase and the stream isn't woken already
         if value & (WOKEN | POLLING | WAKING) == NONE {
-            let bomb = PollStateBomb::new(self, SharedPollState::stop_waking);
+            let bomb = PollStateBomb::new(self, Self::stop_waking);
 
             Some((value, bomb))
         } else {
@@ -261,7 +259,7 @@ impl<St> PollStreamFut<St> {
 }
 
 impl<St: Stream + Unpin> Future for PollStreamFut<St> {
-    type Output = Option<(St::Item, PollStreamFut<St>)>;
+    type Output = Option<(St::Item, Self)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut stream = self.project().stream;
@@ -271,7 +269,7 @@ impl<St: Stream + Unpin> Future for PollStreamFut<St> {
         } else {
             None
         };
-        let next_item_fut = PollStreamFut::new(stream.get_mut().take());
+        let next_item_fut = Self::new(stream.get_mut().take());
         let out = item.map(|item| (item, next_item_fut));
 
         Poll::Ready(out)
@@ -320,13 +318,10 @@ where
     Fc: FlowController<St::Item, <St::Item as Stream>::Item>,
     St::Item: Stream + Unpin,
 {
-    pub(crate) fn new(
-        stream: St,
-        limit: Option<usize>,
-    ) -> FlattenUnorderedWithFlowController<St, Fc> {
+    pub(crate) fn new(stream: St, limit: Option<usize>) -> Self {
         let poll_state = SharedPollState::new(NEED_TO_POLL_STREAM);
 
-        FlattenUnorderedWithFlowController {
+        Self {
             inner_streams: FuturesUnordered::new(),
             stream,
             is_stream_done: false,
