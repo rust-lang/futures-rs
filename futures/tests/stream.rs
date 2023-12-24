@@ -96,7 +96,7 @@ fn flatten_unordered() {
     impl Stream for DataStream {
         type Item = u8;
 
-        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             if !self.polled {
                 if !self.wake_immediately {
                     let waker = ctx.waker().clone();
@@ -127,7 +127,7 @@ fn flatten_unordered() {
     impl Stream for Interchanger {
         type Item = DataStream;
 
-        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             if !self.polled {
                 self.polled = true;
                 if !self.wake_immediately {

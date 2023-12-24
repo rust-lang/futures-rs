@@ -21,7 +21,7 @@ fn issue2310() {
     impl AsyncRead for MyRead {
         fn poll_read(
             mut self: Pin<&mut Self>,
-            _cx: &mut Context,
+            _cx: &mut Context<'_>,
             _buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
             Poll::Ready(if !self.first {

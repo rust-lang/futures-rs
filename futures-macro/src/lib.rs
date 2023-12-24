@@ -1,6 +1,5 @@
 //! The futures-rs procedural macro implementations.
 
-#![warn(rust_2018_idioms, single_use_lifetimes, unreachable_pub)]
 #![doc(test(
     no_crate_inject,
     attr(
