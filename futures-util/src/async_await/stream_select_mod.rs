@@ -1,6 +1,5 @@
 //! The `stream_select` macro.
 
-#[allow(unreachable_pub)]
 #[doc(hidden)]
 pub use futures_macro::stream_select_internal;
 
