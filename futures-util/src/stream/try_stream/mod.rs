@@ -660,7 +660,7 @@ pub trait TryStreamExt: TryStream {
     /// them into a local vector. At most `capacity` items will get buffered
     /// before they're yielded from the returned stream. If the underlying stream
     /// returns `Poll::Pending`, and the collected chunk is not empty, it will
-    /// be immidiatly returned.
+    /// be immediately returned.
     ///
     /// Note that the vectors returned from this iterator may not always have
     /// `capacity` elements. If the underlying stream ended and only a partial

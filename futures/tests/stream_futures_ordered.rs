@@ -72,7 +72,7 @@ fn test_push_front() {
     stream.push_front(d_rx);
     d_tx.send(4).unwrap();
 
-    // we pushed `d_rx` to the front and sent 4, so we should recieve 4 next
+    // we pushed `d_rx` to the front and sent 4, so we should receive 4 next
     // and then 3 after it
     assert_eq!(Poll::Ready(Some(Ok(4))), stream.poll_next_unpin(&mut cx));
     assert_eq!(Poll::Ready(Some(Ok(3))), stream.poll_next_unpin(&mut cx));
@@ -165,7 +165,7 @@ fn test_push_front_negative() {
     b_tx.send(2).unwrap();
     c_tx.send(3).unwrap();
 
-    // These should all be recieved in reverse order
+    // These should all be received in reverse order
     assert_eq!(Poll::Ready(Some(Ok(3))), stream.poll_next_unpin(&mut cx));
     assert_eq!(Poll::Ready(Some(Ok(2))), stream.poll_next_unpin(&mut cx));
     assert_eq!(Poll::Ready(Some(Ok(1))), stream.poll_next_unpin(&mut cx));
