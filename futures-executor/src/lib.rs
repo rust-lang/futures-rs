@@ -46,6 +46,7 @@
     )
 ))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::thread_local_initializer_can_be_made_const)] // clippy bug: this lint doesn't consider MSRV
 
 #[cfg(feature = "std")]
 mod local_pool;
