@@ -127,6 +127,7 @@ pub struct Sender<T>(Option<BoundedSenderInner<T>>);
 /// This value is created by the [`unbounded`] function.
 pub struct UnboundedSender<T>(Option<UnboundedSenderInner<T>>);
 
+#[allow(dead_code)]
 trait AssertKinds: Send + Sync + Clone {}
 impl AssertKinds for UnboundedSender<u32> {}
 
