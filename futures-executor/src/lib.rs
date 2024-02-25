@@ -36,8 +36,7 @@
 //! [`spawn_obj`]: https://docs.rs/futures/0.3/futures/task/trait.Spawn.html#tymethod.spawn_obj
 //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -45,8 +44,12 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::thread_local_initializer_can_be_made_const)] // clippy bug: this lint doesn't consider MSRV
+
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg(feature = "std")]
 mod local_pool;

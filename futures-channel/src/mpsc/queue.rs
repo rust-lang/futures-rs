@@ -43,6 +43,7 @@
 
 pub(super) use self::PopResult::*;
 
+use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
