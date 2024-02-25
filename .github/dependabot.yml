@@ -1,15 +1,17 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
+  - package-ecosystem: cargo
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: weekly
+    commit-message:
+      prefix: ''
+    labels: []
     open-pull-requests-limit: 10
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "monthly"
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "monthly"
+      interval: weekly
+    commit-message:
+      prefix: ''
+    labels: []
