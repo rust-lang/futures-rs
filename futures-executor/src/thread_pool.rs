@@ -45,6 +45,7 @@ pub struct ThreadPoolBuilder {
     before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
+#[allow(dead_code)]
 trait AssertSendSync: Send + Sync {}
 impl AssertSendSync for ThreadPool {}
 
