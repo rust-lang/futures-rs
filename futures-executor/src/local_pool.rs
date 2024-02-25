@@ -15,6 +15,7 @@ use std::sync::{
     Arc,
 };
 use std::thread::{self, Thread};
+use std::vec::Vec;
 
 /// A single-threaded task pool for polling futures to completion.
 ///
@@ -53,7 +54,7 @@ pub(crate) struct ThreadNotify {
     unparked: AtomicBool,
 }
 
-thread_local! {
+std::thread_local! {
     static CURRENT_THREAD_NOTIFY: Arc<ThreadNotify> = Arc::new(ThreadNotify {
         thread: thread::current(),
         unparked: AtomicBool::new(false),

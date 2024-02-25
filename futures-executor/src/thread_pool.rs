@@ -5,9 +5,12 @@ use futures_core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, Spawn, SpawnError};
 use futures_util::future::FutureExt;
+use std::boxed::Box;
 use std::cmp;
 use std::fmt;
+use std::format;
 use std::io;
+use std::string::String;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -358,7 +361,6 @@ impl ArcWake for WakeHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc;
 
     #[test]
     fn test_drop_after_start() {

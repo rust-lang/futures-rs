@@ -5,6 +5,7 @@ use futures_io::AsyncBufRead;
 use std::io;
 use std::mem;
 use std::pin::Pin;
+use std::vec::Vec;
 
 /// Future for the [`read_until`](super::AsyncBufReadExt::read_until) method.
 #[derive(Debug)]

@@ -81,8 +81,7 @@
 //! The majority of examples and code snippets in this crate assume that they are
 //! inside an async block as written above.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -90,6 +89,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]

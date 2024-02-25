@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::fmt;
 
-thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
+std::thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 
 /// Represents an executor context.
 ///

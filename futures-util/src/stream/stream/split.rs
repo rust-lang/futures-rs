@@ -160,7 +160,7 @@ impl<T: core::any::Any, Item> std::error::Error for ReuniteError<T, Item> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{sink::Sink, stream::StreamExt};
+    use crate::stream::StreamExt;
     use core::marker::PhantomData;
 
     struct NopStream<Item> {

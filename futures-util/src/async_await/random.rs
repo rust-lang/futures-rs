@@ -25,7 +25,7 @@ fn gen_index(n: usize) -> usize {
 ///
 /// [xorshift*]: https://en.wikipedia.org/wiki/Xorshift#xorshift*
 fn random() -> u64 {
-    thread_local! {
+    std::thread_local! {
         static RNG: Cell<Wrapping<u64>> = Cell::new(Wrapping(prng_seed()));
     }
 

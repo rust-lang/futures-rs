@@ -8,6 +8,7 @@ use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
 use futures_core::{future::Future as Future03, stream::Stream as Stream03, task as task03};
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
+use std::boxed::Box;
 use std::pin::Pin;
 use std::task::Context;
 
