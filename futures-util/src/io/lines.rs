@@ -7,6 +7,8 @@ use pin_project_lite::pin_project;
 use std::io;
 use std::mem;
 use std::pin::Pin;
+use std::string::String;
+use std::vec::Vec;
 
 pin_project! {
     /// Stream for the [`lines`](super::AsyncBufReadExt::lines) method.

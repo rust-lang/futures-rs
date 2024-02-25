@@ -7,6 +7,8 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 use std::str;
+use std::string::String;
+use std::vec::Vec;
 
 /// Future for the [`read_line`](super::AsyncBufReadExt::read_line) method.
 #[derive(Debug)]

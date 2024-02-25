@@ -49,6 +49,8 @@ mod tests {
     use std::io;
     use std::pin::Pin;
     use std::task::{Context, Poll};
+    use std::vec;
+    use std::vec::Vec;
 
     use crate::io::{AsyncWrite, AsyncWriteExt, IoSlice};
     use crate::task::noop_waker;

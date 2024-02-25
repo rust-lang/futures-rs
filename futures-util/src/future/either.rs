@@ -201,8 +201,6 @@ where
 mod if_std {
     use super::*;
 
-    use core::pin::Pin;
-    use core::task::{Context, Poll};
     use futures_io::{
         AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, Result, SeekFrom,
     };
