@@ -1,9 +1,7 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -11,6 +9,8 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_borrow)] // https://github.com/rust-lang/futures-rs/pull/2558#issuecomment-1030745203
 #![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
@@ -20,6 +20,8 @@ compile_error!("The `bilock` feature requires the `unstable` feature as an expli
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 // Macro re-exports
 pub use futures_core::ready;

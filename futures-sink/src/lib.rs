@@ -3,8 +3,7 @@
 //! This crate contains the `Sink` trait which allows values to be sent
 //! asynchronously.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -12,9 +11,12 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 use core::ops::DerefMut;
 use core::pin::Pin;

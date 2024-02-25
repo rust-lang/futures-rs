@@ -11,8 +11,7 @@
 //! All items are only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -20,11 +19,14 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]

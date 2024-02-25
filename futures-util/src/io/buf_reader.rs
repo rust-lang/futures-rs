@@ -4,8 +4,10 @@ use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
 use pin_project_lite::pin_project;
+use std::boxed::Box;
 use std::io::{self, Read};
 use std::pin::Pin;
+use std::vec;
 use std::{cmp, fmt};
 
 pin_project! {
