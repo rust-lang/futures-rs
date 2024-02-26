@@ -3,15 +3,14 @@ updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
-      interval: weekly
+      interval: weakly
     commit-message:
       prefix: ''
     labels: []
-    open-pull-requests-limit: 10
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: weakly
     commit-message:
       prefix: ''
     labels: []
