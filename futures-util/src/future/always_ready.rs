@@ -41,10 +41,6 @@ impl<T, F: Fn() -> T> Future for AlwaysReady<T, F> {
 /// assert_eq!(a.await, 1);
 /// # });
 /// ```
-pub fn always_ready<'a, T, F>(prod: F) -> AlwaysReady<T, F>
-where
-    T: Copy + 'a,
-    F: Fn() -> T + 'a,
-{
+pub fn always_ready<T, F: Fn() -> T>(prod: F) -> AlwaysReady<T, F> {
     assert_future::<T, _>(AlwaysReady(prod))
 }
