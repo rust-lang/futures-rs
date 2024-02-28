@@ -59,7 +59,7 @@ impl Parse for Select {
 
             // `=> <expr>`
             input.parse::<Token![=>]>()?;
-            let expr = input.parse::<Expr>()?;
+            let expr = Expr::parse_with_earlier_boundary_rule(input)?;
 
             // Commas after the expression are only optional if it's a `Block`
             // or it is the last branch in the `match`.
@@ -232,7 +232,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
     let branches = parsed.normal_fut_handlers.into_iter().zip(variant_names.iter()).map(
         |((pat, expr), variant_name)| {
             quote! {
-                #enum_ident::#variant_name(#pat) => { #expr },
+                #enum_ident::#variant_name(#pat) => #expr,
             }
         },
     );
