@@ -47,7 +47,7 @@ pin-project-lite = "0.2.6"
 [dev-dependencies]
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test" }
-tokio = "0.1.11"
+tokio = "0.3.7"
 
 [package.metadata.docs.rs]
 all-features = true
