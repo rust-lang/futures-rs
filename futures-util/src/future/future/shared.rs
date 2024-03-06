@@ -1,7 +1,7 @@
-use crate::task::{waker_ref, ArcWake};
+use crate::task::waker_ref;
+use crate::wakerset::{WakerKey, WakerSet};
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
-use slab::Slab;
+use futures_core::task::{Context, Poll};
 use std::cell::UnsafeCell;
 use std::fmt;
 use std::hash::Hasher;
@@ -9,23 +9,19 @@ use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::{Acquire, SeqCst};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 /// Future for the [`shared`](super::FutureExt::shared) method.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Shared<Fut: Future> {
     inner: Option<Arc<Inner<Fut>>>,
-    waker_key: usize,
+    waker_key: WakerKey,
 }
 
 struct Inner<Fut: Future> {
     future_or_output: UnsafeCell<FutureOrOutput<Fut>>,
-    notifier: Arc<Notifier>,
-}
-
-struct Notifier {
     state: AtomicUsize,
-    wakers: Mutex<Option<Slab<Option<Waker>>>>,
+    notifier: Arc<WakerSet>,
 }
 
 /// A weak reference to a [`Shared`] that can be upgraded much like an `Arc`.
@@ -82,19 +78,15 @@ const POLLING: usize = 1;
 const COMPLETE: usize = 2;
 const POISONED: usize = 3;
 
-const NULL_WAKER_KEY: usize = usize::max_value();
-
 impl<Fut: Future> Shared<Fut> {
     pub(super) fn new(future: Fut) -> Self {
         let inner = Inner {
             future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
-            notifier: Arc::new(Notifier {
-                state: AtomicUsize::new(IDLE),
-                wakers: Mutex::new(Some(Slab::new())),
-            }),
+            state: AtomicUsize::new(IDLE),
+            notifier: Arc::new(WakerSet::new()),
         };
 
-        Self { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
+        Self { inner: Some(Arc::new(inner)), waker_key: WakerKey::NULL }
     }
 }
 
@@ -108,7 +100,7 @@ where
     /// [`poll`](Future::poll).
     pub fn peek(&self) -> Option<&Fut::Output> {
         if let Some(inner) = self.inner.as_ref() {
-            match inner.notifier.state.load(SeqCst) {
+            match inner.state.load(SeqCst) {
                 COMPLETE => unsafe { return Some(inner.output()) },
                 POISONED => panic!("inner future panicked during poll"),
                 _ => {}
@@ -202,31 +194,6 @@ where
     Fut: Future,
     Fut::Output: Clone,
 {
-    /// Registers the current task to receive a wakeup when we are awoken.
-    fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
-        let mut wakers_guard = self.notifier.wakers.lock().unwrap();
-
-        let wakers_mut = wakers_guard.as_mut();
-
-        let wakers = match wakers_mut {
-            Some(wakers) => wakers,
-            None => return,
-        };
-
-        let new_waker = cx.waker();
-
-        if *waker_key == NULL_WAKER_KEY {
-            *waker_key = wakers.insert(Some(new_waker.clone()));
-        } else {
-            match wakers[*waker_key] {
-                Some(ref old_waker) if new_waker.will_wake(old_waker) => {}
-                // Could use clone_from here, but Waker doesn't specialize it.
-                ref mut slot => *slot = Some(new_waker.clone()),
-            }
-        }
-        debug_assert!(*waker_key != NULL_WAKER_KEY);
-    }
-
     /// Safety: callers must first ensure that `inner.state`
     /// is `COMPLETE`
     unsafe fn take_or_clone_output(self: Arc<Self>) -> Fut::Output {
@@ -263,19 +230,14 @@ where
         let inner = this.inner.take().expect("Shared future polled again after completion");
 
         // Fast path for when the wrapped future has already completed
-        if inner.notifier.state.load(Acquire) == COMPLETE {
+        if inner.state.load(Acquire) == COMPLETE {
             // Safety: We're in the COMPLETE state
             return unsafe { Poll::Ready(inner.take_or_clone_output()) };
         }
 
-        inner.record_waker(&mut this.waker_key, cx);
+        inner.notifier.record_waker(&mut this.waker_key, cx);
 
-        match inner
-            .notifier
-            .state
-            .compare_exchange(IDLE, POLLING, SeqCst, SeqCst)
-            .unwrap_or_else(|x| x)
-        {
+        match inner.state.compare_exchange(IDLE, POLLING, SeqCst, SeqCst).unwrap_or_else(|x| x) {
             IDLE => {
                 // Lock acquired, fall through
             }
@@ -309,7 +271,7 @@ where
             }
         }
 
-        let mut reset = Reset { state: &inner.notifier.state, did_not_panic: false };
+        let mut reset = Reset { state: &inner.state, did_not_panic: false };
 
         let output = {
             let future = unsafe {
@@ -324,8 +286,7 @@ where
 
             match poll_result {
                 Poll::Pending => {
-                    if inner.notifier.state.compare_exchange(POLLING, IDLE, SeqCst, SeqCst).is_ok()
-                    {
+                    if inner.state.compare_exchange(POLLING, IDLE, SeqCst, SeqCst).is_ok() {
                         // Success
                         drop(reset);
                         this.inner = Some(inner);
@@ -342,17 +303,12 @@ where
             *inner.future_or_output.get() = FutureOrOutput::Output(output);
         }
 
-        inner.notifier.state.store(COMPLETE, SeqCst);
+        inner.state.store(COMPLETE, SeqCst);
 
-        // Wake all tasks and drop the slab
-        let mut wakers_guard = inner.notifier.wakers.lock().unwrap();
-        let mut wakers = wakers_guard.take().unwrap();
-        for waker in wakers.drain().flatten() {
-            waker.wake();
-        }
+        // Wake all tasks
+        inner.notifier.wake_and_finish();
 
         drop(reset); // Make borrow checker happy
-        drop(wakers_guard);
 
         // Safety: We're in the COMPLETE state
         unsafe { Poll::Ready(inner.take_or_clone_output()) }
@@ -364,7 +320,7 @@ where
     Fut: Future,
 {
     fn clone(&self) -> Self {
-        Self { inner: self.inner.clone(), waker_key: NULL_WAKER_KEY }
+        Self { inner: self.inner.clone(), waker_key: WakerKey::NULL }
     }
 }
 
@@ -373,27 +329,8 @@ where
     Fut: Future,
 {
     fn drop(&mut self) {
-        if self.waker_key != NULL_WAKER_KEY {
-            if let Some(ref inner) = self.inner {
-                if let Ok(mut wakers) = inner.notifier.wakers.lock() {
-                    if let Some(wakers) = wakers.as_mut() {
-                        wakers.remove(self.waker_key);
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl ArcWake for Notifier {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        let wakers = &mut *arc_self.wakers.lock().unwrap();
-        if let Some(wakers) = wakers.as_mut() {
-            for (_key, opt_waker) in wakers {
-                if let Some(waker) = opt_waker.take() {
-                    waker.wake();
-                }
-            }
+        if let Some(ref inner) = self.inner {
+            inner.notifier.unregister(self.waker_key)
         }
     }
 }
@@ -404,6 +341,6 @@ impl<Fut: Future> WeakShared<Fut> {
     /// Returns [`None`] if all clones of the [`Shared`] have been dropped or polled
     /// to completion.
     pub fn upgrade(&self) -> Option<Shared<Fut>> {
-        Some(Shared { inner: Some(self.0.upgrade()?), waker_key: NULL_WAKER_KEY })
+        Some(Shared { inner: Some(self.0.upgrade()?), waker_key: WakerKey::NULL })
     }
 }
