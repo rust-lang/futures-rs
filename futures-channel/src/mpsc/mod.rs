@@ -297,13 +297,13 @@ struct State {
 }
 
 // The `is_open` flag is stored in the left-most bit of `Inner::state`
-const OPEN_MASK: usize = usize::max_value() - (usize::max_value() >> 1);
+const OPEN_MASK: usize = usize::MAX - (usize::MAX >> 1);
 
 // When a new channel is created, it is created in the open state with no
 // pending messages.
 const INIT_STATE: usize = OPEN_MASK;
 
-// The maximum number of messages that a channel can track is `usize::max_value() >> 1`
+// The maximum number of messages that a channel can track is `usize::MAX >> 1`
 const MAX_CAPACITY: usize = !(OPEN_MASK);
 
 // The maximum requested buffer size must be less than the maximum capacity of
