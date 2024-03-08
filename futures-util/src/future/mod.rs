@@ -21,7 +21,8 @@ pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 #[allow(clippy::module_inception)]
 mod future;
 pub use self::future::{
-    Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then, UnitError,
+    AlsoPoll, Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then,
+    UnitError,
 };
 
 #[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
