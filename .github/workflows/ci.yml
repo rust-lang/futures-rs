@@ -50,7 +50,7 @@ jobs:
             target: i686-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
         run: rustup update nightly --no-self-update && rustup default nightly
@@ -73,7 +73,7 @@ jobs:
           - '1.36'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
@@ -105,7 +105,7 @@ jobs:
           - '1.56'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - name: Install cargo-hack
@@ -137,7 +137,7 @@ jobs:
           - nightly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - name: Install cargo-hack
@@ -149,7 +149,7 @@ jobs:
     name: cargo minimal-versions build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-hack
@@ -170,7 +170,7 @@ jobs:
           - thumbv6m-none-eabi
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: rustup target add ${{ matrix.target }}
@@ -202,7 +202,7 @@ jobs:
     name: cargo bench
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: cargo bench --workspace
@@ -212,7 +212,7 @@ jobs:
     name: cargo hack check --feature-powerset
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-hack
@@ -234,7 +234,7 @@ jobs:
     name: cargo miri test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component miri && rustup default nightly
       - run: cargo miri test --workspace --all-features
@@ -254,7 +254,7 @@ jobs:
           - thread
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component rust-src && rustup default nightly
       - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests
@@ -268,7 +268,7 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component clippy && rustup default nightly
       - run: cargo clippy --workspace --all-features --all-targets
@@ -277,7 +277,7 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update stable
       - run: cargo fmt --all -- --check
@@ -286,7 +286,7 @@ jobs:
     name: cargo doc
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: cargo doc --workspace --no-deps --all-features
