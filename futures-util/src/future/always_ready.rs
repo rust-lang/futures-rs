@@ -7,7 +7,7 @@ use futures_core::task::{Context, Poll};
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct AlwaysReady<T, F: Fn() -> T>(F);
 
-impl<T, F: Fn() -> T + std::fmt::Debug> std::fmt::Debug for AlwaysReady<T, F> {
+impl<T, F: Fn() -> T + core::fmt::Debug> core::fmt::Debug for AlwaysReady<T, F> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("AlwaysReady").field(&self.0).finish()
     }
