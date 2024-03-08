@@ -102,7 +102,7 @@ impl<T> BiLock<T> {
                 // so we need to update that task.
                 _ => unsafe {
                     let mut prev = Box::from_raw(n);
-                    *prev = cx.waker().clone();
+                    (*prev).clone_from(cx.waker());
                     waker = Some(prev);
                 },
             }
