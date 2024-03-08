@@ -1,5 +1,4 @@
 use core::pin::Pin;
-use core::usize;
 use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -48,7 +47,7 @@ where
         match self.orig.size_hint() {
             size @ (0, Some(0)) => size,
             (0, _) => (0, None),
-            _ => (usize::max_value(), None),
+            _ => (usize::MAX, None),
         }
     }
 }
