@@ -74,6 +74,9 @@ pub use self::poll_immediate::{poll_immediate, PollImmediate};
 mod ready;
 pub use self::ready::{err, ok, ready, Ready};
 
+mod always_ready;
+pub use self::always_ready::{always_ready, AlwaysReady};
+
 mod join;
 pub use self::join::{join, join3, join4, join5, Join, Join3, Join4, Join5};
 
