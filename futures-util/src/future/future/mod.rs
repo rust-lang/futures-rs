@@ -112,6 +112,9 @@ mod shared;
 #[cfg(feature = "std")]
 pub use self::shared::{Shared, WeakShared};
 
+mod also_poll;
+pub use also_poll::AlsoPoll;
+
 impl<T: ?Sized> FutureExt for T where T: Future {}
 
 /// An extension trait for `Future`s that provides a variety of convenient
@@ -598,5 +601,52 @@ pub trait FutureExt: Future {
             Poll::Ready(x) => Some(x),
             _ => None,
         }
+    }
+
+    /// While polling this future, also poll another future at the same time,
+    /// ensuring progress is made on it.
+    ///
+    /// The `also` future will be polled alongside the `self` future, in a
+    /// similar way to `join()`, but if `self` finishes first, `also` will
+    /// just be cancelled. If `also` finishes first, it will simply no longer
+    /// be polled.
+    ///
+    /// Note that if `also_poll` is being called in a loop with the same
+    /// future, you should take care to ensure that the future is fused in some
+    /// way, or else repeatedly calling it may cause panics.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::prelude::*;
+    /// # futures::executor::block_on(async {
+    /// use futures::future::maybe_done;
+    ///
+    /// // this may be something that we do not want to leave unpolled or
+    /// // half-polled while we're in our loop.
+    /// let task = maybe_done(async {
+    ///     // ...
+    /// });
+    /// futures::pin_mut!(task);
+    ///
+    /// for x in [1, 2, 3] {
+    ///     do_thing(x).also_poll(&mut task).await;
+    /// }
+    ///
+    /// (&mut task).await;
+    /// let result = task.take_output().unwrap();
+    /// # let _ = result;
+    /// # async fn do_thing(_x: i32) -> i32 { 0 }
+    /// # })
+    /// ```
+    ///
+    /// (For the above example, simply using `join()` would likely be best, but
+    /// that may not be feasible in more complex scenarios.)
+    fn also_poll<Also>(self, also: Also) -> AlsoPoll<Self, Also>
+    where
+        Self: Sized,
+        Also: Future<Output = ()>,
+    {
+        assert_future::<Self::Output, _>(AlsoPoll::new(self, also))
     }
 }
