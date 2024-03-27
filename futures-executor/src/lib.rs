@@ -54,7 +54,10 @@ extern crate std;
 #[cfg(feature = "std")]
 mod local_pool;
 #[cfg(feature = "std")]
-pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
+pub use crate::local_pool::{
+    block_on, block_on_stream, BlockingStream, BoundLocalPool, BoundLocalSpawner, LocalPool,
+    LocalSpawner,
+};
 
 #[cfg(feature = "thread-pool")]
 #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]

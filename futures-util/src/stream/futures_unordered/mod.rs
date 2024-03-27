@@ -17,7 +17,7 @@ use core::sync::atomic::{AtomicBool, AtomicPtr};
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
+use futures_task::{BoundLocalSpawn, FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
 mod abort;
 
@@ -73,6 +73,13 @@ impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
 
 impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
     fn spawn_local_obj(&self, future_obj: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+        self.push(future_obj);
+        Ok(())
+    }
+}
+
+impl<'a> BoundLocalSpawn<'a> for FuturesUnordered<LocalFutureObj<'a, ()>> {
+    fn spawn_bound_local_obj(&self, future_obj: LocalFutureObj<'a, ()>) -> Result<(), SpawnError> {
         self.push(future_obj);
         Ok(())
     }
