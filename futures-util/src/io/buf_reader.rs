@@ -52,7 +52,9 @@ impl<R: AsyncRead> BufReader<R> {
         let buffer = vec![0; capacity];
         Self { inner, buffer: buffer.into_boxed_slice(), pos: 0, cap: 0 }
     }
+}
 
+impl<R> BufReader<R> {
     delegate_access_inner!(inner, R, ());
 
     /// Returns a reference to the internally buffered data.
