@@ -28,7 +28,6 @@ futures-executor = { path = "../futures-executor", features = ["thread-pool"] }
 futures-test = { path = "../futures-test" }
 assert_matches = "1.3.0"
 pin-project = "1.0.11"
-pin-utils = "0.1.0"
 static_assertions = "1"
 tokio = "0.1.11"
 

@@ -18,7 +18,6 @@ futures-util = { version = "=0.4.0-alpha.0", path = "../futures-util", default-f
 futures-executor = { version = "=0.4.0-alpha.0", path = "../futures-executor", default-features = false }
 futures-sink = { version = "=0.4.0-alpha.0", path = "../futures-sink", default-features = false }
 futures-macro = { version = "=0.4.0-alpha.0", path = "../futures-macro", default-features = false }
-pin-utils = { version = "0.1.0", default-features = false }
 pin-project = "1.0.11"
 
 [dev-dependencies]
