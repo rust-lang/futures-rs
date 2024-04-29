@@ -25,7 +25,7 @@ impl<A: Unpin, B: Unpin, BIASED> Unpin for Select<A, B, BIASED> {}
 /// wrapped version of them.
 ///
 /// If both futures are ready when this is polled, the winner will be pseudo-randomly
-/// selected, unless the std feature is not enabled. If std is enabled, the first
+/// selected, unless the std feature is not enabled. If std is not enabled, the first
 /// argument will always win.
 ///
 /// Also note that if both this and the second future have the same
