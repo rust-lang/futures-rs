@@ -1,8 +1,7 @@
 use futures::executor::block_on;
+use futures::future::{err, ok, try_join_all, Future, TryJoinAll};
 use futures::pin_mut;
-use futures_util::future::{err, ok, try_join_all, TryJoinAll};
 use std::fmt::Debug;
-use std::future::Future;
 
 #[track_caller]
 fn assert_done<T>(actual_fut: impl Future<Output = T>, expected: T)
