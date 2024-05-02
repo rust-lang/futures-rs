@@ -47,6 +47,7 @@ jobs:
           - os: ubuntu-latest
             target: i686-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -70,6 +71,7 @@ jobs:
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
           - '1.36'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -104,6 +106,7 @@ jobs:
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
           - '1.56'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -136,6 +139,7 @@ jobs:
           - beta
           - nightly
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -148,6 +152,7 @@ jobs:
   minimal-versions:
     name: cargo minimal-versions build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -169,6 +174,7 @@ jobs:
           - thumbv7m-none-eabi
           - thumbv6m-none-eabi
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -201,6 +207,7 @@ jobs:
   bench:
     name: cargo bench
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -211,6 +218,7 @@ jobs:
   features:
     name: cargo hack check --feature-powerset
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -233,6 +241,7 @@ jobs:
   miri:
     name: cargo miri test
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -252,6 +261,7 @@ jobs:
           - memory
           - thread
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -268,6 +278,7 @@ jobs:
   # clippy:
   #   name: cargo clippy
   #   runs-on: ubuntu-latest
+  #   timeout-minutes: 60
   #   steps:
   #     - uses: taiki-e/checkout-action@v1
   #     - name: Install Rust
@@ -277,6 +288,7 @@ jobs:
   fmt:
     name: cargo fmt
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
@@ -286,6 +298,7 @@ jobs:
   docs:
     name: cargo doc
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
