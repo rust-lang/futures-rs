@@ -1,5 +1,5 @@
 use futures::executor::block_on;
-use futures::future::Future;
+use futures::future::{self, Future};
 use std::task::Poll;
 
 /// This tests verifies (through miri) that self-referencing
@@ -21,7 +21,7 @@ async fn trouble() {
 
 fn yield_now() -> impl Future<Output = ()> {
     let mut yielded = false;
-    std::future::poll_fn(move |cx| {
+    future::poll_fn(move |cx| {
         if core::mem::replace(&mut yielded, true) {
             Poll::Ready(())
         } else {
