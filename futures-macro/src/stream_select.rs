@@ -56,7 +56,7 @@ pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Erro
                     let mut any_pending = false;
                     {
                         let mut stream_array = [#(#field_idents.as_mut().map(|f| StreamEnum::#generic_idents(f)).unwrap_or(StreamEnum::None)),*];
-                        __futures_crate::async_await::shuffle(&mut stream_array);
+                        __futures_crate::shuffle(&mut stream_array);
 
                         for mut s in stream_array {
                             if let StreamEnum::None = s {

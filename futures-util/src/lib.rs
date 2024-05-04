@@ -34,6 +34,11 @@ mod async_await;
 #[doc(hidden)]
 pub use self::async_await::*;
 
+#[cfg(feature = "std")]
+mod random;
+#[cfg(feature = "std")]
+pub use self::random::*;
+
 // Not public API.
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
