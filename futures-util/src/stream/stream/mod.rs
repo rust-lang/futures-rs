@@ -997,7 +997,12 @@ pub trait StreamExt: Stream {
         assert_stream::<Self::Item, _>(TakeWhile::new(self, f))
     }
 
-    /// todo
+    /// Take elements from this stream while the provided asynchronous future
+    /// resolves to `Some(_)`.
+    ///
+    /// This function, like `Iterator::map_while`, will take elements from the
+    /// stream until the future `f` resolves to `None`. Once one element
+    /// returns `None`, it will always return that the stream is done.
     ///
     /// # Examples
     ///
