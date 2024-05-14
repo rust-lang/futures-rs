@@ -289,9 +289,9 @@ impl<T: ?Sized> OwnedMutexGuard<T> {
     /// This method returns an `OwnedMutexGuardMutex` which contains the original `Arc<Mutex<T>>`.
     fn skip_drop(self) -> OwnedMutexGuardMutex<T> {
         // Prevents automatic drop by wrapping in `ManuallyDrop`
-        let man = mem::ManuallyDrop::new(self);
+        let selfi = mem::ManuallyDrop::new(self);
         // Unsafely reads the `Arc<Mutex<T>>` from the `ManuallyDrop` wrapper
-        OwnedMutexGuardMutex { mutex: unsafe { ptr::read(&man.mutex) } }
+        OwnedMutexGuardMutex { mutex: unsafe { ptr::read(&selfi.mutex) } }
     }
 
     /// `OwnedMutexGuard::map` allows transforming the inner value of the `OwnedMutexGuard` using a provided closure.
@@ -382,7 +382,7 @@ impl<T: ?Sized, U: ?Sized> OwnedMappedMutexGuard<T, U> {
     where
         F: FnOnce(&mut U) -> &mut C,
     {
-        let value = f(&mut *this) as *mut ;
+        let value = f(&mut *this) as *mut C;
         let mutex = this.skip_drop();
         OwnedMappedMutexGuard { value, mutex: mutex.mutex }
     }
