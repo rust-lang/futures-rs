@@ -1,3 +1,4 @@
+use core::ptr;
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -283,6 +284,46 @@ pub struct OwnedMutexGuard<T: ?Sized> {
     mutex: Arc<Mutex<T>>,
 }
 
+impl<T: ?Sized> OwnedMutexGuard<T> {
+    /// `skip_drop` prevents the `OwnedMutexGuard` from being automatically dropped, allowing manual control over the drop process.
+    /// This method returns an `OwnedMutexGuardMutex` which contains the original `Arc<Mutex<T>>`.
+    fn skip_drop(self) -> OwnedMutexGuardMutex<T> {
+        // Prevents automatic drop by wrapping in `ManuallyDrop`
+        let man = mem::ManuallyDrop::new(self);
+        // Unsafely reads the `Arc<Mutex<T>>` from the `ManuallyDrop` wrapper
+        OwnedMutexGuardMutex { mutex: unsafe { ptr::read(&man.mutex) } }
+    }
+
+    /// `OwnedMutexGuard::map` allows transforming the inner value of the `OwnedMutexGuard` using a provided closure.
+    /// The transformation is done in-place, returning a new `OwnedMappedMutexGuard` with the mapped value.
+    #[inline]
+    pub fn map<U, F>(mut this: Self, f: F) -> OwnedMappedMutexGuard<T, U>
+    where
+        U: ?Sized,
+        F: FnOnce(&mut T) -> &mut U,
+    {
+        let value = f(&mut *this) as *mut U;
+        let mutex = this.skip_drop();
+        OwnedMappedMutexGuard { value, mutex: mutex.mutex }
+    }
+
+    /// `OwnedMutexGuard::try_map` attempts to transform the inner value of the `OwnedMutexGuard` using a provided closure.
+    /// If the closure returns `None`, the original `OwnedMutexGuard` is returned.
+    #[inline]
+    pub fn try_map<U, F>(mut this: Self, f: F) -> Result<OwnedMappedMutexGuard<T, U>, Self>
+    where
+        U: ?Sized,
+        F: FnOnce(&mut T) -> Option<&mut U>,
+    {
+        let value = match f(&mut *this) {
+            Some(data) => data as *mut U,
+            None => return Err(this),
+        };
+        let mutex = this.skip_drop();
+        Ok(OwnedMappedMutexGuard { value, mutex: mutex.mutex })
+    }
+}
+
 impl<T: ?Sized + fmt::Debug> fmt::Debug for OwnedMutexGuard<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("OwnedMutexGuard")
@@ -309,6 +350,47 @@ impl<T: ?Sized> DerefMut for OwnedMutexGuard<T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.mutex.value.get() }
     }
+}
+
+/// An RAII guard returned by the `OwnedMutexGuard::map` and `OwnedMappedMutexGuard::map` methods.
+/// When this structure is dropped (falls out of scope), the lock will be unlocked.
+pub struct OwnedMappedMutexGuard<T: ?Sized, U: ?Sized = T> {
+    value: *mut U,
+    mutex: Arc<Mutex<T>>,
+}
+
+/// A owned handle to a held `Mutex`.
+struct OwnedMappedMutexGuardExt<T: ?Sized, U: ?Sized> {
+    value: *mut U,
+    mutex: Arc<Mutex<T>>,
+}
+
+impl<T: ?Sized, U: ?Sized> OwnedMappedMutexGuard<T, U> {
+    /// `skip_drop` prevents the `OwnedMutexGuard` from being automatically dropped, allowing manual control over the drop process.
+    /// This method returns an `OwnedMutexGuardMutex` which contains the original `Arc<Mutex<T>>`.
+    fn skip_drop(self) -> OwnedMappedMutexGuardExt<T, U> {
+        // Prevents automatic drop by wrapping in `ManuallyDrop`
+        let selfi = mem::ManuallyDrop::new(self);
+        // Unsafely reads the `Arc<Mutex<T>>` from the `ManuallyDrop` wrapper
+        OwnedMappedMutexGuardExt { mutex: unsafe { ptr::read(&selfi.mutex) }, value: selfi.value }
+    }
+
+    /// `OwnedMutexGuard::map` allows transforming the inner value of the `OwnedMutexGuard` using a provided closure.
+    /// The transformation is done in-place, returning a new `OwnedMappedMutexGuard` with the mapped value.
+    #[inline]
+    pub fn map<C, F>(mut this: Self, f: F) -> OwnedMappedMutexGuard<T, C>
+    where
+        F: FnOnce(&mut U) -> &mut C,
+    {
+        let value = f(&mut *this) as *mut ;
+        let mutex = this.skip_drop();
+        OwnedMappedMutexGuard { value, mutex: mutex.mutex }
+    }
+}
+
+/// A owned handle to a held `Mutex`.
+struct OwnedMutexGuardMutex<T: ?Sized> {
+    mutex: Arc<Mutex<T>>,
 }
 
 /// A future which resolves when the target mutex has been successfully acquired.
@@ -543,6 +625,52 @@ unsafe impl<T: ?Sized + Sync> Sync for OwnedMutexGuard<T> {}
 
 unsafe impl<T: ?Sized + Send, U: ?Sized + Send> Send for MappedMutexGuard<'_, T, U> {}
 unsafe impl<T: ?Sized + Sync, U: ?Sized + Sync> Sync for MappedMutexGuard<'_, T, U> {}
+
+impl<T: ?Sized, U: ?Sized> Drop for OwnedMappedMutexGuard<T, U> {
+    fn drop(&mut self) {
+        self.mutex.unlock()
+    }
+}
+
+unsafe impl<T, U> Sync for OwnedMappedMutexGuard<T, U>
+where
+    T: ?Sized + Send + Sync,
+    U: ?Sized + Send + Sync,
+{
+}
+unsafe impl<T, U> Send for OwnedMappedMutexGuard<T, U>
+where
+    T: ?Sized + Send,
+    U: ?Sized + Send,
+{
+}
+
+impl<T: ?Sized, U: ?Sized> Deref for OwnedMappedMutexGuard<T, U> {
+    type Target = U;
+    /// Deref implementation to allow access to the mapped value.
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.value }
+    }
+}
+
+impl<T: ?Sized, U: ?Sized> DerefMut for OwnedMappedMutexGuard<T, U> {
+    /// DerefMut implementation to allow mutable access to the mapped value.
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.value }
+    }
+}
+
+impl<T: ?Sized, U: ?Sized + fmt::Debug> fmt::Debug for OwnedMappedMutexGuard<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<T: ?Sized, U: ?Sized + fmt::Display> fmt::Display for OwnedMappedMutexGuard<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
+    }
+}
 
 #[cfg(test)]
 mod tests {
