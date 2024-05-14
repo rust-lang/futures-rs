@@ -284,18 +284,22 @@ pub struct OwnedMutexGuard<T: ?Sized> {
     mutex: Arc<Mutex<T>>,
 }
 
+/// A owned handle to a held `Mutex`.
+struct OwnedMutexGuardExtendedLock<T: ?Sized> {
+    mutex: Arc<Mutex<T>>,
+}
+
 impl<T: ?Sized> OwnedMutexGuard<T> {
     /// `skip_drop` prevents the `OwnedMutexGuard` from being automatically dropped, allowing manual control over the drop process.
-    /// This method returns an `OwnedMutexGuardMutex` which contains the original `Arc<Mutex<T>>`.
-    fn skip_drop(self) -> OwnedMutexGuardMutex<T> {
+    /// This method returns an `OwnedMutexGuardExtendedLock` which contains the original `Arc<Mutex<T>>`.
+    fn skip_drop(self) -> OwnedMutexGuardExtendedLock<T> {
         // Prevents automatic drop by wrapping in `ManuallyDrop`
-        let selfi = mem::ManuallyDrop::new(self);
+        let man = mem::ManuallyDrop::new(self);
         // Unsafely reads the `Arc<Mutex<T>>` from the `ManuallyDrop` wrapper
-        OwnedMutexGuardMutex { mutex: unsafe { ptr::read(&selfi.mutex) } }
+        OwnedMutexGuardExtendedLock { mutex: unsafe { ptr::read(&man.mutex) } }
     }
 
-    /// `OwnedMutexGuard::map` allows transforming the inner value of the `OwnedMutexGuard` using a provided closure.
-    /// The transformation is done in-place, returning a new `OwnedMappedMutexGuard` with the mapped value.
+    /// Returns a locked view over a portion of the locked data.
     #[inline]
     pub fn map<U, F>(mut this: Self, f: F) -> OwnedMappedMutexGuard<T, U>
     where
@@ -307,8 +311,8 @@ impl<T: ?Sized> OwnedMutexGuard<T> {
         OwnedMappedMutexGuard { value, mutex: mutex.mutex }
     }
 
-    /// `OwnedMutexGuard::try_map` attempts to transform the inner value of the `OwnedMutexGuard` using a provided closure.
-    /// If the closure returns `None`, the original `OwnedMutexGuard` is returned.
+    /// Returns a locked view over a portion of the locked data.
+    /// If the closure returns `None`, the original `OwnedMappedMutexGuard` is returned.
     #[inline]
     pub fn try_map<U, F>(mut this: Self, f: F) -> Result<OwnedMappedMutexGuard<T, U>, Self>
     where
@@ -320,6 +324,7 @@ impl<T: ?Sized> OwnedMutexGuard<T> {
             None => return Err(this),
         };
         let mutex = this.skip_drop();
+
         Ok(OwnedMappedMutexGuard { value, mutex: mutex.mutex })
     }
 }
@@ -360,23 +365,25 @@ pub struct OwnedMappedMutexGuard<T: ?Sized, U: ?Sized = T> {
 }
 
 /// A owned handle to a held `Mutex`.
-struct OwnedMappedMutexGuardExt<T: ?Sized, U: ?Sized> {
-    value: *mut U,
+struct OwnedMappedMutexGuardExtendedLock<T: ?Sized, U: ?Sized> {
+    _value: *mut U,
     mutex: Arc<Mutex<T>>,
 }
 
 impl<T: ?Sized, U: ?Sized> OwnedMappedMutexGuard<T, U> {
     /// `skip_drop` prevents the `OwnedMutexGuard` from being automatically dropped, allowing manual control over the drop process.
-    /// This method returns an `OwnedMutexGuardMutex` which contains the original `Arc<Mutex<T>>`.
-    fn skip_drop(self) -> OwnedMappedMutexGuardExt<T, U> {
+    /// This method returns an `OwnedMappedMutexGuardExtendedLock` which contains the original `Arc<Mutex<T>>`.
+    fn skip_drop(self) -> OwnedMappedMutexGuardExtendedLock<T, U> {
         // Prevents automatic drop by wrapping in `ManuallyDrop`
         let selfi = mem::ManuallyDrop::new(self);
         // Unsafely reads the `Arc<Mutex<T>>` from the `ManuallyDrop` wrapper
-        OwnedMappedMutexGuardExt { mutex: unsafe { ptr::read(&selfi.mutex) }, value: selfi.value }
+        OwnedMappedMutexGuardExtendedLock {
+            mutex: unsafe { ptr::read(&selfi.mutex) },
+            _value: selfi.value,
+        }
     }
 
-    /// `OwnedMutexGuard::map` allows transforming the inner value of the `OwnedMutexGuard` using a provided closure.
-    /// The transformation is done in-place, returning a new `OwnedMappedMutexGuard` with the mapped value.
+    /// Returns a locked view over a portion of the locked data.
     #[inline]
     pub fn map<C, F>(mut this: Self, f: F) -> OwnedMappedMutexGuard<T, C>
     where
@@ -386,11 +393,22 @@ impl<T: ?Sized, U: ?Sized> OwnedMappedMutexGuard<T, U> {
         let mutex = this.skip_drop();
         OwnedMappedMutexGuard { value, mutex: mutex.mutex }
     }
-}
 
-/// A owned handle to a held `Mutex`.
-struct OwnedMutexGuardMutex<T: ?Sized> {
-    mutex: Arc<Mutex<T>>,
+    /// Returns a locked view over a portion of the locked data.
+    /// If the closure returns `None`, the original `OwnedMappedMutexGuard` is returned.
+    #[inline]
+    pub fn try_map<C, F>(mut this: Self, f: F) -> Result<OwnedMappedMutexGuard<T, C>, Self>
+    where
+        F: FnOnce(&mut U) -> Option<&mut C>,
+    {
+        let value = match f(&mut *this) {
+            Some(data) => data as *mut C,
+            None => return Err(this),
+        };
+        let mutex = this.skip_drop();
+
+        Ok(OwnedMappedMutexGuard { value, mutex: mutex.mutex })
+    }
 }
 
 /// A future which resolves when the target mutex has been successfully acquired.
