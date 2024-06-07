@@ -14,9 +14,9 @@ mod iter;
 use self::iter::Keys;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/102352
 pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
-use crate::stream::futures_keyed::task::HashTask;
+use crate::stream::futures_unordered_internal::task::HashTask;
 
-use super::futures_keyed::{FuturesKeyed, ReleasesTask};
+use super::futures_unordered_internal::{FuturesUnorderedInternal, ReleasesTask};
 
 /// A map of futures which may complete in any order.
 ///
@@ -37,11 +37,17 @@ use super::futures_keyed::{FuturesKeyed, ReleasesTask};
 /// with the [`MappedFutures::new`] constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct MappedFutures<K: Hash + Eq, Fut> {
-    inner: FuturesKeyed<K, Fut, TaskSet<K, Fut>>,
+    inner: FuturesUnorderedInternal<K, Fut, TaskSet<K, Fut>>,
 }
 
 struct TaskSet<K: Hash + Eq, Fut> {
     inner: HashSet<HashTask<K, Fut>>,
+}
+
+impl<K: Debug + Hash + Eq, Fut> Debug for TaskSet<K, Fut> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TaskSet {{ ... }}")
+    }
 }
 
 // impl<K: Hash + Eq, Fut> Deref for TaskSet<K, Fut> {
@@ -109,7 +115,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     /// In this state, [`MappedFutures::poll_next`](Stream::poll_next) will
     /// return [`Poll::Ready(None)`](Poll::Ready).
     pub fn new() -> Self {
-        Self { inner: FuturesKeyed::new() }
+        Self { inner: FuturesUnorderedInternal::new() }
     }
 
     /// Returns the number of futures contained in the set.
@@ -233,10 +239,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     }
 
     /// Get a shared reference to the mapped future.
-    pub fn get(&mut self, key: &K) -> Option<&Fut>
-    where
-        Fut: Unpin,
-    {
+    pub fn get(&mut self, key: &K) -> Option<&Fut> {
         // if let Some(task_ref) = self.hash_set.get(key) {
         if let Some(task_ref) = self.set().get(key) {
             unsafe {

@@ -69,9 +69,9 @@ impl<K, Fut> ArcWake for Task<K, Fut> {
         // as it'll want to come along and run our task later.
         //
         // Note that we don't change the reference count of the task here,
-        // we merely enqueue the raw pointer. The `FuturesKeyed`
+        // we merely enqueue the raw pointer. The `FuturesUnorderedInternal`
         // implementation guarantees that if we set the `queued` flag that
-        // there's a reference count held by the main `FuturesKeyed` queue
+        // there's a reference count held by the main `FuturesUnorderedInternal` queue
         // still.
         let prev = arc_self.queued.swap(true, SeqCst);
         if !prev {
@@ -123,10 +123,10 @@ impl<K, Fut> Drop for Task<K, Fut> {
         // Since `Task<K,Fut>` is sent across all threads for any lifetime,
         // regardless of `Fut`, we, to guarantee memory safety, can't actually
         // touch `Fut` at any time except when we have a reference to the
-        // `FuturesKeyed` itself .
+        // `FuturesUnorderedInternal` itself .
         //
         // Consequently it *should* be the case that we always drop futures from
-        // the `FuturesKeyed` instance. This is a bomb, just in case there's
+        // the `FuturesUnorderedInternal` instance. This is a bomb, just in case there's
         // a bug in that logic.
         unsafe {
             if (*self.future.get()).is_some() {

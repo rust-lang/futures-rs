@@ -1,4 +1,4 @@
-use crate::stream::futures_keyed;
+use crate::stream::futures_unordered_internal;
 use core::pin::Pin;
 
 use super::DummyStruct;
@@ -6,7 +6,7 @@ use super::DummyStruct;
 /// Mutable iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IterPinMut<'a, Fut> {
-    pub(super) inner: futures_keyed::IterPinMut<'a, (), Fut, DummyStruct>,
+    pub(super) inner: futures_unordered_internal::IterPinMut<'a, (), Fut, DummyStruct>,
 }
 
 /// Mutable iterator over all futures in the unordered set.
@@ -16,7 +16,7 @@ pub struct IterMut<'a, Fut: Unpin>(pub(super) IterPinMut<'a, Fut>);
 /// Immutable iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IterPinRef<'a, Fut> {
-    pub(super) inner: futures_keyed::IterPinRef<'a, (), Fut, DummyStruct>,
+    pub(super) inner: futures_unordered_internal::IterPinRef<'a, (), Fut, DummyStruct>,
 }
 
 /// Immutable iterator over all the futures in the unordered set.
@@ -26,7 +26,7 @@ pub struct Iter<'a, Fut: Unpin>(pub(super) IterPinRef<'a, Fut>);
 /// Owned iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IntoIter<Fut: Unpin> {
-    pub(super) inner: futures_keyed::IntoIter<(), Fut, DummyStruct>,
+    pub(super) inner: futures_unordered_internal::IntoIter<(), Fut, DummyStruct>,
 }
 
 impl<Fut: Unpin> Iterator for IntoIter<Fut> {
@@ -98,14 +98,3 @@ impl<'a, Fut: Unpin> Iterator for Iter<'a, Fut> {
 }
 
 impl<Fut: Unpin> ExactSizeIterator for Iter<'_, Fut> {}
-
-// SAFETY: we do nothing thread-local and there is no interior mutability,
-// so the usual structural `Send`/`Sync` apply.
-unsafe impl<Fut: Send> Send for IterPinRef<'_, Fut> {}
-unsafe impl<Fut: Sync> Sync for IterPinRef<'_, Fut> {}
-
-unsafe impl<Fut: Send> Send for IterPinMut<'_, Fut> {}
-unsafe impl<Fut: Sync> Sync for IterPinMut<'_, Fut> {}
-
-unsafe impl<Fut: Send + Unpin> Send for IntoIter<Fut> {}
-unsafe impl<Fut: Sync + Unpin> Sync for IntoIter<Fut> {}

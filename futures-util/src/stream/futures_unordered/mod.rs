@@ -16,9 +16,9 @@ mod iter;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/102352
 pub use self::iter::{IntoIter, Iter, IterMut, IterPinMut, IterPinRef};
 
-use crate::stream::futures_keyed::FuturesKeyed;
+use crate::stream::futures_unordered_internal::FuturesUnorderedInternal;
 
-use super::futures_keyed::ReleasesTask;
+use super::futures_unordered_internal::ReleasesTask;
 
 /// A set of futures which may complete in any order.
 ///
@@ -45,7 +45,7 @@ use super::futures_keyed::ReleasesTask;
 /// library is activated, and it is activated by default.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
-    inner: FuturesKeyed<(), Fut, DummyStruct>,
+    inner: FuturesUnorderedInternal<(), Fut, DummyStruct>,
 }
 
 struct DummyStruct {}
@@ -120,7 +120,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// In this state, [`FuturesUnordered::poll_next`](Stream::poll_next) will
     /// return [`Poll::Ready(None)`](Poll::Ready).
     pub fn new() -> Self {
-        Self { inner: FuturesKeyed::new() }
+        Self { inner: FuturesUnorderedInternal::new() }
     }
 
     /// Returns the number of futures contained in the set.

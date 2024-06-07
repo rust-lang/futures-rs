@@ -1,5 +1,5 @@
 use super::task::Task;
-use super::{FuturesKeyed, ReleasesTask};
+use super::{FuturesUnorderedInternal, ReleasesTask};
 use core::marker::PhantomData;
 use core::pin::Pin;
 use core::ptr;
@@ -10,7 +10,7 @@ use core::sync::atomic::Ordering::Relaxed;
 pub(crate) struct IterPinMut<'a, K, Fut, S: ReleasesTask<K>> {
     pub(super) task: *const Task<K, Fut>,
     pub(crate) len: usize,
-    pub(super) _marker: PhantomData<&'a mut FuturesKeyed<K, Fut, S>>,
+    pub(super) _marker: PhantomData<&'a mut FuturesUnorderedInternal<K, Fut, S>>,
 }
 
 /// Mutable iterator over all futures in the unordered set.
@@ -25,7 +25,7 @@ pub(crate) struct IterPinRef<'a, K, Fut, S: ReleasesTask<K>> {
     pub(super) task: *const Task<K, Fut>,
     pub(crate) len: usize,
     pub(super) pending_next_all: *mut Task<K, Fut>,
-    pub(super) _marker: PhantomData<&'a FuturesKeyed<K, Fut, S>>,
+    pub(super) _marker: PhantomData<&'a FuturesUnorderedInternal<K, Fut, S>>,
 }
 
 /// Immutable iterator over all the futures in the unordered set.
@@ -36,7 +36,7 @@ pub(crate) struct Iter<'a, K, Fut: Unpin, S: ReleasesTask<K>>(pub(super) IterPin
 #[derive(Debug)]
 pub(crate) struct IntoIter<K, Fut: Unpin, S: ReleasesTask<K>> {
     pub(crate) len: usize,
-    pub(super) inner: FuturesKeyed<K, Fut, S>,
+    pub(super) inner: FuturesUnorderedInternal<K, Fut, S>,
 }
 
 impl<K, Fut: Unpin, S: ReleasesTask<K>> Iterator for IntoIter<K, Fut, S> {
@@ -56,7 +56,7 @@ impl<K, Fut: Unpin, S: ReleasesTask<K>> Iterator for IntoIter<K, Fut, S> {
             let future = (*(**task).future.get()).take().unwrap();
             let key = (**task).take_key();
 
-            // Mutable access to a previously shared `FuturesKeyed` implies
+            // Mutable access to a previously shared `FuturesUnorderedInternal` implies
             // that the other threads already released the object before the
             // current thread acquired it, so relaxed ordering can be used and
             // valid `next_all` checks can be skipped.
@@ -89,7 +89,7 @@ impl<'a, K, Fut, S: ReleasesTask<K>> Iterator for IterPinMut<'a, K, Fut, S> {
             let future = (*(*self.task).future.get()).as_mut().unwrap();
             let key = (*(*self.task).key.get()).as_ref().unwrap();
 
-            // Mutable access to a previously shared `FuturesKeyed` implies
+            // Mutable access to a previously shared `FuturesUnorderedInternal` implies
             // that the other threads already released the object before the
             // current thread acquired it, so relaxed ordering can be used and
             // valid `next_all` checks can be skipped.
@@ -168,11 +168,11 @@ impl<K, Fut: Unpin, S: ReleasesTask<K>> ExactSizeIterator for Iter<'_, K, Fut, S
 
 // SAFETY: we do nothing thread-local and there is no interior mutability,
 // so the usual structural `Send`/`Sync` apply.
-unsafe impl<K, Fut: Send, S: ReleasesTask<K>> Send for IterPinRef<'_, K, Fut, S> {}
-unsafe impl<K, Fut: Sync, S: ReleasesTask<K>> Sync for IterPinRef<'_, K, Fut, S> {}
+unsafe impl<K: Send, Fut: Send, S: ReleasesTask<K>> Send for IterPinRef<'_, K, Fut, S> {}
+unsafe impl<K: Sync, Fut: Sync, S: ReleasesTask<K>> Sync for IterPinRef<'_, K, Fut, S> {}
 
-unsafe impl<K, Fut: Send, S: ReleasesTask<K>> Send for IterPinMut<'_, K, Fut, S> {}
-unsafe impl<K, Fut: Sync, S: ReleasesTask<K>> Sync for IterPinMut<'_, K, Fut, S> {}
+unsafe impl<K: Send, Fut: Send, S: ReleasesTask<K>> Send for IterPinMut<'_, K, Fut, S> {}
+unsafe impl<K: Sync, Fut: Sync, S: ReleasesTask<K>> Sync for IterPinMut<'_, K, Fut, S> {}
 
-unsafe impl<K, Fut: Send + Unpin, S: ReleasesTask<K>> Send for IntoIter<K, Fut, S> {}
-unsafe impl<K, Fut: Sync + Unpin, S: ReleasesTask<K>> Sync for IntoIter<K, Fut, S> {}
+unsafe impl<K: Send, Fut: Send + Unpin, S: ReleasesTask<K>> Send for IntoIter<K, Fut, S> {}
+unsafe impl<K: Sync, Fut: Sync + Unpin, S: ReleasesTask<K>> Sync for IntoIter<K, Fut, S> {}

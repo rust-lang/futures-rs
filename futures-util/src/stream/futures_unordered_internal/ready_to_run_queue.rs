@@ -15,7 +15,7 @@ pub(super) enum Dequeue<K, Fut> {
 }
 
 pub(super) struct ReadyToRunQueue<K, Fut> {
-    // The waker of the task using `FuturesKeyed`.
+    // The waker of the task using `FuturesUnorderedInternal`.
     pub(super) waker: AtomicWaker,
 
     // Head/tail of the readiness queue
@@ -94,7 +94,7 @@ impl<K, Fut> ReadyToRunQueue<K, Fut> {
     //
     // # Safety
     //
-    // - All tasks **must** have had their futures dropped already (by FuturesKeyed::clear)
+    // - All tasks **must** have had their futures dropped already (by FuturesUnorderedInternal::clear)
     // - The caller **must** guarantee unique access to `self`
     pub(crate) unsafe fn clear(&self) {
         loop {
@@ -113,7 +113,7 @@ impl<K, Fut> Drop for ReadyToRunQueue<K, Fut> {
         // Once we're in the destructor for `Inner<Fut>` we need to clear out
         // the ready to run queue of tasks if there's anything left in there.
 
-        // All tasks have had their futures dropped already by the `FuturesKeyed`
+        // All tasks have had their futures dropped already by the `FuturesUnorderedInternal`
         // destructor above, and we have &mut self, so this is safe.
         unsafe {
             self.clear();
