@@ -208,12 +208,6 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 }
 
-// impl<Fut> Drop for FuturesUnordered<Fut> {
-//     fn drop(&mut self) {
-//         drop(self.inner)
-//     }
-// }
-
 impl<'a, Fut: Unpin> IntoIterator for &'a FuturesUnordered<Fut> {
     type Item = &'a Fut;
     type IntoIter = Iter<'a, Fut>;
@@ -237,11 +231,6 @@ impl<Fut: Unpin> IntoIterator for FuturesUnordered<Fut> {
     type IntoIter = IntoIter<Fut>;
 
     fn into_iter(self) -> Self::IntoIter {
-        // `head_all` can be accessed directly and we don't need to spin on
-        // `Task::next_all` since we have exclusive access to the set.
-        // let task = *self.head_all.get_mut();
-        // let len = if task.is_null() { 0 } else { unsafe { *(*task).len_all.get() } };
-
         IntoIter { inner: self.inner.into_iter() }
     }
 }

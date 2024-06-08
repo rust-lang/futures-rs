@@ -24,7 +24,6 @@ use core::sync::atomic::{AtomicBool, AtomicPtr};
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-// use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
 mod abort;
 
@@ -77,24 +76,6 @@ pub(crate) trait ReleasesTask<K> {
 unsafe impl<K, Fut: Send, S: ReleasesTask<K>> Send for FuturesUnorderedInternal<K, Fut, S> {}
 unsafe impl<K, Fut: Sync, S: ReleasesTask<K>> Sync for FuturesUnorderedInternal<K, Fut, S> {}
 impl<K, Fut, S: ReleasesTask<K>> Unpin for FuturesUnorderedInternal<K, Fut, S> {}
-
-// impl<K> Spawn for FuturesUnorderedInternal<K, FutureObj<'_, ()>> {
-//     fn spawn_obj(&self, key: K, future_obj: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-//         self.push(key, future_obj);
-//         Ok(())
-//     }
-// }
-//
-// impl<K> LocalSpawn for FuturesUnorderedInternal<K, LocalFutureObj<'_, ()>> {
-//     fn spawn_local_obj(
-//         &self,
-//         key: K,
-//         future_obj: LocalFutureObj<'static, ()>,
-//     ) -> Result<(), SpawnError> {
-//         self.push(key, future_obj);
-//         Ok(())
-//     }
-// }
 
 // FuturesUnorderedInternal is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnorderedInternal` and one that tracks futures that have
@@ -303,7 +284,7 @@ impl<K, Fut, S: ReleasesTask<K>> FuturesUnorderedInternal<K, Fut, S> {
         //
         // If, however, the queued flag was *not* set then we're safe to
         // release our reference count on the task. The queued flag was set
-        // above so all future `enqueue` operations Taskwill not actually
+        // above so all future `enqueue` operations will not actually
         // enqueue the task, so our task will never see the ready to run queue
         // again. The task itself will be deallocated once all reference counts
         // have been dropped elsewhere by the various wakers that contain it.
@@ -526,10 +507,10 @@ impl<K, Fut: Future, S: ReleasesTask<K>> Stream for FuturesUnorderedInternal<K, 
             // Poll the underlying future with the appropriate waker
             // implementation. This is where a large bit of the unsafety
             // starts to stem from internally. The waker is basically just
-            // our `Arc<Task<Fut>>` and can schedule the future for polling by
+            // our `Arc<Task<K, Fut>>` and can schedule the future for polling by
             // enqueuing itself in the ready to run queue.
             //
-            // Critically though `Task<Fut>` won't actually access `Fut`, the
+            // Critically though `Task<K, Fut>` won't actually access `Fut`, the
             // future, while it's floating around inside of wakers.
             // These structs will basically just use `Fut` to size
             // the internal allocation, appropriately accessing fields and

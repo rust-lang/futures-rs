@@ -50,19 +50,6 @@ impl<K: Debug + Hash + Eq, Fut> Debug for TaskSet<K, Fut> {
     }
 }
 
-// impl<K: Hash + Eq, Fut> Deref for TaskSet<K, Fut> {
-//     type Target = HashSet<HashTask<K, Fut>>;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.inner
-//     }
-// }
-// impl<K: Hash + Eq, Fut> DerefMut for TaskSet<K, Fut> {
-//     fn deref_mut(&mut self) -> &Self::Target {
-//         &mut self.inner
-//     }
-// }
-
 impl<K: Hash + Eq, Fut> ReleasesTask<K> for TaskSet<K, Fut> {
     fn release_task(&mut self, key: &K) {
         self.inner.remove(key);
