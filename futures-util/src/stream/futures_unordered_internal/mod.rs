@@ -303,7 +303,7 @@ impl<K, Fut, S: ReleasesTask<K>> FuturesUnorderedInternal<K, Fut, S> {
         //
         // If, however, the queued flag was *not* set then we're safe to
         // release our reference count on the task. The queued flag was set
-        // above so all future `enqueue` operations will not actually
+        // above so all future `enqueue` operations Taskwill not actually
         // enqueue the task, so our task will never see the ready to run queue
         // again. The task itself will be deallocated once all reference counts
         // have been dropped elsewhere by the various wakers that contain it.
@@ -526,10 +526,10 @@ impl<K, Fut: Future, S: ReleasesTask<K>> Stream for FuturesUnorderedInternal<K, 
             // Poll the underlying future with the appropriate waker
             // implementation. This is where a large bit of the unsafety
             // starts to stem from internally. The waker is basically just
-            // our `Arc<Task<K, Fut>>` and can schedule the future for polling by
+            // our `Arc<Task<Fut>>` and can schedule the future for polling by
             // enqueuing itself in the ready to run queue.
             //
-            // Critically though `Task<K, Fut>` won't actually access `Fut`, the
+            // Critically though `Task<Fut>` won't actually access `Fut`, the
             // future, while it's floating around inside of wakers.
             // These structs will basically just use `Fut` to size
             // the internal allocation, appropriately accessing fields and
@@ -539,7 +539,8 @@ impl<K, Fut: Future, S: ReleasesTask<K>> Stream for FuturesUnorderedInternal<K, 
                 // We are only interested in whether the future is awoken before it
                 // finishes polling, so reset the flag here.
                 task.woken.store(false, Relaxed);
-                let waker = Task::waker_ref(task);
+                // SAFETY: see the comments of Bomb and this block.
+                let waker = unsafe { Task::waker_ref(task) };
                 let mut cx = Context::from_waker(&waker);
 
                 // Safety: We won't move the future ever again
@@ -592,20 +593,7 @@ impl<K, Fut, S: ReleasesTask<K>> Debug for FuturesUnorderedInternal<K, Fut, S> {
 impl<K, Fut, S: ReleasesTask<K>> FuturesUnorderedInternal<K, Fut, S> {
     /// Clears the set, removing all futures.
     pub(super) fn clear(&mut self) {
-        self.clear_head_all();
-
-        // we just cleared all the tasks, and we have &mut self, so this is safe.
-        unsafe { self.ready_to_run_queue.clear() };
-
-        self.is_terminated.store(false, Relaxed);
-    }
-
-    fn clear_head_all(&mut self) {
-        while !self.head_all.get_mut().is_null() {
-            let head = *self.head_all.get_mut();
-            let task = unsafe { self.unlink(head) };
-            self.release_task(task);
-        }
+        *self = Self::new();
     }
 }
 
@@ -615,7 +603,11 @@ impl<K, Fut, S: ReleasesTask<K>> Drop for FuturesUnorderedInternal<K, Fut, S> {
         // associated with it. At the same time though there may be tons of
         // wakers flying around which contain `Task<K, Fut>` references
         // inside them. We'll let those naturally get deallocated.
-        self.clear_head_all();
+        while !self.head_all.get_mut().is_null() {
+            let head = *self.head_all.get_mut();
+            let task = unsafe { self.unlink(head) };
+            self.release_task(task);
+        }
 
         // Note that at this point we could still have a bunch of tasks in the
         // ready to run queue. None of those tasks, however, have futures
