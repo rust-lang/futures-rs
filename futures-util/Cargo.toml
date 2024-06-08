@@ -48,6 +48,7 @@ pin-project-lite = "0.2.6"
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test" }
 tokio = "0.1.11"
+futures-timer = "3.0.2"
 
 [package.metadata.docs.rs]
 all-features = true

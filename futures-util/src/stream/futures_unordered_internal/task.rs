@@ -1,22 +1,28 @@
 use alloc::sync::{Arc, Weak};
+use core::borrow::Borrow;
 use core::cell::UnsafeCell;
+use core::ops::Deref;
 use core::sync::atomic::Ordering::{self, Relaxed, SeqCst};
 use core::sync::atomic::{AtomicBool, AtomicPtr};
 
 use super::abort::abort;
 use super::ReadyToRunQueue;
 use crate::task::ArcWake;
+use core::hash::Hash;
 
-pub(super) struct Task<Fut> {
+pub(crate) struct Task<K, Fut> {
     // The future
-    pub(super) future: UnsafeCell<Option<Fut>>,
+    pub(crate) future: UnsafeCell<Option<Fut>>,
+
+    // The key
+    pub(crate) key: UnsafeCell<Option<K>>,
 
     // Next pointer for linked list tracking all active tasks (use
     // `spin_next_all` to read when access is shared across threads)
-    pub(super) next_all: AtomicPtr<Task<Fut>>,
+    pub(super) next_all: AtomicPtr<Task<K, Fut>>,
 
     // Previous task in linked list tracking all active tasks
-    pub(super) prev_all: UnsafeCell<*const Task<Fut>>,
+    pub(super) prev_all: UnsafeCell<*const Task<K, Fut>>,
 
     // Length of the linked list tracking all active tasks when this node was
     // inserted (use `spin_next_all` to synchronize before reading when access
@@ -24,10 +30,10 @@ pub(super) struct Task<Fut> {
     pub(super) len_all: UnsafeCell<usize>,
 
     // Next pointer in ready to run queue
-    pub(super) next_ready_to_run: AtomicPtr<Task<Fut>>,
+    pub(super) next_ready_to_run: AtomicPtr<Task<K, Fut>>,
 
     // Queue that we'll be enqueued to when woken
-    pub(super) ready_to_run_queue: Weak<ReadyToRunQueue<Fut>>,
+    pub(super) ready_to_run_queue: Weak<ReadyToRunQueue<K, Fut>>,
 
     // Whether or not this task is currently in the ready to run queue
     pub(super) queued: AtomicBool,
@@ -43,10 +49,10 @@ pub(super) struct Task<Fut> {
 //
 // The parent (`super`) module is trusted not to access `future`
 // across different threads.
-unsafe impl<Fut> Send for Task<Fut> {}
-unsafe impl<Fut> Sync for Task<Fut> {}
+unsafe impl<K, Fut> Send for Task<K, Fut> {}
+unsafe impl<K, Fut> Sync for Task<K, Fut> {}
 
-impl<Fut> ArcWake for Task<Fut> {
+impl<K, Fut> ArcWake for Task<K, Fut> {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         let inner = match arc_self.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
@@ -63,9 +69,9 @@ impl<Fut> ArcWake for Task<Fut> {
         // as it'll want to come along and run our task later.
         //
         // Note that we don't change the reference count of the task here,
-        // we merely enqueue the raw pointer. The `FuturesUnordered`
+        // we merely enqueue the raw pointer. The `FuturesUnorderedInternal`
         // implementation guarantees that if we set the `queued` flag that
-        // there's a reference count held by the main `FuturesUnordered` queue
+        // there's a reference count held by the main `FuturesUnorderedInternal` queue
         // still.
         let prev = arc_self.queued.swap(true, SeqCst);
         if !prev {
@@ -75,7 +81,7 @@ impl<Fut> ArcWake for Task<Fut> {
     }
 }
 
-impl<Fut> Task<Fut> {
+impl<K, Fut> Task<K, Fut> {
     /// Returns a waker reference for this task without cloning the Arc.
     pub(super) unsafe fn waker_ref(this: &Arc<Self>) -> waker_ref::WakerRef<'_> {
         unsafe { waker_ref::waker_ref(this) }
@@ -104,17 +110,23 @@ impl<Fut> Task<Fut> {
             }
         }
     }
+    pub(crate) fn key(&self) -> Option<&K> {
+        unsafe { (&*self.key.get()).as_ref() }
+    }
+    pub(crate) fn take_key(&self) -> K {
+        unsafe { (*self.key.get()).take().unwrap() }
+    }
 }
 
-impl<Fut> Drop for Task<Fut> {
+impl<K, Fut> Drop for Task<K, Fut> {
     fn drop(&mut self) {
-        // Since `Task<Fut>` is sent across all threads for any lifetime,
+        // Since `Task<K,Fut>` is sent across all threads for any lifetime,
         // regardless of `Fut`, we, to guarantee memory safety, can't actually
         // touch `Fut` at any time except when we have a reference to the
-        // `FuturesUnordered` itself .
+        // `FuturesUnorderedInternal` itself .
         //
         // Consequently it *should* be the case that we always drop futures from
-        // the `FuturesUnordered` instance. This is a bomb, just in case there's
+        // the `FuturesUnorderedInternal` instance. This is a bomb, just in case there's
         // a bug in that logic.
         unsafe {
             if (*self.future.get()).is_some() {
@@ -123,6 +135,55 @@ impl<Fut> Drop for Task<Fut> {
         }
     }
 }
+
+// Wrapper struct; exists effectively to implement hash on the type Arc<Task>
+pub(crate) struct HashTask<K: Hash + Eq, Fut> {
+    pub(crate) inner: Arc<Task<K, Fut>>,
+}
+
+impl<K: Hash + Eq, F> From<Arc<Task<K, F>>> for HashTask<K, F> {
+    fn from(inner: Arc<Task<K, F>>) -> Self {
+        HashTask { inner }
+    }
+}
+
+impl<K: Hash + Eq, Fut> HashTask<K, Fut> {
+    fn key(&self) -> Option<&K> {
+        Task::key(&*self)
+    }
+}
+
+impl<K: Hash + Eq, Fut> Deref for HashTask<K, Fut> {
+    type Target = Task<K, Fut>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<K: Hash + Eq, Fut> Borrow<K> for HashTask<K, Fut> {
+    fn borrow(&self) -> &K {
+        // Never use the borrowed form after the key has been removed from the task
+        // IE. The Stub task never goes into the HashSet
+        // Or removing Task from HashSet using key, after key removed from task
+        unsafe { (*self.key.get()).as_ref().unwrap() }
+    }
+}
+
+impl<K: Hash + Eq, Fut> Hash for HashTask<K, Fut> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        unsafe { (*self.key.get()).as_ref() }.unwrap().hash(state)
+    }
+}
+
+impl<K: Hash + Eq, Fut> PartialEq for HashTask<K, Fut> {
+    fn eq(&self, other: &Self) -> bool {
+        self.key() == other.key()
+    }
+}
+impl<K: Hash + Eq, Fut> Eq for HashTask<K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut> Send for HashTask<K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut> Sync for HashTask<K, Fut> {}
 
 mod waker_ref {
     use alloc::sync::Arc;
