@@ -12,7 +12,7 @@ use core::task::{Context, Poll};
 
 use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
 use crate::TryFutureExt;
 
@@ -38,7 +38,7 @@ where
     Small {
         elems: Pin<Box<[TryMaybeDone<IntoFuture<F>>]>>,
     },
-    #[cfg(not(futures_no_atomic_cas))]
+    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     Big {
         fut: TryCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
     },
@@ -56,7 +56,7 @@ where
             TryJoinAllKind::Small { ref elems } => {
                 f.debug_struct("TryJoinAll").field("elems", elems).finish()
             }
-            #[cfg(not(futures_no_atomic_cas))]
+            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
             TryJoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
@@ -121,7 +121,8 @@ where
 {
     let iter = iter.into_iter().map(TryFutureExt::into_future);
 
-    #[cfg(futures_no_atomic_cas)]
+    #[cfg(target_os = "none")]
+    #[cfg_attr(target_os = "none", cfg(not(target_has_atomic = "ptr")))]
     {
         let kind = TryJoinAllKind::Small {
             elems: iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into(),
@@ -132,7 +133,7 @@ where
         )
     }
 
-    #[cfg(not(futures_no_atomic_cas))]
+    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     {
         let kind = match iter.size_hint().1 {
             Some(max) if max <= join_all::SMALL => TryJoinAllKind::Small {
@@ -184,7 +185,7 @@ where
                     }
                 }
             }
-            #[cfg(not(futures_no_atomic_cas))]
+            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
             TryJoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
         }
     }

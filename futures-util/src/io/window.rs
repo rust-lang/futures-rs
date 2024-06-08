@@ -1,6 +1,6 @@
 use std::ops::{Bound, Range, RangeBounds};
 
-/// A owned window around an underlying buffer.
+/// An owned window around an underlying buffer.
 ///
 /// Normally slices work great for considering sub-portions of a buffer, but
 /// unfortunately a slice is a *borrowed* type in Rust which has an associated

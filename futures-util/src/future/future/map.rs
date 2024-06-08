@@ -53,7 +53,7 @@ where
         match self.as_mut().project() {
             MapProj::Incomplete { future, .. } => {
                 let output = ready!(future.poll(cx));
-                match self.project_replace(Map::Complete) {
+                match self.project_replace(Self::Complete) {
                     MapProjReplace::Incomplete { f, .. } => Poll::Ready(f.call_once(output)),
                     MapProjReplace::Complete => unreachable!(),
                 }

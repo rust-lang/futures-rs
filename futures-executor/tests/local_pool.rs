@@ -3,6 +3,7 @@ use futures::executor::LocalPool;
 use futures::future::{self, lazy, poll_fn, Future};
 use futures::task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker};
 use std::cell::{Cell, RefCell};
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,7 +11,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-struct Pending(Rc<()>);
+struct Pending(PhantomData<Rc<()>>);
 
 impl Future for Pending {
     type Output = ();
@@ -21,7 +22,7 @@ impl Future for Pending {
 }
 
 fn pending() -> Pending {
-    Pending(Rc::new(()))
+    Pending(PhantomData)
 }
 
 #[test]
@@ -414,8 +415,8 @@ fn park_unpark_independence() {
             return Poll::Ready(());
         }
         done = true;
-        cx.waker().clone().wake(); // (*)
-                                   // some user-code that temporarily parks the thread
+        cx.waker().wake_by_ref(); // (*)
+                                  // some user-code that temporarily parks the thread
         let test = thread::current();
         let latch = Arc::new(AtomicBool::new(false));
         let signal = latch.clone();

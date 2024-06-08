@@ -206,6 +206,7 @@ impl AtomicWaker {
     /// Create an `AtomicWaker`.
     pub const fn new() -> Self {
         // Make sure that task is Sync
+        #[allow(dead_code)]
         trait AssertSync: Sync {}
         impl AssertSync for Waker {}
 

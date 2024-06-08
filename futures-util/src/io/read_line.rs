@@ -7,6 +7,8 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 use std::str;
+use std::string::String;
+use std::vec::Vec;
 
 /// Future for the [`read_line`](super::AsyncBufReadExt::read_line) method.
 #[derive(Debug)]
@@ -35,6 +37,7 @@ pub(super) fn read_line_internal<R: AsyncBufRead + ?Sized>(
 ) -> Poll<io::Result<usize>> {
     let ret = ready!(read_until_internal(reader, cx, b'\n', bytes, read));
     if str::from_utf8(bytes).is_err() {
+        bytes.clear();
         Poll::Ready(ret.and_then(|_| {
             Err(io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
         }))

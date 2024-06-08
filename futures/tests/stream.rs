@@ -96,7 +96,7 @@ fn flatten_unordered() {
     impl Stream for DataStream {
         type Item = u8;
 
-        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             if !self.polled {
                 if !self.wake_immediately {
                     let waker = ctx.waker().clone();
@@ -127,7 +127,7 @@ fn flatten_unordered() {
     impl Stream for Interchanger {
         type Item = DataStream;
 
-        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             if !self.polled {
                 self.polled = true;
                 if !self.wake_immediately {
@@ -551,4 +551,44 @@ fn select_with_strategy_doesnt_terminate_early() {
         block_on(async move { while selected.next().await.is_some() {} });
         assert_eq!(count.get(), times_should_poll + 1);
     }
+}
+
+async fn is_even(number: u8) -> bool {
+    number % 2 == 0
+}
+
+#[test]
+fn all() {
+    block_on(async {
+        let empty: [u8; 0] = [];
+        let st = stream::iter(empty);
+        let all = st.all(is_even).await;
+        assert!(all);
+
+        let st = stream::iter([2, 4, 6, 8]);
+        let all = st.all(is_even).await;
+        assert!(all);
+
+        let st = stream::iter([2, 3, 4]);
+        let all = st.all(is_even).await;
+        assert!(!all);
+    });
+}
+
+#[test]
+fn any() {
+    block_on(async {
+        let empty: [u8; 0] = [];
+        let st = stream::iter(empty);
+        let any = st.any(is_even).await;
+        assert!(!any);
+
+        let st = stream::iter([1, 2, 3]);
+        let any = st.any(is_even).await;
+        assert!(any);
+
+        let st = stream::iter([1, 3, 5]);
+        let any = st.any(is_even).await;
+        assert!(!any);
+    });
 }

@@ -15,6 +15,7 @@ use std::sync::{
     Arc,
 };
 use std::thread::{self, Thread};
+use std::vec::Vec;
 
 /// A single-threaded task pool for polling futures to completion.
 ///
@@ -33,8 +34,7 @@ pub struct LocalPool {
     incoming: Rc<Incoming>,
 }
 
-/// A handle to a [`LocalPool`](LocalPool) that implements
-/// [`Spawn`](futures_task::Spawn).
+/// A handle to a [`LocalPool`] that implements [`Spawn`](futures_task::Spawn).
 #[derive(Clone, Debug)]
 pub struct LocalSpawner {
     incoming: Weak<Incoming>,
@@ -53,7 +53,7 @@ pub(crate) struct ThreadNotify {
     unparked: AtomicBool,
 }
 
-thread_local! {
+std::thread_local! {
     static CURRENT_THREAD_NOTIFY: Arc<ThreadNotify> = Arc::new(ThreadNotify {
         thread: thread::current(),
         unparked: AtomicBool::new(false),
@@ -310,8 +310,7 @@ impl Default for LocalPool {
 ///
 /// This function will block the caller until the given future has completed.
 ///
-/// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
-/// spawned tasks.
+/// Use a [`LocalPool`] if you need finer-grained control over spawned tasks.
 pub fn block_on<F: Future>(f: F) -> F::Output {
     pin_mut!(f);
     run_executor(|cx| f.as_mut().poll(cx))

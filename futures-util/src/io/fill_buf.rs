@@ -3,6 +3,7 @@ use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
 use std::io;
 use std::pin::Pin;
+use std::slice;
 
 /// Future for the [`fill_buf`](super::AsyncBufReadExt::fill_buf) method.
 #[derive(Debug)]
@@ -30,17 +31,12 @@ where
         let reader = this.reader.take().expect("Polled FillBuf after completion");
 
         match Pin::new(&mut *reader).poll_fill_buf(cx) {
-            // With polonius it is possible to remove this inner match and just have the correct
-            // lifetime of the reference inferred based on which branch is taken
-            Poll::Ready(Ok(_)) => match Pin::new(reader).poll_fill_buf(cx) {
-                Poll::Ready(Ok(slice)) => Poll::Ready(Ok(slice)),
-                Poll::Ready(Err(err)) => {
-                    unreachable!("reader indicated readiness but then returned an error: {:?}", err)
-                }
-                Poll::Pending => {
-                    unreachable!("reader indicated readiness but then returned pending")
-                }
-            },
+            Poll::Ready(Ok(slice)) => {
+                // With polonius it is possible to remove this lifetime transmutation and just have
+                // the correct lifetime of the reference inferred based on which branch is taken
+                let slice: &'a [u8] = unsafe { slice::from_raw_parts(slice.as_ptr(), slice.len()) };
+                Poll::Ready(Ok(slice))
+            }
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => {
                 this.reader = Some(reader);

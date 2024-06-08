@@ -7,3 +7,6 @@ publish = false
 [dependencies]
 futures04 = { path = "../..", package = "futures" }
 macro-reexport = { path = "../macro-reexport" }
+
+[lints]
+workspace = true

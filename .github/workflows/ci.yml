@@ -14,9 +14,11 @@ on:
 
 env:
   CARGO_INCREMENTAL: 0
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUSTDOCFLAGS: -D warnings
   RUSTFLAGS: -D warnings
   RUSTUP_MAX_RETRIES: 10
 
@@ -30,42 +32,37 @@ concurrency:
 
 jobs:
   test:
-    name: cargo test (${{ matrix.os }})
+    name: cargo test
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+          - os: windows-latest
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+          - os: ubuntu-latest
+            target: armv5te-unknown-linux-gnueabi
+          - os: ubuntu-latest
+            target: i686-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
         run: rustup update nightly --no-self-update && rustup default nightly
-      - run: cargo test --workspace --all-features
-      - run: cargo test --workspace --all-features --release
-
-  cross:
-    name: cargo test --target ${{ matrix.target }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - aarch64-unknown-linux-gnu
-          - armv7-unknown-linux-gnueabihf
-          - i686-unknown-linux-gnu
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust
-        run: rustup update nightly && rustup default nightly
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
-      - run: cargo test --target ${{ matrix.target }} --workspace --all-features $DOCTEST_XCOMPILE
-      - run: cargo test --target ${{ matrix.target }} --workspace --all-features --release $DOCTEST_XCOMPILE
+        if: matrix.target != ''
+      - run: cargo test --workspace --all-features $DOCTEST_XCOMPILE
+      - run: cargo test --workspace --all-features --release $DOCTEST_XCOMPILE
+        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink})
@@ -76,8 +73,9 @@ jobs:
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
           - '1.36'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
@@ -101,8 +99,6 @@ jobs:
 
   util-msrv:
     name: cargo +${{ matrix.rust }} build
-    env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         rust:
@@ -110,8 +106,9 @@ jobs:
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
           - '1.56'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - name: Install cargo-hack
@@ -127,7 +124,8 @@ jobs:
       # Check std feature
       - run: cargo hack build --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
       # Check compat feature (futures, futures-util)
-      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,io-compat
+      # Exclude io-compat feature because the MSRV when it is enabled depends on the MSRV of tokio 0.1.
+      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,compat
       # Check thread-pool feature (futures, futures-executor)
       - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
 
@@ -141,8 +139,9 @@ jobs:
           - beta
           - nightly
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - name: Install cargo-hack
@@ -151,18 +150,18 @@ jobs:
       - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
 
   minimal-versions:
-    name: cargo build -Z minimal-versions
+    name: cargo minimal-versions build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-      - run: cargo hack --remove-dev-deps --workspace
-      - run: cargo update -Z minimal-versions
-      - run: cargo build --workspace --all-features
+      - name: Install cargo-minimal-versions
+        uses: taiki-e/install-action@cargo-minimal-versions
+      - run: cargo minimal-versions build --workspace --ignore-private --all-features
 
   no-std:
     name: cargo build --target ${{ matrix.target }}
@@ -175,8 +174,9 @@ jobs:
           - thumbv7m-none-eabi
           - thumbv6m-none-eabi
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: rustup target add ${{ matrix.target }}
@@ -207,8 +207,9 @@ jobs:
   bench:
     name: cargo bench
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - run: cargo bench --workspace
@@ -217,8 +218,9 @@ jobs:
   features:
     name: cargo hack check --feature-powerset
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-hack
@@ -236,52 +238,18 @@ jobs:
             --workspace --exclude futures-test \
             --features unstable --ignore-unknown-features
 
-  # When this job failed, run ci/no_atomic_cas.sh and commit result changes.
-  codegen:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: ci/no_atomic_cas.sh
-      - run: git add -N . && git diff --exit-code
-        if: github.repository_owner != 'rust-lang' || github.event_name != 'schedule'
-      - id: diff
-        run: |
-          git config user.name "Taiki Endo"
-          git config user.email "te316e89@gmail.com"
-          git add -N .
-          if ! git diff --exit-code; then
-              git add .
-              git commit -m "Update no_atomic_cas.rs"
-              echo "::set-output name=success::false"
-          fi
-        if: github.repository_owner == 'rust-lang' && github.event_name == 'schedule'
-      - uses: peter-evans/create-pull-request@v3
-        with:
-          title: Update no_atomic_cas.rs
-          body: |
-            Auto-generated by [create-pull-request][1]
-            [Please close and immediately reopen this pull request to run CI.][2]
-
-            [1]: https://github.com/peter-evans/create-pull-request
-            [2]: https://github.com/peter-evans/create-pull-request/blob/HEAD/docs/concepts-guidelines.md#workarounds-to-trigger-further-workflow-runs
-          branch: update-no-atomic-cas-rs
-        if: github.repository_owner == 'rust-lang' && github.event_name == 'schedule' && steps.diff.outputs.success == 'false'
-
   miri:
     name: cargo miri test
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component miri && rustup default nightly
       - run: cargo miri test --workspace --all-features
         env:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
+          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} -Z randomize-layout
           RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
 
   san:
@@ -294,23 +262,26 @@ jobs:
           - memory
           - thread
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: rustup component add rust-src
+        run: rustup toolchain install nightly --component rust-src && rustup default nightly
+      # https://github.com/google/sanitizers/issues/1716 / https://github.com/actions/runner-images/issues/9491
+      - run: sudo sysctl vm.mmap_rnd_bits=28
       - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
           # `cfg(futures_sanitizer)` with `cfg(sanitize = "..")` and remove
           # `--cfg futures_sanitizer`.
-          RUSTFLAGS: -D warnings -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
 
   clippy:
     name: cargo clippy
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component clippy && rustup default nightly
       - run: cargo clippy --workspace --all-features --all-targets
@@ -318,8 +289,9 @@ jobs:
   fmt:
     name: cargo fmt
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update stable
       - run: cargo fmt --all -- --check
@@ -327,8 +299,11 @@ jobs:
   docs:
     name: cargo doc
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup update nightly && rustup default nightly
-      - run: RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo doc --workspace --no-deps --all-features
+      - run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} --cfg docsrs

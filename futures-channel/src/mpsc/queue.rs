@@ -43,6 +43,7 @@
 
 pub(super) use self::PopResult::*;
 
+use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -113,22 +114,24 @@ impl<T> Queue<T> {
     ///
     /// This function is unsafe because only one thread can call it at a time.
     pub(super) unsafe fn pop(&self) -> PopResult<T> {
-        let tail = *self.tail.get();
-        let next = (*tail).next.load(Ordering::Acquire);
+        unsafe {
+            let tail = *self.tail.get();
+            let next = (*tail).next.load(Ordering::Acquire);
 
-        if !next.is_null() {
-            *self.tail.get() = next;
-            assert!((*tail).value.is_none());
-            assert!((*next).value.is_some());
-            let ret = (*next).value.take().unwrap();
-            drop(Box::from_raw(tail));
-            return Data(ret);
-        }
+            if !next.is_null() {
+                *self.tail.get() = next;
+                assert!((*tail).value.is_none());
+                assert!((*next).value.is_some());
+                let ret = (*next).value.take().unwrap();
+                drop(Box::from_raw(tail));
+                return Data(ret);
+            }
 
-        if self.head.load(Ordering::Acquire) == tail {
-            Empty
-        } else {
-            Inconsistent
+            if self.head.load(Ordering::Acquire) == tail {
+                Empty
+            } else {
+                Inconsistent
+            }
         }
     }
 
@@ -138,7 +141,7 @@ impl<T> Queue<T> {
     /// This function is unsafe because only one thread can call it at a time.
     pub(super) unsafe fn pop_spin(&self) -> Option<T> {
         loop {
-            match self.pop() {
+            match unsafe { self.pop() } {
                 Empty => return None,
                 Data(t) => return Some(t),
                 // Inconsistent means that there will be a message to pop

@@ -54,7 +54,7 @@ impl Deref for WakerRef<'_> {
 #[inline]
 pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
-    W: ArcWake,
+    W: ArcWake + 'static,
 {
     // simply copy the pointer instead of using Arc::into_raw,
     // as we don't actually keep a refcount by using ManuallyDrop.<

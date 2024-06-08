@@ -328,7 +328,6 @@ where
     }
 }
 
-#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, F> FusedFuture for NextIf<'_, St, F>
 where
     St: Stream,
@@ -339,7 +338,6 @@ where
     }
 }
 
-#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, F> Future for NextIf<'_, St, F>
 where
     St: Stream,

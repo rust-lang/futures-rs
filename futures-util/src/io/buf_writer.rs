@@ -7,6 +7,7 @@ use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
 use std::ptr;
+use std::vec::Vec;
 
 pin_project! {
     /// Wraps a writer and buffers its output.
@@ -78,6 +79,26 @@ impl<W: AsyncWrite> BufWriter<W> {
         Poll::Ready(ret)
     }
 
+    /// Write directly using `inner`, bypassing buffering
+    pub(super) fn inner_poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.project().inner.poll_write(cx, buf)
+    }
+
+    /// Write directly using `inner`, bypassing buffering
+    pub(super) fn inner_poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.project().inner.poll_write_vectored(cx, bufs)
+    }
+}
+
+impl<W> BufWriter<W> {
     delegate_access_inner!(inner, W, ());
 
     /// Returns a reference to the internally buffered data.
@@ -124,27 +145,11 @@ impl<W: AsyncWrite> BufWriter<W> {
         let old_len = this.buf.len();
         let buf_len = buf.len();
         let src = buf.as_ptr();
-        let dst = this.buf.as_mut_ptr().add(old_len);
-        ptr::copy_nonoverlapping(src, dst, buf_len);
-        this.buf.set_len(old_len + buf_len);
-    }
-
-    /// Write directly using `inner`, bypassing buffering
-    pub(super) fn inner_poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        self.project().inner.poll_write(cx, buf)
-    }
-
-    /// Write directly using `inner`, bypassing buffering
-    pub(super) fn inner_poll_write_vectored(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
-        self.project().inner.poll_write_vectored(cx, bufs)
+        unsafe {
+            let dst = this.buf.as_mut_ptr().add(old_len);
+            ptr::copy_nonoverlapping(src, dst, buf_len);
+            this.buf.set_len(old_len + buf_len);
+        }
     }
 }
 

@@ -108,7 +108,7 @@ impl<D> UnparkMutex<D> {
     /// Callable only from the `POLLING`/`REPOLL` states, i.e. between
     /// successful calls to `notify` and `wait`/`complete`.
     pub(crate) unsafe fn wait(&self, data: D) -> Result<(), D> {
-        *self.inner.get() = Some(data);
+        unsafe { *self.inner.get() = Some(data) }
 
         match self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst) {
             // no unparks came in while we were running
@@ -119,7 +119,7 @@ impl<D> UnparkMutex<D> {
             Err(status) => {
                 assert_eq!(status, REPOLL);
                 self.status.store(POLLING, SeqCst);
-                Err((*self.inner.get()).take().unwrap())
+                Err(unsafe { (*self.inner.get()).take().unwrap() })
             }
         }
     }

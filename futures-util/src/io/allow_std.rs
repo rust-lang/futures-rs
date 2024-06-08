@@ -1,6 +1,8 @@
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
 use std::pin::Pin;
+use std::string::String;
+use std::vec::Vec;
 use std::{fmt, io};
 
 /// A simple wrapper type which allows types which implement only

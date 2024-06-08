@@ -1,5 +1,3 @@
-#![allow(clippy::extra_unused_type_parameters)] // https://github.com/rust-lang/rust-clippy/issues/10319
-
 fn assert_is_object_safe<T: ?Sized>() {}
 
 #[test]

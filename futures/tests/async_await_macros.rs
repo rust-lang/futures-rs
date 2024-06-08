@@ -58,6 +58,18 @@ fn select() {
 }
 
 #[test]
+fn select_grammar() {
+    // Parsing after `=>` using Expr::parse would parse `{}() = future::ready(())`
+    // as one expression.
+    block_on(async {
+        select! {
+            () = future::pending::<()>() => {}
+            () = future::ready(()) => {}
+        }
+    });
+}
+
+#[test]
 fn select_biased() {
     let (tx1, rx1) = oneshot::channel::<i32>();
     let (_tx2, rx2) = oneshot::channel::<i32>();
@@ -321,8 +333,7 @@ fn stream_select() {
         assert_eq!(endless_ones.next().await, Some(1));
         assert_eq!(endless_ones.next().await, Some(1));
 
-        let mut finite_list =
-            stream_select!(stream::iter(vec![1].into_iter()), stream::iter(vec![1].into_iter()));
+        let mut finite_list = stream_select!(stream::iter(vec![1]), stream::iter(vec![1]));
         assert_eq!(finite_list.next().await, Some(1));
         assert_eq!(finite_list.next().await, Some(1));
         assert_eq!(finite_list.next().await, None);

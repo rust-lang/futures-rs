@@ -8,10 +8,7 @@
 //! All items of this library are only available when the `std` feature of this
 //! library is activated, and it is activated by default.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_debug_implementations, missing_docs, rust_2018_idioms, unreachable_pub)]
-// It cannot be included in the published code because this lints have false positives in the minimum required version.
-#![cfg_attr(test, warn(single_use_lifetimes))]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -19,18 +16,23 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(feature = "std")]
 mod if_std {
+    use std::boxed::Box;
     use std::io;
     use std::ops::DerefMut;
     use std::pin::Pin;
     use std::task::{Context, Poll};
+    use std::vec::Vec;
 
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
-    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
     #[doc(no_inline)]
     pub use io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 

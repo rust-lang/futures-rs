@@ -14,14 +14,14 @@ fn issue2310() {
 
     impl MyRead {
         fn new() -> Self {
-            MyRead { first: false }
+            Self { first: false }
         }
     }
 
     impl AsyncRead for MyRead {
         fn poll_read(
             mut self: Pin<&mut Self>,
-            _cx: &mut Context,
+            _cx: &mut Context<'_>,
             _buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
             Poll::Ready(if !self.first {
@@ -41,7 +41,7 @@ fn issue2310() {
 
     impl VecWrapper {
         fn new() -> Self {
-            VecWrapper { inner: Vec::new() }
+            Self { inner: Vec::new() }
         }
     }
 

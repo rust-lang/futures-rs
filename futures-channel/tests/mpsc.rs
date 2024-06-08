@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[allow(dead_code)]
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}
 impl AssertSend for mpsc::Receiver<i32> {}
@@ -629,4 +630,27 @@ fn send_backpressure_multi_senders() {
 
     let item = block_on(rx.next()).unwrap();
     assert_eq!(item, 2);
+}
+
+/// Test that empty channel has zero length and that non-empty channel has length equal to number
+/// of enqueued items
+#[test]
+fn unbounded_len() {
+    let (tx, mut rx) = mpsc::unbounded();
+    assert_eq!(tx.len(), 0);
+    assert!(tx.is_empty());
+    tx.unbounded_send(1).unwrap();
+    assert_eq!(tx.len(), 1);
+    assert!(!tx.is_empty());
+    tx.unbounded_send(2).unwrap();
+    assert_eq!(tx.len(), 2);
+    assert!(!tx.is_empty());
+    let item = block_on(rx.next()).unwrap();
+    assert_eq!(item, 1);
+    assert_eq!(tx.len(), 1);
+    assert!(!tx.is_empty());
+    let item = block_on(rx.next()).unwrap();
+    assert_eq!(item, 2);
+    assert_eq!(tx.len(), 0);
+    assert!(tx.is_empty());
 }

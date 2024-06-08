@@ -21,7 +21,7 @@
 use crate::compat::Compat;
 use crate::future::assert_future;
 use crate::stream::assert_stream;
-use std::{pin::Pin, ptr};
+use std::{pin::Pin, ptr, string::String, vec::Vec};
 
 // Re-export some types from `std::io` so that users don't have to deal
 // with conflicts when `use`ing `futures::io` and `std::io`.
@@ -39,7 +39,7 @@ const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 /// A buffer is currently always initialized.
 #[inline]
 unsafe fn initialize<R: AsyncRead>(_reader: &R, buf: &mut [u8]) {
-    ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len())
+    unsafe { ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len()) }
 }
 
 mod allow_std;
@@ -807,11 +807,11 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// use futures::io::{AsyncBufReadExt, Cursor};
     /// use futures::stream::StreamExt;
     ///
-    /// let cursor = Cursor::new(b"lorem\nipsum\r\ndolor");
+    /// let cursor = Cursor::new(b"lorem\nipsum\xc2\r\ndolor");
     ///
-    /// let mut lines_stream = cursor.lines().map(|l| l.unwrap());
+    /// let mut lines_stream = cursor.lines().map(|l| l.unwrap_or(String::from("invalid UTF_8")));
     /// assert_eq!(lines_stream.next().await, Some(String::from("lorem")));
-    /// assert_eq!(lines_stream.next().await, Some(String::from("ipsum")));
+    /// assert_eq!(lines_stream.next().await, Some(String::from("invalid UTF_8")));
     /// assert_eq!(lines_stream.next().await, Some(String::from("dolor")));
     /// assert_eq!(lines_stream.next().await, None);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();

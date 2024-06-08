@@ -4,8 +4,10 @@ use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
 use pin_project_lite::pin_project;
+use std::boxed::Box;
 use std::io::{self, Read};
 use std::pin::Pin;
+use std::vec;
 use std::{cmp, fmt};
 
 pin_project! {
@@ -50,7 +52,9 @@ impl<R: AsyncRead> BufReader<R> {
         let buffer = vec![0; capacity];
         Self { inner, buffer: buffer.into_boxed_slice(), pos: 0, cap: 0 }
     }
+}
 
+impl<R> BufReader<R> {
     delegate_access_inner!(inner, R, ());
 
     /// Returns a reference to the internally buffered data.
@@ -209,7 +213,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
             // it should be safe to assume that remainder fits within an i64 as the alternative
             // means we managed to allocate 8 exbibytes and that's absurd.
             // But it's not out of the realm of possibility for some weird underlying reader to
-            // support seeking by i64::min_value() so we need to handle underflow when subtracting
+            // support seeking by i64::MIN so we need to handle underflow when subtracting
             // remainder.
             if let Some(offset) = n.checked_sub(remainder) {
                 result =

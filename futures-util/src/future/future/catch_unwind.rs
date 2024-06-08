@@ -1,5 +1,6 @@
 use core::any::Any;
 use core::pin::Pin;
+use std::boxed::Box;
 use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 
 use futures_core::future::Future;

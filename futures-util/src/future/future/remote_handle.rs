@@ -9,6 +9,7 @@ use {
     pin_project_lite::pin_project,
     std::{
         any::Any,
+        boxed::Box,
         fmt,
         panic::{self, AssertUnwindSafe},
         pin::Pin,

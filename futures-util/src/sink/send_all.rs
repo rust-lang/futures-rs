@@ -10,7 +10,6 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Future for the [`send_all`](super::SinkExt::send_all) method.
-    #[allow(explicit_outlives_requirements)] // https://github.com/rust-lang/rust/issues/60993
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct SendAll<'a, Si, St>
     where

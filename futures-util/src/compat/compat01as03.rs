@@ -8,12 +8,12 @@ use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
 use futures_core::{future::Future as Future03, stream::Stream as Stream03, task as task03};
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
+use std::boxed::Box;
 use std::pin::Pin;
 use std::task::Context;
 
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
@@ -345,7 +345,7 @@ unsafe impl UnsafeNotify01 for NotifyWaker {
 
     unsafe fn drop_raw(&self) {
         let ptr: *const dyn UnsafeNotify01 = self;
-        drop(Box::from_raw(ptr as *mut dyn UnsafeNotify01));
+        drop(unsafe { Box::from_raw(ptr as *mut dyn UnsafeNotify01) });
     }
 }
 

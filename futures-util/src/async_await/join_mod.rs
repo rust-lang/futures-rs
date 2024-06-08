@@ -79,11 +79,9 @@ macro_rules! document_join_macro {
     }
 }
 
-#[allow(unreachable_pub)]
 #[doc(hidden)]
 pub use futures_macro::join_internal;
 
-#[allow(unreachable_pub)]
 #[doc(hidden)]
 pub use futures_macro::try_join_internal;
 

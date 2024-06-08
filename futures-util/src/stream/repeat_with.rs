@@ -24,7 +24,7 @@ impl<A, F: FnMut() -> A> Stream for RepeatWith<F> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (usize::max_value(), None)
+        (usize::MAX, None)
     }
 }
 

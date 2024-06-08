@@ -81,14 +81,7 @@
 //! The majority of examples and code snippets in this crate assume that they are
 //! inside an async block as written above.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(
-    missing_debug_implementations,
-    missing_docs,
-    rust_2018_idioms,
-    single_use_lifetimes,
-    unreachable_pub
-)]
+#![no_std]
 #![doc(test(
     no_crate_inject,
     attr(
@@ -96,6 +89,7 @@
         allow(dead_code, unused_assignments, unused_variables)
     )
 ))]
+#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
@@ -151,6 +145,7 @@ pub use futures_util::lock;
 #[doc(inline)]
 pub use futures_util::io;
 
+#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "executor")))]
 pub mod executor {
@@ -203,6 +198,7 @@ pub mod executor {
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
+#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat {
@@ -240,12 +236,10 @@ pub mod prelude {
     pub use crate::stream::{self, Stream, TryStream};
 
     #[doc(no_inline)]
-    #[allow(unreachable_pub)]
     pub use crate::future::{FutureExt as _, TryFutureExt as _};
     #[doc(no_inline)]
     pub use crate::sink::SinkExt as _;
     #[doc(no_inline)]
-    #[allow(unreachable_pub)]
     pub use crate::stream::{StreamExt as _, TryStreamExt as _};
 
     #[cfg(feature = "std")]
@@ -253,7 +247,6 @@ pub mod prelude {
 
     #[cfg(feature = "std")]
     #[doc(no_inline)]
-    #[allow(unreachable_pub)]
     pub use crate::io::{
         AsyncBufReadExt as _, AsyncReadExt as _, AsyncSeekExt as _, AsyncWriteExt as _,
     };

@@ -37,14 +37,14 @@ pub use self::stream::ReadyChunks;
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::stream::Forward;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use self::stream::{
     BufferUnordered, Buffered, FlatMapUnordered, FlattenUnordered, ForEachConcurrent,
     TryForEachConcurrent,
 };
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
@@ -52,8 +52,8 @@ pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 
 mod try_stream;
 pub use self::try_stream::{
-    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
+    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll,
+    TryAny, TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
     TryStreamExt, TryTakeWhile, TryUnfold,
 };
 
@@ -62,7 +62,7 @@ pub use self::try_stream::{
 #[cfg(feature = "std")]
 pub use self::try_stream::IntoAsyncRead;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered};
 
@@ -71,7 +71,7 @@ pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered}
 pub use self::try_stream::TryForward;
 
 #[cfg(feature = "alloc")]
-pub use self::try_stream::{TryChunks, TryChunksError};
+pub use self::try_stream::{TryChunks, TryChunksError, TryReadyChunks, TryReadyChunksError};
 
 // Primitive streams
 
@@ -108,23 +108,23 @@ pub use self::select_with_strategy::{select_with_strategy, PollNext, SelectWithS
 mod unfold;
 pub use self::unfold::{unfold, Unfold};
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod futures_ordered;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use self::futures_ordered::FuturesOrdered;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod futures_unordered;
 mod futures_unordered_internal;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::futures_unordered::FuturesUnordered;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod mapped_futures;
 #[cfg(not(futures_no_atomic_cas))]
@@ -135,18 +135,18 @@ pub use self::mapped_futures::MappedFutures;
 #[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 pub mod select_all;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::select_all::{select_all, SelectAll};
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod abortable;
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub use abortable::abortable;
 

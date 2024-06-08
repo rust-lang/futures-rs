@@ -2,6 +2,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 use std::any::Any;
+use std::boxed::Box;
 use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 use std::pin::Pin;
 

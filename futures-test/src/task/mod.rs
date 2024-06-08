@@ -15,29 +15,29 @@
 //! [`Spawn`](futures_task::Spawn) implementations.
 //!
 //! Test contexts:
-//! - [`noop_context`](crate::task::noop_context) creates a context that ignores calls to
+//! - [`noop_context`] creates a context that ignores calls to
 //!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker).
-//! - [`panic_context`](crate::task::panic_context) creates a context that panics when
+//! - [`panic_context`] creates a context that panics when
 //!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker) is called.
 //!
 //! Test wakers:
-//! - [`noop_waker`](crate::task::noop_waker) creates a waker that ignores calls to
+//! - [`noop_waker`] creates a waker that ignores calls to
 //!   [`wake`](futures_core::task::Waker).
-//! - [`panic_waker`](crate::task::panic_waker()) creates a waker that panics when
+//! - [`panic_waker`](panic_waker()) creates a waker that panics when
 //!   [`wake`](futures_core::task::Waker) is called.
-//! - [`new_count_waker`](crate::task::new_count_waker) creates a waker that increments a counter whenever
+//! - [`new_count_waker`] creates a waker that increments a counter whenever
 //!   [`wake`](futures_core::task::Waker) is called.
 //!
 //! Test spawners:
-//! - [`NoopSpawner`](crate::task::NoopSpawner) ignores calls to
+//! - [`NoopSpawner`] ignores calls to
 //!   [`spawn`](futures_util::task::SpawnExt::spawn)
-//! - [`PanicSpawner`](crate::task::PanicSpawner) panics if [`spawn`](futures_util::task::SpawnExt::spawn) is
+//! - [`PanicSpawner`] panics if [`spawn`](futures_util::task::SpawnExt::spawn) is
 //!   called.
-//! - [`RecordSpawner`](crate::task::RecordSpawner) records the spawned futures.
+//! - [`RecordSpawner`] records the spawned futures.
 //!
 //! For convenience there additionally exist various functions that directly
-//! return waker/spawner references: [`noop_waker_ref`](crate::task::noop_waker_ref),
-//! [`panic_waker_ref`](crate::task::panic_waker_ref), [`noop_spawner_mut`](crate::task::noop_spawner_mut) and [`panic_spawner_mut`](crate::task::panic_spawner_mut).
+//! return waker/spawner references: [`noop_waker_ref`], [`panic_waker_ref`],
+//! [`noop_spawner_mut`] and [`panic_spawner_mut`].
 
 mod context;
 pub use self::context::{noop_context, panic_context};

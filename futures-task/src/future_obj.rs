@@ -28,14 +28,14 @@ impl<T> Unpin for LocalFutureObj<'_, T> {}
 unsafe fn remove_future_lifetime<'a, T>(
     ptr: *mut (dyn Future<Output = T> + 'a),
 ) -> *mut (dyn Future<Output = T> + 'static) {
-    mem::transmute(ptr)
+    unsafe { mem::transmute(ptr) }
 }
 
 #[allow(single_use_lifetimes)]
 unsafe fn remove_drop_lifetime<'a, T>(
     ptr: unsafe fn(*mut (dyn Future<Output = T> + 'a)),
 ) -> unsafe fn(*mut (dyn Future<Output = T> + 'static)) {
-    mem::transmute(ptr)
+    unsafe { mem::transmute(ptr) }
 }
 
 impl<'a, T> LocalFutureObj<'a, T> {
@@ -148,7 +148,6 @@ pub unsafe trait UnsafeFutureObj<'a, T>: 'a {
     /// provided `*mut (dyn Future<Output = T> + 'a)` into a `Pin<&mut (dyn
     /// Future<Output = T> + 'a)>` and call methods on it, non-reentrantly,
     /// until `UnsafeFutureObj::drop` is called with it.
-    #[allow(clippy::unnecessary_safety_doc)]
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a);
 
     /// Drops the future represented by the given fat pointer.
@@ -224,7 +223,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Box::from_raw(ptr.cast::<F>()))
+            drop(unsafe { Box::from_raw(ptr.cast::<F>()) })
         }
     }
 
@@ -234,7 +233,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Box::from_raw(ptr))
+            drop(unsafe { Box::from_raw(ptr) })
         }
     }
 
@@ -244,7 +243,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Box::from_raw(ptr))
+            drop(unsafe { Box::from_raw(ptr) })
         }
     }
 
@@ -258,7 +257,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Pin::from(Box::from_raw(ptr)))
+            drop(Pin::from(unsafe { Box::from_raw(ptr) }))
         }
     }
 
@@ -269,7 +268,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Pin::from(Box::from_raw(ptr)))
+            drop(Pin::from(unsafe { Box::from_raw(ptr) }))
         }
     }
 
@@ -280,7 +279,7 @@ mod if_alloc {
         }
 
         unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-            drop(Pin::from(Box::from_raw(ptr)))
+            drop(Pin::from(unsafe { Box::from_raw(ptr) }))
         }
     }
 

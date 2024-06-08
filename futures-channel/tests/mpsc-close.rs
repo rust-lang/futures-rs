@@ -174,10 +174,10 @@ fn stress_try_send_as_receiver_closes() {
     }
     impl TestTask {
         /// Create a new TestTask
-        fn new() -> (TestTask, mpsc::Sender<TestRx>) {
+        fn new() -> (Self, mpsc::Sender<TestRx>) {
             let (command_tx, command_rx) = mpsc::channel::<TestRx>(0);
             (
-                TestTask {
+                Self {
                     command_rx,
                     test_rx: None,
                     countdown: 0, // 0 means no countdown is in progress.

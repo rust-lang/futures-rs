@@ -42,7 +42,6 @@ delegate_all!(
     where F: Future
 );
 
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use fuse::Fuse;
 
 delegate_all!(
@@ -97,7 +96,6 @@ delegate_all!(
 #[cfg(feature = "std")]
 mod catch_unwind;
 #[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::catch_unwind::CatchUnwind;
 
 #[cfg(feature = "channel")]
@@ -107,13 +105,11 @@ mod remote_handle;
 #[cfg(feature = "channel")]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::remote_handle::{Remote, RemoteHandle};
 
 #[cfg(feature = "std")]
 mod shared;
 #[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::shared::{Shared, WeakShared};
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -463,10 +459,6 @@ pub trait FutureExt: Future {
     /// ```
     ///
     /// ```
-    /// // Note, unlike most examples this is written in the context of a
-    /// // synchronous function to better illustrate the cross-thread aspect of
-    /// // the `shared` combinator.
-    ///
     /// # futures::executor::block_on(async {
     /// use futures::future::FutureExt;
     /// use futures::executor::block_on;

@@ -39,9 +39,9 @@ impl<A, B> Either<A, B> {
         // SAFETY: We can use `new_unchecked` because the `inner` parts are
         // guaranteed to be pinned, as they come from `self` which is pinned.
         unsafe {
-            match *Pin::get_ref(self) {
-                Either::Left(ref inner) => Either::Left(Pin::new_unchecked(inner)),
-                Either::Right(ref inner) => Either::Right(Pin::new_unchecked(inner)),
+            match self.get_ref() {
+                Self::Left(inner) => Either::Left(Pin::new_unchecked(inner)),
+                Self::Right(inner) => Either::Right(Pin::new_unchecked(inner)),
             }
         }
     }
@@ -55,9 +55,9 @@ impl<A, B> Either<A, B> {
         // offer an unpinned `&mut A` or `&mut B` through `Pin<&mut Self>`. We
         // also don't have an implementation of `Drop`, nor manual `Unpin`.
         unsafe {
-            match *Pin::get_unchecked_mut(self) {
-                Either::Left(ref mut inner) => Either::Left(Pin::new_unchecked(inner)),
-                Either::Right(ref mut inner) => Either::Right(Pin::new_unchecked(inner)),
+            match self.get_unchecked_mut() {
+                Self::Left(inner) => Either::Left(Pin::new_unchecked(inner)),
+                Self::Right(inner) => Either::Right(Pin::new_unchecked(inner)),
             }
         }
     }
@@ -69,8 +69,8 @@ impl<A, B, T> Either<(T, A), (T, B)> {
     /// Here, the homogeneous type is the first element of the pairs.
     pub fn factor_first(self) -> (T, Either<A, B>) {
         match self {
-            Either::Left((x, a)) => (x, Either::Left(a)),
-            Either::Right((x, b)) => (x, Either::Right(b)),
+            Self::Left((x, a)) => (x, Either::Left(a)),
+            Self::Right((x, b)) => (x, Either::Right(b)),
         }
     }
 }
@@ -81,8 +81,8 @@ impl<A, B, T> Either<(A, T), (B, T)> {
     /// Here, the homogeneous type is the second element of the pairs.
     pub fn factor_second(self) -> (Either<A, B>, T) {
         match self {
-            Either::Left((a, x)) => (Either::Left(a), x),
-            Either::Right((b, x)) => (Either::Right(b), x),
+            Self::Left((a, x)) => (Either::Left(a), x),
+            Self::Right((b, x)) => (Either::Right(b), x),
         }
     }
 }
@@ -91,8 +91,7 @@ impl<T> Either<T, T> {
     /// Extract the value of an either over two equivalent types.
     pub fn into_inner(self) -> T {
         match self {
-            Either::Left(x) => x,
-            Either::Right(x) => x,
+            Self::Left(x) | Self::Right(x) => x,
         }
     }
 }
@@ -119,8 +118,8 @@ where
 {
     fn is_terminated(&self) -> bool {
         match self {
-            Either::Left(x) => x.is_terminated(),
-            Either::Right(x) => x.is_terminated(),
+            Self::Left(x) => x.is_terminated(),
+            Self::Right(x) => x.is_terminated(),
         }
     }
 }
@@ -141,8 +140,8 @@ where
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
-            Either::Left(x) => x.size_hint(),
-            Either::Right(x) => x.size_hint(),
+            Self::Left(x) => x.size_hint(),
+            Self::Right(x) => x.size_hint(),
         }
     }
 }
@@ -154,8 +153,8 @@ where
 {
     fn is_terminated(&self) -> bool {
         match self {
-            Either::Left(x) => x.is_terminated(),
-            Either::Right(x) => x.is_terminated(),
+            Self::Left(x) => x.is_terminated(),
+            Self::Right(x) => x.is_terminated(),
         }
     }
 }
@@ -202,8 +201,6 @@ where
 mod if_std {
     use super::*;
 
-    use core::pin::Pin;
-    use core::task::{Context, Poll};
     use futures_io::{
         AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, Result, SeekFrom,
     };
