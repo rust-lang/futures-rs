@@ -414,6 +414,7 @@ pub mod tests {
     use futures_timer::Delay;
     // use futures_util::StreamExt;
     // use crate::StreamExt;
+    use std::boxed::Box;
     use std::time::Duration;
 
     fn insert_millis(futs: &mut MappedFutures<u32, Delay>, key: u32, millis: u64) {
