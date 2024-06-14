@@ -36,6 +36,7 @@ unsafe fn increase_refcount<T: ArcWake + 'static>(data: *const ()) {
 }
 
 // used by `waker_ref`
+#[inline(always)]
 unsafe fn clone_arc_raw<T: ArcWake + 'static>(data: *const ()) -> RawWaker {
     unsafe { increase_refcount::<T>(data) }
     RawWaker::new(data, waker_vtable::<T>())
