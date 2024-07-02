@@ -1,15 +1,20 @@
 use crate::task::{waker_ref, ArcWake};
+use alloc::sync::{Arc, Weak};
+use core::cell::UnsafeCell;
+use core::fmt;
+use core::hash::Hasher;
+use core::pin::Pin;
+use core::ptr;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::{Acquire, SeqCst};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
-use std::cell::UnsafeCell;
-use std::fmt;
-use std::hash::Hasher;
-use std::pin::Pin;
-use std::ptr;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::{Acquire, SeqCst};
-use std::sync::{Arc, Mutex, Weak};
+
+#[cfg(feature = "std")]
+type Mutex<T> = std::sync::Mutex<T>;
+#[cfg(not(feature = "std"))]
+type Mutex<T> = spin::Mutex<T>;
 
 /// Future for the [`shared`](super::FutureExt::shared) method.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
