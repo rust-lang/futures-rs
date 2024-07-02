@@ -35,7 +35,7 @@ pub use self::future::CatchUnwind;
 #[cfg(feature = "std")]
 pub use self::future::{Remote, RemoteHandle};
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", target_has_atomic = "8"))]
 pub use self::future::{Shared, WeakShared};
 
 mod try_future;

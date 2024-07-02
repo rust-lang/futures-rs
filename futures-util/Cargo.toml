@@ -12,8 +12,8 @@ Common utilities and extension traits for the futures-rs library.
 
 [features]
 default = ["std", "async-await", "async-await-macro"]
-std = ["alloc", "futures-core/std", "futures-task/std", "slab"]
-alloc = ["futures-core/alloc", "futures-task/alloc"]
+std = ["alloc", "futures-core/std", "futures-task/std", "slab/std"]
+alloc = ["futures-core/alloc", "futures-task/alloc", "slab"]
 async-await = []
 async-await-macro = ["async-await", "futures-macro"]
 compat = ["std", "futures_01"]
@@ -37,12 +37,14 @@ futures-channel = { path = "../futures-channel", version = "=0.4.0-alpha.0", def
 futures-io = { path = "../futures-io", version = "0.3.30", default-features = false, features = ["std"], optional = true }
 futures-sink = { path = "../futures-sink", version = "=0.4.0-alpha.0", default-features = false, optional = true }
 futures-macro = { path = "../futures-macro", version = "=0.4.0-alpha.0", default-features = false, optional = true }
-slab = { version = "0.4.2", optional = true }
+slab = { version = "0.4.2", default-features = false, optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0"
 pin-project-lite = "0.2.6"
+
+[target.'cfg(target_has_atomic = "8")'.dependencies]
 spin = "0.9.8"
 
 [dev-dependencies]
