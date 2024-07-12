@@ -16,6 +16,16 @@ pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send 
 #[cfg(feature = "alloc")]
 pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
+/// [`BoxFuture`] with [`TryFuture`] instead.
+#[cfg(feature = "alloc")]
+pub type BoxTryFuture<'a, T, E> =
+    Pin<alloc::boxed::Box<dyn TryFuture<Ok = T, Error = E, Output = Result<T, E>> + Send + 'a>>;
+
+/// [`BoxTryFuture`], but without the `Send` requirement.
+#[cfg(feature = "alloc")]
+pub type LocalBoxTryFuture<'a, T, E> =
+    Pin<alloc::boxed::Box<dyn TryFuture<Ok = T, Error = E, Output = Result<T, E>> + 'a>>;
+
 /// A future which tracks whether or not the underlying future
 /// should no longer be polled.
 ///
