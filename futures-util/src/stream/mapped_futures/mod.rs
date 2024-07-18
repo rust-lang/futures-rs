@@ -166,7 +166,8 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
         // if let Some(task) = self.hash_set.get(key) {
         if let Some(task) = self.set().take(key) {
             unsafe {
-                if let Some(_) = (*task.future.get()).take() {
+                if (*task.future.get()).is_some() {
+                    task.future.get().write(None);
                     self.inner.unlink(Arc::as_ptr(&task.inner));
                     return true;
                 }
