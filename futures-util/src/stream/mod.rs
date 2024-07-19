@@ -127,12 +127,11 @@ pub use self::futures_unordered::FuturesUnordered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod mapped_futures;
-#[cfg(not(futures_no_atomic_cas))]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::mapped_futures::MappedFutures;
 
-#[cfg(not(futures_no_atomic_cas))]
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod select_all;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
