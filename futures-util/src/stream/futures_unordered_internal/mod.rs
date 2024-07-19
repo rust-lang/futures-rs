@@ -253,7 +253,7 @@ impl<K, Fut, S: ReleasesTask<K>> FuturesUnorderedInternal<K, Fut, S> {
     /// Releases the task. It destroys the future inside and either drops
     /// the `Arc<Task>` or transfers ownership to the ready to run queue.
     /// The task this method is called on must have been unlinked before.
-    fn release_task(&mut self, task: Arc<Task<K, Fut>>) {
+    pub(super) fn release_task(&mut self, task: Arc<Task<K, Fut>>) {
         if let Some(key) = task.key() {
             self.inner.release_task(key);
         }

@@ -167,8 +167,8 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
         if let Some(task) = self.set().take(key) {
             unsafe {
                 if (*task.future.get()).is_some() {
-                    *task.future.get() = None;
                     self.inner.unlink(Arc::as_ptr(&task.inner));
+                    self.inner.release_task(task.inner.clone());
                     return true;
                 }
             }
@@ -186,6 +186,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
             unsafe {
                 let fut = (*task.future.get()).take().unwrap();
                 self.inner.unlink(Arc::as_ptr(&task.inner));
+                self.inner.release_task(task.inner.clone());
                 return Some(fut);
             }
         }
@@ -311,7 +312,7 @@ impl<K: Hash + Eq, Fut: Future> Stream for MappedFutures<K, Fut> {
                 // let key = task.take_key();
                 // MappedFutures::set(self.get_mut()).remove(&key);
                 MappedFutures::set(self.get_mut()).remove(task.key().unwrap());
-                return Poll::Ready(Some((task.take_key(), output)));
+                Poll::Ready(Some((task.take_key(), output)))
             }
             None => Poll::Ready(None),
         }
@@ -450,13 +451,13 @@ pub mod tests {
     #[test]
     fn mutate() {
         let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
-        insert_millis(&mut futures, 1, 50);
-        insert_millis(&mut futures, 2, 100);
-        insert_millis(&mut futures, 3, 150);
-        insert_millis(&mut futures, 4, 200);
+        insert_millis(&mut futures, 1, 500);
+        insert_millis(&mut futures, 2, 1000);
+        insert_millis(&mut futures, 3, 1500);
+        insert_millis(&mut futures, 4, 2000);
 
         assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        futures.get_mut(&3).unwrap().reset(Duration::from_millis(30));
+        futures.get_mut(&3).unwrap().reset(Duration::from_millis(300));
         assert_eq!(block_on(futures.next()).unwrap().0, 3);
         assert_eq!(block_on(futures.next()).unwrap().0, 2);
         assert_eq!(block_on(futures.next()).unwrap().0, 4);
