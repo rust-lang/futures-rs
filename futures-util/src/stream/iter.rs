@@ -10,6 +10,23 @@ pub struct Iter<I> {
     iter: I,
 }
 
+impl<I> Iter<I> {
+    /// Acquires a reference to the underlying iterator that this stream is pulling from.
+    pub fn get_ref(&self) -> &I {
+        &self.iter
+    }
+
+    /// Acquires a mutable reference to the underlying iterator that this stream is pulling from.
+    pub fn get_mut(&mut self) -> &mut I {
+        &mut self.iter
+    }
+
+    /// Consumes this stream, returning the underlying iterator.
+    pub fn into_inner(self) -> I {
+        self.iter
+    }
+}
+
 impl<I> Unpin for Iter<I> {}
 
 /// Converts an `Iterator` into a `Stream` which is always ready
