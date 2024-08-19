@@ -1361,13 +1361,6 @@ mod stream {
     // IntoAsyncRead requires `St: Unpin`
     // assert_not_impl!(IntoAsyncRead<PinnedTryStream<Vec<u8>, io::Error>>: Unpin);
 
-    assert_impl!(IntoStream<()>: Send);
-    assert_not_impl!(IntoStream<*const ()>: Send);
-    assert_impl!(IntoStream<()>: Sync);
-    assert_not_impl!(IntoStream<*const ()>: Sync);
-    assert_impl!(IntoStream<()>: Unpin);
-    assert_not_impl!(IntoStream<PhantomPinned>: Unpin);
-
     assert_impl!(Iter<()>: Send);
     assert_not_impl!(Iter<*const ()>: Send);
     assert_impl!(Iter<()>: Sync);
