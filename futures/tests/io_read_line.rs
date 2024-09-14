@@ -28,8 +28,8 @@ impl AsyncRead for IOErrorRead {
             Poll::Ready(Err(std::io::ErrorKind::InvalidInput.into()))
         } else {
             self.0 = true;
-            b.fill(b'x');
-            Ok(b.len()).into()
+            b[..16].fill(b'x');
+            Ok(16).into()
         }
     }
 }
