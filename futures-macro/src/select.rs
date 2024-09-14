@@ -1,4 +1,4 @@
-//! The futures-rs `select! macro implementation.
+//! The futures-rs `select!` macro implementation.
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
