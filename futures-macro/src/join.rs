@@ -1,4 +1,4 @@
-//! The futures-rs `join! macro implementation.
+//! The futures-rs `join!` macro implementation.
 
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
