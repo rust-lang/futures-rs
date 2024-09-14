@@ -24,3 +24,4 @@ missing_debug_implementations = "warn"
 rust_2018_idioms = "warn"
 single_use_lifetimes = "warn"
 unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(futures_sanitizer)'] }

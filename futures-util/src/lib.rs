@@ -10,7 +10,6 @@
     )
 ))]
 #![warn(missing_docs, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]

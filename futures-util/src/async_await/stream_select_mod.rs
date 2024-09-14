@@ -4,6 +4,7 @@
 #[doc(hidden)]
 pub use futures_macro::stream_select_internal;
 
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// Combines several streams, all producing the same `Item` type, into one stream.
 /// This is similar to `select_all` but does not require the streams to all be the same type.
 /// It also keeps the streams inline, and does not require `Box<dyn Stream>`s to be allocated.

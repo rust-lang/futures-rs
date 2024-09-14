@@ -3,6 +3,7 @@
 macro_rules! document_select_macro {
     // This branch is required for `futures 0.3.1`, from before select_biased was introduced
     ($select:item) => {
+        #[allow(clippy::too_long_first_doc_paragraph)]
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. If multiple futures are ready,
         /// one will be pseudo-randomly selected at runtime. Futures directly
@@ -153,6 +154,7 @@ macro_rules! document_select_macro {
     ($select:item $select_biased:item) => {
         document_select_macro!($select);
 
+        #[allow(clippy::too_long_first_doc_paragraph)]
         /// Polls multiple futures and streams simultaneously, executing the branch
         /// for the future that finishes first. Unlike [`select!`], if multiple futures are ready,
         /// one will be selected in order of declaration. Futures directly

@@ -119,7 +119,7 @@ impl SharedPollState {
     /// - `!WAKING` as
     ///   * Wakers called during the `POLLING` phase won't propagate their calls
     ///   * `POLLING` phase can't start if some of the wakers are active
-    ///   So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
+    ///     So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
     fn stop_polling(&self, to_poll: u8, will_be_woken: bool) -> u8 {
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |mut value| {
