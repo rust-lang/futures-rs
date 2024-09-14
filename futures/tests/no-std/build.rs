@@ -1,6 +1,7 @@
 use std::{env, process::Command};
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(nightly)");
     if is_nightly() {
         println!("cargo:rustc-cfg=nightly");
     }

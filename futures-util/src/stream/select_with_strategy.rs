@@ -74,6 +74,7 @@ pin_project! {
     }
 }
 
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// This function will attempt to pull items from both streams. You provide a
 /// closure to tell [`SelectWithStrategy`] which stream to poll. The closure can
 /// store state on `SelectWithStrategy` to which it will receive a `&mut` on every

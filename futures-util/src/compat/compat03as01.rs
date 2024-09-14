@@ -15,6 +15,7 @@ use futures_sink::Sink as Sink03;
 use std::marker::PhantomData;
 use std::{mem, pin::Pin, sync::Arc, task::Context};
 
+#[allow(clippy::too_long_first_doc_paragraph)] // clippy bug, see https://github.com/rust-lang/rust-clippy/issues/13315
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture) or
 /// [`TryStream`](futures_core::stream::TryStream) into a futures 0.1
 /// [`Future`](futures_01::future::Future) or
