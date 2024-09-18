@@ -1,6 +1,6 @@
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
-use futures::io::{AsyncBufReadExt, Cursor};
+use futures::io::{AsyncBufReadExt, AsyncRead, Cursor};
 use futures::stream::{self, StreamExt, TryStreamExt};
 use futures::task::Poll;
 use futures_test::io::AsyncReadTestExt;
@@ -25,6 +25,24 @@ macro_rules! run_next {
     ($expr:expr) => {
         run($expr.next()).unwrap().unwrap()
     };
+}
+
+struct IOErrorRead(bool);
+
+impl AsyncRead for IOErrorRead {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        b: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        if self.0 {
+            Poll::Ready(Err(std::io::ErrorKind::InvalidInput.into()))
+        } else {
+            self.0 = true;
+            b[..16].fill(b'x');
+            Ok(16).into()
+        }
+    }
 }
 
 #[test]
@@ -57,4 +75,10 @@ fn maybe_pending() {
     assert_eq!(run_next!(s), "12".to_string());
     assert_eq!(run_next!(s), "".to_string());
     assert!(run(s.next()).is_none());
+}
+
+#[test]
+fn issue2862() {
+    let mut lines = futures::io::BufReader::new(IOErrorRead(false)).lines();
+    assert!(block_on(lines.next()).unwrap().is_err())
 }
