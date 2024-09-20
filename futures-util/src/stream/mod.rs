@@ -118,10 +118,18 @@ pub use self::futures_ordered::FuturesOrdered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 pub mod futures_unordered;
+mod futures_unordered_internal;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::futures_unordered::FuturesUnordered;
+
+#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(feature = "alloc")]
+pub mod mapped_futures;
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use self::mapped_futures::MappedFutures;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
