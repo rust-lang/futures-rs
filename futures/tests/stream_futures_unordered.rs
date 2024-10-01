@@ -406,3 +406,26 @@ fn clear_in_loop() {
         }
     });
 }
+
+// https://github.com/rust-lang/futures-rs/issues/2863#issuecomment-2219441515
+#[test]
+#[should_panic]
+fn panic_on_drop_fut() {
+    struct BadFuture;
+
+    impl Drop for BadFuture {
+        fn drop(&mut self) {
+            panic!()
+        }
+    }
+
+    impl Future for BadFuture {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+            Poll::Pending
+        }
+    }
+
+    FuturesUnordered::default().push(BadFuture);
+}
