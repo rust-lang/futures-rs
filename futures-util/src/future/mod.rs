@@ -71,6 +71,11 @@ pub use self::poll_fn::{poll_fn, PollFn};
 mod poll_immediate;
 pub use self::poll_immediate::{poll_immediate, PollImmediate};
 
+mod on_poll;
+pub use self::on_poll::{on_poll, OnPoll};
+pub use self::on_poll::{on_poll_pending, OnPollPending};
+pub use self::on_poll::{on_poll_ready, OnPollReady};
+
 mod ready;
 pub use self::ready::{err, ok, ready, Ready};
 
