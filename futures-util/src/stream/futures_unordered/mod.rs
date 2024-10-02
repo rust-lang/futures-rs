@@ -576,33 +576,24 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // Before the strong reference to the queue is dropped we need all
         // futures to be dropped. See note at the bottom of this method.
         //
-        // This ensures we drop all futures even in the case of one drop
-        // panicking and unwinding.
-        //
-        // If a second future panics, that will trigger an abort from panicking
-        // while panicking.
-        struct DropGuard<'a, Fut>(&'a mut FuturesUnordered<Fut>);
-        impl<Fut> DropGuard<'_, Fut> {
-            fn drop_futures(&mut self) {
-                // When a `FuturesUnordered` is dropped we want to drop all futures
-                // associated with it. At the same time though there may be tons of
-                // wakers flying around which contain `Task<Fut>` references
-                // inside them. We'll let those naturally get deallocated.
-                while !self.0.head_all.get_mut().is_null() {
-                    let head = *self.0.head_all.get_mut();
-                    let task = unsafe { self.0.unlink(head) };
-                    self.0.release_task(task);
-                }
-            }
-        }
-        impl<Fut> Drop for DropGuard<'_, Fut> {
+        // If there is a panic before this completes, we leak the queue.
+        struct LeakQueueOnDrop<'a, Fut>(&'a mut FuturesUnordered<Fut>);
+        impl<Fut> Drop for LeakQueueOnDrop<'_, Fut> {
             fn drop(&mut self) {
-                self.drop_futures();
+                mem::forget(Arc::clone(&self.0.ready_to_run_queue));
             }
         }
-        let mut guard = DropGuard(self);
-        guard.drop_futures();
-        mem::forget(guard); // no need to check head_all again
+        let guard = LeakQueueOnDrop(self);
+        // When a `FuturesUnordered` is dropped we want to drop all futures
+        // associated with it. At the same time though there may be tons of
+        // wakers flying around which contain `Task<Fut>` references
+        // inside them. We'll let those naturally get deallocated.
+        while !guard.0.head_all.get_mut().is_null() {
+            let head = *guard.0.head_all.get_mut();
+            let task = unsafe { guard.0.unlink(head) };
+            guard.0.release_task(task);
+        }
+        mem::forget(guard); // safe to release strong reference to queue
 
         // Note that at this point we could still have a bunch of tasks in the
         // ready to run queue. None of those tasks, however, have futures

@@ -246,9 +246,15 @@ jobs:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         run: rustup toolchain install nightly --component miri && rustup default nightly
-      - run: cargo miri test --workspace --all-features
+      - run: cargo miri test --workspace --all-features -- --skip panic_on_drop_fut
         env:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
+          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} -Z randomize-layout
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
+      # This test is expected to leak.
+      - run: cargo miri test --workspace --all-features --test stream_futures_unordered -- panic_on_drop_fut
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation -Zmiri-ignore-leaks
           RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} -Z randomize-layout
           RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
 
@@ -269,7 +275,7 @@ jobs:
         run: rustup toolchain install nightly --component rust-src && rustup default nightly
       # https://github.com/google/sanitizers/issues/1716 / https://github.com/actions/runner-images/issues/9491
       - run: sudo sysctl vm.mmap_rnd_bits=28
-      - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests
+      - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests -- --skip panic_on_drop_fut
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
           # `cfg(futures_sanitizer)` with `cfg(sanitize = "..")` and remove
