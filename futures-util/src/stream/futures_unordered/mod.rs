@@ -255,16 +255,6 @@ impl<Fut> FuturesUnordered<Fut> {
         // `wake` from doing any work in the future
         let prev = task.queued.swap(true, SeqCst);
 
-        // Drop the future, even if it hasn't finished yet. This is safe
-        // because we're dropping the future on the thread that owns
-        // `FuturesUnordered`, which correctly tracks `Fut`'s lifetimes and
-        // such.
-        unsafe {
-            // Set to `None` rather than `take()`ing to prevent moving the
-            // future.
-            *task.future.get() = None;
-        }
-
         // If the queued flag was previously set, then it means that this task
         // is still in our internal ready to run queue. We then transfer
         // ownership of our reference count to the ready to run queue, and it'll
@@ -276,8 +266,25 @@ impl<Fut> FuturesUnordered<Fut> {
         // enqueue the task, so our task will never see the ready to run queue
         // again. The task itself will be deallocated once all reference counts
         // have been dropped elsewhere by the various wakers that contain it.
-        if prev {
-            mem::forget(task);
+        //
+        // Use ManuallyDrop to transfer the reference count ownership before
+        // dropping the future so unwinding won't release the reference count.
+        let md_slot;
+        let task = if prev {
+            md_slot = mem::ManuallyDrop::new(task);
+            &*md_slot
+        } else {
+            &task
+        };
+
+        // Drop the future, even if it hasn't finished yet. This is safe
+        // because we're dropping the future on the thread that owns
+        // `FuturesUnordered`, which correctly tracks `Fut`'s lifetimes and
+        // such.
+        unsafe {
+            // Set to `None` rather than `take()`ing to prevent moving the
+            // future.
+            *task.future.get() = None;
         }
     }
 
@@ -566,15 +573,27 @@ impl<Fut> FuturesUnordered<Fut> {
 
 impl<Fut> Drop for FuturesUnordered<Fut> {
     fn drop(&mut self) {
+        // Before the strong reference to the queue is dropped we need all
+        // futures to be dropped. See note at the bottom of this method.
+        //
+        // If there is a panic before this completes, we leak the queue.
+        struct LeakQueueOnDrop<'a, Fut>(&'a mut FuturesUnordered<Fut>);
+        impl<Fut> Drop for LeakQueueOnDrop<'_, Fut> {
+            fn drop(&mut self) {
+                mem::forget(Arc::clone(&self.0.ready_to_run_queue));
+            }
+        }
+        let guard = LeakQueueOnDrop(self);
         // When a `FuturesUnordered` is dropped we want to drop all futures
         // associated with it. At the same time though there may be tons of
         // wakers flying around which contain `Task<Fut>` references
         // inside them. We'll let those naturally get deallocated.
-        while !self.head_all.get_mut().is_null() {
-            let head = *self.head_all.get_mut();
-            let task = unsafe { self.unlink(head) };
-            self.release_task(task);
+        while !guard.0.head_all.get_mut().is_null() {
+            let head = *guard.0.head_all.get_mut();
+            let task = unsafe { guard.0.unlink(head) };
+            guard.0.release_task(task);
         }
+        mem::forget(guard); // safe to release strong reference to queue
 
         // Note that at this point we could still have a bunch of tasks in the
         // ready to run queue. None of those tasks, however, have futures
