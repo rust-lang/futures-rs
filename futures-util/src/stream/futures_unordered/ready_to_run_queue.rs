@@ -27,6 +27,8 @@ pub(super) struct ReadyToRunQueue<Fut> {
 /// An MPSC queue into which the tasks containing the futures are inserted
 /// whenever the future inside is scheduled for polling.
 impl<Fut> ReadyToRunQueue<Fut> {
+    // FIXME: this takes raw pointer without safety conditions.
+
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
     pub(super) fn enqueue(&self, task: *const Task<Fut>) {
         unsafe {
