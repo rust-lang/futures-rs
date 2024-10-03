@@ -18,6 +18,11 @@ pub use core::future::Future;
 pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// `BoxFuture`, but without the `Send` requirement.
+///
+/// This type is often created by the [`boxed_local`] method on [`FutureExt`]. See its documentation for more.
+///
+/// [`boxed_local`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html#method.boxed_local
+/// [`FutureExt`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html
 #[cfg(feature = "alloc")]
 pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
