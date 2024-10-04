@@ -6,10 +6,20 @@ use core::task::{Context, Poll};
 
 /// An owned dynamically typed [`Stream`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
+///
+/// This type is often created by the [`boxed`] method on [`StreamExt`]. See its documentation for more.
+///
+/// [`boxed`]: https://docs.rs/futures/latest/futures/stream/trait.StreamExt.html#method.boxed
+/// [`StreamExt`]: https://docs.rs/futures/latest/futures/stream/trait.StreamExt.html
 #[cfg(feature = "alloc")]
 pub type BoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + Send + 'a>>;
 
 /// `BoxStream`, but without the `Send` requirement.
+///
+/// This type is often created by the [`boxed_local`] method on [`StreamExt`]. See its documentation for more.
+///
+/// [`boxed_local`]: https://docs.rs/futures/latest/futures/stream/trait.StreamExt.html#method.boxed_local
+/// [`StreamExt`]: https://docs.rs/futures/latest/futures/stream/trait.StreamExt.html
 #[cfg(feature = "alloc")]
 pub type LocalBoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + 'a>>;
 
