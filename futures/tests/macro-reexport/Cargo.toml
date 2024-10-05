@@ -6,3 +6,6 @@ publish = false
 
 [dependencies]
 futures03 = { path = "../..", package = "futures" }
+
+[lints]
+workspace = true

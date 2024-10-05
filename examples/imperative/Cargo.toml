@@ -6,3 +6,6 @@ publish = false
 
 [dependencies]
 futures = { path = "../../futures", features = ["thread-pool"] }
+
+[lints]
+workspace = true

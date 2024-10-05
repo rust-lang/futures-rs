@@ -1,4 +1,5 @@
 #![cfg(feature = "compat")]
+#![allow(dead_code)]
 
 //! Assert Send/Sync/Unpin for all public types.
 
@@ -12,49 +13,49 @@ use static_assertions::{assert_impl_all as assert_impl, assert_not_impl_all as a
 use std::marker::PhantomPinned;
 use std::{marker::PhantomData, pin::Pin};
 
-pub type LocalFuture<T = *const ()> = Pin<Box<dyn Future<Output = T>>>;
-pub type LocalTryFuture<T = *const (), E = *const ()> = LocalFuture<Result<T, E>>;
-pub type SendFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send>>;
-pub type SendTryFuture<T = *const (), E = *const ()> = SendFuture<Result<T, E>>;
-pub type SyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Sync>>;
-pub type SyncTryFuture<T = *const (), E = *const ()> = SyncFuture<Result<T, E>>;
-pub type SendSyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
-pub type SendSyncTryFuture<T = *const (), E = *const ()> = SendSyncFuture<Result<T, E>>;
-pub type UnpinFuture<T = PhantomPinned> = LocalFuture<T>;
-pub type UnpinTryFuture<T = PhantomPinned, E = PhantomPinned> = UnpinFuture<Result<T, E>>;
-pub struct PinnedFuture<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
+type LocalFuture<T = *const ()> = Pin<Box<dyn Future<Output = T>>>;
+type LocalTryFuture<T = *const (), E = *const ()> = LocalFuture<Result<T, E>>;
+type SendFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send>>;
+type SendTryFuture<T = *const (), E = *const ()> = SendFuture<Result<T, E>>;
+type SyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Sync>>;
+type SyncTryFuture<T = *const (), E = *const ()> = SyncFuture<Result<T, E>>;
+type SendSyncFuture<T = *const ()> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+type SendSyncTryFuture<T = *const (), E = *const ()> = SendSyncFuture<Result<T, E>>;
+type UnpinFuture<T = PhantomPinned> = LocalFuture<T>;
+type UnpinTryFuture<T = PhantomPinned, E = PhantomPinned> = UnpinFuture<Result<T, E>>;
+struct PinnedFuture<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
 impl<T> Future for PinnedFuture<T> {
     type Output = T;
     fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
         unimplemented!()
     }
 }
-pub type PinnedTryFuture<T = PhantomPinned, E = PhantomPinned> = PinnedFuture<Result<T, E>>;
+type PinnedTryFuture<T = PhantomPinned, E = PhantomPinned> = PinnedFuture<Result<T, E>>;
 
-pub type LocalStream<T = *const ()> = Pin<Box<dyn Stream<Item = T>>>;
-pub type LocalTryStream<T = *const (), E = *const ()> = LocalStream<Result<T, E>>;
-pub type SendStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send>>;
-pub type SendTryStream<T = *const (), E = *const ()> = SendStream<Result<T, E>>;
-pub type SyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Sync>>;
-pub type SyncTryStream<T = *const (), E = *const ()> = SyncStream<Result<T, E>>;
-pub type SendSyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
-pub type SendSyncTryStream<T = *const (), E = *const ()> = SendSyncStream<Result<T, E>>;
-pub type UnpinStream<T = PhantomPinned> = LocalStream<T>;
-pub type UnpinTryStream<T = PhantomPinned, E = PhantomPinned> = UnpinStream<Result<T, E>>;
-pub struct PinnedStream<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
+type LocalStream<T = *const ()> = Pin<Box<dyn Stream<Item = T>>>;
+type LocalTryStream<T = *const (), E = *const ()> = LocalStream<Result<T, E>>;
+type SendStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send>>;
+type SendTryStream<T = *const (), E = *const ()> = SendStream<Result<T, E>>;
+type SyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Sync>>;
+type SyncTryStream<T = *const (), E = *const ()> = SyncStream<Result<T, E>>;
+type SendSyncStream<T = *const ()> = Pin<Box<dyn Stream<Item = T> + Send + Sync>>;
+type SendSyncTryStream<T = *const (), E = *const ()> = SendSyncStream<Result<T, E>>;
+type UnpinStream<T = PhantomPinned> = LocalStream<T>;
+type UnpinTryStream<T = PhantomPinned, E = PhantomPinned> = UnpinStream<Result<T, E>>;
+struct PinnedStream<T = PhantomPinned>(PhantomPinned, PhantomData<T>);
 impl<T> Stream for PinnedStream<T> {
     type Item = T;
     fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         unimplemented!()
     }
 }
-pub type PinnedTryStream<T = PhantomPinned, E = PhantomPinned> = PinnedStream<Result<T, E>>;
+type PinnedTryStream<T = PhantomPinned, E = PhantomPinned> = PinnedStream<Result<T, E>>;
 
-pub type LocalSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E>>>;
-pub type SendSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E> + Send>>;
-pub type SyncSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E> + Sync>>;
-pub type UnpinSink<T = PhantomPinned, E = PhantomPinned> = LocalSink<T, E>;
-pub struct PinnedSink<T = PhantomPinned, E = PhantomPinned>(PhantomPinned, PhantomData<(T, E)>);
+type LocalSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E>>>;
+type SendSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E> + Send>>;
+type SyncSink<T = *const (), E = *const ()> = Pin<Box<dyn Sink<T, Error = E> + Sync>>;
+type UnpinSink<T = PhantomPinned, E = PhantomPinned> = LocalSink<T, E>;
+struct PinnedSink<T = PhantomPinned, E = PhantomPinned>(PhantomPinned, PhantomData<(T, E)>);
 impl<T, E> Sink<T> for PinnedSink<T, E> {
     type Error = E;
     fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -72,7 +73,7 @@ impl<T, E> Sink<T> for PinnedSink<T, E> {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::channel`.
-pub mod channel {
+mod channel {
     use super::*;
     use futures::channel::*;
 
@@ -119,11 +120,11 @@ pub mod channel {
     assert_impl!(oneshot::Canceled: Sync);
     assert_impl!(oneshot::Canceled: Unpin);
 
-    assert_impl!(oneshot::Cancellation<()>: Send);
-    assert_not_impl!(oneshot::Cancellation<*const ()>: Send);
-    assert_impl!(oneshot::Cancellation<()>: Sync);
-    assert_not_impl!(oneshot::Cancellation<*const ()>: Sync);
-    assert_impl!(oneshot::Cancellation<PhantomPinned>: Unpin);
+    assert_impl!(oneshot::Cancellation<'_, ()>: Send);
+    assert_not_impl!(oneshot::Cancellation<'_, *const ()>: Send);
+    assert_impl!(oneshot::Cancellation<'_, ()>: Sync);
+    assert_not_impl!(oneshot::Cancellation<'_, *const ()>: Sync);
+    assert_impl!(oneshot::Cancellation<'_, PhantomPinned>: Unpin);
 
     assert_impl!(oneshot::Receiver<()>: Send);
     assert_not_impl!(oneshot::Receiver<*const ()>: Send);
@@ -139,7 +140,7 @@ pub mod channel {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::compat`.
-pub mod compat {
+mod compat {
     use super::*;
     use futures::compat::*;
 
@@ -181,7 +182,7 @@ pub mod compat {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::executor`.
-pub mod executor {
+mod executor {
     use super::*;
     use futures::executor::*;
 
@@ -219,7 +220,7 @@ pub mod executor {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::future`.
-pub mod future {
+mod future {
     use super::*;
     use futures::future::*;
 
@@ -305,9 +306,9 @@ pub mod future {
     assert_impl!(Fuse<UnpinFuture>: Unpin);
     assert_not_impl!(Fuse<PinnedFuture>: Unpin);
 
-    assert_impl!(FutureObj<*const ()>: Send);
-    assert_not_impl!(FutureObj<()>: Sync);
-    assert_impl!(FutureObj<PhantomPinned>: Unpin);
+    assert_impl!(FutureObj<'_, *const ()>: Send);
+    assert_not_impl!(FutureObj<'_, ()>: Sync);
+    assert_impl!(FutureObj<'_, PhantomPinned>: Unpin);
 
     assert_impl!(Inspect<SendFuture, ()>: Send);
     assert_not_impl!(Inspect<SendFuture, *const ()>: Send);
@@ -381,9 +382,9 @@ pub mod future {
     assert_not_impl!(Lazy<*const ()>: Sync);
     assert_impl!(Lazy<PhantomPinned>: Unpin);
 
-    assert_not_impl!(LocalFutureObj<()>: Send);
-    assert_not_impl!(LocalFutureObj<()>: Sync);
-    assert_impl!(LocalFutureObj<PhantomPinned>: Unpin);
+    assert_not_impl!(LocalFutureObj<'_, ()>: Send);
+    assert_not_impl!(LocalFutureObj<'_, ()>: Sync);
+    assert_impl!(LocalFutureObj<'_, PhantomPinned>: Unpin);
 
     assert_impl!(Map<SendFuture, ()>: Send);
     assert_not_impl!(Map<SendFuture, *const ()>: Send);
@@ -652,7 +653,7 @@ pub mod future {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::io`.
-pub mod io {
+mod io {
     use super::*;
     use futures::io::{Sink, *};
 
@@ -693,23 +694,23 @@ pub mod io {
     assert_impl!(Close<'_, ()>: Unpin);
     assert_not_impl!(Close<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(Copy<(), ()>: Send);
-    assert_not_impl!(Copy<(), *const ()>: Send);
-    assert_not_impl!(Copy<*const (), ()>: Send);
-    assert_impl!(Copy<(), ()>: Sync);
-    assert_not_impl!(Copy<(), *const ()>: Sync);
-    assert_not_impl!(Copy<*const (), ()>: Sync);
-    assert_impl!(Copy<(), PhantomPinned>: Unpin);
-    assert_not_impl!(Copy<PhantomPinned, ()>: Unpin);
+    assert_impl!(Copy<'_, (), ()>: Send);
+    assert_not_impl!(Copy<'_, (), *const ()>: Send);
+    assert_not_impl!(Copy<'_, *const (), ()>: Send);
+    assert_impl!(Copy<'_, (), ()>: Sync);
+    assert_not_impl!(Copy<'_, (), *const ()>: Sync);
+    assert_not_impl!(Copy<'_, *const (), ()>: Sync);
+    assert_impl!(Copy<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(Copy<'_, PhantomPinned, ()>: Unpin);
 
-    assert_impl!(CopyBuf<(), ()>: Send);
-    assert_not_impl!(CopyBuf<(), *const ()>: Send);
-    assert_not_impl!(CopyBuf<*const (), ()>: Send);
-    assert_impl!(CopyBuf<(), ()>: Sync);
-    assert_not_impl!(CopyBuf<(), *const ()>: Sync);
-    assert_not_impl!(CopyBuf<*const (), ()>: Sync);
-    assert_impl!(CopyBuf<(), PhantomPinned>: Unpin);
-    assert_not_impl!(CopyBuf<PhantomPinned, ()>: Unpin);
+    assert_impl!(CopyBuf<'_, (), ()>: Send);
+    assert_not_impl!(CopyBuf<'_, (), *const ()>: Send);
+    assert_not_impl!(CopyBuf<'_, *const (), ()>: Send);
+    assert_impl!(CopyBuf<'_, (), ()>: Sync);
+    assert_not_impl!(CopyBuf<'_, (), *const ()>: Sync);
+    assert_not_impl!(CopyBuf<'_, *const (), ()>: Sync);
+    assert_impl!(CopyBuf<'_, (), PhantomPinned>: Unpin);
+    assert_not_impl!(CopyBuf<'_, PhantomPinned, ()>: Unpin);
 
     assert_impl!(Cursor<()>: Send);
     assert_not_impl!(Cursor<*const ()>: Send);
@@ -890,7 +891,7 @@ pub mod io {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.
-pub mod lock {
+mod lock {
     use super::*;
     use futures::lock::*;
 
@@ -966,7 +967,7 @@ pub mod lock {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::sink`.
-pub mod sink {
+mod sink {
     use super::*;
     use futures::sink::{self, *};
     use std::marker::Send;
@@ -1095,7 +1096,7 @@ pub mod sink {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::stream`.
-pub mod stream {
+mod stream {
     use super::*;
     use futures::{io, stream::*};
 
@@ -1835,33 +1836,33 @@ pub mod stream {
     assert_not_impl!(Zip<UnpinStream, PinnedStream>: Unpin);
     assert_not_impl!(Zip<PinnedStream, UnpinStream>: Unpin);
 
-    assert_impl!(futures_unordered::Iter<()>: Send);
-    assert_not_impl!(futures_unordered::Iter<*const ()>: Send);
-    assert_impl!(futures_unordered::Iter<()>: Sync);
-    assert_not_impl!(futures_unordered::Iter<*const ()>: Sync);
-    assert_impl!(futures_unordered::Iter<()>: Unpin);
+    assert_impl!(futures_unordered::Iter<'_, ()>: Send);
+    assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Send);
+    assert_impl!(futures_unordered::Iter<'_, ()>: Sync);
+    assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Sync);
+    assert_impl!(futures_unordered::Iter<'_, ()>: Unpin);
     // The definition of futures_unordered::Iter has `Fut: Unpin` bounds.
-    // assert_not_impl!(futures_unordered::Iter<PhantomPinned>: Unpin);
+    // assert_not_impl!(futures_unordered::Iter<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(futures_unordered::IterMut<()>: Send);
-    assert_not_impl!(futures_unordered::IterMut<*const ()>: Send);
-    assert_impl!(futures_unordered::IterMut<()>: Sync);
-    assert_not_impl!(futures_unordered::IterMut<*const ()>: Sync);
-    assert_impl!(futures_unordered::IterMut<()>: Unpin);
+    assert_impl!(futures_unordered::IterMut<'_, ()>: Send);
+    assert_not_impl!(futures_unordered::IterMut<'_, *const ()>: Send);
+    assert_impl!(futures_unordered::IterMut<'_, ()>: Sync);
+    assert_not_impl!(futures_unordered::IterMut<'_, *const ()>: Sync);
+    assert_impl!(futures_unordered::IterMut<'_, ()>: Unpin);
     // The definition of futures_unordered::IterMut has `Fut: Unpin` bounds.
-    // assert_not_impl!(futures_unordered::IterMut<PhantomPinned>: Unpin);
+    // assert_not_impl!(futures_unordered::IterMut<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(futures_unordered::IterPinMut<()>: Send);
-    assert_not_impl!(futures_unordered::IterPinMut<*const ()>: Send);
-    assert_impl!(futures_unordered::IterPinMut<()>: Sync);
-    assert_not_impl!(futures_unordered::IterPinMut<*const ()>: Sync);
-    assert_impl!(futures_unordered::IterPinMut<PhantomPinned>: Unpin);
+    assert_impl!(futures_unordered::IterPinMut<'_, ()>: Send);
+    assert_not_impl!(futures_unordered::IterPinMut<'_, *const ()>: Send);
+    assert_impl!(futures_unordered::IterPinMut<'_, ()>: Sync);
+    assert_not_impl!(futures_unordered::IterPinMut<'_, *const ()>: Sync);
+    assert_impl!(futures_unordered::IterPinMut<'_, PhantomPinned>: Unpin);
 
-    assert_impl!(futures_unordered::IterPinRef<()>: Send);
-    assert_not_impl!(futures_unordered::IterPinRef<*const ()>: Send);
-    assert_impl!(futures_unordered::IterPinRef<()>: Sync);
-    assert_not_impl!(futures_unordered::IterPinRef<*const ()>: Sync);
-    assert_impl!(futures_unordered::IterPinRef<PhantomPinned>: Unpin);
+    assert_impl!(futures_unordered::IterPinRef<'_, ()>: Send);
+    assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Send);
+    assert_impl!(futures_unordered::IterPinRef<'_, ()>: Sync);
+    assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Sync);
+    assert_impl!(futures_unordered::IterPinRef<'_, PhantomPinned>: Unpin);
 
     assert_impl!(futures_unordered::IntoIter<()>: Send);
     assert_not_impl!(futures_unordered::IntoIter<*const ()>: Send);
@@ -1872,7 +1873,7 @@ pub mod stream {
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::task`.
-pub mod task {
+mod task {
     use super::*;
     use futures::task::*;
 
@@ -1880,13 +1881,13 @@ pub mod task {
     assert_impl!(AtomicWaker: Sync);
     assert_impl!(AtomicWaker: Unpin);
 
-    assert_impl!(FutureObj<*const ()>: Send);
-    assert_not_impl!(FutureObj<()>: Sync);
-    assert_impl!(FutureObj<PhantomPinned>: Unpin);
+    assert_impl!(FutureObj<'_, *const ()>: Send);
+    assert_not_impl!(FutureObj<'_, ()>: Sync);
+    assert_impl!(FutureObj<'_, PhantomPinned>: Unpin);
 
-    assert_not_impl!(LocalFutureObj<()>: Send);
-    assert_not_impl!(LocalFutureObj<()>: Sync);
-    assert_impl!(LocalFutureObj<PhantomPinned>: Unpin);
+    assert_not_impl!(LocalFutureObj<'_, ()>: Send);
+    assert_not_impl!(LocalFutureObj<'_, ()>: Sync);
+    assert_impl!(LocalFutureObj<'_, PhantomPinned>: Unpin);
 
     assert_impl!(SpawnError: Send);
     assert_impl!(SpawnError: Sync);

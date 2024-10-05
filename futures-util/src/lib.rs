@@ -3,13 +3,7 @@
 
 #![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(
-    missing_debug_implementations,
-    missing_docs,
-    rust_2018_idioms,
-    single_use_lifetimes,
-    unreachable_pub
-)]
+#![warn(missing_docs)]
 #![doc(test(
     no_crate_inject,
     attr(

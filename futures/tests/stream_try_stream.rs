@@ -91,7 +91,7 @@ fn try_flatten_unordered() {
     impl Stream for ErrorStream {
         type Item = Result<Repeat<Result<(), ()>>, ()>;
 
-        fn poll_next(mut self: Pin<&mut Self>, _: &mut Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             if self.polled > self.error_after {
                 panic!("Polled after error");
             } else {

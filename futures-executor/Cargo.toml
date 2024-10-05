@@ -27,3 +27,6 @@ futures = { path = "../futures", features = ["thread-pool"] }
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
