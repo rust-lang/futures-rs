@@ -1,3 +1,16 @@
+# 0.3.31 - 2024-10-05
+
+* Fix use after free of task in `FuturesUnordered` when dropped future panics (#2886)
+* Fix soundness bug in `task::waker_ref` (#2830)
+  This is a breaking change but allowed because it is soundness bug fix.
+* Fix bugs in `AsyncBufRead::read_line` and `AsyncBufReadExt::lines` (#2884)
+* Fix parsing issue in `select!`/`select_biased!` (#2832)
+  This is technically a breaking change as it will now reject a very odd undocumented syntax that was previously accidentally accepted.
+* Work around issue due to upstream `Waker::will_wake` change (#2865)
+* Add `stream::Iter::{get_ref,get_mut,into_inner}` (#2875)
+* Add `future::AlwaysReady` (#2825)
+* Relax trait bound on non-constructor methods of `io::{BufReader,BufWriter}` (#2848)
+
 # 0.3.30 - 2023-12-24
 
 * Add `{BiLock,SplitStream,SplitSink,ReadHalf,WriteHalf}::is_pair_of` (#2797)
