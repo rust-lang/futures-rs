@@ -19,3 +19,6 @@ futures-task = { path = "../../../futures-task", optional = true, default-featur
 futures-channel = { path = "../../../futures-channel", optional = true, default-features = false }
 futures-util = { path = "../../../futures-util", optional = true, default-features = false }
 futures = { path = "../..", optional = true, default-features = false }
+
+[lints]
+workspace = true

@@ -336,7 +336,7 @@ fn polled_only_once_at_most_per_iteration() {
     impl Future for F {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, _: &mut Context) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
             if self.polled {
                 panic!("polled twice")
             } else {

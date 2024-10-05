@@ -30,3 +30,6 @@ std = ["futures-core/std", "futures-task/std", "futures-io/std", "futures-util/s
 
 [package.metadata.docs.rs]
 all-features = true
+
+[lints]
+workspace = true
