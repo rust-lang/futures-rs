@@ -1,3 +1,13 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Releases may yanked if there is a security bug, a soundness bug, or a regression.
+
+<!--
+Note: In this file, do not use the hard wrap in the middle of a sentence for compatibility with GitHub comment style markdown rendering.
+-->
+
 # 0.3.31 - 2024-10-05
 
 * Fix use after free of task in `FuturesUnordered` when dropped future panics (#2886)
@@ -13,6 +23,8 @@
 
 # 0.3.30 - 2023-12-24
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Add `{BiLock,SplitStream,SplitSink,ReadHalf,WriteHalf}::is_pair_of` (#2797)
 * Fix panic in `FuturesUnordered::clear` (#2809)
 * Fix panic in `AsyncBufReadExt::fill_buf` (#2801, #2812)
@@ -20,6 +32,8 @@
 * Remove build scripts (#2811)
 
 # 0.3.29 - 2023-10-26
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Add `TryStreamExt::try_ready_chunks` (#2757)
 * Add `TryStreamExt::{try_all,try_any}` (#2783)
@@ -30,10 +44,14 @@
 
 # 0.3.28 - 2023-03-30
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Update to syn 2. This raises MSRV of utility crates to 1.56. (#2730, #2733)
 * Fix bug in `FlattenUnordered` (#2726, #2728)
 
 # 0.3.27 - 2023-03-11
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Add `TryFlattenUnordered` (#2577, #2590, #2606, #2607)
 * Add `AbortHandle::is_aborted` (#2710)
@@ -41,6 +59,8 @@
 * Make `BiLock` strict-provenance compatible (#2716)
 
 # 0.3.26 - 2023-01-30
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Add `Either::as_pin_mut` and `Either::as_pin_ref` (#2691)
 * Add `Shared::ptr_eq` and `Shared::ptr_hash` (#2691)
@@ -52,18 +72,26 @@
 
 # 0.3.25 - 2022-10-20
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Fix soundness issue in `join!` and `try_join!` macros (#2649)
 * Implement `Clone` for `sink::Drain` (#2650)
 
 # 0.3.24 - 2022-08-29
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Fix incorrect termination of `select_with_strategy` streams (#2635)
 
 # 0.3.23 - 2022-08-14
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Work around MSRV increase due to a cargo bug.
 
 # 0.3.22 - 2022-08-14
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Fix `Sync` impl of `BiLockGuard` (#2570)
 * Fix partial iteration in `FuturesUnordered` (#2574)
@@ -82,17 +110,21 @@
 
 # 0.3.21 - 2022-02-06
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Fix potential data race in `FlattenUnordered` that introduced in 0.3.20 (#2566)
 
 # 0.3.20 - 2022-02-06
 
-NOTE: This release has been yanked due to a bug fixed in 0.3.21.
+**Note:** This release has been yanked due to a bug fixed in 0.3.21.
 
 * Fix stacked borrows violations when `-Zmiri-tag-raw-pointers` is enabled. This raises MSRV of `futures-task` to 1.45. (#2548, #2550)
 * Change `FuturesUnordered` to respect yielding from future (#2551)
 * Add `StreamExt::{flatten_unordered, flat_map_unordered}` (#2083)
 
 # 0.3.19 - 2021-12-18
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Remove unstable `read-initializer` feature (#2534)
 * Fix panic in `FuturesUnordered` (#2535)
@@ -101,7 +133,7 @@ NOTE: This release has been yanked due to a bug fixed in 0.3.21.
 
 # 0.3.18 - 2021-11-23
 
-NOTE: This release has been yanked. See #2529 for details.
+**Note:** This release has been yanked. See #2529 for details.
 
 * Fix unusable `Sink` implementation on `stream::Scan` (#2499)
 * Make `task::noop_waker_ref` available without `std` feature (#2505)
@@ -109,6 +141,8 @@ NOTE: This release has been yanked. See #2529 for details.
 * Remove dependency on `proc-macro-hack`. This raises MSRV of utility crates to 1.45. (#2520)
 
 # 0.3.17 - 2021-08-30
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Use `FuturesOrdered` in `join_all` (#2412)
 * Add `{future, stream}::poll_immediate` (#2452)
@@ -119,12 +153,16 @@ NOTE: This release has been yanked. See #2529 for details.
 
 # 0.3.16 - 2021-07-23
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Add `TryStreamExt::try_chunks` (#2438)
 * Add `StreamExt::{all, any}` (#2460)
 * Add `stream::select_with_strategy` (#2450)
 * Update to new `io_slice_advance` interface (#2454)
 
 # 0.3.15 - 2021-05-11
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Use `#[proc_macro]` at Rust 1.45+ to fix an issue where proc macros don't work with rust-analyzer (#2407)
 * Support targets that do not have atomic CAS on stable Rust (#2400)
@@ -141,6 +179,8 @@ NOTE: This release has been yanked. See #2529 for details.
 
 # 0.3.14 - 2021-04-10
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Add `future::SelectAll::into_inner` (#2363)
 * Allow calling `UnboundedReceiver::try_next` after `None` (#2369)
 * Reexport non-Ext traits from the root of `futures_util` (#2377)
@@ -148,6 +188,8 @@ NOTE: This release has been yanked. See #2529 for details.
 * Add `stream::Peekable::{next_if, next_if_eq}` (#2379)
 
 # 0.3.13 - 2021-02-23
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Mitigated starvation issues in `FuturesUnordered` (#2333)
 * Fixed race with dropping `mpsc::Receiver` (#2304)
@@ -157,21 +199,25 @@ NOTE: This release has been yanked. See #2529 for details.
 
 # 0.3.12 - 2021-01-15
 
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
+
 * Fixed `Unpin` impl of `future::{MaybeDone, TryMaybeDone}` where trait bounds were accidentally added in 0.3.9. (#2317)
 
 # 0.3.11 - 2021-01-14
+
+**Note:** This release of futures-util has been yanked due to a bug fixed in 0.3.31 and a compile failure with futures-task 0.3.31 and later.
 
 * Fixed heap buffer overflow in `AsyncReadExt::{read_to_end, read_to_string}` (#2314)
 
 # 0.3.10 - 2021-01-13
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fixed type-inference in `sink::unfold` by specifying more of its types (breaking change -- see #2311)
 
 # 0.3.9 - 2021-01-08
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Significantly improved compile time when `async-await` crate feature is disabled (#2273)
 * Added `stream::repeat_with` (#2279)
@@ -184,7 +230,7 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.8 - 2020-11-04
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Switched proc-macros to use native `#[proc_macro]` at Rust 1.45+ (#2243)
 * Added `WeakShared` (#2169)
@@ -195,7 +241,7 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.7 - 2020-10-23
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fixed unsoundness in `MappedMutexGuard` (#2240)
 * Re-exported `TakeUntil` (#2235)
@@ -203,7 +249,7 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.6 - 2020-10-06
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fixed UB due to missing 'static on `task::waker` (#2206)
 * Added `AsyncBufReadExt::fill_buf` (#2225)
@@ -219,7 +265,7 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.5 - 2020-05-08
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Added `StreamExt::flat_map`.
 * Added `StreamExt::ready_chunks`.
@@ -239,19 +285,19 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.4 - 2020-02-06
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fixed missing `Drop` for `UnboundedReceiver` (#2064)
 
 # 0.3.3 - 2020-02-04
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fixed compatibility issue with pinned facade (#2062)
 
 # 0.3.2 - 2020-02-03
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Improved buffering performance of `SplitSink` (#1969)
 * Added `select_biased!` macro (#1976)
@@ -272,13 +318,13 @@ NOTE: This release has been yanked. See #2310 for details.
 
 # 0.3.1 - 2019-11-07
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Fix signature of `SpawnExt` and `LocalSpawnExt` trait (breaking change -- see #1959)
 
 # 0.3.0 - 2019-11-05
 
-NOTE: This release has been yanked. See #2310 for details.
+**Note:** This release has been yanked. See #2310 for details.
 
 * Stable release along with stable async/await!
 * Added async/await to default features (#1953)
