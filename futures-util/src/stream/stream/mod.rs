@@ -232,6 +232,12 @@ pub trait StreamExt: Stream {
     /// pinning it to the stack using the `pin_mut!` macro from the `pin_utils`
     /// crate.
     ///
+    /// # Cancel safety
+    ///
+    /// The returned future only holds a reference to the underlying stream, and
+    /// so is cancel safe (assuming the stream is also cancel-safe). If it is
+    /// dropped before it resolves, no item from the stream will be dropped.
+    ///
     /// # Examples
     ///
     /// ```
