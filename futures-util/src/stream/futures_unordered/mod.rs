@@ -53,6 +53,13 @@ use self::ready_to_run_queue::{Dequeue, ReadyToRunQueue};
 ///
 /// This type is only available when the `std` or `alloc` feature of this
 /// library is activated, and it is activated by default.
+///
+/// # Cancel safety
+///
+/// This type is cancellation-safe. If [`poll_next`](Stream::poll_next) is
+/// called (either directly or via [`crate::StreamExt::next`]) and it returns
+/// [`Poll::Pending`], no values will be dropped if `poll_next` is not called
+/// again.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
