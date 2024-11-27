@@ -3,9 +3,11 @@ use futures::executor::{block_on, LocalPool};
 use futures::future::{self, FutureExt, LocalFutureObj, TryFutureExt};
 use futures::task::LocalSpawn;
 use std::cell::{Cell, RefCell};
+use std::future::Future;
 use std::panic::AssertUnwindSafe;
+use std::pin::Pin;
 use std::rc::Rc;
-use std::task::Poll;
+use std::task::{Context, Poll};
 use std::thread;
 
 struct CountClone(Rc<Cell<i32>>);
@@ -270,4 +272,53 @@ fn poll_while_panic() {
 
     let _s = S {};
     panic!("test_marker");
+}
+
+#[test]
+fn shared_futures_woken_during_polling() {
+    async fn yield_now() {
+        /// Yield implementation
+        struct YieldNow {
+            yielded: bool,
+        }
+
+        impl Future for YieldNow {
+            type Output = ();
+
+            fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+                if self.yielded {
+                    return Poll::Ready(());
+                }
+
+                self.yielded = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }
+
+        YieldNow { yielded: false }.await
+    }
+    fn test() {
+        let f1 = yield_now().shared();
+        let f2 = f1.clone();
+        let x1 = thread::spawn(move || {
+            block_on(async move {
+                f1.now_or_never();
+            })
+        });
+        let x2 = thread::spawn(move || {
+            block_on(async move {
+                f2.await;
+            })
+        });
+        x1.join().ok();
+        x2.join().ok();
+    }
+
+    for _ in 0..10 {
+        print!(".");
+        for _ in 0..10000 {
+            test();
+        }
+    }
 }
