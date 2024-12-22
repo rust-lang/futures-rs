@@ -22,6 +22,7 @@ sink = ["futures-sink"]
 io = ["std", "futures-io", "memchr"]
 channel = ["std", "futures-channel"]
 portable-atomic = ["futures-core/portable-atomic"]
+spin = ["dep:spin"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
@@ -43,9 +44,7 @@ futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0"
 pin-project-lite = "0.2.6"
-
-[target.'cfg(target_has_atomic = "8")'.dependencies]
-spin = "0.9.8"
+spin = { version = "0.9.8", optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }

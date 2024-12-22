@@ -40,6 +40,7 @@ compat = ["std", "futures-util/compat"]
 io-compat = ["compat", "futures-util/io-compat"]
 executor = ["std", "futures-executor/std"]
 thread-pool = ["executor", "futures-executor/thread-pool"]
+spin = ["futures-util/spin"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
