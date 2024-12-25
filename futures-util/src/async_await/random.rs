@@ -56,15 +56,22 @@ fn random() -> u64 {
 
 #[cfg(not(feature = "std"))]
 fn random() -> u64 {
-    use core::sync::atomic::{AtomicU64, Ordering};
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
-    static RNG: AtomicU64 = AtomicU64::new(1);
+    static RNG: AtomicUsize = AtomicUsize::new(1);
 
     let mut x = RNG.load(Ordering::Relaxed);
 
-    x ^= x >> 12;
-    x ^= x << 25;
-    x ^= x >> 27;
+    if core::mem::size_of::<usize>() == 4 {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+    } else if core::mem::size_of::<usize>() == 8 {
+        x ^= x >> 12;
+        x ^= x << 25;
+        x ^= x >> 27;
+    }
+
     let result = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u64;
     RNG.store(result, Ordering::Relaxed);
 
