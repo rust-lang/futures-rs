@@ -73,7 +73,7 @@ fn random() -> u64 {
     }
 
     let result = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u64;
-    RNG.store(result, Ordering::Relaxed);
+    RNG.store(result as usize, Ordering::Relaxed);
 
     result
 }
