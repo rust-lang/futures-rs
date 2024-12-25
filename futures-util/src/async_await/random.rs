@@ -1,11 +1,3 @@
-use std::{
-    cell::Cell,
-    collections::hash_map::DefaultHasher,
-    hash::Hasher,
-    num::Wrapping,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-
 // Based on [Fisher–Yates shuffle].
 //
 // [Fisher–Yates shuffle]: https://en.wikipedia.org/wiki/Fisher–Yates_shuffle
@@ -24,7 +16,16 @@ fn gen_index(n: usize) -> usize {
 /// Pseudorandom number generator based on [xorshift*].
 ///
 /// [xorshift*]: https://en.wikipedia.org/wiki/Xorshift#xorshift*
+#[cfg(feature = "std")]
 fn random() -> u64 {
+    use std::{
+        cell::Cell,
+        collections::hash_map::DefaultHasher,
+        hash::Hasher,
+        num::Wrapping,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
     std::thread_local! {
         static RNG: Cell<Wrapping<u64>> = Cell::new(Wrapping(prng_seed()));
     }
@@ -51,4 +52,21 @@ fn random() -> u64 {
         rng.set(x);
         x.0.wrapping_mul(0x2545_f491_4f6c_dd1d)
     })
+}
+
+#[cfg(not(feature = "std"))]
+fn random() -> u64 {
+    use core::sync::atomic::{AtomicU64, Ordering};
+
+    static RNG: AtomicU64 = AtomicU64::new(1);
+
+    let mut x = RNG.load(Ordering::Relaxed);
+
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    let result = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u64;
+    RNG.store(result, Ordering::Relaxed);
+
+    result
 }
