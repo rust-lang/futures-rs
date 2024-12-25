@@ -70,10 +70,9 @@ fn random() -> u64 {
         x ^= x >> 12;
         x ^= x << 25;
         x ^= x >> 27;
+        x = x.wrapping_mul(0x2545_f491_4f6c_dd1d);
     }
 
-    let result = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u64;
-    RNG.store(result as usize, Ordering::Relaxed);
-
-    result
+    RNG.store(x, Ordering::Relaxed);
+    x as u64
 }
