@@ -109,6 +109,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
+      # QUICK WORKAROUND FOR CI ISSUE with libc & MSRV
+      - run: cargo add libc@=0.2.153 --no-default-features -p futures-executor
+      - run: git clean -dfX
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - name: Install cargo-hack
