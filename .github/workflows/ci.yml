@@ -106,11 +106,15 @@ jobs:
   util-msrv:
     name: cargo +${{ matrix.rust }} build
     strategy:
+      # XXX TODO REMOVE ONCE GENERAL MSRV IS UPDATED AS PROPOSED IN OTHER PR #2907
+      fail-fast: false
       matrix:
         rust:
           # This is the minimum Rust version supported by futures, futures-util, futures-task, futures-macro, futures-executor, futures-channel, futures-test.
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
+          # XXX TODO USE SINGLE, UPDATED MSRV AS PROPOSED IN OTHER PR #2907
           - '1.56'
+          - '1.63'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
