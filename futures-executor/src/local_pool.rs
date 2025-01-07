@@ -76,22 +76,9 @@ impl ArcWake for ThreadNotify {
 }
 
 /// An error returned when a blocking execution times out.
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub struct TimeoutError {
-    _private: (),
-}
-
-impl TimeoutError {
-    fn new() -> Self {
-        Self { _private: () }
-    }
-}
-
-impl fmt::Debug for TimeoutError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TimeoutError").finish()
-    }
-}
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct TimeoutError;
 
 impl fmt::Display for TimeoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -152,7 +139,7 @@ fn run_executor_timeout<T, F: FnMut(&mut Context<'_>) -> Poll<T>>(
         thread::park_timeout(timeout);
         let elapsed = start.elapsed();
         if elapsed >= timeout {
-            return Err(TimeoutError::new());
+            return Err(TimeoutError);
         }
         timeout -= elapsed;
         Ok(())
