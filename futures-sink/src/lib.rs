@@ -15,8 +15,6 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "std")]
-extern crate std;
 
 use core::ops::DerefMut;
 use core::pin::Pin;

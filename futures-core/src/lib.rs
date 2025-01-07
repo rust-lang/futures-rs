@@ -12,8 +12,6 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "std")]
-extern crate std;
 
 pub mod future;
 #[doc(no_inline)]
