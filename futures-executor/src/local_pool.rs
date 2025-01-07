@@ -82,7 +82,7 @@ pub struct TimeoutError {
 }
 
 impl TimeoutError {
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Self { _private: () }
     }
 }
