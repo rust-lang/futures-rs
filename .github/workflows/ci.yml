@@ -74,8 +74,8 @@ jobs:
           # This is the minimum Rust version supported by futures-core, futures-io, futures-sink.
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
           # XXX TODO USE SINGLE, UPDATED MSRV AS PROPOSED IN OTHER PR #2906
-          - '1.36'
-          - '1.41.0'
+          # - '1.36'
+          # - '1.41.0'
           - '1.56'
           - '1.63'
     runs-on: ubuntu-latest
