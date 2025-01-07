@@ -11,7 +11,7 @@ Add this to your `Cargo.toml`:
 futures-io = "0.3"
 ```
 
-The current `futures-io` requires Rust 1.36 or later.
+The current `futures-io` requires Rust 1.41.0 or later.
 
 ## License
 
