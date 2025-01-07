@@ -224,8 +224,7 @@ mod if_alloc {
         }
     }
 
-    #[cfg(feature = "std")]
-    impl<S: Stream> Stream for std::panic::AssertUnwindSafe<S> {
+    impl<S: Stream> Stream for core::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
