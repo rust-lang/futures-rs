@@ -22,7 +22,6 @@ sink = ["futures-sink"]
 io = ["std", "futures-io", "memchr"]
 channel = ["std", "futures-channel"]
 portable-atomic = ["futures-core/portable-atomic"]
-spin = ["dep:spin"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
