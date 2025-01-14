@@ -53,7 +53,7 @@ fn random() -> u64 {
 }
 
 #[cfg(not(feature = "std"))]
-fn random_nostd() -> u64 {
+fn random() -> u64 {
     use core::sync::atomic::{AtomicUsize, Ordering};
 
     static RNG: AtomicUsize = AtomicUsize::new(1);
