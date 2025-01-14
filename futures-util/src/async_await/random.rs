@@ -88,6 +88,7 @@ fn xorshift64star(mut x: Wrapping<u64>) -> (Wrapping<u64>, u64) {
 #[cfg(not(feature = "std"))]
 #[inline]
 fn xorshift32(mut x: u32) -> u32 {
+    debug_assert_ne!(x, 0);
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
