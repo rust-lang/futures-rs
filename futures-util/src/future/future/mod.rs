@@ -110,10 +110,9 @@ mod remote_handle;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 mod shared;
-#[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::shared::{Shared, WeakShared};
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -444,7 +443,7 @@ pub trait FutureExt: Future {
     /// into a cloneable future. It enables a future to be polled by multiple
     /// threads.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or 'spin' feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -478,7 +477,7 @@ pub trait FutureExt: Future {
     /// join_handle.join().unwrap();
     /// # });
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
     fn shared(self) -> Shared<Self>
     where
         Self: Sized,
