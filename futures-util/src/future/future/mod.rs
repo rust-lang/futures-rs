@@ -107,9 +107,9 @@ mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-#[cfg(any(feature = "std", feature = "spin"))]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 mod shared;
-#[cfg(any(feature = "std", feature = "spin"))]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::shared::{Shared, WeakShared};
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -474,7 +474,7 @@ pub trait FutureExt: Future {
     /// join_handle.join().unwrap();
     /// # });
     /// ```
-    #[cfg(any(feature = "std", feature = "spin"))]
+    #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
     fn shared(self) -> Shared<Self>
     where
         Self: Sized,
