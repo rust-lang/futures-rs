@@ -40,8 +40,7 @@ jobs:
           - os: ubuntu-latest
           - os: macos-latest
           - os: windows-latest
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
           - os: ubuntu-latest
@@ -51,18 +50,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
+      # https://github.com/orgs/community/discussions/148648#discussioncomment-11867019
+      - name: Workaround for AArch64 Linux runner bug
+        run: for var in PATH XDG_CONFIG_HOME; do sed -Ee "s/^/${var}=/" -e 's/(runner)admin/\1/g' <<< "${!var}"; done | tee -a -- "${GITHUB_ENV}"
+        if: endsWith(matrix.os, '-arm')
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-        run: rustup update nightly --no-self-update && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
         if: matrix.target != ''
       - run: cargo test --workspace --all-features $DOCTEST_XCOMPILE
       - run: cargo test --workspace --all-features --release $DOCTEST_XCOMPILE
-        # TODO: https://github.com/rust-lang/futures-rs/issues/2451
-        if: matrix.target != 'aarch64-unknown-linux-gnu'
 
   core-msrv:
     name: cargo +${{ matrix.rust }} build (futures-{core, io, sink})
@@ -77,7 +77,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        uses: taiki-e/github-actions/install-rust@main
+        with:
+          toolchain: ${{ matrix.rust }}
       # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
       # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
       - name: Install cargo-hack
@@ -110,7 +112,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        uses: taiki-e/github-actions/install-rust@main
+        with:
+          toolchain: ${{ matrix.rust }}
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
@@ -143,7 +147,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        uses: taiki-e/github-actions/install-rust@main
+        with:
+          toolchain: ${{ matrix.rust }}
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       - run: cargo hack build --workspace --no-dev-deps
@@ -156,7 +162,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       - name: Install cargo-minimal-versions
@@ -178,8 +184,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
-      - run: rustup target add ${{ matrix.target }}
+        uses: taiki-e/github-actions/install-rust@nightly
+        with:
+          target: ${{ matrix.target }}
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
@@ -211,7 +218,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
       - run: cargo bench --workspace
       - run: cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
 
@@ -222,7 +229,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       # Check each specified feature works properly
@@ -245,7 +252,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup toolchain install nightly --component miri && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
+        with:
+          component: miri
       - run: cargo miri test --workspace --all-features -- --skip panic_on_drop_fut
         env:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
@@ -272,7 +281,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup toolchain install nightly --component rust-src && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
+        with:
+          component: rust-src
       # https://github.com/google/sanitizers/issues/1716 / https://github.com/actions/runner-images/issues/9491
       - run: sudo sysctl vm.mmap_rnd_bits=28
       # Exclude futures-macro to work around upstream bug since nightly-2024-10-06.
@@ -290,7 +301,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup toolchain install nightly --component clippy && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
+        with:
+          component: clippy
       - run: cargo clippy --workspace --all-features --all-targets
 
   fmt:
@@ -300,7 +313,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update stable
+        uses: taiki-e/github-actions/install-rust@stable
       - run: cargo fmt --all -- --check
 
   docs:
@@ -310,7 +323,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        run: rustup update nightly && rustup default nightly
+        uses: taiki-e/github-actions/install-rust@nightly
       - run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} --cfg docsrs
