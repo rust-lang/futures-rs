@@ -30,7 +30,7 @@ delegate_all!(
     /// Future for the [`flatten`](super::FutureExt::flatten) method.
     Flatten<F>(
         flatten::Flatten<F, <F as Future>::Output>
-    ): Debug + Future + FusedFuture + New[|x: F| flatten::Flatten::new(x)]
+    ): Clone + Debug + Future + FusedFuture + New[|x: F| flatten::Flatten::new(x)]
     where F: Future
 );
 
@@ -38,7 +38,7 @@ delegate_all!(
     /// Stream for the [`flatten_stream`](FutureExt::flatten_stream) method.
     FlattenStream<F>(
         flatten::Flatten<F, <F as Future>::Output>
-    ): Debug + Sink + Stream + FusedStream + New[|x: F| flatten::Flatten::new(x)]
+    ): Clone + Debug + Sink + Stream + FusedStream + New[|x: F| flatten::Flatten::new(x)]
     where F: Future
 );
 
@@ -48,49 +48,49 @@ delegate_all!(
     /// Future for the [`map`](super::FutureExt::map) method.
     Map<Fut, F>(
         map::Map<Fut, F>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, f)]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, f)]
 );
 
 delegate_all!(
     /// Stream for the [`into_stream`](FutureExt::into_stream) method.
     IntoStream<F>(
         crate::stream::Once<F>
-    ): Debug + Stream + FusedStream + New[|x: F| crate::stream::Once::new(x)]
+    ): Clone + Debug + Stream + FusedStream + New[|x: F| crate::stream::Once::new(x)]
 );
 
 delegate_all!(
     /// Future for the [`map_into`](FutureExt::map_into) combinator.
     MapInto<Fut, T>(
         Map<Fut, IntoFn<T>>
-    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, into_fn())]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, into_fn())]
 );
 
 delegate_all!(
     /// Future for the [`then`](FutureExt::then) method.
     Then<Fut1, Fut2, F>(
         flatten::Flatten<Map<Fut1, F>, Fut2>
-    ): Debug + Future + FusedFuture + New[|x: Fut1, y: F| flatten::Flatten::new(Map::new(x, y))]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut1, y: F| flatten::Flatten::new(Map::new(x, y))]
 );
 
 delegate_all!(
     /// Future for the [`inspect`](FutureExt::inspect) method.
     Inspect<Fut, F>(
         map::Map<Fut, InspectFn<F>>
-    ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, inspect_fn(f))]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, inspect_fn(f))]
 );
 
 delegate_all!(
     /// Future for the [`never_error`](super::FutureExt::never_error) combinator.
     NeverError<Fut>(
         Map<Fut, OkFn<Infallible>>
-    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
 );
 
 delegate_all!(
     /// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
     UnitError<Fut>(
         Map<Fut, OkFn<()>>
-    ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
+    ): Clone + Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
 );
 
 #[cfg(feature = "std")]

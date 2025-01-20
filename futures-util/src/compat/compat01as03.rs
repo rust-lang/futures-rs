@@ -321,6 +321,9 @@ where
 
 struct NotifyWaker(task03::Waker);
 
+// rustc regression is causing the missing_debug_implementations issue:
+// https://github.com/rust-lang/rust/issues/111359
+#[allow(missing_debug_implementations)]
 #[derive(Clone)]
 struct WakerToHandle<'a>(&'a task03::Waker);
 
