@@ -20,7 +20,6 @@
     )
 ))]
 #![warn(missing_docs, unsafe_op_in_unsafe_fn)]
-#![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
