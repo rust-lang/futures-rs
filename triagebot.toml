@@ -1,2 +1,52 @@
+[relabel]
+allow-unauthenticated = [
+    "S-*",
+]
+
+[review-submitted]
+# This label is added when a "request changes" review is submitted.
+reviewed_label = "S-waiting-on-author"
+# These labels are removed when a "request changes" review is submitted.
+review_labels = ["S-waiting-on-review"]
+
+[review-requested]
+# Those labels are removed when PR author requests a review from an assignee
+remove_labels = ["S-waiting-on-author"]
+# Those labels are added when PR author requests a review from an assignee
+add_labels = ["S-waiting-on-review"]
+
 [assign]
 warn_non_default_branch = true
+
+[autolabel."A-channel"]
+trigger_files = ["futures-channel/src"]
+
+[autolabel."A-compat"]
+trigger_files = ["futures-util/src/compat"]
+
+[autolabel."A-executor"]
+trigger_files = ["futures-executor/src"]
+
+[autolabel."A-future"]
+trigger_files = ["futures-core/src/future.rs", "futures-util/src/future"]
+
+[autolabel."A-io"]
+trigger_files = ["futures-io/src", "futures-util/src/io"]
+
+[autolabel."A-lock"]
+trigger_files = ["futures-util/src/lock"]
+
+[autolabel."A-macro"]
+trigger_files = ["futures-macro/src", "futures-util/src/async_await"]
+
+[autolabel."A-sink"]
+trigger_files = ["futures-sink/src", "futures-util/src/sink"]
+
+[autolabel."A-stream"]
+trigger_files = ["futures-core/src/stream.rs", "futures-util/src/stream"]
+
+[autolabel."A-task"]
+trigger_files = ["futures-core/src/task", "futures-task/src", "futures-util/src/task"]
+
+[autolabel."S-waiting-on-review"]
+new_pr = true
