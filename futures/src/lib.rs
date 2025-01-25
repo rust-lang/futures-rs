@@ -145,7 +145,6 @@ pub use futures_util::lock;
 #[doc(inline)]
 pub use futures_util::io;
 
-#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "executor")))]
 pub mod executor {
@@ -198,7 +197,6 @@ pub mod executor {
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
-#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat {
