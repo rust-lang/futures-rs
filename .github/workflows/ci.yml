@@ -297,10 +297,10 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
+        uses: taiki-e/github-actions/install-rust@stable
         with:
           component: clippy
-      - run: cargo clippy --workspace --all-features --all-targets
+      - run: cargo clippy --workspace --all-features --lib --bins --tests --examples
 
   fmt:
     name: cargo fmt
@@ -310,6 +310,8 @@ jobs:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         uses: taiki-e/github-actions/install-rust@stable
+        with:
+          component: rustfmt
       - run: cargo fmt --all -- --check
 
   docs:
