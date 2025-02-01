@@ -5,7 +5,7 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Future for the [`fuse`](super::FutureExt::fuse) method.
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Fuse<Fut> {
         #[pin]
