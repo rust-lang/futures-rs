@@ -4,10 +4,6 @@
 ///
 /// **Note:** Since Rust 1.64, this macro is soft-deprecated in favor of
 /// [`ready!`](core::task::ready) macro in the standard library.
-#[deprecated(
-    since = "0.4.0",
-    note = "use core::task::ready macro in the standard library instead"
-)]
 #[macro_export]
 macro_rules! ready {
     ($e:expr $(,)?) => {
