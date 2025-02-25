@@ -231,7 +231,7 @@ macro_rules! document_select_macro {
         ///     a_res = async_identity_fn(62).fuse() => a_res + 1,
         ///     b_res = async_identity_fn(13).fuse() => b_res,
         /// };
-        /// assert!(res == 63 || res == 12);
+        /// assert_eq!(res, 63);
         /// # });
         /// ```
         ///
