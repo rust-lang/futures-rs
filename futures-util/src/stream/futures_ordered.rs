@@ -169,6 +169,17 @@ impl<Fut: Future> FuturesOrdered<Fut> {
         self.next_outgoing_index -= 1;
         self.in_progress_queue.push(wrapped);
     }
+
+    /// Clear the whole `FuturesOrdered` queue.
+    ///
+    /// This function clears the pending futures and the queued outputs
+    /// to make it fully empty.
+    pub fn clear(&mut self) {
+        self.in_progress_queue.clear();
+        self.queued_outputs.clear();
+        self.next_incoming_index = 0;
+        self.next_outgoing_index = 0;
+    }
 }
 
 impl<Fut: Future> Default for FuturesOrdered<Fut> {
