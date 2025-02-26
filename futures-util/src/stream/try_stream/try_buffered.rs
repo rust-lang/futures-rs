@@ -1,5 +1,4 @@
-use crate::future::{IntoFuture, TryFutureExt};
-use crate::stream::{Fuse, FuturesOrdered, IntoStream, StreamExt};
+use crate::stream::{Fuse, FuturesOrdered, StreamExt};
 use core::num::NonZeroUsize;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -19,8 +18,8 @@ pin_project! {
         St::Ok: TryFuture,
     {
         #[pin]
-        stream: Fuse<IntoStream<St>>,
-        in_progress_queue: FuturesOrdered<IntoFuture<St::Ok>>,
+        stream: Fuse<St>,
+        in_progress_queue: FuturesOrdered<St::Ok>,
         max: Option<NonZeroUsize>,
     }
 }
@@ -32,13 +31,13 @@ where
 {
     pub(super) fn new(stream: St, n: Option<usize>) -> Self {
         Self {
-            stream: IntoStream::new(stream).fuse(),
+            stream: stream.fuse(),
             in_progress_queue: FuturesOrdered::new(),
             max: n.and_then(NonZeroUsize::new),
         }
     }
 
-    delegate_access_inner!(stream, St, (. .));
+    delegate_access_inner!(stream, St, (.));
 }
 
 impl<St> Stream for TryBuffered<St>
@@ -55,7 +54,7 @@ where
         // our queue of futures. Propagate errors from the stream immediately.
         while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
             match this.stream.as_mut().poll_next(cx)? {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut.into_future()),
+                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
