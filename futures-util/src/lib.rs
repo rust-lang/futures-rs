@@ -23,7 +23,6 @@ extern crate std;
 
 // Macro re-exports
 pub use futures_core::ready;
-pub use pin_utils::pin_mut;
 
 #[cfg(feature = "async-await")]
 #[macro_use]
