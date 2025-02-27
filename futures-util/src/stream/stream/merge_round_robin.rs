@@ -58,8 +58,13 @@ where
     St2: FusedStream<Item = St1::Item>,
 {
     fn is_terminated(&self) -> bool {
-        self.first.as_ref().is_none_or(|s| s.is_terminated())
-            && self.second.as_ref().is_none_or(|s| s.is_terminated())
+        (match &self.first {
+            Some(s) => s.is_terminated(),
+            None => true,
+        }) && (match &self.second {
+            Some(s) => s.is_terminated(),
+            None => true,
+        })
     }
 }
 
