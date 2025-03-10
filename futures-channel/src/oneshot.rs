@@ -4,6 +4,7 @@
 
 use alloc::sync::Arc;
 use core::fmt;
+use core::panic::{RefUnwindSafe, UnwindSafe};
 use core::pin::Pin;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
@@ -30,6 +31,31 @@ pub struct Sender<T> {
 // The channels do not ever project Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 impl<T> Unpin for Sender<T> {}
+
+// The `UnwindSafe` trait is not easy to reason about. Rather than demonstrate
+// why `UnwindSafe` is required on `T`, it is easier to give counter-examples
+// where unwind safety would be broken without this requirement.
+// For the `Receiver`, a counter-example is trivial: without the trait bound
+// requirement, one could pass a `Receiver` through the `catch_unwind`
+// boundary then send a non-`UnwindSafe` trait to it from the outside.
+// For the `Sender`, a counter-example is:
+// let (tx, rx) = channel::<Arc<RefCell<Foo>>>();
+// catch_unwind(|| {
+//   let a = Arc::new(RefCell::new(...));
+//   tx.send(a.clone());
+//   a.borrow_mut().half_modification();
+//   panic!();
+// })
+// let a = rx.recv().unwrap(); // `a` is in a corrupted state.
+impl<T: UnwindSafe> UnwindSafe for Receiver<T> {}
+impl<T: UnwindSafe> UnwindSafe for Sender<T> {}
+// There's nothing the API user can do with a `&Sender<T>` or `&Receiver<T>`.
+// They act as a potential container for a `T` and are thus similar to, say,
+// a `Box` for unwind-safety-related purposes. If it was possible to
+// send/receive items through a `&Sender` or `&Receiver`, then this would
+// require `T: UnwindSafe` instead.
+impl<T: RefUnwindSafe> RefUnwindSafe for Receiver<T> {}
+impl<T: RefUnwindSafe> RefUnwindSafe for Sender<T> {}
 
 /// Internal state of the `Receiver`/`Sender` pair above. This is all used as
 /// the internal synchronization between the two for send/recv operations.
