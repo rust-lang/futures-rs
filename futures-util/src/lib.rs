@@ -32,7 +32,6 @@ mod async_await;
 pub use self::async_await::*;
 
 // Not public API.
-#[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod __private {
     pub use crate::*;
@@ -42,6 +41,7 @@ pub mod __private {
         result::Result::{Err, Ok},
     };
 
+    #[cfg(feature = "async-await")]
     pub mod async_await {
         pub use crate::async_await::*;
     }
