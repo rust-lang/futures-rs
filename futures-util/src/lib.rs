@@ -327,5 +327,5 @@ pub mod lock;
 mod abortable;
 
 mod fns;
-mod unfold_state;
 mod macros;
+mod unfold_state;
