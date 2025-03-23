@@ -10,6 +10,7 @@ use core::pin::Pin;
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
+use crate::pin_mut;
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
@@ -18,7 +19,6 @@ use futures_core::{
     stream::Stream,
     task::{Context, Poll},
 };
-use pin_utils::pin_mut;
 
 // Combinators
 
