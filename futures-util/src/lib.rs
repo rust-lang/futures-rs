@@ -22,7 +22,6 @@ extern crate std;
 
 // Macro re-exports
 pub use futures_core::ready;
-pub use pin_utils::pin_mut;
 
 #[cfg(feature = "async-await")]
 #[macro_use]
@@ -32,7 +31,6 @@ mod async_await;
 pub use self::async_await::*;
 
 // Not public API.
-#[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod __private {
     pub use crate::*;
@@ -42,6 +40,7 @@ pub mod __private {
         result::Result::{Err, Ok},
     };
 
+    #[cfg(feature = "async-await")]
     pub mod async_await {
         pub use crate::async_await::*;
     }
@@ -329,4 +328,5 @@ pub mod lock;
 mod abortable;
 
 mod fns;
+mod macros;
 mod unfold_state;
