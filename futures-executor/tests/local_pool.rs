@@ -65,6 +65,19 @@ fn run_until_executes_spawned() {
 }
 
 #[test]
+fn run_until_timeout() {
+    let mut pool = LocalPool::new();
+    assert!(pool.run_until_timeout(pending(), Duration::from_millis(1)).is_err())
+}
+
+#[test]
+fn run_timeout() {
+    let mut pool = LocalPool::new();
+    pool.spawner().spawn_local(pending()).unwrap();
+    assert!(pool.run_timeout(Duration::from_millis(1)).is_err())
+}
+
+#[test]
 fn run_returns_if_empty() {
     let mut pool = LocalPool::new();
     pool.run();
