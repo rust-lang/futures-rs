@@ -469,7 +469,7 @@ pub mod tests {
         insert_millis_pinned(&mut futures, 4, 200);
 
         assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        assert_eq!(block_on(futures.remove(&3).unwrap()), ());
+        block_on(futures.remove(&3).unwrap());
         insert_millis_pinned(&mut futures, 2, 60);
         assert_eq!(block_on(futures.next()).unwrap().0, 4);
         assert_eq!(block_on(futures.next()).unwrap().0, 2);
