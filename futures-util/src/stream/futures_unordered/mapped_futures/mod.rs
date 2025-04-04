@@ -97,8 +97,10 @@ impl<K: Hash + Eq + Unpin, Fut: Future> Future for HashFut<K, Fut> {
     type Output = (Arc<K>, Fut::Output);
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let inner = unsafe { Pin::into_inner_unchecked(self) };
-        let res = std::task::ready!(unsafe { Pin::new_unchecked(&mut inner.future) }.poll(cx));
-        Poll::Ready((inner.key.clone(), res))
+        match unsafe { Pin::new_unchecked(&mut inner.future) }.poll(cx) {
+            Poll::Ready(res) => Poll::Ready((inner.key.clone(), res)),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -320,13 +322,20 @@ impl<K: Hash + Eq + Unpin, Fut: Future> Stream for MappedFutures<K, Fut> {
     type Item = (K, Fut::Output);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match std::task::ready!(Pin::new(&mut self.futures).poll_next(cx)) {
-            Some(output) => {
+        match Pin::new(&mut self.futures).poll_next(cx) {
+            Poll::Ready(Some(output)) => {
                 let key = output.0;
                 self.task_set.remove(key.as_ref());
-                Poll::Ready(Some((Arc::into_inner(key).unwrap(), output.1)))
+                // Arc::into_inner() only available in >=1.70.0
+                // Poll::Ready(Some((Arc::into_inner(key).unwrap(), output.1)))
+                //
+                // Arc::try_unwrap() is acceptable because keys are only kept 1) in the HashSet,
+                // and 2) in the HashFut<Fut>. The complete future has already been dropped here,
+                // so the remaining Arc<K> will always have a strong ref count of 1
+                Poll::Ready(Some((Arc::try_unwrap(key).ok().unwrap(), output.1)))
             }
-            None => Poll::Ready(None),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
         }
     }
 
@@ -446,7 +455,7 @@ pub mod tests {
         insert_millis(&mut futures, 4, 200);
 
         assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        assert_eq!(futures.cancel(&3), true);
+        assert!(futures.cancel(&3));
         assert_eq!(block_on(futures.next()).unwrap().0, 2);
         assert_eq!(block_on(futures.next()).unwrap().0, 4);
         assert_eq!(block_on(futures.next()), None);
