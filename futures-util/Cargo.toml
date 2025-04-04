@@ -48,6 +48,7 @@ spin = { version = "0.10.0", optional = true }
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test" }
 tokio = "0.1.11"
+futures-timer = "3.0.3"
 
 [package.metadata.docs.rs]
 all-features = true
