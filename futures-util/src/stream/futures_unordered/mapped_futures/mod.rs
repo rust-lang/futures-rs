@@ -280,7 +280,7 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
     }
 
     /// Returns an iterator of keys in the mapping.
-    pub fn keys<'a>(&'a self) -> Keys<'a, K, Fut>
+    pub fn keys(&self) -> Keys<'_, K, Fut>
     where
         K: Unpin,
         Fut: Unpin,

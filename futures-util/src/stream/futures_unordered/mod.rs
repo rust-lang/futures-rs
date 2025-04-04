@@ -19,6 +19,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
+#[cfg(feature = "std")]
 pub mod mapped_futures;
 
 mod abort;

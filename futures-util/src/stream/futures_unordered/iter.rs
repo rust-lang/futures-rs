@@ -13,19 +13,6 @@ pub struct IterPinMut<'a, Fut> {
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>,
 }
 
-/// Mutable iterator over all keys and futures in the map.
-// #[derive(Debug)]
-// pub struct MapIterPinMut<'a, K, Fut> {
-//     pub(super) inner: IterMut<'a, K, Fut>,
-//     // pub(super) task: *const Task<Fut>,
-//     // pub(super) len: usize,
-//     // pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>,
-// }
-
-/// Immutable iterator over all the keys and futures in the map.
-// #[derive(Debug)]
-// pub struct IterMap<'a, K: Hash + Eq, Fut: Unpin>(pub(super) IterPinRef<'a, K, Fut>);
-
 /// Mutable iterator over all futures in the unordered set.
 #[derive(Debug)]
 pub struct IterMut<'a, Fut: Unpin>(pub(super) IterPinMut<'a, Fut>);
@@ -38,20 +25,6 @@ pub struct IterPinRef<'a, Fut> {
     pub(super) pending_next_all: *mut Task<Fut>,
     pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>,
 }
-
-/// Immutable iterator over all keys and futures in the map.
-// #[derive(Debug)]
-// pub struct MapIterPinRef<'a, K, Fut> {
-//     inner: HashMapIter<'a, K, *const Task<Fut>>,
-//     // pub(super) task: *const Task<Fut>,
-//     // pub(super) len: usize,
-//     // pub(super) pending_next_all: *mut Task<Fut>,
-//     // pub(super) _marker: PhantomData<&'a FuturesUnordered<Fut>>,
-// }
-
-/// Immutable iterator over all keys and futures in the map.
-// #[derive(Debug)]
-// pub struct MapIter<'a, K, Fut>(pub(super) MapIterPinRef<'a, K, Fut>);
 
 /// Immutable iterator over all the futures in the unordered set.
 #[derive(Debug)]
