@@ -221,9 +221,12 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
     pub fn get_pin_mut(&mut self, key: &K) -> Option<Pin<&mut Fut>> {
         if let Some(task_ref) = self.task_set.get(key) {
             unsafe {
-                if let Some(ref mut fut) = *Arc::from_raw(task_ref.inner).future.get() {
+                let arc_task = Arc::from_raw(task_ref.inner);
+                if let Some(ref mut fut) = *arc_task.future.get() {
+                    let _ = Arc::into_raw(arc_task);
                     return Some(Pin::new_unchecked(&mut fut.future));
                 }
+                let _ = Arc::into_raw(arc_task);
             }
         }
         None
@@ -254,6 +257,7 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
             unsafe {
                 let task = Arc::from_raw(task_ref.inner);
                 if let Some(ref mut fut) = *task.future.get() {
+                    let _ = Arc::into_raw(task);
                     return Some(&fut.future);
                 }
                 let _ = Arc::into_raw(task);
@@ -268,6 +272,7 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
             unsafe {
                 let task = Arc::from_raw(task_ref.inner);
                 if let Some(ref mut fut) = *task.future.get() {
+                    let _ = Arc::into_raw(task);
                     return Some(Pin::new_unchecked(&fut.future));
                 }
                 let _ = Arc::into_raw(task);
@@ -427,15 +432,16 @@ impl<'a, K: Hash + Eq + Unpin, Fut: Unpin> Iterator for MapIter<'a, K, Fut> {
 #[cfg(test)]
 pub mod tests {
     use crate::stream::*;
-    use futures::executor::block_on;
     use futures::future::LocalBoxFuture;
-    use futures_timer::Delay;
     use futures_unordered::mapped_futures::MappedFutures;
     use std::boxed::Box;
-    use std::time::Duration;
+    use tokio::time::{sleep, Duration, Instant, Sleep};
+    // Two tokio versions available, use the right one
+    use tokio_new as tokio;
 
-    fn insert_millis(futs: &mut MappedFutures<u32, Delay>, key: u32, millis: u64) {
-        futs.insert(key, Delay::new(Duration::from_millis(millis)));
+    fn insert_millis(futs: &mut MappedFutures<u32, Sleep>, key: u32, millis: u64) {
+        // futs.insert(key, Delay::new(Duration::from_millis(millis)));
+        futs.insert(key, sleep(Duration::from_millis(millis)));
     }
 
     fn insert_millis_pinned(
@@ -443,52 +449,66 @@ pub mod tests {
         key: u32,
         millis: u64,
     ) {
-        futs.insert(key, Box::pin(Delay::new(Duration::from_millis(millis))));
+        // futs.insert(key, Box::pin(Delay::new(Duration::from_millis(millis))));
+        futs.insert(key, Box::pin(sleep(Duration::from_millis(millis))));
     }
 
-    #[test]
-    fn mf_map_futures() {
-        let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
+    #[tokio::test]
+    async fn mf_test_delay() {
+        // let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
+        // insert_millis(&mut futures, 1, 50);
+        // assert_eq!(futures.next().await.unwrap().0, 2);
+        sleep(Duration::from_millis(500)).await;
+    }
+
+    #[tokio::test]
+    async fn mf_map_futures() {
+        let mut futures: MappedFutures<u32, Sleep> = MappedFutures::new();
         insert_millis(&mut futures, 1, 50);
         insert_millis(&mut futures, 2, 75);
         insert_millis(&mut futures, 3, 150);
         insert_millis(&mut futures, 4, 200);
 
-        assert_eq!(block_on(futures.next()).unwrap().0, 1);
+        assert_eq!(futures.next().await.unwrap().0, 1);
         assert!(futures.cancel(&3));
-        assert_eq!(block_on(futures.next()).unwrap().0, 2);
-        assert_eq!(block_on(futures.next()).unwrap().0, 4);
-        assert_eq!(block_on(futures.next()), None);
+        assert_eq!(futures.next().await.unwrap().0, 2);
+        assert_eq!(futures.next().await.unwrap().0, 4);
+        assert_eq!(futures.next().await, None);
     }
 
-    #[test]
-    fn mf_remove_pinned() {
+    #[tokio::test]
+    async fn mf_remove_pinned() {
         let mut futures: MappedFutures<u32, LocalBoxFuture<'static, ()>> = MappedFutures::new();
         insert_millis_pinned(&mut futures, 1, 50);
         insert_millis_pinned(&mut futures, 3, 150);
         insert_millis_pinned(&mut futures, 4, 200);
 
-        assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        block_on(futures.remove(&3).unwrap());
+        assert_eq!(futures.next().await.unwrap().0, 1);
+        futures.remove(&3).unwrap().await;
         insert_millis_pinned(&mut futures, 2, 60);
-        assert_eq!(block_on(futures.next()).unwrap().0, 4);
-        assert_eq!(block_on(futures.next()).unwrap().0, 2);
-        assert_eq!(block_on(futures.next()), None);
+        assert_eq!(futures.next().await.unwrap().0, 4);
+        assert_eq!(futures.next().await.unwrap().0, 2);
+        assert_eq!(futures.next().await, None);
     }
 
-    #[test]
-    fn mf_mutate() {
-        let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
+    #[tokio::test]
+    async fn mf_mutate() {
+        let mut futures: MappedFutures<u32, Sleep> = MappedFutures::new();
         insert_millis(&mut futures, 1, 500);
         insert_millis(&mut futures, 2, 1000);
         insert_millis(&mut futures, 3, 1500);
         insert_millis(&mut futures, 4, 2000);
 
-        assert_eq!(block_on(futures.next()).unwrap().0, 1);
-        futures.get_mut(&3).unwrap().reset(Duration::from_millis(300));
-        assert_eq!(block_on(futures.next()).unwrap().0, 3);
-        assert_eq!(block_on(futures.next()).unwrap().0, 2);
-        assert_eq!(block_on(futures.next()).unwrap().0, 4);
-        assert_eq!(block_on(futures.next()), None);
+        assert_eq!(futures.next().await.unwrap().0, 1);
+        // futures.get_mut(&3).unwrap().reset(Duration::from_millis(300));
+        futures
+            .get_pin_mut(&3)
+            .unwrap()
+            .as_mut()
+            .reset(Instant::now() + Duration::from_millis(300));
+        assert_eq!(futures.next().await.unwrap().0, 3);
+        assert_eq!(futures.next().await.unwrap().0, 2);
+        assert_eq!(futures.next().await.unwrap().0, 4);
+        assert_eq!(futures.next().await, None);
     }
 }
