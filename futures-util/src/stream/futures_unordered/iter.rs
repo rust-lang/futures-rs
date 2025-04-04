@@ -1,6 +1,5 @@
 use super::task::Task;
 use super::FuturesUnordered;
-use core::hash::Hash;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use core::ptr;

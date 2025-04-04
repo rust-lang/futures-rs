@@ -117,9 +117,6 @@ pub use self::futures_ordered::FuturesOrdered;
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
-pub mod futures_mapped;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-#[cfg(feature = "alloc")]
 pub mod futures_unordered;
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
