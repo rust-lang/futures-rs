@@ -64,11 +64,13 @@ impl<St: Stream> Peekable<St> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
     ///
     /// let stream = stream::iter(vec![1, 2, 3]).peekable();
-    /// pin_mut!(stream);
+    /// let mut stream = pin!(stream);
     ///
     /// assert_eq!(stream.as_mut().peek_mut().await, Some(&mut 1));
     /// assert_eq!(stream.as_mut().next().await, Some(1));
@@ -117,11 +119,13 @@ impl<St: Stream> Peekable<St> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
     ///
     /// let stream = stream::iter(0..5).peekable();
-    /// pin_mut!(stream);
+    /// let mut stream = pin!(stream);
     /// // The first item of the stream is 0; consume it.
     /// assert_eq!(stream.as_mut().next_if(|&x| x == 0).await, Some(0));
     /// // The next item returned is now 1, so `consume` will return `false`.
@@ -135,11 +139,13 @@ impl<St: Stream> Peekable<St> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
     ///
     /// let stream = stream::iter(1..20).peekable();
-    /// pin_mut!(stream);
+    /// let mut stream = pin!(stream);
     /// // Consume all numbers less than 10
     /// while stream.as_mut().next_if(|&x| x < 10).await.is_some() {}
     /// // The next value returned will be 10
@@ -162,11 +168,13 @@ impl<St: Stream> Peekable<St> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
     ///
     /// let stream = stream::iter(0..5).peekable();
-    /// pin_mut!(stream);
+    /// let mut stream = pin!(stream);
     /// // The first item of the stream is 0; consume it.
     /// assert_eq!(stream.as_mut().next_if_eq(&0).await, Some(0));
     /// // The next item returned is now 1, so `consume` will return `false`.

@@ -48,17 +48,19 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
 /// so polling it in a tight loop is worse than using a blocking synchronous function.
 /// ```
 /// # futures::executor::block_on(async {
+/// use core::pin::pin;
+///
 /// use futures::task::Poll;
-/// use futures::{StreamExt, future, pin_mut};
+/// use futures::{StreamExt, future};
 /// use future::FusedFuture;
 ///
 /// let f = async { 1_u32 };
-/// pin_mut!(f);
+/// let mut f = pin!(f);
 /// let mut r = future::poll_immediate(f);
 /// assert_eq!(r.next().await, Some(Poll::Ready(1)));
 ///
 /// let f = async {futures::pending!(); 42_u8};
-/// pin_mut!(f);
+/// let mut f = pin!(f);
 /// let mut p = future::poll_immediate(f);
 /// assert_eq!(p.next().await, Some(Poll::Pending));
 /// assert!(!p.is_terminated());
@@ -114,9 +116,12 @@ where
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::{future, pin_mut};
+/// use core::pin::pin;
+///
+/// use futures::future;
+///
 /// let f = async {futures::pending!(); 42_u8};
-/// pin_mut!(f);
+/// let mut f = pin!(f);
 /// assert_eq!(None, future::poll_immediate(&mut f).await);
 /// assert_eq!(42, f.await);
 /// # });
