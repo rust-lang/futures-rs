@@ -657,8 +657,11 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt, TryStreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
+    /// use futures::stream::TryStreamExt;
     ///
     /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
     /// let halves = stream.try_filter_map(|x| async move {
@@ -666,7 +669,7 @@ pub trait TryStreamExt: TryStream {
     ///     Ok(ret)
     /// });
     ///
-    /// pin_mut!(halves);
+    /// let mut halves = pin!(halves);
     /// assert_eq!(halves.next().await, Some(Ok(3)));
     /// assert_eq!(halves.next().await, Some(Err("error")));
     /// # })

@@ -23,7 +23,10 @@ pin_project! {
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::sink::{self, SinkExt};
+/// use core::pin::pin;
+///
+/// use futures::sink;
+/// use futures::sink::SinkExt;
 ///
 /// let unfold = sink::unfold(0, |mut sum, i: i32| {
 ///     async move {
@@ -32,7 +35,7 @@ pin_project! {
 ///         Ok::<_, std::convert::Infallible>(sum)
 ///     }
 /// });
-/// futures::pin_mut!(unfold);
+/// let mut unfold = pin!(unfold);
 /// unfold.send(5).await?;
 /// # Ok::<(), std::convert::Infallible>(()) }).unwrap();
 /// ```

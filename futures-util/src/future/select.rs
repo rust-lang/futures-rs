@@ -32,11 +32,10 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::{
-///     pin_mut,
-///     future::Either,
-///     future::self,
-/// };
+/// use core::pin::pin;
+///
+/// use futures::future;
+/// use futures::future::Either;
 ///
 /// // These two futures have different types even though their outputs have the same type.
 /// let future1 = async {
@@ -48,8 +47,8 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// };
 ///
 /// // 'select' requires Future + Unpin bounds
-/// pin_mut!(future1);
-/// pin_mut!(future2);
+/// let future1 = pin!(future1);
+/// let future2 = pin!(future2);
 ///
 /// let value = match future::select(future1, future2).await {
 ///     Either::Left((value1, _)) => value1,  // `value1` is resolved from `future1`
