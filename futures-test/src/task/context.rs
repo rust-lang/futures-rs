@@ -22,13 +22,14 @@ pub fn panic_context() -> Context<'static> {
 /// # Examples
 ///
 /// ```
+/// use core::pin::pin;
+///
 /// use futures::future::Future;
 /// use futures::task::Poll;
 /// use futures_test::task::noop_context;
-/// use futures::pin_mut;
 ///
 /// let future = async { 5 };
-/// pin_mut!(future);
+/// let future = pin!(future);
 ///
 /// assert_eq!(future.poll(&mut noop_context()), Poll::Ready(5));
 /// ```
