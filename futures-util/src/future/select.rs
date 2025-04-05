@@ -47,8 +47,8 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// };
 ///
 /// // 'select' requires Future + Unpin bounds
-/// let mut future1 = pin!(future1);
-/// let mut future2 = pin!(future2);
+/// let future1 = pin!(future1);
+/// let future2 = pin!(future2);
 ///
 /// let value = match future::select(future1, future2).await {
 ///     Either::Left((value1, _)) => value1,  // `value1` is resolved from `future1`

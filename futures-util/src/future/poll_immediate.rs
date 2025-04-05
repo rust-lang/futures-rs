@@ -55,12 +55,12 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
 /// use future::FusedFuture;
 ///
 /// let f = async { 1_u32 };
-/// let mut f = pin!(f);
+/// let f = pin!(f);
 /// let mut r = future::poll_immediate(f);
 /// assert_eq!(r.next().await, Some(Poll::Ready(1)));
 ///
 /// let f = async {futures::pending!(); 42_u8};
-/// let mut f = pin!(f);
+/// let f = pin!(f);
 /// let mut p = future::poll_immediate(f);
 /// assert_eq!(p.next().await, Some(Poll::Pending));
 /// assert!(!p.is_terminated());
