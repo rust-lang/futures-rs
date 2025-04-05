@@ -9,11 +9,11 @@
 /// # Example
 ///
 /// ```rust
-/// # use core::pin::pin;
+/// # use futures_util::pin_mut;
 /// # use core::pin::Pin;
 /// # struct Foo {}
 /// let foo = Foo { /* ... */ };
-/// let foo = pin!(foo);
+/// pin_mut!(foo);
 /// let _: Pin<&mut Foo> = foo;
 /// ```
 #[macro_export]
