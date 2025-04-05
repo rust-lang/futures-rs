@@ -1,11 +1,11 @@
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{poll_fn, FutureExt};
-use futures::pin_mut;
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{Stream, StreamExt};
 use futures::task::{Context, Poll};
 use futures_test::task::{new_count_waker, noop_context};
+use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -30,7 +30,8 @@ fn send_recv_no_buffer() {
     // Run on a task context
     block_on(poll_fn(move |cx| {
         let (tx, rx) = mpsc::channel::<i32>(0);
-        pin_mut!(tx, rx);
+        let mut tx = pin!(tx);
+        let mut rx = pin!(rx);
 
         assert!(tx.as_mut().poll_flush(cx).is_ready());
         assert!(tx.as_mut().poll_ready(cx).is_ready());

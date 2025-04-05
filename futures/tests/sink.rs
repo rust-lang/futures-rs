@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::fmt;
 use std::mem;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -509,7 +509,7 @@ fn sink_unfold() {
                 Ok::<_, String>(())
             }
         });
-        futures::pin_mut!(unfold);
+        let mut unfold = pin!(unfold);
         assert_eq!(unfold.as_mut().start_send(1), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Ready(Ok(())));
         assert_eq!(rx.try_next().unwrap(), Some(1));
