@@ -4,11 +4,11 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
-use futures_util::pin_mut;
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
+use std::pin::pin;
 use std::rc::{Rc, Weak};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -155,7 +155,7 @@ impl LocalPool {
     /// one of the pool's run or poll methods. While the function is running,
     /// however, all tasks in the pool will try to make progress.
     pub fn run_until<F: Future>(&mut self, future: F) -> F::Output {
-        pin_mut!(future);
+        let mut future = pin!(future);
 
         run_executor(|cx| {
             {
@@ -312,7 +312,7 @@ impl Default for LocalPool {
 ///
 /// Use a [`LocalPool`] if you need finer-grained control over spawned tasks.
 pub fn block_on<F: Future>(f: F) -> F::Output {
-    pin_mut!(f);
+    let mut f = pin!(f);
     run_executor(|cx| f.as_mut().poll(cx))
 }
 
