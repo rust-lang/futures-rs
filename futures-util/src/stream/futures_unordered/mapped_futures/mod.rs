@@ -41,33 +41,6 @@ pub struct MappedFutures<K: Hash + Eq, Fut> {
 }
 
 #[derive(Debug)]
-struct HashTask<K: Hash, Fut: Hash> {
-    inner: *const Task<Fut>,
-    key: Arc<K>,
-}
-
-impl<K: Hash + Eq, Fut> Borrow<K> for HashTask<K, HashFut<K, Fut>> {
-    fn borrow(&self) -> &K {
-        &self.key
-    }
-}
-
-impl<K: Hash, Fut: Eq + Hash> PartialEq for HashTask<K, Fut> {
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
-    }
-}
-
-impl<K: Hash, Fut: Hash + Eq> Eq for HashTask<K, Fut> {}
-
-impl<K: Hash + Eq, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let key = unsafe { (*self.inner).future.get().as_ref() }.unwrap().as_ref().unwrap().key();
-        key.hash(state)
-    }
-}
-
-#[derive(Debug)]
 struct HashFut<K: Hash + Eq, Fut> {
     key: Arc<K>,
     future: Fut,
@@ -79,15 +52,27 @@ impl<K: Hash + Eq, Fut> HashFut<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq, Fut> PartialEq for HashFut<K, Fut> {
+#[derive(Debug)]
+struct HashTask<K: Hash, Fut> {
+    inner: *const Task<Fut>,
+    key: Arc<K>,
+}
+
+impl<K: Hash + Eq, Fut> Borrow<K> for HashTask<K, HashFut<K, Fut>> {
+    fn borrow(&self) -> &K {
+        &self.key
+    }
+}
+
+impl<K: Hash + Eq, Fut> PartialEq for HashTask<K, Fut> {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
 
-impl<K: Hash + Eq, Fut> Eq for HashFut<K, Fut> {}
+impl<K: Hash + Eq, Fut> Eq for HashTask<K, Fut> {}
 
-impl<K: Hash + Eq, Fut> Hash for HashFut<K, Fut> {
+impl<K: Hash + Eq, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
     }
@@ -106,6 +91,7 @@ impl<K: Hash + Eq, Fut: Future> Future for HashFut<K, Fut> {
 
 unsafe impl<K: Hash + Eq, Fut: Send> Send for MappedFutures<K, Fut> {}
 unsafe impl<K: Hash + Eq, Fut: Sync> Sync for MappedFutures<K, Fut> {}
+
 impl<K: Hash + Eq, Fut> Unpin for MappedFutures<K, Fut> {}
 
 impl<K: Hash + Eq, Fut> Default for MappedFutures<K, Fut> {
@@ -226,7 +212,8 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     pub fn get_pin_mut(&mut self, key: &K) -> Option<Pin<&mut Fut>> {
         self.task_set
             .get(key)
-            .and_then(Self::get_task_future)
+            .map(Self::get_task_future)
+            .flatten()
             .map(|f| unsafe { Pin::new_unchecked(&mut f.future) })
     }
 
@@ -240,14 +227,15 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
 
     /// Get a shared reference to the mapped future.
     pub fn get(&mut self, key: &K) -> Option<&Fut> {
-        self.task_set.get(key).and_then(Self::get_task_future).map(|f| &f.future)
+        self.task_set.get(key).map(Self::get_task_future).flatten().map(|f| &f.future)
     }
 
     /// Get a pinned shared reference to the mapped future.
     pub fn get_pin(&mut self, key: &K) -> Option<Pin<&Fut>> {
         self.task_set
             .get(key)
-            .and_then(Self::get_task_future)
+            .map(Self::get_task_future)
+            .flatten()
             .map(|f| unsafe { Pin::new_unchecked(&f.future) })
     }
 
@@ -422,7 +410,6 @@ pub mod tests {
     use tokio_new as tokio;
 
     fn insert_millis(futs: &mut MappedFutures<u32, Sleep>, key: u32, millis: u64) {
-        // futs.insert(key, Delay::new(Duration::from_millis(millis)));
         futs.insert(key, sleep(Duration::from_millis(millis)));
     }
 
@@ -431,16 +418,7 @@ pub mod tests {
         key: u32,
         millis: u64,
     ) {
-        // futs.insert(key, Box::pin(Delay::new(Duration::from_millis(millis))));
         futs.insert(key, Box::pin(sleep(Duration::from_millis(millis))));
-    }
-
-    #[tokio::test]
-    async fn mf_test_delay() {
-        // let mut futures: MappedFutures<u32, Delay> = MappedFutures::new();
-        // insert_millis(&mut futures, 1, 50);
-        // assert_eq!(futures.next().await.unwrap().0, 2);
-        sleep(Duration::from_millis(500)).await;
     }
 
     #[tokio::test]
@@ -482,7 +460,6 @@ pub mod tests {
         insert_millis(&mut futures, 4, 2000);
 
         assert_eq!(futures.next().await.unwrap().0, 1);
-        // futures.get_mut(&3).unwrap().reset(Duration::from_millis(300));
         futures
             .get_pin_mut(&3)
             .unwrap()
