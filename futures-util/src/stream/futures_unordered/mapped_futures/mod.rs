@@ -87,6 +87,16 @@ impl<K: Hash + Eq, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
     }
 }
 
+impl<K: Hash + Eq, Fut> HashTask<K, HashFut<K, Fut>> {
+    // Extracts some of the unsafety.
+    // Get the &mut to the future of the task.
+    // The "future not found" case should never occur; the future is removed from task just before
+    // task is dropped; consider putting a debug invariant in this function.
+    fn get_future(&self) -> Option<&mut HashFut<K, Fut>> {
+        unsafe { (*(*self.inner).future.get()).as_mut() }
+    }
+}
+
 // SAFETY:
 // - the use of Pin::into_inner_unchecked() unchecked is safe because we are only accessing the owned
 // future, which is not moved, and its reference is immediaely pinned
@@ -181,8 +191,8 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     // Get the &mut to the future of the task.
     // The "future not found" case should never occur; the future is removed from task just before
     // task is dropped; consider putting a debug invariant in this function.
-    fn get_task_future(task: &HashTask<K, HashFut<K, Fut>>) -> Option<&mut HashFut<K, Fut>> {
-        unsafe { (*(*task.inner).future.get()).as_mut() }
+    fn get_task_future(&self, key: &K) -> Option<&mut HashFut<K, Fut>> {
+        self.task_set.get(key).and_then(|t| t.get_future())
     }
 
     /// Remove a future from the set, dropping it.
@@ -190,11 +200,13 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     /// Returns true if a future was cancelled.
     pub fn cancel(&mut self, key: &K) -> bool {
         if let Some(task) = self.task_set.take(key) {
-            if Self::get_task_future(&task).is_some() {
-                let unlinked_task = unsafe { self.futures.unlink(task.inner) };
-                self.futures.release_task(unlinked_task);
-                return true;
-            }
+            // if task.get_future().is_some() { // unnecessary
+            // Should be impossible to get here without task having a future
+            // If the future was removed, then task is not in set
+            // If future was completed, then it was removed and task dropped
+            let unlinked_task = unsafe { self.futures.unlink(task.inner) };
+            self.futures.release_task(unlinked_task);
+            return true;
         }
         false
     }
@@ -208,7 +220,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
             .take(key)
             .and_then(|task| unsafe {
                 // SAFETY:
-                // - Must remove the future from task before releasing task
+                // - If removing the future from task, must do so before releasing task
                 // - Derefernce must be safe; if the task had been released then it would have been
                 // removed from the set already
                 let fut = (*(*task.inner).future.get()).take();
@@ -226,10 +238,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
 
     /// Get a pinned mutable reference to the mapped future.
     pub fn get_pin_mut(&mut self, key: &K) -> Option<Pin<&mut Fut>> {
-        self.task_set
-            .get(key)
-            .and_then(Self::get_task_future)
-            .map(|f| unsafe { Pin::new_unchecked(&mut f.future) })
+        self.get_task_future(key).map(|f| unsafe { Pin::new_unchecked(&mut f.future) })
     }
 
     /// Get a pinned mutable reference to the mapped future.
@@ -237,20 +246,17 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     where
         Fut: Unpin,
     {
-        Self::get_task_future(self.task_set.get(key)?).map(|f| &mut f.future)
+        self.get_task_future(key).map(|f| &mut f.future)
     }
 
     /// Get a shared reference to the mapped future.
     pub fn get(&self, key: &K) -> Option<&Fut> {
-        self.task_set.get(key).and_then(Self::get_task_future).map(|f| &f.future)
+        self.get_task_future(key).map(|f| &f.future)
     }
 
     /// Get a pinned shared reference to the mapped future.
     pub fn get_pin(&self, key: &K) -> Option<Pin<&Fut>> {
-        self.task_set
-            .get(key)
-            .and_then(Self::get_task_future)
-            .map(|f| unsafe { Pin::new_unchecked(&f.future) })
+        self.get_task_future(key).map(|f| unsafe { Pin::new_unchecked(&f.future) })
     }
 
     /// Returns an iterator of keys in the mapping.
