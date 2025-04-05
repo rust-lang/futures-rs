@@ -172,20 +172,27 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
         replacing
     }
 
+    fn get_task_future(task: &HashTask<K, HashFut<K, Fut>>) -> Option<&mut HashFut<K, Fut>> {
+        unsafe {
+            let arc_task = Arc::from_raw(task.inner);
+            if let Some(ref mut fut) = *arc_task.future.get() {
+                let _ = Arc::into_raw(arc_task);
+                return Some(fut);
+            }
+            let _ = Arc::into_raw(arc_task);
+            None
+        }
+    }
+
     /// Remove a future from the set, dropping it.
     ///
     /// Returns true if a future was cancelled.
     pub fn cancel(&mut self, key: &K) -> bool {
         if let Some(task) = self.task_set.take(key) {
-            unsafe {
-                let task_arc = Arc::from_raw(task.inner);
-                if (*task_arc.future.get()).is_some() {
-                    let _ = Arc::into_raw(task_arc);
-                    let unlinked_task = self.futures.unlink(task.inner);
-                    self.futures.release_task(unlinked_task);
-                    return true;
-                }
-                let _ = Arc::into_raw(task_arc);
+            if Self::get_task_future(&task).is_some() {
+                let unlinked_task = unsafe { self.futures.unlink(task.inner) };
+                self.futures.release_task(unlinked_task);
+                return true;
             }
         }
         false
@@ -217,17 +224,11 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
 
     /// Get a pinned mutable reference to the mapped future.
     pub fn get_pin_mut(&mut self, key: &K) -> Option<Pin<&mut Fut>> {
-        if let Some(task_ref) = self.task_set.get(key) {
-            unsafe {
-                let arc_task = Arc::from_raw(task_ref.inner);
-                if let Some(ref mut fut) = *arc_task.future.get() {
-                    let _ = Arc::into_raw(arc_task);
-                    return Some(Pin::new_unchecked(&mut fut.future));
-                }
-                let _ = Arc::into_raw(arc_task);
-            }
-        }
-        None
+        self.task_set
+            .get(key)
+            .map(Self::get_task_future)
+            .flatten()
+            .map(|f| unsafe { Pin::new_unchecked(&mut f.future) })
     }
 
     /// Get a pinned mutable reference to the mapped future.
@@ -235,48 +236,21 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     where
         Fut: Unpin,
     {
-        if let Some(task_ref) = self.task_set.get(key) {
-            unsafe {
-                let task = Arc::from_raw(task_ref.inner);
-                if let Some(ref mut fut) = *task.future.get() {
-                    let _ = Arc::into_raw(task);
-                    return Some(&mut fut.future);
-                }
-
-                let _ = Arc::into_raw(task);
-            }
-        }
-        None
+        Self::get_task_future(self.task_set.get(key)?).map(|f| &mut f.future)
     }
 
     /// Get a shared reference to the mapped future.
     pub fn get(&mut self, key: &K) -> Option<&Fut> {
-        if let Some(task_ref) = self.task_set.get(key) {
-            unsafe {
-                let task = Arc::from_raw(task_ref.inner);
-                if let Some(ref mut fut) = *task.future.get() {
-                    let _ = Arc::into_raw(task);
-                    return Some(&fut.future);
-                }
-                let _ = Arc::into_raw(task);
-            }
-        }
-        None
+        self.task_set.get(key).map(Self::get_task_future).flatten().map(|f| &f.future)
     }
 
     /// Get a pinned shared reference to the mapped future.
     pub fn get_pin(&mut self, key: &K) -> Option<Pin<&Fut>> {
-        if let Some(task_ref) = self.task_set.get(key) {
-            unsafe {
-                let task = Arc::from_raw(task_ref.inner);
-                if let Some(ref mut fut) = *task.future.get() {
-                    let _ = Arc::into_raw(task);
-                    return Some(Pin::new_unchecked(&fut.future));
-                }
-                let _ = Arc::into_raw(task);
-            }
-        }
-        None
+        self.task_set
+            .get(key)
+            .map(Self::get_task_future)
+            .flatten()
+            .map(|f| unsafe { Pin::new_unchecked(&f.future) })
     }
 
     /// Returns an iterator of keys in the mapping.
