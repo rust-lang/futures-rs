@@ -103,6 +103,11 @@ impl<K: Hash + Eq, Fut: Future> Future for HashFut<K, Fut> {
     }
 }
 
+// SAFETY:
+// - all task pointers are owned within MappedFutures, either in FuturesUnordered or in the task
+// HashSet
+// - so its not possible for a task to be written to while a ready/write is happening, since the
+// former op would require &mut access to MappedFutures
 unsafe impl<K: Hash + Eq, Fut: Send> Send for MappedFutures<K, Fut> {}
 unsafe impl<K: Hash + Eq, Fut: Sync> Sync for MappedFutures<K, Fut> {}
 
