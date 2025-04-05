@@ -152,8 +152,6 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
         let arc_key = Arc::new(key);
         let hash_fut = HashFut { key: arc_key.clone(), future };
         let task = self.futures.push_inner(hash_fut);
-        let arc = unsafe { Arc::from_raw(task) };
-        let _ = Arc::into_raw(arc);
         self.task_set.insert(HashTask { key: arc_key, inner: task });
         !replacing
     }
@@ -182,9 +180,9 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
             unsafe {
                 let task_arc = Arc::from_raw(task.inner);
                 if (*task_arc.future.get()).is_some() {
+                    let _ = Arc::into_raw(task_arc);
                     let unlinked_task = self.futures.unlink(task.inner);
                     self.futures.release_task(unlinked_task);
-                    let _ = Arc::into_raw(task_arc);
                     return true;
                 }
                 let _ = Arc::into_raw(task_arc);
@@ -203,9 +201,9 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
             unsafe {
                 let arc_task = Arc::from_raw(task.inner);
                 let fut = (*arc_task.future.get()).take().unwrap();
+                let _ = Arc::into_raw(arc_task);
                 let unlinked_task = self.futures.unlink(task.inner);
                 self.futures.release_task(unlinked_task);
-                let _ = Arc::into_raw(arc_task);
                 return Some(fut.future);
             }
         }
