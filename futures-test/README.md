@@ -11,7 +11,7 @@ Add this to your `Cargo.toml`:
 futures-test = "0.3"
 ```
 
-The current `futures-test` requires Rust 1.63 or later.
+The current `futures-test` requires Rust 1.68 or later.
 
 ## License
 
