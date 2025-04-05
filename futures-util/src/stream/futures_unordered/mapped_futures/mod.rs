@@ -35,7 +35,7 @@ use super::{FuturesUnordered, IterPinMut, IterPinRef};
 /// with the [`MappedFutures::new`] constructor.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct MappedFutures<K: Hash + Eq + Unpin, Fut> {
+pub struct MappedFutures<K: Hash + Eq, Fut> {
     task_set: HashSet<HashTask<K, HashFut<K, Fut>>>,
     futures: FuturesUnordered<HashFut<K, Fut>>,
 }
@@ -46,7 +46,7 @@ struct HashTask<K: Hash, Fut: Hash> {
     key: Arc<K>,
 }
 
-impl<K: Hash + Eq + Unpin, Fut> Borrow<K> for HashTask<K, HashFut<K, Fut>> {
+impl<K: Hash + Eq, Fut> Borrow<K> for HashTask<K, HashFut<K, Fut>> {
     fn borrow(&self) -> &K {
         &self.key
     }
@@ -60,7 +60,7 @@ impl<K: Hash, Fut: Eq + Hash> PartialEq for HashTask<K, Fut> {
 
 impl<K: Hash, Fut: Hash + Eq> Eq for HashTask<K, Fut> {}
 
-impl<K: Hash + Eq + Unpin, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
+impl<K: Hash + Eq, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let key = unsafe { (*self.inner).future.get().as_ref() }.unwrap().as_ref().unwrap().key();
         key.hash(state)
@@ -68,32 +68,32 @@ impl<K: Hash + Eq + Unpin, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
 }
 
 #[derive(Debug)]
-struct HashFut<K: Hash + Eq + Unpin, Fut> {
+struct HashFut<K: Hash + Eq, Fut> {
     key: Arc<K>,
     future: Fut,
 }
 
-impl<K: Hash + Eq + Unpin, Fut> HashFut<K, Fut> {
+impl<K: Hash + Eq, Fut> HashFut<K, Fut> {
     fn key(&self) -> &K {
         self.key.as_ref()
     }
 }
 
-impl<K: Hash + Eq + Unpin, Fut> PartialEq for HashFut<K, Fut> {
+impl<K: Hash + Eq, Fut> PartialEq for HashFut<K, Fut> {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
 
-impl<K: Hash + Eq + Unpin, Fut> Eq for HashFut<K, Fut> {}
+impl<K: Hash + Eq, Fut> Eq for HashFut<K, Fut> {}
 
-impl<K: Hash + Eq + Unpin, Fut> Hash for HashFut<K, Fut> {
+impl<K: Hash + Eq, Fut> Hash for HashFut<K, Fut> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
     }
 }
 
-impl<K: Hash + Eq + Unpin, Fut: Future> Future for HashFut<K, Fut> {
+impl<K: Hash + Eq, Fut: Future> Future for HashFut<K, Fut> {
     type Output = (Arc<K>, Fut::Output);
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let inner = unsafe { Pin::into_inner_unchecked(self) };
@@ -104,17 +104,17 @@ impl<K: Hash + Eq + Unpin, Fut: Future> Future for HashFut<K, Fut> {
     }
 }
 
-unsafe impl<K: Hash + Eq + Unpin, Fut: Send> Send for MappedFutures<K, Fut> {}
-unsafe impl<K: Hash + Eq + Unpin, Fut: Sync> Sync for MappedFutures<K, Fut> {}
-impl<K: Hash + Eq + Unpin, Fut> Unpin for MappedFutures<K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut: Send> Send for MappedFutures<K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut: Sync> Sync for MappedFutures<K, Fut> {}
+impl<K: Hash + Eq, Fut> Unpin for MappedFutures<K, Fut> {}
 
-impl<K: Hash + Eq + Unpin, Fut> Default for MappedFutures<K, Fut> {
+impl<K: Hash + Eq, Fut> Default for MappedFutures<K, Fut> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
+impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     /// Constructs a new, empty [`MappedFutures`].
     ///
     /// The returned [`MappedFutures`] does not contain any futures.
@@ -280,17 +280,12 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
     }
 
     /// Returns an iterator of keys in the mapping.
-    pub fn keys_pin<'a>(self: Pin<&'a Self>) -> KeysPin<'a, K, Fut> {
-        KeysPin(unsafe { self.map_unchecked(|f| &f.futures) }.iter_pin_ref())
-    }
-
-    /// Returns an iterator of keys in the mapping.
     pub fn keys(&self) -> Keys<'_, K, Fut>
     where
         K: Unpin,
-        Fut: Unpin,
     {
-        Keys(Pin::new(self).keys_pin())
+        Keys(self.task_set.iter())
+        // Keys(Pin::new(self).keys_pin())
     }
 
     /// Returns an iterator that allows inspecting each future in the set.
@@ -321,7 +316,7 @@ impl<K: Hash + Eq + Unpin, Fut> MappedFutures<K, Fut> {
     }
 }
 
-impl<K: Hash + Eq + Unpin, Fut: Future> Stream for MappedFutures<K, Fut> {
+impl<K: Hash + Eq, Fut: Future> Stream for MappedFutures<K, Fut> {
     type Item = (K, Fut::Output);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -350,63 +345,61 @@ impl<K: Hash + Eq + Unpin, Fut: Future> Stream for MappedFutures<K, Fut> {
 
 /// Immutable iterator over all keys in the mapping.
 #[derive(Debug)]
-pub struct KeysPin<'a, K: Hash + Eq + Unpin, Fut>(IterPinRef<'a, HashFut<K, Fut>>);
+pub struct Keys<'a, K: Hash + Eq, Fut>(
+    std::collections::hash_set::Iter<'a, HashTask<K, HashFut<K, Fut>>>,
+);
 
-impl<'a, K: Hash + Eq + Unpin, Fut> Iterator for KeysPin<'a, K, Fut> {
+impl<'a, K: Hash + Eq, Fut> Iterator for Keys<'a, K, Fut> {
     type Item = &'a K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(&(*self.0.next().as_ref()?).get_ref().key())
+        self.0.next().map(|hash_task| hash_task.key.as_ref())
     }
 }
 
 /// Immutable iterator over all keys in the mapping.
 #[derive(Debug)]
-pub struct Keys<'a, K: Hash + Eq + Unpin, Fut: Unpin>(KeysPin<'a, K, Fut>);
-
-impl<'a, K: Hash + Eq + Unpin, Fut: Unpin> Iterator for Keys<'a, K, Fut> {
-    type Item = &'a K;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
+pub struct MapIterPinRef<'a, K: Hash + Eq, Fut>(IterPinRef<'a, HashFut<K, Fut>>);
 
 /// Immutable iterator over all keys in the mapping.
 #[derive(Debug)]
-pub struct MapIterPinRef<'a, K: Hash + Eq + Unpin, Fut>(IterPinRef<'a, HashFut<K, Fut>>);
-
-/// Immutable iterator over all keys in the mapping.
-#[derive(Debug)]
-pub struct MapIterPinMut<'a, K: Hash + Eq + Unpin, Fut>(IterPinMut<'a, HashFut<K, Fut>>);
+pub struct MapIterPinMut<'a, K: Hash + Eq, Fut>(IterPinMut<'a, HashFut<K, Fut>>);
 
 /// Mutable iterator over all keys and futures in the map.
 #[derive(Debug)]
-pub struct MapIterMut<'a, K: Hash + Eq + Unpin, Fut>(MapIterPinMut<'a, K, Fut>);
+pub struct MapIterMut<'a, K: Hash + Eq, Fut>(MapIterPinMut<'a, K, Fut>);
 
 /// Immutable iterator over all the keys and futures in the map.
 #[derive(Debug)]
-pub struct MapIter<'a, K: Hash + Eq + Unpin, Fut>(MapIterPinRef<'a, K, Fut>);
+pub struct MapIter<'a, K: Hash + Eq, Fut>(MapIterPinRef<'a, K, Fut>);
 
-impl<'a, K: Hash + Eq + Unpin, Fut: Unpin> Iterator for MapIterMut<'a, K, Fut> {
+impl<'a, K: Hash + Eq, Fut: Unpin> Iterator for MapIterMut<'a, K, Fut> {
     type Item = (&'a K, &'a mut Fut);
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.0.next()?;
         Some((&next.0, Pin::into_inner(next.1)))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
-impl<'a, K: Hash + Eq + Unpin, Fut> Iterator for MapIterPinMut<'a, K, Fut> {
+impl<'a, K: Hash + Eq, Fut> Iterator for MapIterPinMut<'a, K, Fut> {
     type Item = (&'a K, Pin<&'a mut Fut>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = unsafe { Pin::into_inner_unchecked(self.0.next()?) };
         Some((&next.key.as_ref(), unsafe { Pin::new_unchecked(&mut next.future) }))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
-impl<'a, K: Hash + Eq + Unpin, Fut> Iterator for MapIterPinRef<'a, K, Fut> {
+impl<'a, K: Hash + Eq, Fut> Iterator for MapIterPinRef<'a, K, Fut> {
     type Item = (&'a K, Pin<&'a Fut>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -414,9 +407,13 @@ impl<'a, K: Hash + Eq + Unpin, Fut> Iterator for MapIterPinRef<'a, K, Fut> {
         let fut = unsafe { next.map_unchecked(|f| &f.future) };
         Some((next.get_ref().key(), fut))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
-impl<'a, K: Hash + Eq + Unpin, Fut: Unpin> Iterator for MapIter<'a, K, Fut> {
+impl<'a, K: Hash + Eq, Fut: Unpin> Iterator for MapIter<'a, K, Fut> {
     type Item = (&'a K, &'a Fut);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -424,7 +421,22 @@ impl<'a, K: Hash + Eq + Unpin, Fut: Unpin> Iterator for MapIter<'a, K, Fut> {
         let key = next.0;
         Some((key, Pin::into_inner(next.1)))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+impl<K: Hash + Eq, Fut: Unpin> ExactSizeIterator for MapIter<'_, K, Fut> {}
+impl<K: Hash + Eq, Fut> ExactSizeIterator for MapIterPinRef<'_, K, Fut> {}
+impl<K: Hash + Eq, Fut: Unpin> ExactSizeIterator for MapIterMut<'_, K, Fut> {}
+impl<K: Hash + Eq, Fut> ExactSizeIterator for MapIterPinMut<'_, K, Fut> {}
+impl<K: Hash + Eq, Fut> ExactSizeIterator for Keys<'_, K, Fut> {}
+
+unsafe impl<K: Hash + Eq, Fut: Send> Send for MapIterPinMut<'_, K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut: Sync> Sync for MapIterPinMut<'_, K, Fut> {}
+
+unsafe impl<K: Hash + Eq, Fut: Send> Send for MapIterPinRef<'_, K, Fut> {}
+unsafe impl<K: Hash + Eq, Fut: Sync> Sync for MapIterPinRef<'_, K, Fut> {}
 
 /// Tests for MappedFutures
 #[cfg(test)]
