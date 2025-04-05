@@ -8,13 +8,16 @@ use alloc::sync::Arc;
 use core::borrow::Borrow;
 use core::fmt::Debug;
 use core::hash::{Hash, Hasher};
+use core::iter::FromIterator;
 use core::pin::Pin;
+use core::sync::atomic::Ordering::Relaxed;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
+use futures_core::FusedStream;
 use std::collections::HashSet;
 
-use super::{FuturesUnordered, IterPinMut, IterPinRef};
+use super::{FuturesUnordered, IntoIter, IterPinMut, IterPinRef};
 
 /// A map of futures which may complete in any order.
 ///
@@ -40,6 +43,8 @@ pub struct MappedFutures<K: Hash + Eq, Fut> {
     futures: FuturesUnordered<HashFut<K, Fut>>,
 }
 
+// Wraps the user-provided Future. Output is associated with a key, partly so that we'll know which
+// HashTask to remove from the Set.
 #[derive(Debug)]
 struct HashFut<K: Hash + Eq, Fut> {
     key: Arc<K>,
@@ -52,6 +57,11 @@ impl<K: Hash + Eq, Fut> HashFut<K, Fut> {
     }
 }
 
+// Wraps the task; but contains a raw pointer, so we need to ensure soundness by:
+// - always decrementing strong count or using Arc::into_raw() any time we re-create the Arc
+// - ensure that the strong count is exactly 1 when the task is dropped in release_task()
+// Aside from that, HashTask is used to access Task using a key, such as in get_mut, remove,
+// cancel, etc.
 #[derive(Debug)]
 struct HashTask<K: Hash, Fut> {
     inner: *const Task<Fut>,
@@ -78,6 +88,11 @@ impl<K: Hash + Eq, Fut> Hash for HashTask<K, HashFut<K, Fut>> {
     }
 }
 
+// SAFETY:
+// - the use of Pin::into_inner_unchecked() unchecked is safe because we are only accessing the owned
+// future, which is not moved, and its reference is immediaely pinned
+// - the other field, of type Arc<K>, is Unpin, and can be moved safely
+// - Pin::new_unchecked() is safe because the &mut points to a value that was just also pinned
 impl<K: Hash + Eq, Fut: Future> Future for HashFut<K, Fut> {
     type Output = (Arc<K>, Fut::Output);
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -158,6 +173,10 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
         replacing
     }
 
+    // Extracts some of the unsafety.
+    // Get the &mut to the future of the task.
+    // The "future not found" case should never occur; the future is removed from task just before
+    // task is dropped; consider putting a debug invariant in this function.
     fn get_task_future(task: &HashTask<K, HashFut<K, Fut>>) -> Option<&mut HashFut<K, Fut>> {
         unsafe {
             let arc_task = Arc::from_raw(task.inner);
@@ -252,7 +271,6 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     pub fn iter(&self) -> MapIter<'_, K, Fut>
     where
         Fut: Unpin,
-        K: Unpin,
     {
         MapIter(Pin::new(self).iter_pin_ref())
     }
@@ -303,6 +321,52 @@ impl<K: Hash + Eq, Fut: Future> Stream for MappedFutures<K, Fut> {
     }
 }
 
+impl<'a, K: Hash + Eq, Fut: Unpin> IntoIterator for &'a MappedFutures<K, Fut> {
+    type Item = (&'a K, &'a Fut);
+    type IntoIter = MapIter<'a, K, Fut>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, K: Hash + Eq, Fut: Unpin> IntoIterator for &'a mut MappedFutures<K, Fut> {
+    type Item = (&'a K, &'a mut Fut);
+    type IntoIter = MapIterMut<'a, K, Fut>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<K: Hash + Eq, Fut: Unpin> IntoIterator for MappedFutures<K, Fut> {
+    type Item = (K, Fut);
+    type IntoIter = MapIntoIter<K, Fut>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MapIntoIter { task_set: self.task_set, inner: self.futures.into_iter() }
+    }
+}
+
+impl<K: Hash + Eq, Fut> FromIterator<(K, Fut)> for MappedFutures<K, Fut> {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, Fut)>,
+    {
+        let acc = Self::new();
+        iter.into_iter().fold(acc, |mut acc, (key, fut)| {
+            acc.insert(key, fut);
+            acc
+        })
+    }
+}
+
+impl<K: Hash + Eq, Fut: Future> FusedStream for MappedFutures<K, Fut> {
+    fn is_terminated(&self) -> bool {
+        self.futures.is_terminated.load(Relaxed)
+    }
+}
+
 /// Immutable iterator over all keys in the mapping.
 #[derive(Debug)]
 pub struct Keys<'a, K: Hash + Eq, Fut>(
@@ -332,6 +396,27 @@ pub struct MapIterMut<'a, K: Hash + Eq, Fut>(MapIterPinMut<'a, K, Fut>);
 /// Immutable iterator over all the keys and futures in the map.
 #[derive(Debug)]
 pub struct MapIter<'a, K: Hash + Eq, Fut>(MapIterPinRef<'a, K, Fut>);
+
+/// Owned iterator over all keys and futures in the map.
+#[derive(Debug)]
+pub struct MapIntoIter<K: Hash + Eq, Fut: Unpin> {
+    task_set: HashSet<HashTask<K, HashFut<K, Fut>>>,
+    inner: IntoIter<HashFut<K, Fut>>,
+}
+
+impl<K: Hash + Eq, Fut: Unpin> Iterator for MapIntoIter<K, Fut> {
+    type Item = (K, Fut);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let hash_fut = self.inner.next()?;
+        self.task_set.remove(hash_fut.key());
+        Some((Arc::try_unwrap(hash_fut.key).ok().unwrap(), hash_fut.future))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.inner.len, Some(self.inner.len))
+    }
+}
 
 impl<'a, K: Hash + Eq, Fut: Unpin> Iterator for MapIterMut<'a, K, Fut> {
     type Item = (&'a K, &'a mut Fut);
