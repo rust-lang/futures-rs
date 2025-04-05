@@ -51,9 +51,6 @@ tokio = "0.1.11"
 # MappedFutures requires tokio::time::sleep, which is unavailable in the above tokio version
 tokio_new = {package = "tokio", git = "https://github.com/tokio-rs/tokio", branch = "tokio-1.25.x", features = ["time", "rt", "macros"]}
 
-futures-timer = "3.0.3"
-futures-time = "3.0.0"
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
