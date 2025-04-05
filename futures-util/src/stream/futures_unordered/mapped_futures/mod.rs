@@ -57,9 +57,8 @@ impl<K: Hash + Eq, Fut> HashFut<K, Fut> {
     }
 }
 
-// Wraps the task; but contains a raw pointer, so we need to ensure soundness by:
-// - always decrementing strong count or using Arc::into_raw() any time we re-create the Arc
-// - ensure that the strong count is exactly 1 when the task is dropped in release_task()
+// Wraps the task; but contains a raw pointer, so we need to ensure soundness by ensuring the Task
+// is only ever dropped inside release_task(), and is never used after calling release_task()
 // Aside from that, HashTask is used to access Task using a key, such as in get_mut, remove,
 // cancel, etc.
 #[derive(Debug)]
@@ -178,15 +177,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     // The "future not found" case should never occur; the future is removed from task just before
     // task is dropped; consider putting a debug invariant in this function.
     fn get_task_future(task: &HashTask<K, HashFut<K, Fut>>) -> Option<&mut HashFut<K, Fut>> {
-        unsafe {
-            let arc_task = Arc::from_raw(task.inner);
-            if let Some(ref mut fut) = *arc_task.future.get() {
-                let _ = Arc::into_raw(arc_task);
-                return Some(fut);
-            }
-            let _ = Arc::into_raw(arc_task);
-            None
-        }
+        unsafe { (*(*task.inner).future.get()).as_mut() }
     }
 
     /// Remove a future from the set, dropping it.
@@ -208,22 +199,23 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     where
         Fut: Unpin,
     {
-        // if let Some(task) = self.hash_set.get(key) {
-        if let Some(task) = self.task_set.take(key) {
-            unsafe {
-                let arc_task = Arc::from_raw(task.inner);
-                let fut = (*arc_task.future.get()).take().unwrap();
-                let _ = Arc::into_raw(arc_task);
+        self.task_set
+            .take(key)
+            .and_then(|task| unsafe {
+                // SAFETY:
+                // - Must remove the future from task before releasing task
+                // - Derefernce must be safe; if the task had been released then it would have been
+                // removed from the set already
+                let fut = (*(*task.inner).future.get()).take();
                 let unlinked_task = self.futures.unlink(task.inner);
                 self.futures.release_task(unlinked_task);
-                return Some(fut.future);
-            }
-        }
-        None
+                fut
+            })
+            .map(|f| f.future)
     }
 
     /// Returns `true` if the map contains a future for the specified key.
-    pub fn contains(&mut self, key: &K) -> bool {
+    pub fn contains(&self, key: &K) -> bool {
         self.task_set.contains(key)
     }
 
@@ -244,12 +236,12 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     }
 
     /// Get a shared reference to the mapped future.
-    pub fn get(&mut self, key: &K) -> Option<&Fut> {
+    pub fn get(&self, key: &K) -> Option<&Fut> {
         self.task_set.get(key).and_then(Self::get_task_future).map(|f| &f.future)
     }
 
     /// Get a pinned shared reference to the mapped future.
-    pub fn get_pin(&mut self, key: &K) -> Option<Pin<&Fut>> {
+    pub fn get_pin(&self, key: &K) -> Option<Pin<&Fut>> {
         self.task_set
             .get(key)
             .and_then(Self::get_task_future)
