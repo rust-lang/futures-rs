@@ -1,6 +1,6 @@
-use std::pin::pin;
 use futures::executor::block_on;
 use futures::stream::{self, Peekable, StreamExt};
+use std::pin::pin;
 
 #[test]
 fn peekable() {

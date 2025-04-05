@@ -4,9 +4,7 @@ use futures::future::{self, poll_fn, FutureExt};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use futures::task::{Context, Poll};
-use futures::{
-    join, pending, poll, select, select_biased, stream, stream_select, try_join,
-};
+use futures::{join, pending, poll, select, select_biased, stream, stream_select, try_join};
 use std::pin::pin;
 
 #[test]

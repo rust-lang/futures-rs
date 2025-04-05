@@ -3,14 +3,14 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-use core::convert::Infallible;
-use core::pin::Pin;
-use std::pin::pin;
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
 use crate::stream::assert_stream;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+use core::convert::Infallible;
+use core::pin::pin;
+use core::pin::Pin;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{
@@ -26,7 +26,7 @@ mod fuse;
 mod map;
 
 delegate_all!(
-    /// Future for the [`flatten`](super::FutureExt::flatten) method.
+    /// Future for the [`flatten`](FutureExt::flatten) method.
     Flatten<F>(
         flatten::Flatten<F, <F as Future>::Output>
     ): Debug + Future + FusedFuture + New[|x: F| flatten::Flatten::new(x)]
@@ -44,7 +44,7 @@ delegate_all!(
 pub use fuse::Fuse;
 
 delegate_all!(
-    /// Future for the [`map`](super::FutureExt::map) method.
+    /// Future for the [`map`](FutureExt::map) method.
     Map<Fut, F>(
         map::Map<Fut, F>
     ): Debug + Future + FusedFuture + New[|x: Fut, f: F| map::Map::new(x, f)]
@@ -79,14 +79,14 @@ delegate_all!(
 );
 
 delegate_all!(
-    /// Future for the [`never_error`](super::FutureExt::never_error) combinator.
+    /// Future for the [`never_error`](FutureExt::never_error) combinator.
     NeverError<Fut>(
         Map<Fut, OkFn<Infallible>>
     ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
 );
 
 delegate_all!(
-    /// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
+    /// Future for the [`unit_error`](FutureExt::unit_error) combinator.
     UnitError<Fut>(
         Map<Fut, OkFn<()>>
     ): Debug + Future + FusedFuture + New[|x: Fut| Map::new(x, ok_fn())]
