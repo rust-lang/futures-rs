@@ -226,8 +226,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
     pub fn get_pin_mut(&mut self, key: &K) -> Option<Pin<&mut Fut>> {
         self.task_set
             .get(key)
-            .map(Self::get_task_future)
-            .flatten()
+            .and_then(Self::get_task_future)
             .map(|f| unsafe { Pin::new_unchecked(&mut f.future) })
     }
 
@@ -241,15 +240,14 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
 
     /// Get a shared reference to the mapped future.
     pub fn get(&mut self, key: &K) -> Option<&Fut> {
-        self.task_set.get(key).map(Self::get_task_future).flatten().map(|f| &f.future)
+        self.task_set.get(key).and_then(Self::get_task_future).map(|f| &f.future)
     }
 
     /// Get a pinned shared reference to the mapped future.
     pub fn get_pin(&mut self, key: &K) -> Option<Pin<&Fut>> {
         self.task_set
             .get(key)
-            .map(Self::get_task_future)
-            .flatten()
+            .and_then(Self::get_task_future)
             .map(|f| unsafe { Pin::new_unchecked(&f.future) })
     }
 
