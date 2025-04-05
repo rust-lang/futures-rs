@@ -29,11 +29,12 @@ impl<Fut: Future> Fuse<Fut> {
     ///
     /// ```
     /// # futures::executor::block_on(async {
+    /// use core::pin::pin;
+    ///
     /// use futures::channel::mpsc;
     /// use futures::future::{Fuse, FusedFuture, FutureExt};
     /// use futures::select;
     /// use futures::stream::StreamExt;
-    /// use futures::pin_mut;
     ///
     /// let (sender, mut stream) = mpsc::unbounded();
     ///
@@ -45,7 +46,7 @@ impl<Fut: Future> Fuse<Fut> {
     /// // Use `Fuse::terminated()` to create an already-terminated future
     /// // which may be instantiated later.
     /// let foo_printer = Fuse::terminated();
-    /// pin_mut!(foo_printer);
+    /// let mut foo_printer = pin!(foo_printer);
     ///
     /// loop {
     ///     select! {

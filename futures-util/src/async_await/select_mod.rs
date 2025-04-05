@@ -58,7 +58,7 @@ macro_rules! document_select_macro {
         /// select! {
         ///     x = st.next() => assert_eq!(Some(2), x),
         ///     _ = fut => panic!(),
-        /// };
+        /// }
         /// # });
         /// ```
         ///
@@ -87,14 +87,15 @@ macro_rules! document_select_macro {
         /// If a similar async function is called outside of `select` to produce
         /// a `Future`, the `Future` must be pinned in order to be able to pass
         /// it to `select`. This can be achieved via `Box::pin` for pinning a
-        /// `Future` on the heap or the `pin_mut!` macro for pinning a `Future`
+        /// `Future` on the heap or the `pin!` macro for pinning a `Future`
         /// on the stack.
         ///
         /// ```
         /// # futures::executor::block_on(async {
+        /// use core::pin::pin;
+        ///
         /// use futures::future::FutureExt;
         /// use futures::select;
-        /// use futures::pin_mut;
         ///
         /// // Calling the following async fn returns a Future which does not
         /// // implement Unpin
@@ -105,7 +106,7 @@ macro_rules! document_select_macro {
         /// let fut_1 = async_identity_fn(1).fuse();
         /// let fut_2 = async_identity_fn(2).fuse();
         /// let mut fut_1 = Box::pin(fut_1); // Pins the Future on the heap
-        /// pin_mut!(fut_2); // Pins the Future on the stack
+        /// let mut fut_2 = pin!(fut_2); // Pins the Future on the stack
         ///
         /// let res = select! {
         ///     a_res = fut_1 => a_res,
@@ -138,7 +139,7 @@ macro_rules! document_select_macro {
         ///         b = b_fut => total += b,
         ///         complete => break,
         ///         default => panic!(), // never runs (futures run first, then complete)
-        ///     };
+        ///     }
         /// }
         /// assert_eq!(total, 10);
         /// # });
@@ -209,7 +210,7 @@ macro_rules! document_select_macro {
         /// select_biased! {
         ///     x = st.next() => assert_eq!(Some(2), x),
         ///     _ = fut => panic!(),
-        /// };
+        /// }
         /// # });
         /// ```
         ///
@@ -238,14 +239,15 @@ macro_rules! document_select_macro {
         /// If a similar async function is called outside of `select_biased` to produce
         /// a `Future`, the `Future` must be pinned in order to be able to pass
         /// it to `select_biased`. This can be achieved via `Box::pin` for pinning a
-        /// `Future` on the heap or the `pin_mut!` macro for pinning a `Future`
+        /// `Future` on the heap or the `pin!` macro for pinning a `Future`
         /// on the stack.
         ///
         /// ```
         /// # futures::executor::block_on(async {
+        /// use core::pin::pin;
+        ///
         /// use futures::future::FutureExt;
         /// use futures::select_biased;
-        /// use futures::pin_mut;
         ///
         /// // Calling the following async fn returns a Future which does not
         /// // implement Unpin
@@ -256,7 +258,7 @@ macro_rules! document_select_macro {
         /// let fut_1 = async_identity_fn(1).fuse();
         /// let fut_2 = async_identity_fn(2).fuse();
         /// let mut fut_1 = Box::pin(fut_1); // Pins the Future on the heap
-        /// pin_mut!(fut_2); // Pins the Future on the stack
+        /// let mut fut_2 = pin!(fut_2); // Pins the Future on the stack
         ///
         /// let res = select_biased! {
         ///     a_res = fut_1 => a_res,
@@ -289,7 +291,7 @@ macro_rules! document_select_macro {
         ///         b = b_fut => total += b,
         ///         complete => break,
         ///         default => panic!(), // never runs (futures run first, then complete)
-        ///     };
+        ///     }
         /// }
         /// assert_eq!(total, 10);
         /// # });

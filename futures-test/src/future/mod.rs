@@ -32,14 +32,15 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::future::FutureExt;
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
-    /// use futures::pin_mut;
     ///
     /// let future = (async { 5 }).pending_once();
-    /// pin_mut!(future);
+    /// let mut future = pin!(future);
     ///
     /// let mut cx = noop_context();
     ///
@@ -84,14 +85,15 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::future::{self, Future};
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
-    /// use futures::pin_mut;
     ///
     /// let future = future::ready(1).interleave_pending();
-    /// pin_mut!(future);
+    /// let mut future = pin!(future);
     ///
     /// let mut cx = noop_context();
     ///
