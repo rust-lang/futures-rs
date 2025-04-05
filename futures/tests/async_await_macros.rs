@@ -5,15 +5,15 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use futures::task::{Context, Poll};
 use futures::{
-    join, pending, pin_mut, poll, select, select_biased, stream, stream_select, try_join,
+    join, pending, poll, select, select_biased, stream, stream_select, try_join,
 };
-use std::mem;
+use std::pin::pin;
 
 #[test]
 fn poll_and_pending() {
     let pending_once = async { pending!() };
     block_on(async {
-        pin_mut!(pending_once);
+        let mut pending_once = pin!(pending_once);
         assert_eq!(Poll::Pending, poll!(&mut pending_once));
         assert_eq!(Poll::Ready(()), poll!(&mut pending_once));
     });
@@ -30,7 +30,7 @@ fn join() {
     };
 
     block_on(async {
-        pin_mut!(fut);
+        let mut fut = pin!(fut);
         assert_eq!(Poll::Pending, poll!(&mut fut));
         tx1.send(1).unwrap();
         assert_eq!(Poll::Pending, poll!(&mut fut));
@@ -124,7 +124,7 @@ fn select_streams() {
                 },
                 // runs last
                 complete => break,
-            };
+            }
         }
     });
     assert!(ran);
@@ -181,7 +181,7 @@ fn select_size() {
             _ = ready => {},
         }
     };
-    assert_eq!(mem::size_of_val(&fut), 24);
+    assert_eq!(size_of_val(&fut), 24);
 
     let fut = async {
         let mut ready1 = future::ready(0i32);
@@ -191,7 +191,7 @@ fn select_size() {
             _ = ready2 => {},
         }
     };
-    assert_eq!(mem::size_of_val(&fut), 40);
+    assert_eq!(size_of_val(&fut), 40);
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn select_on_non_unpin_expressions() {
         select! {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
-        };
+        }
         select_res
     });
     assert_eq!(res, 5);
@@ -221,7 +221,7 @@ fn select_on_non_unpin_expressions_with_default() {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
             default => select_res = 7,
-        };
+        }
         select_res
     });
     assert_eq!(res, 5);
@@ -238,11 +238,11 @@ fn select_on_non_unpin_size() {
         select! {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
-        };
+        }
         select_res
     };
 
-    assert_eq!(32, mem::size_of_val(&fut));
+    assert_eq!(32, size_of_val(&fut));
 }
 
 #[test]
@@ -364,14 +364,14 @@ fn join_size() {
         let ready = future::ready(0i32);
         join!(ready)
     };
-    assert_eq!(mem::size_of_val(&fut), 24);
+    assert_eq!(size_of_val(&fut), 24);
 
     let fut = async {
         let ready1 = future::ready(0i32);
         let ready2 = future::ready(0i32);
         join!(ready1, ready2)
     };
-    assert_eq!(mem::size_of_val(&fut), 40);
+    assert_eq!(size_of_val(&fut), 40);
 }
 
 #[cfg_attr(not(target_pointer_width = "64"), ignore)]
@@ -381,14 +381,14 @@ fn try_join_size() {
         let ready = future::ready(Ok::<i32, i32>(0));
         try_join!(ready)
     };
-    assert_eq!(mem::size_of_val(&fut), 24);
+    assert_eq!(size_of_val(&fut), 24);
 
     let fut = async {
         let ready1 = future::ready(Ok::<i32, i32>(0));
         let ready2 = future::ready(Ok::<i32, i32>(0));
         try_join!(ready1, ready2)
     };
-    assert_eq!(mem::size_of_val(&fut), 48);
+    assert_eq!(size_of_val(&fut), 48);
 }
 
 #[allow(clippy::let_underscore_future)]

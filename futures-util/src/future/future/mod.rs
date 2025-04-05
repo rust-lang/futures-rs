@@ -7,10 +7,9 @@
 use alloc::boxed::Box;
 use core::convert::Infallible;
 use core::pin::Pin;
-
+use std::pin::pin;
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
-use crate::pin_mut;
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
@@ -592,8 +591,7 @@ pub trait FutureExt: Future {
         let noop_waker = crate::task::noop_waker();
         let mut cx = Context::from_waker(&noop_waker);
 
-        let this = self;
-        pin_mut!(this);
+        let this = pin!(self);
         match this.poll(&mut cx) {
             Poll::Ready(x) => Some(x),
             _ => None,
