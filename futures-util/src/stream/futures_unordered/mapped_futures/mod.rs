@@ -92,8 +92,17 @@ impl<K: Hash + Eq, Fut> HashTask<K, HashFut<K, Fut>> {
     // Get the &mut to the future of the task.
     // The "future not found" case should never occur; the future is removed from task just before
     // task is dropped; consider putting a debug invariant in this function.
+    // SAFETY:
+    // - we are returning an &mut to the HashFut, requiring only a & ref
+    // - this could be used to have multiple mutable references at the same time
+    // - use of this function is sound only if there never exists >=2 mut refs to the same future
+    // - so, consuming code can either themselves require &mut MappedFutures, and not themselves
+    // create multiple mut refs, or can require &MappedFutures, and cast the returned
+    // &mut HashFut to a &HashFut
     fn get_future(&self) -> Option<&mut HashFut<K, Fut>> {
-        unsafe { (*(*self.inner).future.get()).as_mut() }
+        let fut_opt = unsafe { (*(*self.inner).future.get()).as_mut() };
+        debug_assert!(fut_opt.is_some());
+        fut_opt
     }
 }
 
@@ -224,6 +233,7 @@ impl<K: Hash + Eq, Fut> MappedFutures<K, Fut> {
                 // - Derefernce must be safe; if the task had been released then it would have been
                 // removed from the set already
                 let fut = (*(*task.inner).future.get()).take();
+                debug_assert!(fut.is_some());
                 let unlinked_task = self.futures.unlink(task.inner);
                 self.futures.release_task(unlinked_task);
                 fut
