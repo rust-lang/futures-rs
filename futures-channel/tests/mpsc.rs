@@ -4,6 +4,7 @@ use futures::future::{poll_fn, FutureExt};
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{Stream, StreamExt};
 use futures::task::{Context, Poll};
+use futures_channel::mpsc::TryRecvError;
 use futures_test::task::{new_count_waker, noop_context};
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -503,12 +504,12 @@ fn try_send_recv() {
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap_err(); // should be full
-    rx.try_next().unwrap();
-    rx.try_next().unwrap();
-    rx.try_next().unwrap_err(); // should be empty
+    rx.try_recv().unwrap();
+    rx.try_recv().unwrap();
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
     tx.try_send("hello").unwrap();
-    rx.try_next().unwrap();
-    rx.try_next().unwrap_err(); // should be empty
+    rx.try_recv().unwrap();
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
 }
 
 #[test]

@@ -167,9 +167,14 @@ enum SendErrorKind {
     Disconnected,
 }
 
-/// The error type returned from [`try_next`](Receiver::try_next).
-pub struct TryRecvError {
-    _priv: (),
+/// The error type returned from [`try_recv`](Receiver::try_recv).
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum TryRecvError {
+    /// The channel is empty but not closed.
+    Empty,
+
+    /// The channel is empty and closed.
+    Closed,
 }
 
 impl fmt::Display for SendError {
@@ -193,6 +198,18 @@ impl SendError {
     /// Returns `true` if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
         matches!(self.kind, SendErrorKind::Disconnected)
+    }
+}
+
+impl TryRecvError {
+    /// Returns `true` if the channel is empty but not closed.
+    pub fn is_empty(&self) -> bool {
+        matches!(self, TryRecvError::Empty)
+    }
+
+    /// Returns `true` if the channel is empty and closed.
+    pub fn is_closed(&self) -> bool {
+        matches!(self, TryRecvError::Closed)
     }
 }
 
@@ -236,15 +253,12 @@ impl<T> TrySendError<T> {
     }
 }
 
-impl fmt::Debug for TryRecvError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("TryRecvError").finish()
-    }
-}
-
 impl fmt::Display for TryRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "receiver channel is empty")
+        match self {
+            TryRecvError::Empty => write!(f, "receive failed because channel is empty"),
+            TryRecvError::Closed => write!(f, "receive failed because channel is closed"),
+        }
     }
 }
 
@@ -991,10 +1005,21 @@ impl<T> Receiver<T> {
     /// * `Ok(Some(t))` when message is fetched
     /// * `Ok(None)` when channel is closed and no messages left in the queue
     /// * `Err(e)` when there are no messages available, but channel is not yet closed
+    #[deprecated(note = "please use `try_recv` instead")]
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => Ok(msg),
-            Poll::Pending => Err(TryRecvError { _priv: () }),
+            Poll::Pending => Err(TryRecvError::Empty),
+        }
+    }
+
+    /// Tries to receive a message from the channel without blocking.
+    /// If the channel is empty, or empty and closed, this method returns an error.
+    pub fn try_recv(&mut self) -> Result<T, TryRecvError> {
+        match self.next_message() {
+            Poll::Ready(Some(msg)) => Ok(msg),
+            Poll::Ready(None) => Err(TryRecvError::Closed),
+            Poll::Pending => Err(TryRecvError::Empty),
         }
     }
 
@@ -1159,10 +1184,21 @@ impl<T> UnboundedReceiver<T> {
     /// * `Ok(Some(t))` when message is fetched
     /// * `Ok(None)` when channel is closed and no messages left in the queue
     /// * `Err(e)` when there are no messages available, but channel is not yet closed
+    #[deprecated(note = "please use `try_recv` instead")]
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => Ok(msg),
-            Poll::Pending => Err(TryRecvError { _priv: () }),
+            Poll::Pending => Err(TryRecvError::Empty),
+        }
+    }
+
+    /// Tries to receive a message from the channel without blocking.
+    /// If the channel is empty, or empty and closed, this method returns an error.
+    pub fn try_recv(&mut self) -> Result<T, TryRecvError> {
+        match self.next_message() {
+            Poll::Ready(Some(msg)) => Ok(msg),
+            Poll::Ready(None) => Err(TryRecvError::Closed),
+            Poll::Pending => Err(TryRecvError::Empty),
         }
     }
 
