@@ -7,16 +7,16 @@ fn unbounded_size_hint() {
     assert_eq!((0, None), rx.size_hint());
     tx.unbounded_send(1).unwrap();
     assert_eq!((1, None), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((0, None), rx.size_hint());
     tx.unbounded_send(2).unwrap();
     tx.unbounded_send(3).unwrap();
     assert_eq!((2, None), rx.size_hint());
     drop(tx);
     assert_eq!((2, Some(2)), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((1, Some(1)), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((0, Some(0)), rx.size_hint());
 }
 
@@ -26,15 +26,15 @@ fn channel_size_hint() {
     assert_eq!((0, None), rx.size_hint());
     tx.try_send(1).unwrap();
     assert_eq!((1, None), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((0, None), rx.size_hint());
     tx.try_send(2).unwrap();
     tx.try_send(3).unwrap();
     assert_eq!((2, None), rx.size_hint());
     drop(tx);
     assert_eq!((2, Some(2)), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((1, Some(1)), rx.size_hint());
-    rx.try_next().unwrap().unwrap();
+    rx.try_recv().unwrap();
     assert_eq!((0, Some(0)), rx.size_hint());
 }

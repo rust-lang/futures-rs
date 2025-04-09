@@ -512,19 +512,19 @@ fn sink_unfold() {
         let mut unfold = pin!(unfold);
         assert_eq!(unfold.as_mut().start_send(1), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Ready(Ok(())));
-        assert_eq!(rx.try_next().unwrap(), Some(1));
+        assert_eq!(rx.try_recv().unwrap(), 1);
 
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(2), Ok(()));
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(3), Ok(()));
-        assert_eq!(rx.try_next().unwrap(), Some(2));
-        assert!(rx.try_next().is_err());
+        assert_eq!(rx.try_recv().unwrap(), 2);
+        assert!(rx.try_recv().is_err());
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(4), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Pending); // Channel full
-        assert_eq!(rx.try_next().unwrap(), Some(3));
-        assert_eq!(rx.try_next().unwrap(), Some(4));
+        assert_eq!(rx.try_recv().unwrap(), 3);
+        assert_eq!(rx.try_recv().unwrap(), 4);
 
         Poll::Ready(())
     }))
