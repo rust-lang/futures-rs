@@ -4,7 +4,7 @@ use futures::future::{poll_fn, FutureExt};
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{Stream, StreamExt};
 use futures::task::{Context, Poll};
-use futures_channel::mpsc::TryRecvError;
+use futures_channel::mpsc::{RecvError, TryRecvError};
 use futures_test::task::{new_count_waker, noop_context};
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -427,6 +427,49 @@ fn stress_poll_ready() {
     stress(1);
     stress(8);
     stress(16);
+}
+
+#[test]
+fn test_bounded_recv() {
+    let (dropped_tx, dropped_rx) = oneshot::channel();
+    let (tx, mut rx) = mpsc::channel(1);
+    thread::spawn(move || {
+        block_on(async move {
+            send_one_two_three(tx).await;
+            dropped_tx.send(()).unwrap();
+        });
+    });
+
+    let res = block_on(async move {
+        let mut res = Vec::new();
+        for _ in 0..3 {
+            res.push(rx.recv().await.unwrap());
+        }
+        dropped_rx.await.unwrap();
+        assert_eq!(rx.recv().await, Err(RecvError));
+        res
+    });
+    assert_eq!(res, [1, 2, 3]);
+}
+
+#[test]
+fn test_unbounded_recv() {
+    let (mut tx, mut rx) = mpsc::unbounded();
+
+    let res = block_on(async move {
+        let mut res = Vec::new();
+        for i in 1..=3 {
+            tx.send(i).await.unwrap();
+        }
+        drop(tx);
+
+        for _ in 0..3 {
+            res.push(rx.recv().await.unwrap());
+        }
+        assert_eq!(rx.recv().await, Err(RecvError));
+        res
+    });
+    assert_eq!(res, [1, 2, 3]);
 }
 
 #[test]
