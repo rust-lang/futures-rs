@@ -78,9 +78,11 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
+use core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::__internal::AtomicWaker;
 use futures_core::task::{Context, Poll, Waker};
+use futures_core::FusedFuture;
 use std::fmt;
 use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
@@ -177,6 +179,18 @@ pub enum TryRecvError {
     Closed,
 }
 
+/// Error returned by `Receiver::recv()`[Receiver::recv].
+/// Received when the channel is empty and closed.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct RecvError;
+
+/// Future returned by `Receiver::recv()`[Receiver::recv].
+#[derive(Debug)]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+pub struct Recv<'a, St: ?Sized> {
+    stream: &'a mut St,
+}
+
 impl fmt::Display for SendError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
@@ -188,6 +202,14 @@ impl fmt::Display for SendError {
 }
 
 impl std::error::Error for SendError {}
+
+impl fmt::Display for RecvError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "receive failed because channel is closed")
+    }
+}
+
+impl std::error::Error for RecvError {}
 
 impl SendError {
     /// Returns `true` if this error is a result of the channel being full.
@@ -979,6 +1001,12 @@ impl<T> fmt::Debug for UnboundedSender<T> {
  */
 
 impl<T> Receiver<T> {
+    /// Waits for a message from the channel.
+    /// If the channel is closed and empty, returns [`RecvError`].
+    pub fn recv(&mut self) -> Recv<'_, Self> {
+        Recv::new(self)
+    }
+
     /// Closes the receiving half of a channel, without dropping it.
     ///
     /// This prevents any further messages from being sent on the channel while
@@ -1121,6 +1149,31 @@ impl<T> Stream for Receiver<T> {
     }
 }
 
+impl<St: ?Sized + Unpin> Unpin for Recv<'_, St> {}
+impl<'a, St: ?Sized + Stream + Unpin> Recv<'a, St> {
+    pub(super) fn new(stream: &'a mut St) -> Self {
+        Self { stream }
+    }
+}
+
+impl<St: ?Sized + FusedStream + Unpin> FusedFuture for Recv<'_, St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
+    }
+}
+
+impl<St: ?Sized + Stream + Unpin> Future for Recv<'_, St> {
+    type Output = Result<St::Item, RecvError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match Pin::new(&mut self.stream).poll_next(cx) {
+            Poll::Ready(Some(msg)) => Poll::Ready(Ok(msg)),
+            Poll::Ready(None) => Poll::Ready(Err(RecvError)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         // Drain the channel of all pending messages
@@ -1164,6 +1217,12 @@ impl<T> fmt::Debug for Receiver<T> {
 }
 
 impl<T> UnboundedReceiver<T> {
+    /// Waits for a message from the channel.
+    /// If the channel is closed and empty, returns [`RecvError`].
+    pub fn recv(&mut self) -> Recv<'_, Self> {
+        Recv::new(self)
+    }
+
     /// Closes the receiving half of a channel, without dropping it.
     ///
     /// This prevents any further messages from being sent on the channel while
