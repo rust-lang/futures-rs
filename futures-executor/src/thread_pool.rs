@@ -6,7 +6,6 @@ use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use std::boxed::Box;
-use std::cmp;
 use std::fmt;
 use std::format;
 use std::io;
@@ -190,13 +189,8 @@ impl ThreadPoolBuilder {
     ///
     /// See the other methods on this type for details on the defaults.
     pub fn new() -> Self {
-        Self {
-            pool_size: cmp::max(1, num_cpus::get()),
-            stack_size: 0,
-            name_prefix: None,
-            after_start: None,
-            before_stop: None,
-        }
+        let pool_size = thread::available_parallelism().map_or(1, |p| p.get());
+        Self { pool_size, stack_size: 0, name_prefix: None, after_start: None, before_stop: None }
     }
 
     /// Set size of a future ThreadPool
