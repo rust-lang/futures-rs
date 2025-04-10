@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::ready;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
@@ -72,6 +72,17 @@ where
     type Item = S::Item;
 
     delegate_stream!(sink);
+}
+
+impl<S, Item, U, Fut, F> FusedStream for With<S, Item, U, Fut, F>
+where
+    S: FusedStream + Sink<Item>,
+    F: FnMut(U) -> Fut,
+    Fut: Future,
+{
+    fn is_terminated(&self) -> bool {
+        self.sink.is_terminated()
+    }
 }
 
 impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
