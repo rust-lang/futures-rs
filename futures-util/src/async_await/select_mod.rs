@@ -307,7 +307,6 @@ macro_rules! document_select_macro {
     };
 }
 
-#[cfg(feature = "std")]
 #[doc(hidden)]
 pub use futures_macro::select_internal;
 
@@ -315,7 +314,6 @@ pub use futures_macro::select_internal;
 pub use futures_macro::select_biased_internal;
 
 document_select_macro! {
-    #[cfg(feature = "std")]
     #[macro_export]
     macro_rules! select {
         ($($tokens:tt)*) => {{
