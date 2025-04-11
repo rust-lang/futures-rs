@@ -14,7 +14,8 @@ pub use self::bilock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "std")]
 pub use self::mutex::{
-    MappedMutexGuard, Mutex, MutexGuard, MutexLockFuture, OwnedMutexGuard, OwnedMutexLockFuture,
+    MappedMutexGuard, Mutex, MutexGuard, MutexLockFuture, OwnedMappedMutexGuard, OwnedMutexGuard,
+    OwnedMutexLockFuture,
 };
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
