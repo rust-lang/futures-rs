@@ -169,7 +169,7 @@ enum SendErrorKind {
     Disconnected,
 }
 
-/// The error type returned from [`try_recv`](Receiver::try_recv).
+/// Error returned by [`Receiver::try_recv`] or [`UnboundedReceiver::try_recv`].
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum TryRecvError {
     /// The channel is empty but not closed.
@@ -179,12 +179,12 @@ pub enum TryRecvError {
     Closed,
 }
 
-/// Error returned by `Receiver::recv()`[Receiver::recv].
+/// Error returned by the future returned by [`Receiver::recv()`] or [`UnboundedReceiver::recv()`].
 /// Received when the channel is empty and closed.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct RecvError;
 
-/// Future returned by `Receiver::recv()`[Receiver::recv].
+/// Future returned by [`Receiver::recv()`] or [`UnboundedReceiver::recv()`].
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Recv<'a, St: ?Sized> {
