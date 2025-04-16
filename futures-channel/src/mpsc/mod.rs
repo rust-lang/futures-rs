@@ -1151,7 +1151,7 @@ impl<T> Stream for Receiver<T> {
 
 impl<St: ?Sized + Unpin> Unpin for Recv<'_, St> {}
 impl<'a, St: ?Sized + Stream + Unpin> Recv<'a, St> {
-    pub(super) fn new(stream: &'a mut St) -> Self {
+    fn new(stream: &'a mut St) -> Self {
         Self { stream }
     }
 }
