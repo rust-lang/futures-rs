@@ -205,7 +205,7 @@ impl std::error::Error for SendError {}
 
 impl fmt::Display for RecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "receive failed because channel is closed")
+        write!(f, "receive failed because channel is empty and closed")
     }
 }
 
@@ -1002,7 +1002,7 @@ impl<T> fmt::Debug for UnboundedSender<T> {
 
 impl<T> Receiver<T> {
     /// Waits for a message from the channel.
-    /// If the channel is closed and empty, returns [`RecvError`].
+    /// If the channel is empty and closed, returns [`RecvError`].
     pub fn recv(&mut self) -> Recv<'_, Self> {
         Recv::new(self)
     }
@@ -1218,7 +1218,7 @@ impl<T> fmt::Debug for Receiver<T> {
 
 impl<T> UnboundedReceiver<T> {
     /// Waits for a message from the channel.
-    /// If the channel is closed and empty, returns [`RecvError`].
+    /// If the channel is empty and closed, returns [`RecvError`].
     pub fn recv(&mut self) -> Recv<'_, Self> {
         Recv::new(self)
     }
