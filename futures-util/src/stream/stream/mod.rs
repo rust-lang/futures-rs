@@ -49,6 +49,9 @@ pub use self::filter::Filter;
 mod filter_map;
 pub use self::filter_map::FilterMap;
 
+mod find;
+use self::find::Find;
+
 mod flatten;
 
 delegate_all!(
@@ -670,6 +673,29 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<T, _>(Fold::new(self, f, init))
+    }
+
+    /// Execute asynchronous predicate over asynchronous stream, and return `Option<Stream::Item>`
+    /// if any element in stream satisfied the predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter([1, 3, 6, 5, 9]);
+    /// let first_even = number_stream.find(|&i| async move { i % 2 == 0 });
+    /// assert_eq!(first_even.await, Some(6));
+    /// # });
+    /// ```
+    fn find<Fut, F>(self, f: F) -> Find<Self, Fut, F>
+    where
+        Self: Sized,
+        F: FnMut(&Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+    {
+        assert_future::<Option<Self::Item>, _>(Find::new(self, f))
     }
 
     /// Execute predicate over asynchronous stream, and return `true` if any element in stream satisfied a predicate.
