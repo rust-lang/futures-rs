@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use crate::Stream;
 
 use core::future::Future;
@@ -26,7 +27,7 @@ pin_project! {
 impl<St, Fut, F> Find<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(&St::Item) -> Fut,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
     Fut: Future<Output = bool>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
@@ -48,7 +49,7 @@ where
 impl<St, Fut, F> Future for Find<St, Fut, F>
 where
     St: futures_core::Stream,
-    F: FnMut(&St::Item) -> Fut,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
     Fut: Future<Output = bool>,
 {
     type Output = Option<St::Item>;
@@ -65,10 +66,10 @@ where
                     break this.pending_item.take();
                 }
             } else if !*this.done {
+                // we're waiting on a new item from the stream
                 match ready!(this.stream.as_mut().poll_next(cx)) {
-                    // we're waiting on a new item from the stream
                     Some(item) => {
-                        this.pending_fut.set(Some((this.f)(&item)));
+                        this.pending_fut.set(Some(this.f.call_mut(&item)));
                         *this.pending_item = Some(item);
                     }
                     None => {

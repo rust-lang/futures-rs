@@ -675,17 +675,20 @@ pub trait StreamExt: Stream {
         assert_future::<T, _>(Fold::new(self, f, init))
     }
 
-    /// Execute asynchronous predicate over asynchronous stream, and return `Option<Stream::Item>`
-    /// if any element in stream satisfied the predicate.
+    /// Returns the first element in the stream that matches the given asynchronous predicate.
+    ///
+    /// Searches through the stream and applies the provided asynchronous predicate to each element
+    /// until a match is found. Returns `Some(item)` with the matching element, or `None` if no
+    /// element matches the predicate.
     ///
     /// # Examples
     ///
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt};
+    /// use futures::{future, stream::{self, StreamExt}};
     ///
     /// let number_stream = stream::iter([1, 3, 6, 5, 9]);
-    /// let first_even = number_stream.find(|&i| async move { i % 2 == 0 });
+    /// let first_even = number_stream.find(|x| future::ready(x % 2 == 0));
     /// assert_eq!(first_even.await, Some(6));
     /// # });
     /// ```
