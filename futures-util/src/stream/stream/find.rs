@@ -1,6 +1,7 @@
 use crate::fns::FnMut1;
 use crate::Stream;
 
+use core::fmt;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{ready, Context, Poll};
@@ -9,7 +10,6 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Future for the [`find`](super::StreamExt::find) method.
-    #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Find<St, Fut, F>
         where St: Stream,
@@ -21,6 +21,22 @@ pin_project! {
         #[pin]
         pending_fut: Option<Fut>,
         pending_item: Option<St::Item>,
+    }
+}
+
+impl<St, Fut, F> fmt::Debug for Find<St, Fut, F>
+where
+    St: Stream + fmt::Debug,
+    St::Item: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Find")
+            .field("stream", &self.stream)
+            .field("done", &self.done)
+            .field("pending_fut", &self.pending_fut)
+            .field("pending_item", &self.pending_item)
+            .finish()
     }
 }
 
