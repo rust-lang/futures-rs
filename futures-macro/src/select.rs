@@ -221,7 +221,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
         }
     } else {
         quote! {
-            panic!("all futures in select! were completed,\
+            panic!("all futures in select! were completed, \
                     but no `complete =>` handler was provided")
         }
     };
