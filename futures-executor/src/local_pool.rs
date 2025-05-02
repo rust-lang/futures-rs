@@ -2,7 +2,7 @@ use crate::enter;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
-use futures_task::{waker_ref, ArcWake};
+use futures_task::{waker_ref, ArcWake, BoundLocalSpawn};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
@@ -17,6 +17,36 @@ use std::sync::{
 use std::thread::{self, Thread};
 use std::vec::Vec;
 
+/// A single-threaded task pool with bound lifetime for polling futures to
+/// completion.
+///
+/// This executor allows you to multiplex any number of tasks onto a single
+/// thread. It's appropriate to poll strictly I/O-bound futures that do very
+/// little work in between I/O actions. The lifetime of the executor is bound by
+/// a generic parameter. Futures associated with the executor need only outlive
+/// this lifetime. That uncompleted futures are dropped when the lifetime of the
+/// executor expires.
+///
+/// To get a handle to the pool that implements [`Spawn`](futures_task::Spawn),
+/// use the [`spawner()`](BoundLocalPool::spawner) method. Because the executor
+/// is single-threaded, it supports a special form of task spawning for
+/// non-`Send` futures, via
+/// [`spawn_local_obj`](futures_task::LocalSpawn::spawn_local_obj).
+/// Additionally, tasks with a limited lifetime can be spawned via
+/// [`spawn_bound_local_obj`](futures_task::BoundLocalSpawn::spawn_bound_local_obj).
+#[derive(Debug)]
+pub struct BoundLocalPool<'a> {
+    pool: FuturesUnordered<LocalFutureObj<'a, ()>>,
+    incoming: Rc<Incoming<'a>>,
+}
+
+/// A handle to a [`BoundLocalPool`] that implements
+/// [`BoundLocalSpawn`](futures_task::BoundLocalSpawn).
+#[derive(Clone, Debug)]
+pub struct BoundLocalSpawner<'a> {
+    incoming: Weak<Incoming<'a>>,
+}
+
 /// A single-threaded task pool for polling futures to completion.
 ///
 /// This executor allows you to multiplex any number of tasks onto a single
@@ -28,19 +58,13 @@ use std::vec::Vec;
 /// [`spawner()`](LocalPool::spawner) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local_obj`](futures_task::LocalSpawn::spawn_local_obj).
-#[derive(Debug)]
-pub struct LocalPool {
-    pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
-    incoming: Rc<Incoming>,
-}
+pub type LocalPool = BoundLocalPool<'static>;
 
-/// A handle to a [`LocalPool`] that implements [`Spawn`](futures_task::Spawn).
-#[derive(Clone, Debug)]
-pub struct LocalSpawner {
-    incoming: Weak<Incoming>,
-}
+/// A handle to a [`LocalPool`] that implements [`Spawn`](futures_task::Spawn)
+/// and [`LocalSpawn`](futures_task::LocalSpawn).
+pub type LocalSpawner = BoundLocalSpawner<'static>;
 
-type Incoming = RefCell<Vec<LocalFutureObj<'static, ()>>>;
+type Incoming<'a> = RefCell<Vec<LocalFutureObj<'a, ()>>>;
 
 pub(crate) struct ThreadNotify {
     /// The (single) executor thread.
@@ -107,15 +131,15 @@ fn woken() -> bool {
     CURRENT_THREAD_NOTIFY.with(|thread_notify| thread_notify.unparked.load(Ordering::Acquire))
 }
 
-impl LocalPool {
+impl<'a> BoundLocalPool<'a> {
     /// Create a new, empty pool of tasks.
     pub fn new() -> Self {
         Self { pool: FuturesUnordered::new(), incoming: Default::default() }
     }
 
     /// Get a clonable handle to the pool as a [`Spawn`].
-    pub fn spawner(&self) -> LocalSpawner {
-        LocalSpawner { incoming: Rc::downgrade(&self.incoming) }
+    pub fn spawner(&self) -> BoundLocalSpawner<'a> {
+        BoundLocalSpawner { incoming: Rc::downgrade(&self.incoming) }
     }
 
     /// Run all tasks in the pool to completion.
@@ -362,7 +386,7 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
     }
 }
 
-impl Spawn for LocalSpawner {
+impl Spawn for BoundLocalSpawner<'_> {
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(future.into());
@@ -381,7 +405,7 @@ impl Spawn for LocalSpawner {
     }
 }
 
-impl LocalSpawn for LocalSpawner {
+impl LocalSpawn for BoundLocalSpawner<'_> {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(future);
@@ -393,6 +417,17 @@ impl LocalSpawn for LocalSpawner {
 
     fn status_local(&self) -> Result<(), SpawnError> {
         if self.incoming.upgrade().is_some() {
+            Ok(())
+        } else {
+            Err(SpawnError::shutdown())
+        }
+    }
+}
+
+impl<'a> BoundLocalSpawn<'a> for BoundLocalSpawner<'a> {
+    fn spawn_bound_local_obj(&self, future: LocalFutureObj<'a, ()>) -> Result<(), SpawnError> {
+        if let Some(incoming) = self.incoming.upgrade() {
+            incoming.borrow_mut().push(future);
             Ok(())
         } else {
             Err(SpawnError::shutdown())
