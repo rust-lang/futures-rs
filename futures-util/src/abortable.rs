@@ -126,8 +126,7 @@ impl fmt::Display for Aborted {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Aborted {}
+impl core::error::Error for Aborted {}
 
 impl<T> Abortable<T> {
     fn try_poll<I>(
