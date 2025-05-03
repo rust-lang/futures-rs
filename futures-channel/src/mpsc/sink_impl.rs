@@ -15,13 +15,7 @@ impl<T> Sink<T> for Sender<T> {
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match (*self).poll_ready(cx) {
-            Poll::Ready(Err(ref e)) if e.is_disconnected() => {
-                // If the receiver disconnected, we consider the sink to be flushed.
-                Poll::Ready(Ok(()))
-            }
-            x => x,
-        }
+        (*self).poll_is_empty(cx).map(Ok)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
