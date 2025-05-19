@@ -69,7 +69,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
                 return Dequeue::Data(tail);
             }
 
-            if self.head.load(Acquire) as *const _ != tail {
+            if !core::ptr::eq(self.head.load(Acquire), tail) {
                 return Dequeue::Inconsistent;
             }
 

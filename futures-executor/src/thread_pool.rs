@@ -277,7 +277,7 @@ impl ThreadPoolBuilder {
             let before_stop = self.before_stop.clone();
             let mut thread_builder = thread::Builder::new();
             if let Some(ref name_prefix) = self.name_prefix {
-                thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+                thread_builder = thread_builder.name(format!("{name_prefix}{counter}"));
             }
             if self.stack_size > 0 {
                 thread_builder = thread_builder.stack_size(self.stack_size);
