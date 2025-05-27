@@ -10,6 +10,9 @@ pin_project! {
     ///
     /// Created by the [`From`] implementation for [`Option`](std::option::Option).
     ///
+    /// A future made from `None` will resolve with `None`.
+    /// If you wish it never resolved, use [`OptionFuture`] instead.
+    ///
     /// # Examples
     ///
     /// ```
