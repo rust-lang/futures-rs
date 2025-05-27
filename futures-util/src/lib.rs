@@ -247,6 +247,13 @@ macro_rules! delegate_all {
             delegate_sink!(inner, _Item);
         }
     };
+    (@trait Clone $name:ident < $($arg:ident),* > ($t:ty) $(where $($bound:tt)*)*) => {
+        impl<$($arg),*> Clone for $name<$($arg),*> where $t: Clone $(, $($bound)*)* {
+            fn clone(&self) -> Self {
+                Self { inner: Clone::clone(&self.inner) }
+            }
+        }
+    };
     (@trait Debug $name:ident < $($arg:ident),* > ($t:ty) $(where $($bound:tt)*)*) => {
         impl<$($arg),*> core::fmt::Debug for $name<$($arg),*> where $t: core::fmt::Debug $(, $($bound)*)* {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

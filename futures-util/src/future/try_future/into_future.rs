@@ -5,7 +5,7 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     /// Future for the [`into_future`](super::TryFutureExt::into_future) method.
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct IntoFuture<Fut> {
         #[pin]

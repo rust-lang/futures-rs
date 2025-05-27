@@ -9,7 +9,7 @@ use pin_project_lite::pin_project;
 
 pin_project! {
     #[project = FlattenProj]
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub enum Flatten<Fut1, Fut2> {
         First { #[pin] f: Fut1 },
         Second { #[pin] f: Fut2 },

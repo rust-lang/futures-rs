@@ -10,7 +10,7 @@ pin_project! {
     /// Internal Map future
     #[project = MapProj]
     #[project_replace = MapProjReplace]
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub enum Map<Fut, F> {
         Incomplete {
