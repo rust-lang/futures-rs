@@ -30,7 +30,7 @@ where
 }
 
 // Not used, but present for completeness
-#[allow(unreachable_pub)]
+#[allow(dead_code, unreachable_pub)]
 pub trait Fn1<A>: FnMut1<A> {
     fn call(&self, arg: A) -> Self::Output;
 }
