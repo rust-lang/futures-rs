@@ -337,13 +337,6 @@ mod future {
     assert_impl!(InspectOk<UnpinFuture, PhantomPinned>: Unpin);
     assert_not_impl!(InspectOk<PhantomPinned, PhantomPinned>: Unpin);
 
-    assert_impl!(IntoFuture<SendFuture>: Send);
-    assert_not_impl!(IntoFuture<LocalFuture>: Send);
-    assert_impl!(IntoFuture<SyncFuture>: Sync);
-    assert_not_impl!(IntoFuture<LocalFuture>: Sync);
-    assert_impl!(IntoFuture<UnpinFuture>: Unpin);
-    assert_not_impl!(IntoFuture<PinnedFuture>: Unpin);
-
     assert_impl!(IntoStream<SendFuture>: Send);
     assert_not_impl!(IntoStream<LocalFuture>: Send);
     assert_impl!(IntoStream<SyncFuture>: Sync);
@@ -1367,13 +1360,6 @@ mod stream {
     assert_impl!(IntoAsyncRead<UnpinTryStream<Vec<u8>, io::Error>>: Unpin);
     // IntoAsyncRead requires `St: Unpin`
     // assert_not_impl!(IntoAsyncRead<PinnedTryStream<Vec<u8>, io::Error>>: Unpin);
-
-    assert_impl!(IntoStream<()>: Send);
-    assert_not_impl!(IntoStream<*const ()>: Send);
-    assert_impl!(IntoStream<()>: Sync);
-    assert_not_impl!(IntoStream<*const ()>: Sync);
-    assert_impl!(IntoStream<()>: Unpin);
-    assert_not_impl!(IntoStream<PhantomPinned>: Unpin);
 
     assert_impl!(Iter<()>: Send);
     assert_not_impl!(Iter<*const ()>: Send);

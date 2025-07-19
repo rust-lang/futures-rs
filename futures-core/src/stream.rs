@@ -174,7 +174,10 @@ mod private_try_stream {
 
 /// A convenience for streams that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait TryStream: Stream + private_try_stream::Sealed {
+pub trait TryStream:
+    Stream<Item = Result<<Self as TryStream>::Ok, <Self as TryStream>::Error>>
+    + private_try_stream::Sealed
+{
     /// The type of successful values yielded by this future
     type Ok;
 
