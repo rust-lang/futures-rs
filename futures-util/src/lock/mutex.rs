@@ -73,7 +73,7 @@ const HAS_WAITERS: usize = 1 << 1;
 
 impl<T> Mutex<T> {
     /// Creates a new futures-aware mutex.
-    pub fn new(t: T) -> Self {
+    pub const fn new(t: T) -> Self {
         Self {
             state: AtomicUsize::new(0),
             waiters: StdMutex::new(Slab::new()),
