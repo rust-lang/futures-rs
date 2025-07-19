@@ -156,6 +156,10 @@ pub use self::ready_chunks::ReadyChunks;
 mod scan;
 pub use self::scan::Scan;
 
+mod try_scan;
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+pub use self::try_scan::TryScan;
+
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod buffer_unordered;
@@ -1036,6 +1040,52 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_stream::<Self::Item, _>(TakeUntil::new(self, fut))
+    }
+
+    /// Combinator similar to [`fold`](StreamExt::fold) that holds internal state
+    /// and produces a new stream.
+    ///
+    /// Accepts initial state and closure which will be applied to each element
+    /// of the stream until provided closure returns `None`. Once `None` is
+    /// returned, stream will be terminated.
+    ///
+    /// This method is similar to [`scan`](StreamExt::scan), but will
+    /// exit early if an error is encountered in either the stream or the
+    /// provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.try_scan(0, |mut state, x| {
+    ///     state += x;
+    ///     future::ready(if state < 10 { Ok::<_, ()>(Some((state, x))) } else { Ok(None) })
+    /// });
+    ///
+    /// assert_eq!(Ok(vec![1, 2, 3]), stream.try_collect::<Vec<_>>().await);
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.try_scan(0, |mut state, x| {
+    ///     state += x;
+    ///     future::ready(if state < 10 { Ok(Some((state, x))) } else { Err(()) })
+    /// });
+    ///
+    /// assert_eq!(Err(()), stream.try_collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn try_scan<S, B, Fut, F>(self, initial_state: S, f: F) -> TryScan<Self, S, Fut, F>
+    where
+        F: FnMut(S, Self::Item) -> Fut,
+        Fut: TryFuture<Ok = Option<(S, B)>>,
+        Self: Sized,
+    {
+        assert_stream::<Result<B, Fut::Error>, _>(TryScan::new(self, initial_state, f))
     }
 
     /// Runs this stream to completion, executing the provided asynchronous
