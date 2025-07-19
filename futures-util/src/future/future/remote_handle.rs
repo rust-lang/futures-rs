@@ -69,7 +69,7 @@ impl<T: 'static> Future for RemoteHandle<T> {
     }
 }
 
-type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
+type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<dyn Any + Send + 'static>>;
 
 pin_project! {
     /// A future which sends its output to the corresponding `RemoteHandle`.
