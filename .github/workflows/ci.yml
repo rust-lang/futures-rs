@@ -47,6 +47,8 @@ jobs:
             target: armv5te-unknown-linux-gnueabi
           - os: ubuntu-latest
             target: i686-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: s390x-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
