@@ -97,6 +97,7 @@ where
             return Poll::Ready(Some(output));
         }
 
+        // If more values are still coming from the stream, we're not done yet.
         if this.stream.is_done() && this.in_progress_queue.is_empty() {
             Poll::Ready(None)
         } else {
