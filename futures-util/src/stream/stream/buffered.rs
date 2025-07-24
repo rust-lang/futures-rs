@@ -91,7 +91,6 @@ where
             // If we have any ready outputs, return the first one.
             Poll::Ready(Some(output))
         } else if this.stream.is_done() && this.in_progress_queue.is_empty() {
-            // If more values are still coming from the stream, we're not done yet.
             Poll::Ready(None)
         } else {
             Poll::Pending
