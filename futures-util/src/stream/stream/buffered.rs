@@ -53,6 +53,42 @@ where
     }
 
     delegate_access_inner!(stream, St, (.));
+
+    /// Fill the buffer as much as is allowed by polling the underlying `Stream`.
+    ///
+    /// Returns `false` if there are no more futures and the `Stream::is_terminated()`.
+    /// Otherwise there may be more futures, but the buffer is out of room.
+    fn poll_fill(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<bool> {
+        let mut this = self.project();
+
+        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
+            match ready!(this.stream.as_mut().poll_next(cx)) {
+                Some(fut) => this.in_progress_queue.push_back(fut),
+                None => break,
+            }
+        }
+
+        Poll::Ready(!this.stream.is_done())
+    }
+
+    /// Poll the buffered `Stream`, allowing it to progress as long as there is
+    /// room in the buffer.
+    ///
+    /// This will also poll any futures produced by the stream, but only polls
+    /// the underlying `Stream` as long as the buffer can hold more entries.
+    /// `Stream::poll_next` should be used to progress to completion.
+    ///
+    /// When `Poll::Ready` is returned, the underlying stream has been
+    /// exhausted, and all of its futures have been run to completion.
+    pub fn poll_stream(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let stream_res = self.as_mut().poll_fill(cx);
+
+        let this = self.project();
+        let queue_res = Pin::new(&mut *this.in_progress_queue).poll_all(cx);
+
+        ready!(stream_res);
+        queue_res
+    }
 }
 
 impl<St> Stream for Buffered<St>
@@ -62,17 +98,12 @@ where
 {
     type Item = <St::Item as Future>::Output;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut this = self.project();
-
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our queue of futures.
-        while this.max.map(|max| this.in_progress_queue.len() < max.get()).unwrap_or(true) {
-            match this.stream.as_mut().poll_next(cx) {
-                Poll::Ready(Some(fut)) => this.in_progress_queue.push_back(fut),
-                Poll::Ready(None) | Poll::Pending => break,
-            }
-        }
+        let stream_res = self.as_mut().poll_fill(cx);
+
+        let this = self.project();
 
         // Attempt to pull the next value from the in_progress_queue
         let res = this.in_progress_queue.poll_next_unpin(cx);
@@ -81,10 +112,10 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
-            Poll::Ready(None)
-        } else {
-            Poll::Pending
+        match stream_res {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(false) => Poll::Ready(None),
+            Poll::Ready(true) => panic!("buffer is full, but we have no values???"),
         }
     }
 
