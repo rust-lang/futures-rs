@@ -19,6 +19,10 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
+// mapped_futures uses std::collections::HashSet
+#[cfg(feature = "std")]
+pub mod mapped_futures;
+
 mod abort;
 
 mod iter;
@@ -163,6 +167,10 @@ impl<Fut> FuturesUnordered<Fut> {
     /// ensure that [`FuturesUnordered::poll_next`](Stream::poll_next) is called
     /// in order to receive wake-up notifications for the given future.
     pub fn push(&self, future: Fut) {
+        self.push_inner(future);
+    }
+
+    fn push_inner(&self, future: Fut) -> *const Task<Fut> {
         let task = Arc::new(Task {
             future: UnsafeCell::new(Some(future)),
             next_all: AtomicPtr::new(self.pending_next_all()),
@@ -188,6 +196,7 @@ impl<Fut> FuturesUnordered<Fut> {
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.ready_to_run_queue.enqueue(ptr);
+        ptr
     }
 
     /// Returns an iterator that allows inspecting each future in the set.

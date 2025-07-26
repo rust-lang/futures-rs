@@ -51,6 +51,8 @@ libc = { version = "0.2.26", optional = true }
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test" }
 tokio = "0.1.11"
+# MappedFutures's test cases require tokio::time::sleep, which is unavailable in the above tokio version
+tokio_new = {package = "tokio", git = "https://github.com/tokio-rs/tokio", branch = "tokio-1.25.x", features = ["time", "rt", "macros"]}
 
 [package.metadata.docs.rs]
 all-features = true
