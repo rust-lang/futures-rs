@@ -119,19 +119,13 @@ pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteEx
 
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
-#[cfg(feature = "std")]
+
 #[cfg(feature = "async-await")]
-pub use futures_util::select;
-#[cfg(feature = "async-await")]
-pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
+pub use futures_util::{join, pending, poll, select, select_biased, stream_select, try_join};
 
 // Module reexports
 #[doc(inline)]
 pub use futures_util::{future, sink, stream, task};
-
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::stream_select;
 
 #[cfg(feature = "alloc")]
 #[doc(inline)]
