@@ -40,7 +40,7 @@ impl<T, F: Fn() -> T> Future for AlwaysReady<T, F> {
 
 /// Creates a future that is always immediately ready with a value.
 ///
-/// This is particularly useful in avoiding a heap allocation when an API needs [`Box<dyn Future<Output = T>>`],
+/// This is particularly useful in avoiding a heap allocation when an API needs `Box<dyn Future<Output = T>>`,
 /// as [`AlwaysReady`] does not have to store a boolean for `is_finished`.
 ///
 /// # Examples

@@ -91,6 +91,7 @@ pin_project! {
 /// ## Examples
 ///
 /// ### Priority
+///
 /// This example shows how to always prioritize the left stream.
 ///
 /// ```rust
@@ -116,8 +117,9 @@ pin_project! {
 /// ```
 ///
 /// ### Round Robin
-/// This example shows how to select from both streams round robin.
-/// Note: this special case is provided by [`futures-util::stream::select`].
+///
+/// This example shows how to select from both streams round-robin.
+/// Note: this special case is provided by [`stream::select`](crate::stream::select).
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
@@ -126,9 +128,9 @@ pin_project! {
 /// let left = repeat(1);
 /// let right = repeat(2);
 ///
-/// let rrobin = |last: &mut PollNext| last.toggle();
+/// let round_robin = |last: &mut PollNext| last.toggle();
 ///
-/// let mut out = select_with_strategy(left, right, rrobin);
+/// let mut out = select_with_strategy(left, right, round_robin);
 ///
 /// for _ in 0..100 {
 ///     // We should be alternating now.
