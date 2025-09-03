@@ -279,7 +279,7 @@ impl<T: ?Sized> Drop for OwnedMutexLockFuture<T> {
 /// An RAII guard returned by the `lock_owned` and `try_lock_owned` methods.
 /// When this structure is dropped (falls out of scope), the lock will be
 /// unlocked.
-#[has_significant_drop]
+#[clippy::has_significant_drop]
 pub struct OwnedMutexGuard<T: ?Sized> {
     mutex: Arc<Mutex<T>>,
 }
@@ -389,7 +389,7 @@ impl<T: ?Sized> Drop for MutexLockFuture<'_, T> {
 /// An RAII guard returned by the `lock` and `try_lock` methods.
 /// When this structure is dropped (falls out of scope), the lock will be
 /// unlocked.
-#[has_significant_drop]
+#[clippy::has_significant_drop]
 pub struct MutexGuard<'a, T: ?Sized> {
     mutex: &'a Mutex<T>,
 }
@@ -451,7 +451,7 @@ impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
 
 /// An RAII guard returned by the `MutexGuard::map` and `MappedMutexGuard::map` methods.
 /// When this structure is dropped (falls out of scope), the lock will be unlocked.
-#[has_significant_drop]
+#[clippy::has_significant_drop]
 pub struct MappedMutexGuard<'a, T: ?Sized, U: ?Sized> {
     mutex: &'a Mutex<T>,
     value: *mut U,
