@@ -1113,7 +1113,10 @@ impl<T> Unpin for Receiver<T> {}
 
 impl<T> FusedStream for Receiver<T> {
     fn is_terminated(&self) -> bool {
-        self.inner.is_none()
+        match &self.inner {
+            Some(inner) => decode_state(inner.state.load(SeqCst)).is_closed(),
+            None => true,
+        }
     }
 }
 
@@ -1307,7 +1310,10 @@ impl<T> UnboundedReceiver<T> {
 
 impl<T> FusedStream for UnboundedReceiver<T> {
     fn is_terminated(&self) -> bool {
-        self.inner.is_none()
+        match &self.inner {
+            Some(inner) => decode_state(inner.state.load(SeqCst)).is_closed(),
+            None => true,
+        }
     }
 }
 
