@@ -592,3 +592,21 @@ fn any() {
         assert!(!any);
     });
 }
+
+#[test]
+fn last() {
+    block_on(async {
+        let empty: [u8; 0] = [];
+        let st = stream::iter(empty);
+        let last = st.last().await;
+        assert_eq!(last, None);
+
+        let st = stream::iter([1]);
+        let last = st.last().await;
+        assert_eq!(last, Some(1));
+
+        let st = stream::iter([1, 2, 3, 4, 5]);
+        let last = st.last().await;
+        assert_eq!(last, Some(5));
+    });
+}
