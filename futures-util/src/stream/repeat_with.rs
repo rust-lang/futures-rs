@@ -40,11 +40,11 @@ impl<A, F: FnMut() -> A> FusedStream for RepeatWith<F> {
 /// The `repeat_with()` function calls the repeater over and over again.
 ///
 /// Infinite stream like `repeat_with()` are often used with adapters like
-/// [`stream.take()`], in order to make them finite.
+/// [`stream.take()`](crate::stream::StreamExt::take), in order to make them finite.
 ///
 /// If the element type of the stream you need implements [`Clone`], and
 /// it is OK to keep the source element in memory, you should instead use
-/// the [`stream.repeat()`] function.
+/// the [`stream::repeat()`](crate::stream::repeat) function.
 ///
 /// # Examples
 ///

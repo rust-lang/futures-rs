@@ -116,7 +116,7 @@ pin_project! {
 ///
 /// ### Round Robin
 /// This example shows how to select from both streams round robin.
-/// Note: this special case is provided by [`futures-util::stream::select`].
+/// Note: this special case is provided by [`stream::select`](crate::stream::select).
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
