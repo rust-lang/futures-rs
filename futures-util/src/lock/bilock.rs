@@ -139,7 +139,6 @@ impl<T> BiLock<T> {
     ///
     /// This function consumes the `BiLock<T>` and returns a sentinel future,
     /// `BiLockAcquire<T>`. The returned future will resolve to
-    /// `BiLockAcquired<T>` which represents a locked lock similarly to
     /// `BiLockGuard<T>`.
     ///
     /// Note that the returned future will never resolve to an error.
