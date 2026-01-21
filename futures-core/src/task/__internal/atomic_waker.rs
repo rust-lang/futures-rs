@@ -385,7 +385,8 @@ impl AtomicWaker {
                 let waker = unsafe { (*self.waker.get()).take() };
 
                 // Release the lock
-                self.state.fetch_and(!WAKING, Release);
+                let old_state = self.state.swap(WAITING, Release);
+                debug_assert!(old_state == WAKING);
 
                 waker
             }
