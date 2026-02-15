@@ -8,6 +8,23 @@ Releases may yanked if there is a security bug, a soundness bug, or a regression
 Note: In this file, do not use the hard wrap in the middle of a sentence for compatibility with GitHub comment style markdown rendering.
 -->
 
+# 0.3.32 - 2026-02-15
+
+* Bump MSRV of utility crates to 1.71. (#2989)
+* Soft-deprecate `ready!` macro in favor of `std::task::ready!` added in Rust 1.64 (#2925)
+* Soft-deprecate `pin_mut!` macro in favor of `std::pin::pin!` added in Rust 1.68 (#2929)
+* Add `FuturesOrdered::clear` (#2927)
+* Add `mpsc::*Receiver::recv` (#2947)
+* Add `mpsc::*Receiver::try_recv` and deprecate `mpsc::*Receiver::::try_next` (#2944)
+* Implement `FusedStream` for `sink::With` (#2948)
+* Add `no_std` support for `shared` (#2868)
+* Make `Mutex::new()` const (#2956)
+* Add `#[clippy::has_significant_drop]` to guards (#2967)
+* Remove dependency to `pin-utils` (#2929)
+* Remove dependency on `num_cpus` (#2946)
+* Performance improvements (#2983)
+* Documentation improvements (#2925, #2926, #2940, #2971)
+
 # 0.3.31 - 2024-10-05
 
 * Fix use after free of task in `FuturesUnordered` when dropped future panics (#2886)
