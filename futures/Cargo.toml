@@ -2,7 +2,7 @@
 name = "futures"
 version = "0.3.31"
 edition = "2018"
-rust-version = "1.68"
+rust-version = "1.71"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 keywords = ["futures", "async", "future"]
