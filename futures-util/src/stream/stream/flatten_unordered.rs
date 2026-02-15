@@ -371,7 +371,7 @@ where
 {
     /// Checks if current `inner_streams` bucket size is greater than optional limit.
     fn is_exceeded_limit(&self) -> bool {
-        self.limit.map_or(false, |limit| self.inner_streams.len() >= limit.get())
+        self.limit.is_some_and(|limit| self.inner_streams.len() >= limit.get())
     }
 }
 
