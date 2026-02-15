@@ -1,6 +1,6 @@
 [package]
 name = "futures-util"
-version = "0.3.31"
+version = "0.3.32"
 edition = "2018"
 # NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
 rust-version = "1.71"
@@ -36,12 +36,12 @@ write-all-vectored = ["io"]
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.31", default-features = false }
-futures-task = { path = "../futures-task", version = "0.3.31", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.31", default-features = false, features = ["std"], optional = true }
-futures-io = { path = "../futures-io", version = "0.3.31", default-features = false, features = ["std"], optional = true }
-futures-sink = { path = "../futures-sink", version = "0.3.31", default-features = false, optional = true }
-futures-macro = { path = "../futures-macro", version = "=0.3.31", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.32", default-features = false }
+futures-task = { path = "../futures-task", version = "0.3.32", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.32", default-features = false, features = ["std"], optional = true }
+futures-io = { path = "../futures-io", version = "0.3.32", default-features = false, features = ["std"], optional = true }
+futures-sink = { path = "../futures-sink", version = "0.3.32", default-features = false, optional = true }
+futures-macro = { path = "../futures-macro", version = "=0.3.32", default-features = false, optional = true }
 slab = { version = "0.4.7", default-features = false, optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }

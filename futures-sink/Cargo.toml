@@ -1,6 +1,6 @@
 [package]
 name = "futures-sink"
-version = "0.3.31"
+version = "0.3.32"
 edition = "2018"
 # NB: Sync with "Usage" section in README.md and core-msrv job in .github/workflows/ci.yml
 rust-version = "1.36"

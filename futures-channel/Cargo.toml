@@ -1,6 +1,6 @@
 [package]
 name = "futures-channel"
-version = "0.3.31"
+version = "0.3.32"
 edition = "2018"
 # NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
 rust-version = "1.71"
@@ -23,8 +23,8 @@ unstable = []
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.31", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.31", default-features = false, optional = true }
+futures-core = { path = "../futures-core", version = "0.3.32", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.3.32", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", default-features = true }

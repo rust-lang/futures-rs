@@ -1,6 +1,6 @@
 [package]
 name = "futures-test"
-version = "0.3.31"
+version = "0.3.32"
 edition = "2018"
 # NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
 rust-version = "1.71"
@@ -12,13 +12,13 @@ Common utilities for testing components built off futures-rs.
 """
 
 [dependencies]
-futures-core = { version = "0.3.31", path = "../futures-core", default-features = false }
-futures-task = { version = "0.3.31", path = "../futures-task", default-features = false }
-futures-io = { version = "0.3.31", path = "../futures-io", default-features = false }
-futures-util = { version = "0.3.31", path = "../futures-util", default-features = false }
-futures-executor = { version = "0.3.31", path = "../futures-executor", default-features = false }
-futures-sink = { version = "0.3.31", path = "../futures-sink", default-features = false }
-futures-macro = { version = "=0.3.31", path = "../futures-macro", default-features = false }
+futures-core = { version = "0.3.32", path = "../futures-core", default-features = false }
+futures-task = { version = "0.3.32", path = "../futures-task", default-features = false }
+futures-io = { version = "0.3.32", path = "../futures-io", default-features = false }
+futures-util = { version = "0.3.32", path = "../futures-util", default-features = false }
+futures-executor = { version = "0.3.32", path = "../futures-executor", default-features = false }
+futures-sink = { version = "0.3.32", path = "../futures-sink", default-features = false }
+futures-macro = { version = "=0.3.32", path = "../futures-macro", default-features = false }
 pin-project = "1.0.11"
 
 [dev-dependencies]
