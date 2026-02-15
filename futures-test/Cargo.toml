@@ -2,6 +2,7 @@
 name = "futures-test"
 version = "0.3.31"
 edition = "2018"
+# NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
 rust-version = "1.71"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
