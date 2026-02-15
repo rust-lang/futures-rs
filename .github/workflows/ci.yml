@@ -282,8 +282,6 @@ jobs:
         uses: taiki-e/github-actions/install-rust@nightly
         with:
           component: rust-src
-      # https://github.com/google/sanitizers/issues/1716 / https://github.com/actions/runner-images/issues/9491
-      - run: sudo sysctl vm.mmap_rnd_bits=28
       - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests -- --skip panic_on_drop_fut
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
