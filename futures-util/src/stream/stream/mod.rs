@@ -103,6 +103,9 @@ mod fuse;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::fuse::Fuse;
 
+mod interleave;
+pub use self::interleave::Interleave;
+
 mod into_future;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::into_future::StreamFuture;
@@ -1693,5 +1696,32 @@ pub trait StreamExt: Stream {
         Self: Unpin + FusedStream,
     {
         assert_future::<Self::Item, _>(SelectNextSome::new(self))
+    }
+    /// Creates a stream which interleaves items between `self` and `other`,
+    /// in turn.
+    ///
+    /// When one stream is exhausted, only items from the other are yielded.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::{stream, StreamExt as _};
+    ///
+    /// let stream = stream::iter(['a', 'b'])
+    ///     .interleave(stream::iter(['A', 'B', 'C', 'D']));
+    ///
+    /// assert_eq!(
+    ///     "aAbBCD",
+    ///     stream.collect::<String>().await
+    /// );
+    /// # })
+    /// ```
+    fn interleave<St>(self, other: St) -> Interleave<Self, St>
+    where
+        Self: Sized,
+        St: Stream<Item = Self::Item>,
+    {
+        assert_stream(Interleave::new(self, other))
     }
 }
