@@ -217,8 +217,7 @@ jobs:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         uses: taiki-e/github-actions/install-rust@nightly
-      - run: cargo bench --workspace
-      - run: cargo bench --manifest-path futures-util/Cargo.toml --features=bilock,unstable
+      - run: cargo bench --workspace --all-features
 
   features:
     name: cargo hack check --feature-powerset
