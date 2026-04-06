@@ -301,8 +301,7 @@ jobs:
           component: clippy
       - run: cargo clippy --workspace --all-features --lib --bins --tests --examples
 
-  fmt:
-    name: cargo fmt
+  tidy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -311,7 +310,13 @@ jobs:
         uses: taiki-e/github-actions/install-rust@stable
         with:
           component: rustfmt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: zizmor
       - run: cargo fmt --all -- --check
+      - run: zizmor .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docs:
     name: cargo doc
