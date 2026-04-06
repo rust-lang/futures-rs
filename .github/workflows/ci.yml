@@ -278,16 +278,25 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
+      - run: |
+          printf 'TARGET=x86_64-unknown-linux-gnuasan\n' >>"${GITHUB_ENV}"
+          printf 'ASAN_OPTIONS=detect_stack_use_after_return=1\n' >>"${GITHUB_ENV}"
+        if: matrix.sanitizer == 'address'
+      - run: |
+          printf 'TARGET=x86_64-unknown-linux-gnumsan\n' >>"${GITHUB_ENV}"
+        if: matrix.sanitizer == 'memory'
+      - run: |
+          printf 'TARGET=x86_64-unknown-linux-gnutsan\n' >>"${GITHUB_ENV}"
+        if: matrix.sanitizer == 'thread'
+      - uses: taiki-e/github-actions/install-rust@nightly
         with:
-          component: rust-src
-      - run: cargo -Z build-std test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests -- --skip panic_on_drop_fut
+          target: ${{ env.TARGET }}
+      - run: cargo test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests -- --skip panic_on_drop_fut
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
           # `cfg(futures_sanitizer)` with `cfg(sanitize = "..")` and remove
           # `--cfg futures_sanitizer`.
-          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z sanitizer=${{ matrix.sanitizer }} --cfg futures_sanitizer
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} --cfg futures_sanitizer
 
   clippy:
     name: cargo clippy
