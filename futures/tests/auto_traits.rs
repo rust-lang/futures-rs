@@ -10,6 +10,7 @@ use futures::{
     task::{Context, Poll},
 };
 use static_assertions::{assert_impl_all as assert_impl, assert_not_impl_all as assert_not_impl};
+use std::cell::Cell;
 use std::marker::PhantomPinned;
 use std::{marker::PhantomData, pin::Pin};
 
@@ -1850,6 +1851,7 @@ mod stream {
 
     assert_impl!(futures_unordered::Iter<'_, ()>: Send);
     assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Send);
+    assert_not_impl!(futures_unordered::Iter<'_, Cell<()>>: Send);
     assert_impl!(futures_unordered::Iter<'_, ()>: Sync);
     assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Sync);
     assert_impl!(futures_unordered::Iter<'_, ()>: Unpin);
@@ -1872,6 +1874,7 @@ mod stream {
 
     assert_impl!(futures_unordered::IterPinRef<'_, ()>: Send);
     assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Send);
+    assert_not_impl!(futures_unordered::IterPinRef<'_, Cell<()>>: Send);
     assert_impl!(futures_unordered::IterPinRef<'_, ()>: Sync);
     assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Sync);
     assert_impl!(futures_unordered::IterPinRef<'_, PhantomPinned>: Unpin);
