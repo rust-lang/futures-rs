@@ -8,7 +8,7 @@ use futures_test::task::noop_context;
 use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
 use std::iter::FromIterator;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 #[test]
 fn is_terminated() {
@@ -428,4 +428,83 @@ fn panic_on_drop_fut() {
     }
 
     FuturesUnordered::default().push(BadFuture);
+}
+
+#[test]
+fn into_iter_after_poll_doesnt_leak() {
+    static DROPPED: AtomicBool = AtomicBool::new(false);
+
+    struct DetectDrop;
+    impl Drop for DetectDrop {
+        fn drop(&mut self) {
+            DROPPED.store(true, Ordering::SeqCst);
+        }
+    }
+
+    struct PendingFuture {
+        _guard: DetectDrop,
+        ready: bool,
+    }
+
+    impl Unpin for PendingFuture {}
+
+    impl Future for PendingFuture {
+        type Output = ();
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+            if self.ready {
+                Poll::Ready(())
+            } else {
+                self.ready = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }
+    }
+
+    DROPPED.store(false, Ordering::SeqCst);
+
+    let mut fu = FuturesUnordered::new();
+    fu.push(PendingFuture { _guard: DetectDrop, ready: false });
+
+    let mut cx = noop_context();
+    let _ = fu.poll_next_unpin(&mut cx);
+    assert!(!DROPPED.load(Ordering::SeqCst));
+
+    let collected: Vec<_> = fu.into_iter().collect();
+    assert_eq!(collected.len(), 1);
+    drop(collected);
+
+    assert!(DROPPED.load(Ordering::SeqCst));
+}
+
+#[test]
+fn into_iter_partial_doesnt_leak() {
+    static DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    struct Counted;
+    impl Drop for Counted {
+        fn drop(&mut self) {
+            DROP_COUNT.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    struct CountedFuture(Counted);
+    impl Unpin for CountedFuture {}
+    impl Future for CountedFuture {
+        type Output = ();
+        fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
+            Poll::Pending
+        }
+    }
+
+    DROP_COUNT.store(0, Ordering::SeqCst);
+
+    let fu: FuturesUnordered<_> = (0..4).map(|_| CountedFuture(Counted)).collect();
+
+    let mut into_iter = fu.into_iter();
+    let _ = into_iter.next();
+    let _ = into_iter.next();
+    drop(into_iter);
+
+    assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 4);
 }
