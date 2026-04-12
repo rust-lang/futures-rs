@@ -160,11 +160,14 @@ impl<'a, Fut: Unpin> Iterator for Iter<'a, Fut> {
 
 impl<Fut: Unpin> ExactSizeIterator for Iter<'_, Fut> {}
 
-// SAFETY: we do nothing thread-local and there is no interior mutability,
-// so the usual structural `Send`/`Sync` apply.
-unsafe impl<Fut: Send> Send for IterPinRef<'_, Fut> {}
+// SAFETY: `IterPinRef` yields `Pin<&Fut>` shared references. Sending these
+// to another thread requires `Fut: Sync` since both the sender and receiver
+// can concurrently access the same `Fut` through their shared references.
+unsafe impl<Fut: Sync> Send for IterPinRef<'_, Fut> {}
 unsafe impl<Fut: Sync> Sync for IterPinRef<'_, Fut> {}
 
+// SAFETY: we do nothing thread-local and there is no interior mutability,
+// so the usual structural `Send`/`Sync` apply.
 unsafe impl<Fut: Send> Send for IterPinMut<'_, Fut> {}
 unsafe impl<Fut: Sync> Sync for IterPinMut<'_, Fut> {}
 
