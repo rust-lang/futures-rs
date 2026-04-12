@@ -124,6 +124,9 @@ pub use self::try_skip_while::TrySkipWhile;
 mod try_take_while;
 pub use self::try_take_while::TryTakeWhile;
 
+mod try_map_while;
+pub use self::try_map_while::TryMapWhile;
+
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]
 mod try_buffer_unordered;
@@ -465,6 +468,37 @@ pub trait TryStreamExt: TryStream {
         Self: Sized,
     {
         assert_stream::<Result<Self::Ok, Self::Error>, _>(TryTakeWhile::new(self, f))
+    }
+
+    /// Maps elements from this stream while the provided asynchronous future
+    /// resolves to `Some(_)`.
+    ///
+    /// This function is similar to
+    /// [`StreamExt::map_while`](crate::stream::StreamExt::map_while) but exits
+    /// early if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok::<u32, u32>(1), Ok(4), Ok(0), Ok(2)]);
+    ///
+    /// let stream = stream.try_map_while(|x| future::ready(Ok(u32::checked_div(16, x))));
+    ///
+    /// let output: Result<Vec<u32>, u32> = stream.try_collect().await;
+    /// assert_eq!(output, Ok(vec![16, 4]));
+    /// # });
+    /// ```
+    fn try_map_while<Fut, F, T>(self, f: F) -> TryMapWhile<Self, Fut, F>
+    where
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
+        Self: Sized,
+    {
+        assert_stream::<Result<T, Self::Error>, _>(TryMapWhile::new(self, f))
     }
 
     /// Attempt to transform a stream into a collection,
