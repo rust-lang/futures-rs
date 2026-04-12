@@ -68,6 +68,9 @@ pub use self::any::Any;
 mod all;
 pub use self::all::All;
 
+mod last;
+pub use self::last::Last;
+
 #[cfg(feature = "sink")]
 mod forward;
 
@@ -714,6 +717,32 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<bool, _>(All::new(self, f))
+    }
+
+    /// Returns the last element of the stream, or `None` if the stream is empty.
+    ///
+    /// This function will consume the entire stream to return the last item.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(1..=5);
+    /// let last_number = number_stream.last().await;
+    /// assert_eq!(last_number, Some(5));
+    ///
+    /// let empty_stream = stream::iter(Vec::<i32>::new());
+    /// let last_number = empty_stream.last().await;
+    /// assert_eq!(last_number, None);
+    /// # });
+    /// ```
+    fn last(self) -> Last<Self>
+    where
+        Self: Sized,
+    {
+        assert_future::<Option<Self::Item>, _>(Last::new(self))
     }
 
     /// Flattens a stream of streams into just one continuous stream.
