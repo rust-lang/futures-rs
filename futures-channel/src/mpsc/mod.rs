@@ -521,7 +521,7 @@ impl<T> BoundedSenderInner<T> {
     /// if there was an error.
     fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
         // If the sender is currently blocked, reject the message
-        if !self.poll_unparked(None).is_ready() {
+        if self.poll_unparked(None).is_pending() {
             return Err(TrySendError { err: SendError { kind: SendErrorKind::Full }, val: msg });
         }
 
@@ -545,9 +545,9 @@ impl<T> BoundedSenderInner<T> {
         // receiver is dropped.
         let park_self = match self.inc_num_messages() {
             Some(num_messages) => {
-                // Block if the current number of pending messages has exceeded
-                // the configured buffer size
-                num_messages > self.inner.buffer
+                // Block next messages if the current number of pending messages
+                // has reached the configured capacity (buffer + num_senders)
+                num_messages >= self.inner.buffer + self.inner.num_senders.load(SeqCst)
             }
             None => {
                 return Err(TrySendError {
