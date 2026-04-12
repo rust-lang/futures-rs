@@ -20,6 +20,18 @@ impl<Fut1: Future, Fut2: Future> Join<Fut1, Fut2> {
     }
 }
 
+impl<Fut1, Fut2> Clone for Join<Fut1, Fut2>
+where
+    Fut1: Future + Clone,
+    Fut1::Output: Clone,
+    Fut2: Future + Clone,
+    Fut2::Output: Clone,
+{
+    fn clone(&self) -> Self {
+        Self { fut1: self.fut1.clone(), fut2: self.fut2.clone() }
+    }
+}
+
 impl<Fut1, Fut2> fmt::Debug for Join<Fut1, Fut2>
 where
     Fut1: Future + fmt::Debug,
