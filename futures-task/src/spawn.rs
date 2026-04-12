@@ -51,6 +51,22 @@ pub trait LocalSpawn {
     }
 }
 
+/// The `BoundLocalSpawn` is similar to [`LocalSpawn`], but allows spawning
+/// futures that don't implement `Send` and have a lifetime that only needs to
+/// exceed that of the associated executor.
+pub trait BoundLocalSpawn<'a> {
+    /// Spawns a future that will be run to completion or until the executor is
+    /// dropped.
+    ///
+    /// # Errors
+    ///
+    /// The executor may be unable to spawn tasks. Spawn errors should
+    /// represent relatively rare scenarios, such as the executor
+    /// having been shut down so that it is no longer able to accept
+    /// tasks.
+    fn spawn_bound_local_obj(&self, future: LocalFutureObj<'a, ()>) -> Result<(), SpawnError>;
+}
+
 /// An error that occurred during spawning.
 pub struct SpawnError {
     _priv: (),
@@ -83,7 +99,10 @@ impl SpawnError {
     }
 }
 
-impl<Sp: ?Sized + Spawn> Spawn for &Sp {
+impl<T, Sp: ?Sized + Spawn> Spawn for T
+where
+    T: core::ops::Deref<Target = Sp>,
+{
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_obj(self, future)
     }
@@ -93,17 +112,10 @@ impl<Sp: ?Sized + Spawn> Spawn for &Sp {
     }
 }
 
-impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
-    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-        Sp::spawn_obj(self, future)
-    }
-
-    fn status(&self) -> Result<(), SpawnError> {
-        Sp::status(self)
-    }
-}
-
-impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &Sp {
+impl<T, Sp: ?Sized + LocalSpawn> LocalSpawn for T
+where
+    T: core::ops::Deref<Target = Sp>,
+{
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         Sp::spawn_local_obj(self, future)
     }
@@ -113,80 +125,11 @@ impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &Sp {
     }
 }
 
-impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
-    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-        Sp::spawn_local_obj(self, future)
-    }
-
-    fn status_local(&self) -> Result<(), SpawnError> {
-        Sp::status_local(self)
-    }
-}
-
-#[cfg(feature = "alloc")]
-mod if_alloc {
-    use super::*;
-    use alloc::{boxed::Box, rc::Rc};
-
-    impl<Sp: ?Sized + Spawn> Spawn for Box<Sp> {
-        fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_obj(future)
-        }
-
-        fn status(&self) -> Result<(), SpawnError> {
-            (**self).status()
-        }
-    }
-
-    impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Box<Sp> {
-        fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_local_obj(future)
-        }
-
-        fn status_local(&self) -> Result<(), SpawnError> {
-            (**self).status_local()
-        }
-    }
-
-    impl<Sp: ?Sized + Spawn> Spawn for Rc<Sp> {
-        fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_obj(future)
-        }
-
-        fn status(&self) -> Result<(), SpawnError> {
-            (**self).status()
-        }
-    }
-
-    impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Rc<Sp> {
-        fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_local_obj(future)
-        }
-
-        fn status_local(&self) -> Result<(), SpawnError> {
-            (**self).status_local()
-        }
-    }
-
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-    impl<Sp: ?Sized + Spawn> Spawn for alloc::sync::Arc<Sp> {
-        fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_obj(future)
-        }
-
-        fn status(&self) -> Result<(), SpawnError> {
-            (**self).status()
-        }
-    }
-
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-    impl<Sp: ?Sized + LocalSpawn> LocalSpawn for alloc::sync::Arc<Sp> {
-        fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-            (**self).spawn_local_obj(future)
-        }
-
-        fn status_local(&self) -> Result<(), SpawnError> {
-            (**self).status_local()
-        }
+impl<'a, T, Sp: ?Sized + BoundLocalSpawn<'a>> BoundLocalSpawn<'a> for T
+where
+    T: core::ops::Deref<Target = Sp>,
+{
+    fn spawn_bound_local_obj(&self, future: LocalFutureObj<'a, ()>) -> Result<(), SpawnError> {
+        Sp::spawn_bound_local_obj(self, future)
     }
 }
