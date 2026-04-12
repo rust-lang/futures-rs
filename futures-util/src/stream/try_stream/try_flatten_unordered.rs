@@ -13,8 +13,6 @@ use crate::future::Either;
 use crate::stream::stream::flatten_unordered::{
     FlattenUnorderedWithFlowController, FlowController, FlowStep,
 };
-use crate::stream::IntoStream;
-use crate::TryStreamExt;
 
 delegate_all!(
     /// Stream for the [`try_flatten_unordered`](super::TryStreamExt::try_flatten_unordered) method.
@@ -128,7 +126,7 @@ where
 {
     // Item is either an inner stream or a stream containing a single error.
     // This will allow using `Either`'s `Stream` implementation as both branches are actually streams of `Result`'s.
-    type Item = Either<IntoStream<St::Ok>, SingleStreamResult<St::Ok>>;
+    type Item = Either<St::Ok, SingleStreamResult<St::Ok>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let item = ready!(self.project().stream.try_poll_next(cx));
@@ -136,7 +134,7 @@ where
         let out = match item {
             Some(res) => match res {
                 // Emit successful inner stream as is
-                Ok(stream) => Either::Left(stream.into_stream()),
+                Ok(stream) => Either::Left(stream),
                 // Wrap an error into a stream containing a single item
                 err @ Err(_) => {
                     let res = err.map(|_: St::Ok| unreachable!()).map_err(Into::into);
