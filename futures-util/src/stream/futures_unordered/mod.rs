@@ -3,8 +3,19 @@
 //! This module is only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-use crate::task::AtomicWaker;
+#[cfg(feature = "portable-atomic")]
+use portable_atomic as atomic;
+
+#[cfg(not(feature = "portable-atomic"))]
+use core::sync::atomic;
+
+#[cfg(not(feature = "portable-atomic"))]
 use alloc::sync::{Arc, Weak};
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic_util::{Arc, Weak};
+
+use crate::task::AtomicWaker;
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -12,8 +23,8 @@ use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 use core::ptr;
-use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
-use core::sync::atomic::{AtomicBool, AtomicPtr};
+use atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
+use atomic::{AtomicBool, AtomicPtr};
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
