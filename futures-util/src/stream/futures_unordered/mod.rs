@@ -16,6 +16,8 @@ use alloc::sync::{Arc, Weak};
 use portable_atomic_util::{Arc, Weak};
 
 use crate::task::AtomicWaker;
+use atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
+use atomic::{AtomicBool, AtomicPtr};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -23,8 +25,6 @@ use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 use core::ptr;
-use atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
-use atomic::{AtomicBool, AtomicPtr};
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};

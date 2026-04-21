@@ -28,7 +28,7 @@ use super::ReadyToRunQueue;
 /// [`WakerRef`]: super::WakerRef
 // Note: Send + Sync required because `Arc<T>` doesn't automatically imply
 // those bounds, but `Waker` implements them.
-trait ArcWake: Send + Sync {
+pub(super) trait ArcWake: Send + Sync {
     /// Indicates that the associated task is ready to make progress and should
     /// be `poll`ed.
     ///
