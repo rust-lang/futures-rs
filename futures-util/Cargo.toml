@@ -14,7 +14,7 @@ Common utilities and extension traits for the futures-rs library.
 [features]
 default = ["std", "async-await", "async-await-macro"]
 std = ["alloc", "futures-core/std", "futures-task/std", "slab/std"]
-alloc = ["futures-core/alloc", "futures-task/alloc", "slab"]
+alloc = ["futures-core/alloc", "futures-task/alloc", "slab", "portable-atomic-util/alloc"]
 async-await = []
 async-await-macro = ["async-await", "futures-macro"]
 compat = ["std", "futures_01", "libc"]
@@ -22,7 +22,7 @@ io-compat = ["io", "compat", "tokio-io", "libc"]
 sink = ["futures-sink"]
 io = ["std", "futures-io", "memchr"]
 channel = ["std", "futures-channel"]
-portable-atomic = ["futures-core/portable-atomic"]
+portable--atomic = ["futures-core/portable-atomic", "portable-atomic-util", "portable-atomic"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the
@@ -44,6 +44,8 @@ futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-io = { version = "0.1.9", optional = true }
 pin-project-lite = "0.2.6"
 spin = { version = "0.10.0", optional = true }
+portable-atomic-util = { version = "0.2.7", default-features = false, optional = true }
+portable-atomic = { version = "1.13.1", default-features = false, optional = true }
 
 # INDIRECT DEPENDENCYS BUT ONLY FOR SPECIFIC MINIMAL VERSIONS
 libc = { version = "0.2.26", optional = true }
