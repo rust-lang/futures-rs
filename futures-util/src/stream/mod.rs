@@ -25,13 +25,16 @@ pub use self::stream::{
 };
 
 #[cfg(feature = "std")]
-pub use self::stream::{CatchUnwind, Shared};
+pub use self::stream::CatchUnwind;
 
 #[cfg(feature = "alloc")]
 pub use self::stream::Chunks;
 
 #[cfg(feature = "alloc")]
 pub use self::stream::ReadyChunks;
+
+#[cfg(feature = "alloc")]
+pub use self::stream::Shared;
 
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]

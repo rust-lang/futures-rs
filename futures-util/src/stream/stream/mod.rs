@@ -218,10 +218,9 @@ mod catch_unwind;
 #[cfg(feature = "std")]
 pub use self::catch_unwind::CatchUnwind;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod shared;
-#[cfg(feature = "std")]
-#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+#[cfg(feature = "alloc")]
 pub use self::shared::Shared;
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}

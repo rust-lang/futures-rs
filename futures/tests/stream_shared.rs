@@ -101,7 +101,7 @@ fn drop_in_poll() {
     }))
     .shared(1);
 
-    let stream2: LocalBoxStream<_> = Box::pin(stream1.clone());
+    let stream2: LocalBoxStream<'_, _> = Box::pin(stream1.clone());
     slot1.replace(Some(stream2));
 
     assert_eq!(block_on(stream1.next()), Some(1));
