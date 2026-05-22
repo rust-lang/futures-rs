@@ -1112,24 +1112,27 @@ mod stream {
     assert_not_impl!(AndThen<PhantomPinned, (), ()>: Unpin);
     assert_not_impl!(AndThen<(), PhantomPinned, ()>: Unpin);
 
-    assert_impl!(BufferUnordered<SendStream<()>>: Send);
-    assert_not_impl!(BufferUnordered<SendStream>: Send);
-    assert_not_impl!(BufferUnordered<LocalStream>: Send);
-    assert_impl!(BufferUnordered<SyncStream<()>>: Sync);
-    assert_not_impl!(BufferUnordered<SyncStream>: Sync);
-    assert_not_impl!(BufferUnordered<LocalStream>: Sync);
-    assert_impl!(BufferUnordered<UnpinStream>: Unpin);
-    assert_not_impl!(BufferUnordered<PinnedStream>: Unpin);
+    assert_impl!(BufferUnordered<SendStream<SendFuture<()>>, SendFuture<()>>: Send);
+    assert_not_impl!(BufferUnordered<SendStream<SendFuture>, SendFuture>: Send);
+    assert_not_impl!(BufferUnordered<SendStream<LocalFuture>, LocalFuture>: Send);
+    assert_not_impl!(BufferUnordered<LocalStream<LocalFuture>, LocalFuture>: Send);
+    assert_impl!(BufferUnordered<SyncStream<SendSyncFuture<()>>, SendSyncFuture<()>>: Sync);
+    assert_not_impl!(BufferUnordered<SyncStream<SyncFuture<()>>, SyncFuture<()>>: Sync);
+    assert_not_impl!(BufferUnordered<SyncStream<LocalFuture>, LocalFuture>: Sync);
+    assert_not_impl!(BufferUnordered<LocalStream<LocalFuture>, LocalFuture>: Sync);
+    assert_impl!(BufferUnordered<UnpinStream<UnpinFuture>, UnpinFuture>: Unpin);
+    assert_not_impl!(BufferUnordered<PinnedStream<PinnedFuture>, PinnedFuture>: Unpin);
 
-    assert_impl!(Buffered<SendStream<SendFuture<()>>>: Send);
-    assert_not_impl!(Buffered<SendStream<SendFuture>>: Send);
-    assert_not_impl!(Buffered<SendStream<LocalFuture>>: Send);
-    assert_not_impl!(Buffered<LocalStream<SendFuture<()>>>: Send);
-    assert_impl!(Buffered<SyncStream<SendSyncFuture<()>>>: Sync);
-    assert_not_impl!(Buffered<SyncStream<SyncFuture<()>>>: Sync);
-    assert_not_impl!(Buffered<LocalStream<SendSyncFuture<()>>>: Sync);
-    assert_impl!(Buffered<UnpinStream<PinnedFuture>>: Unpin);
-    assert_not_impl!(Buffered<PinnedStream<PinnedFuture>>: Unpin);
+    assert_impl!(Buffered<SendStream<SendFuture<()>>, SendFuture<()>>: Send);
+    assert_not_impl!(Buffered<SendStream<SendFuture>, SendFuture>: Send);
+    assert_not_impl!(Buffered<SendStream<LocalFuture>, LocalFuture>: Send);
+    assert_not_impl!(Buffered<LocalStream<LocalFuture>, LocalFuture>: Send);
+    assert_impl!(Buffered<SyncStream<SendSyncFuture<()>>, SendSyncFuture<()>>: Sync);
+    assert_not_impl!(Buffered<SyncStream<SyncFuture<()>>, SyncFuture<()>>: Sync);
+    assert_not_impl!(Buffered<SyncStream<LocalFuture>, LocalFuture>: Sync);
+    assert_not_impl!(Buffered<LocalStream<LocalFuture>, LocalFuture>: Sync);
+    assert_impl!(Buffered<UnpinStream<UnpinFuture>, UnpinFuture>: Unpin);
+    assert_not_impl!(Buffered<PinnedStream<PinnedFuture>, PinnedFuture>: Unpin);
 
     assert_impl!(CatchUnwind<SendStream>: Send);
     assert_not_impl!(CatchUnwind<LocalStream>: Send);

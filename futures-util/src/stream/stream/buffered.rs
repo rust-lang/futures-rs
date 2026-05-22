@@ -1,8 +1,8 @@
 use crate::stream::{Fuse, FusedStream, FuturesOrdered, StreamExt};
+use alloc::collections::VecDeque;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -12,22 +12,23 @@ use pin_project_lite::pin_project;
 pin_project! {
     /// Stream for the [`buffered`](super::StreamExt::buffered) method.
     #[must_use = "streams do nothing unless polled"]
-    pub struct Buffered<St>
+    pub struct Buffered<St, F>
     where
-        St: Stream,
-        St::Item: Future,
+        St: Stream<Item = F>,
+        F: Future,
     {
         #[pin]
         stream: Fuse<St>,
         in_progress_queue: FuturesOrdered<St::Item>,
+        ready_queue: VecDeque<F::Output>,
         max: usize,
     }
 }
 
-impl<St> fmt::Debug for Buffered<St>
+impl<St, F> fmt::Debug for Buffered<St, F>
 where
-    St: Stream + fmt::Debug,
-    St::Item: Future,
+    St: Stream<Item = F> + fmt::Debug,
+    F: Future,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Buffered")
@@ -38,22 +39,27 @@ where
     }
 }
 
-impl<St> Buffered<St>
+impl<St, F> Buffered<St, F>
 where
-    St: Stream,
-    St::Item: Future,
+    St: Stream<Item = F>,
+    F: Future,
 {
     pub(super) fn new(stream: St, n: usize) -> Self {
-        Self { stream: super::Fuse::new(stream), in_progress_queue: FuturesOrdered::new(), max: n }
+        Self {
+            stream: super::Fuse::new(stream),
+            in_progress_queue: FuturesOrdered::new(),
+            ready_queue: VecDeque::new(),
+            max: n,
+        }
     }
 
     delegate_access_inner!(stream, St, (.));
 }
 
-impl<St> Stream for Buffered<St>
+impl<St, F> Stream for Buffered<St, F>
 where
-    St: Stream,
-    St::Item: Future,
+    St: Stream<Item = F>,
+    F: Future,
 {
     type Item = <St::Item as Future>::Output;
 
@@ -69,14 +75,21 @@ where
             }
         }
 
-        // Attempt to pull the next value from the in_progress_queue
-        let res = this.in_progress_queue.poll_next_unpin(cx);
-        if let Some(val) = ready!(res) {
-            return Poll::Ready(Some(val));
+        // Try to poll all ready futures in the in_progress_queue.
+        loop {
+            match this.in_progress_queue.poll_next_unpin(cx) {
+                Poll::Ready(Some(output)) => {
+                    this.ready_queue.push_back(output);
+                }
+                Poll::Ready(None) => break,
+                Poll::Pending => break,
+            }
         }
 
-        // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
+        if let Some(output) = this.ready_queue.pop_front() {
+            // If we have any ready outputs, return the first one.
+            Poll::Ready(Some(output))
+        } else if this.stream.is_done() && this.in_progress_queue.is_empty() {
             Poll::Ready(None)
         } else {
             Poll::Pending
@@ -95,10 +108,10 @@ where
     }
 }
 
-impl<St> FusedStream for Buffered<St>
+impl<St, F> FusedStream for Buffered<St, F>
 where
-    St: Stream,
-    St::Item: Future,
+    St: Stream<Item = F>,
+    F: Future,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_done() && self.in_progress_queue.is_terminated()
@@ -107,10 +120,10 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
-impl<S, Item> Sink<Item> for Buffered<S>
+impl<S, F, Item> Sink<Item> for Buffered<S, F>
 where
-    S: Stream + Sink<Item>,
-    S::Item: Future,
+    S: Stream<Item = F> + Sink<Item>,
+    F: Future,
 {
     type Error = S::Error;
 
