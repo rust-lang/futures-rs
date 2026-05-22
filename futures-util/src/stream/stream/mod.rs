@@ -1367,10 +1367,11 @@ pub trait StreamExt: Stream {
     /// library is activated, and it is activated by default.
     #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
-    fn buffered(self, n: usize) -> Buffered<Self>
+    fn buffered<F>(self, n: usize) -> Buffered<Self, F>
     where
-        Self::Item: Future,
         Self: Sized,
+        Self: Stream<Item = F>,
+        F: Future,
     {
         assert_stream::<<Self::Item as Future>::Output, _>(Buffered::new(self, n))
     }
@@ -1412,10 +1413,11 @@ pub trait StreamExt: Stream {
     /// ```
     #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
     #[cfg(feature = "alloc")]
-    fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
+    fn buffer_unordered<F>(self, n: usize) -> BufferUnordered<Self, F>
     where
-        Self::Item: Future,
         Self: Sized,
+        Self: Stream<Item = F>,
+        F: Future,
     {
         assert_stream::<<Self::Item as Future>::Output, _>(BufferUnordered::new(self, n))
     }
