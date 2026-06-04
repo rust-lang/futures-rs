@@ -16,7 +16,7 @@ extern crate alloc;
 extern crate std;
 
 mod spawn;
-pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
+pub use crate::spawn::{BoundLocalSpawn, LocalSpawn, Spawn, SpawnError};
 
 #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
 #[cfg(feature = "alloc")]

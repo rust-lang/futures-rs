@@ -1,4 +1,4 @@
-use futures_task::{LocalSpawn, Spawn};
+use futures_task::{BoundLocalSpawn, LocalSpawn, Spawn};
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
@@ -15,6 +15,7 @@ use futures_task::{FutureObj, LocalFutureObj, SpawnError};
 
 impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 impl<Sp: ?Sized> LocalSpawnExt for Sp where Sp: LocalSpawn {}
+impl<'a, Sp: ?Sized> BoundLocalSpawnExt<'a> for Sp where Sp: BoundLocalSpawn<'a> {}
 
 /// Extension trait for `Spawn`.
 pub trait SpawnExt: Spawn {
@@ -164,6 +165,78 @@ pub trait LocalSpawnExt: LocalSpawn {
     {
         let (future, handle) = future.remote_handle();
         self.spawn_local(future)?;
+        Ok(handle)
+    }
+}
+
+/// Extension trait for `BoundLocalSpawn`.
+pub trait BoundLocalSpawnExt<'a>: BoundLocalSpawn<'a> {
+    /// Spawns a task that polls the given future with output `()` to
+    /// completion or until the bounded lifetime expires.
+    ///
+    /// This method returns a [`Result`] that contains a [`SpawnError`] if
+    /// spawning fails.
+    ///
+    /// You can use
+    /// [`spawn_bound_local_with_handle`](BoundLocalSpawnExt::spawn_bound_local_with_handle)
+    /// if you want to spawn a future with output other than `()` or if you want
+    /// to be able to await its completion.
+    ///
+    /// Note this method will eventually be replaced with the upcoming
+    /// `Spawn::spawn` method which will take a `dyn Future` as input.
+    /// Technical limitations prevent `Spawn::spawn` from being implemented
+    /// today. Feel free to use this method in the meantime.
+    ///
+    /// ```
+    /// use futures::executor::BoundLocalPool;
+    /// use futures::task::BoundLocalSpawnExt;
+    ///
+    /// let executor = BoundLocalPool::new();
+    /// let spawner = executor.spawner();
+    ///
+    /// let future = async { /* ... */ };
+    /// spawner.spawn_bound_local(future).unwrap();
+    /// ```
+    #[cfg(feature = "alloc")]
+    fn spawn_bound_local<Fut>(&self, future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future<Output = ()> + 'a,
+    {
+        self.spawn_bound_local_obj(LocalFutureObj::new(Box::new(future)))
+    }
+
+    /// Spawns a task that polls the given future to completion or until the
+    /// bounded lifetime expires, and returns a future that resolves to the
+    /// spawned future's output.
+    ///
+    /// This method returns a [`Result`] that contains a
+    /// [`RemoteHandle`](crate::future::RemoteHandle), or, if spawning fails, a
+    /// [`SpawnError`]. [`RemoteHandle`](crate::future::RemoteHandle) is a
+    /// future that resolves to the output of the spawned future.
+    ///
+    /// ```
+    /// use futures::executor::BoundLocalPool;
+    /// use futures::task::BoundLocalSpawnExt;
+    ///
+    /// let mut executor = BoundLocalPool::new();
+    /// let spawner = executor.spawner();
+    ///
+    /// let future = async { 1 };
+    /// let join_handle_fut = spawner.spawn_bound_local_with_handle(future).unwrap();
+    /// assert_eq!(executor.run_until(join_handle_fut), 1);
+    /// ```
+    #[cfg(feature = "channel")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
+    #[cfg(feature = "std")]
+    fn spawn_bound_local_with_handle<Fut>(
+        &self,
+        future: Fut,
+    ) -> Result<RemoteHandle<Fut::Output>, SpawnError>
+    where
+        Fut: Future + 'a,
+    {
+        let (future, handle) = future.remote_handle();
+        self.spawn_bound_local(future)?;
         Ok(handle)
     }
 }
