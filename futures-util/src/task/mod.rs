@@ -13,6 +13,10 @@
 #[doc(no_inline)]
 pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+#[doc(no_inline)]
+pub use alloc::task::Wake;
+
 pub use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, UnsafeFutureObj};
 
 pub use futures_task::noop_waker;
