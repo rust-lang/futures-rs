@@ -178,14 +178,14 @@ impl<Fut> Drop for Task<Fut> {
 
 mod waker_ref {
     use super::ArcWake;
-    #[cfg(not(feature = "portable-atomic"))]
+    #[cfg(not(feature = "portable-atomic-alloc"))]
     use alloc::sync::Arc;
     use core::marker::PhantomData;
     use core::mem;
     use core::mem::ManuallyDrop;
     use core::ops::Deref;
     use core::task::{RawWaker, RawWakerVTable, Waker};
-    #[cfg(feature = "portable-atomic")]
+    #[cfg(feature = "portable-atomic-alloc")]
     use portable_atomic_util::Arc;
 
     pub(crate) struct WakerRef<'a> {
