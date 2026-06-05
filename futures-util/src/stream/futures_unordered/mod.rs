@@ -3,16 +3,16 @@
 //! This module is only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-#[cfg(feature = "portable-atomic")]
-use portable_atomic as atomic;
-
 #[cfg(not(feature = "portable-atomic"))]
 use core::sync::atomic;
 
-#[cfg(not(feature = "portable-atomic"))]
+#[cfg(not(feature = "portable-atomic-alloc"))]
 use alloc::sync::{Arc, Weak};
 
 #[cfg(feature = "portable-atomic")]
+use portable_atomic_crate as atomic;
+
+#[cfg(feature = "portable-atomic-alloc")]
 use portable_atomic_util::{Arc, Weak};
 
 use crate::task::AtomicWaker;
