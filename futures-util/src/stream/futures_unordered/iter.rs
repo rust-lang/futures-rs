@@ -1,6 +1,6 @@
 use super::task::Task;
+use super::Arc;
 use super::FuturesUnordered;
-use alloc::sync::Arc;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use core::ptr;
