@@ -59,6 +59,9 @@ pub use self::pending::{pending, Pending};
 mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};
 
+mod maybe_immediate;
+pub use self::maybe_immediate::{maybe_immediate, MaybeImmediate};
+
 mod try_maybe_done;
 pub use self::try_maybe_done::{try_maybe_done, TryMaybeDone};
 

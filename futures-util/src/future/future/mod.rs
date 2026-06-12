@@ -4,7 +4,7 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
-use crate::future::{assert_future, Either};
+use crate::future::{assert_future, Either, MaybeImmediate};
 use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -596,5 +596,24 @@ pub trait FutureExt: Future {
             Poll::Ready(x) => Some(x),
             _ => None,
         }
+    }
+
+    /// Wraps a future into a `MaybeImmediate`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future::FutureExt;
+    ///
+    /// let future = async { "hello" }.maybe_immediate();
+    /// assert_eq!("hello", future.await);
+    /// # });
+    /// ```
+    fn maybe_immediate(self) -> MaybeImmediate<Self>
+    where
+        Self: Sized,
+    {
+        assert_future::<Self::Output, _>(MaybeImmediate::new(self))
     }
 }
