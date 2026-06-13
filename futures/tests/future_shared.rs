@@ -226,7 +226,7 @@ fn dont_do_unnecessary_clones_on_output() {
 #[test]
 fn shared_future_that_wakes_itself_until_pending_is_returned() {
     let proceed = Cell::new(false);
-    let fut = futures::future::poll_fn(|cx| {
+    let fut = core::future::poll_fn(|cx| {
         if proceed.get() {
             Poll::Ready(())
         } else {
@@ -244,7 +244,7 @@ fn shared_future_that_wakes_itself_until_pending_is_returned() {
 #[test]
 #[should_panic(expected = "inner future panicked during poll")]
 fn panic_while_poll() {
-    let fut = futures::future::poll_fn::<i8, _>(|_cx| panic!("test")).shared();
+    let fut = core::future::poll_fn::<i8, _>(|_cx| panic!("test")).shared();
 
     let fut_captured = fut.clone();
     std::panic::catch_unwind(AssertUnwindSafe(|| {

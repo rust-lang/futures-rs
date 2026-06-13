@@ -1,7 +1,7 @@
 use crate::lock::BiLock;
 use core::fmt;
 use core::task::ready;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
 use std::io;
 use std::pin::Pin;

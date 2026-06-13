@@ -3,7 +3,8 @@
 //! This module contains a number of functions and combinators for working
 //! with `async`/`await` code.
 
-use futures_core::future::{FusedFuture, Future};
+use core::future::Future;
+use futures_core::future::FusedFuture;
 use futures_core::stream::{FusedStream, Stream};
 
 #[macro_use]

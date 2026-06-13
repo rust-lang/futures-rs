@@ -1,5 +1,5 @@
+use core::task::{Context, Poll};
 use futures::future::{Future, FutureExt, FutureObj};
-use futures::task::{Context, Poll};
 use std::pin::Pin;
 
 #[test]

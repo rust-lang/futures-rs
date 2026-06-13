@@ -1,8 +1,8 @@
 use assert_matches::assert_matches;
+use core::task::Poll;
 use futures::executor::block_on;
 use futures::future::lazy;
 use futures::io::{AsyncWrite, Cursor};
-use futures::task::Poll;
 use std::pin::Pin;
 
 #[test]

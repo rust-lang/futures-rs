@@ -23,7 +23,7 @@ pub trait SinkTestExt<Item>: Sink<Item> {
         AssertUnmoved::new(self)
     }
 
-    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// Introduces an extra [`Poll::Pending`](core::task::Poll::Pending)
     /// in between each operation on the sink.
     fn interleave_pending_sink(self) -> InterleavePending<Self>
     where

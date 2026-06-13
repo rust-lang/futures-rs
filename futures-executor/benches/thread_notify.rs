@@ -3,9 +3,9 @@
 extern crate test;
 use crate::test::Bencher;
 
+use core::future::Future;
+use core::task::{Context, Poll, Waker};
 use futures::executor::block_on;
-use futures::future::Future;
-use futures::task::{Context, Poll, Waker};
 use std::pin::Pin;
 
 #[bench]

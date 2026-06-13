@@ -1,3 +1,5 @@
+use core::future::Future as Future03;
+use core::task as task03;
 use futures_01::executor::{
     spawn as spawn01, Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
     UnsafeNotify as UnsafeNotify01,
@@ -5,7 +7,7 @@ use futures_01::executor::{
 use futures_01::{Async as Async01, Future as Future01, Stream as Stream01};
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
-use futures_core::{future::Future as Future03, stream::Stream as Stream03, task as task03};
+use futures_core::stream::Stream as Stream03;
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
 use std::boxed::Box;
@@ -61,7 +63,7 @@ pub trait Future01CompatExt: Future01 {
     /// Converts a futures 0.1
     /// [`Future<Item = T, Error = E>`](futures_01::future::Future)
     /// into a futures 0.3
-    /// [`Future<Output = Result<T, E>>`](futures_core::future::Future).
+    /// [`Future<Output = Result<T, E>>`](core::future::Future).
     ///
     /// ```
     /// # if cfg!(miri) { return; } // https://github.com/rust-lang/futures-rs/issues/2514

@@ -212,8 +212,8 @@ macro_rules! delegate_access_inner {
 
 macro_rules! delegate_all {
     (@trait Future $name:ident < $($arg:ident),* > ($t:ty) $(where $($bound:tt)*)*) => {
-        impl<$($arg),*> futures_core::future::Future for $name<$($arg),*> where $t: futures_core::future::Future $(, $($bound)*)* {
-            type Output = <$t as futures_core::future::Future>::Output;
+        impl<$($arg),*> core::future::Future for $name<$($arg),*> where $t: core::future::Future $(, $($bound)*)* {
+            type Output = <$t as core::future::Future>::Output;
 
             delegate_future!(inner);
         }

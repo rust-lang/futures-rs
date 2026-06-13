@@ -24,7 +24,7 @@ pub trait AsyncWriteTestExt: AsyncWrite {
         AssertUnmoved::new(self)
     }
 
-    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// Introduces an extra [`Poll::Pending`](core::task::Poll::Pending)
     /// in between each operation on the writer.
     ///
     /// # Examples
@@ -32,7 +32,7 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
@@ -73,7 +73,7 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;

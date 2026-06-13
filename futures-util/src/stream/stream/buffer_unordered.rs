@@ -1,10 +1,10 @@
 use crate::stream::{Fuse, FuturesUnordered, StreamExt};
 use core::fmt;
+use core::future::Future;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
-use futures_core::future::Future;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;

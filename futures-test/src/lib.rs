@@ -1,4 +1,4 @@
-//! Utilities to make testing [`Future`s](futures_core::future::Future) easier
+//! Utilities to make testing [`Future`s](core::future::Future) easier
 
 #![doc(test(
     no_crate_inject,
@@ -19,7 +19,8 @@ compile_error!(
 #[doc(hidden)]
 #[cfg(feature = "std")]
 pub mod __private {
-    pub use futures_core::{future, stream, task};
+    pub use core::{future, task};
+    pub use futures_core::stream;
     pub use futures_executor::block_on;
     pub use std::{
         option::Option::{None, Some},

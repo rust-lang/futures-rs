@@ -1,9 +1,10 @@
+use core::future::poll_fn;
+use core::task::{Context, Poll};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
-use futures::future::{self, poll_fn, FutureExt};
+use futures::future::{self, FutureExt};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
 use futures::{join, pending, poll, select, select_biased, stream, stream_select, try_join};
 use std::mem;
 use std::pin::pin;
@@ -123,7 +124,7 @@ fn select_streams() {
                 },
                 // runs last
                 complete => break,
-            };
+            }
         }
     });
     assert!(ran);
@@ -203,7 +204,7 @@ fn select_on_non_unpin_expressions() {
         select! {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
-        };
+        }
         select_res
     });
     assert_eq!(res, 5);
@@ -220,7 +221,7 @@ fn select_on_non_unpin_expressions_with_default() {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
             default => select_res = 7,
-        };
+        }
         select_res
     });
     assert_eq!(res, 5);
@@ -237,7 +238,7 @@ fn select_on_non_unpin_size() {
         select! {
             value_1 = make_non_unpin_fut().fuse() => select_res = value_1,
             value_2 = make_non_unpin_fut().fuse() => select_res = value_2,
-        };
+        }
         select_res
     };
 

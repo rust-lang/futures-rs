@@ -3,8 +3,8 @@ use core::pin::Pin;
 use std::boxed::Box;
 use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::future::Future;
+use core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {

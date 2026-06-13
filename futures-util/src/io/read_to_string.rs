@@ -1,7 +1,7 @@
 use super::read_to_end::read_to_end_internal;
+use core::future::Future;
 use core::task::ready;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::AsyncRead;
 use std::pin::Pin;
 use std::string::String;

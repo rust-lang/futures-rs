@@ -1,8 +1,9 @@
 use crate::future::{assert_future, try_maybe_done, TryMaybeDone};
 use core::fmt;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
+use futures_core::future::TryFuture;
 use pin_project_lite::pin_project;
 
 pin_project! {

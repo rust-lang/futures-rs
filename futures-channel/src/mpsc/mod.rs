@@ -79,9 +79,9 @@
 // by the queue structure.
 
 use core::future::Future;
+use core::task::{Context, Poll, Waker};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::__internal::AtomicWaker;
-use futures_core::task::{Context, Poll, Waker};
 use futures_core::FusedFuture;
 use std::fmt;
 use std::pin::Pin;

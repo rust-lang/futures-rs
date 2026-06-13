@@ -1,4 +1,4 @@
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
 use std::boxed::Box;
 use std::io;

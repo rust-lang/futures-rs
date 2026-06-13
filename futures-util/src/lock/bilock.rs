@@ -3,14 +3,14 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
+#[cfg(feature = "bilock")]
+use core::future::Future;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 use core::sync::atomic::AtomicPtr;
 use core::sync::atomic::Ordering::SeqCst;
+use core::task::{Context, Poll, Waker};
 use core::{fmt, ptr};
-#[cfg(feature = "bilock")]
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll, Waker};
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.

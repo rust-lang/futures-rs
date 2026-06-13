@@ -1,7 +1,7 @@
 use super::DEFAULT_BUF_SIZE;
+use core::future::Future;
 use core::task::ready;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
 use pin_project_lite::pin_project;
 use std::boxed::Box;

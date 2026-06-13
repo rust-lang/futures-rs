@@ -1,6 +1,6 @@
 use super::buf_writer::BufWriter;
 use core::task::ready;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_io::IoSlice;
 use pin_project_lite::pin_project;

@@ -1,6 +1,7 @@
+use core::future::poll_fn;
+use core::task::Poll;
 use futures::executor::block_on;
-use futures::future::poll_fn;
-use futures::task::{AtomicWaker, Poll};
+use futures::task::AtomicWaker;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;

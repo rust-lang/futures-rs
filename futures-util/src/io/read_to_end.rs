@@ -1,6 +1,6 @@
+use core::future::Future;
 use core::task::ready;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_io::AsyncRead;
 use std::io;
 use std::iter;

@@ -1,5 +1,5 @@
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::future::Future;
+use core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;

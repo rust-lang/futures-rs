@@ -1,8 +1,9 @@
 use super::assert_future;
 use crate::future::{Either, FutureExt};
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 
 /// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]

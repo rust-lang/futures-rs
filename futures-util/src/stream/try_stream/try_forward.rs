@@ -1,8 +1,9 @@
 use crate::stream::{Fuse, IntoStream, Stream, TryStream};
+use core::future::Future;
 use core::pin::Pin;
 use core::task::ready;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
 

@@ -1,5 +1,5 @@
 use crate::task::{noop_waker_ref, panic_waker_ref};
-use futures_core::task::Context;
+use core::task::Context;
 
 /// Create a new [`Context`](core::task::Context) where the
 /// [waker](core::task::Context::waker) will panic if used.
@@ -24,8 +24,8 @@ pub fn panic_context() -> Context<'static> {
 /// ```
 /// use core::pin::pin;
 ///
-/// use futures::future::Future;
-/// use futures::task::Poll;
+/// use core::future::Future;
+/// use core::task::Poll;
 /// use futures_test::task::noop_context;
 ///
 /// let future = async { 5 };

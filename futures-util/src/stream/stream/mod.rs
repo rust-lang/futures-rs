@@ -9,13 +9,14 @@ use crate::stream::assert_stream;
 use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+use core::future::Future;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
 use futures_core::{
-    future::{Future, TryFuture},
+    future::TryFuture,
     stream::{FusedStream, Stream},
-    task::{Context, Poll},
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -1011,7 +1012,7 @@ pub trait StreamExt: Stream {
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     ///
     /// let stream = stream::iter(1..=10);
     ///
@@ -1183,8 +1184,8 @@ pub trait StreamExt: Stream {
     /// yielding a future. That future will then be executed to completion
     /// before moving on to the next item.
     ///
-    /// The returned value is a [`Future`](futures_core::future::Future) where
-    /// the [`Output`](futures_core::future::Future::Output) type is
+    /// The returned value is a [`Future`](core::future::Future) where
+    /// the [`Output`](core::future::Future::Output) type is
     /// `Result<(), Fut::Error>`. If any of the intermediate futures returns
     /// an error, this future will return immediately with an error.
     ///
@@ -1339,7 +1340,7 @@ pub trait StreamExt: Stream {
     /// ```
     /// use futures::executor::block_on_stream;
     /// use futures::stream::{self, StreamExt};
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     ///
     /// let mut x = 0;
     /// let stream = stream::poll_fn(|_| {

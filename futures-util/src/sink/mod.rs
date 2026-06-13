@@ -7,10 +7,10 @@
 //!   sinks.
 
 use crate::future::{assert_future, Either};
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::Future;
+use core::task::{Context, Poll};
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 
 #[cfg(feature = "compat")]
 use crate::compat::CompatSink;

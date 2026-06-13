@@ -96,7 +96,9 @@
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[doc(no_inline)]
-pub use futures_core::future::{Future, TryFuture};
+pub use core::future::Future;
+#[doc(no_inline)]
+pub use futures_core::future::TryFuture;
 #[doc(no_inline)]
 pub use futures_util::future::{FutureExt, TryFutureExt};
 

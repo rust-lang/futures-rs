@@ -1,7 +1,7 @@
+use core::task::{Context, Poll};
 use futures::{
     executor::block_on,
     io::{self, AsyncRead, AsyncReadExt},
-    task::{Context, Poll},
 };
 use std::pin::Pin;
 

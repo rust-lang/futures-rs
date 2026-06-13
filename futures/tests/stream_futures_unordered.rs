@@ -1,8 +1,8 @@
+use core::task::{Context, Poll};
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, join, Future, FutureExt};
 use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
-use futures::task::{Context, Poll};
 use futures_test::future::FutureTestExt;
 use futures_test::task::noop_context;
 use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};

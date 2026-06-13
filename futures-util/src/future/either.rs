@@ -1,6 +1,7 @@
+use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use futures_core::future::{FusedFuture, Future};
+use futures_core::future::FusedFuture;
 use futures_core::stream::{FusedStream, Stream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;

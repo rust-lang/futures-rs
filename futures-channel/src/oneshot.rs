@@ -4,11 +4,12 @@
 
 use alloc::sync::Arc;
 use core::fmt;
+use core::future::Future;
 use core::pin::Pin;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
+use core::task::{Context, Poll, Waker};
+use futures_core::future::FusedFuture;
 
 use crate::lock::Lock;
 

@@ -5,13 +5,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::task::Context;
 
+use core::task::Poll;
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::{self, Future};
 use futures::lock::Mutex;
 use futures::sink::SinkExt;
 use futures::stream::{self, StreamExt};
-use futures::task::Poll;
 use futures::{ready, FutureExt};
 use futures_core::Stream;
 use futures_executor::ThreadPool;
