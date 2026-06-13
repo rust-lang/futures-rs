@@ -3,8 +3,8 @@
 use super::assert_future;
 use core::mem;
 use core::pin::Pin;
+use core::task::ready;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::ready;
 use futures_core::task::{Context, Poll};
 
 /// A future that may have completed.

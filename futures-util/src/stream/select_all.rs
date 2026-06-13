@@ -4,7 +4,7 @@ use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::pin::Pin;
 
-use futures_core::ready;
+use core::task::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 

@@ -2,8 +2,8 @@ use crate::stream::{Fuse, IntoStream, StreamExt};
 
 use alloc::vec::Vec;
 use core::pin::Pin;
+use core::task::ready;
 use core::{fmt, mem};
-use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]

@@ -22,7 +22,7 @@ extern crate alloc;
 extern crate std;
 
 // Macro re-exports
-pub use futures_core::ready;
+pub use core::task::ready;
 
 #[cfg(feature = "async-await")]
 #[macro_use]

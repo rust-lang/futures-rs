@@ -1,5 +1,5 @@
 use super::buf_writer::BufWriter;
-use futures_core::ready;
+use core::task::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_io::IoSlice;

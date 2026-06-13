@@ -118,7 +118,7 @@ pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 // Macro reexports
-pub use futures_core::ready; // Readiness propagation
+pub use core::task::ready; // Readiness propagation
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 pub use futures_util::select;

@@ -1,5 +1,5 @@
 use super::DEFAULT_BUF_SIZE;
-use futures_core::ready;
+use core::task::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
 use pin_project_lite::pin_project;

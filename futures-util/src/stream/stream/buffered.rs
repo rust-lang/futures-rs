@@ -2,8 +2,8 @@ use crate::stream::{Fuse, FusedStream, FuturesOrdered, StreamExt};
 use core::fmt;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
+use core::task::ready;
 use futures_core::future::Future;
-use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]

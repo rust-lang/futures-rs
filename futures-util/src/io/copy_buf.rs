@@ -1,5 +1,5 @@
+use core::task::ready;
 use futures_core::future::Future;
-use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncWrite};
 use pin_project_lite::pin_project;

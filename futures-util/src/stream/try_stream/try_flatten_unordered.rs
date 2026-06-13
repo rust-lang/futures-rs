@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 
-use futures_core::ready;
+use core::task::ready;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]

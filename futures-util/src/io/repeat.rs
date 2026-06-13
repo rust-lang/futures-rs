@@ -1,4 +1,4 @@
-use futures_core::ready;
+use core::task::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncRead, IoSliceMut};
 use std::fmt;
