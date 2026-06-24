@@ -104,7 +104,7 @@ mod remote_handle;
 #[cfg(feature = "channel")]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
-pub use self::remote_handle::{Remote, RemoteHandle};
+pub use self::remote_handle::{Remote, RemoteCompletionHandle, RemoteHandle};
 
 #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 mod shared;
