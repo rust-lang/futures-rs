@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::task::Context;
 
+use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::{self, Future};
@@ -590,5 +591,67 @@ fn any() {
         let st = stream::iter([1, 3, 5]);
         let any = st.any(is_even).await;
         assert!(!any);
+    });
+}
+
+#[test]
+fn switch() {
+    use std::pin::pin;
+
+    block_on(async {
+        // Empty.
+        let stream = stream::empty::<stream::Empty<stream::Empty<()>>>().switch();
+        assert!(stream.collect::<Vec<_>>().await.is_empty());
+
+        // Stream is the last inner stream.
+        let stream = stream::iter([stream::iter([1, 2, 3]), stream::iter([4, 5, 6])]).switch();
+        assert_eq!(stream.collect::<Vec<_>>().await, vec![4, 5, 6]);
+
+        // Outer stream is closed: stream is closed.
+        let mut stream = stream::poll_fn(|_| Poll::Ready(None::<stream::Empty<()>>)).switch();
+        assert_matches!(stream.next().now_or_never(), Some(None));
+
+        // Outer stream is pending: stream is pending.
+        let mut stream = stream::poll_fn(|_| Poll::<Option<stream::Empty<()>>>::Pending).switch();
+        assert_matches!(stream.next().now_or_never(), None);
+
+        // Outer stream is closed after first poll, and inner stream is closed: stream is closed.
+        let mut stream =
+            pin!(stream::once(async { stream::poll_fn(|_| Poll::Ready(None::<()>)) }).switch());
+        assert_matches!(stream.next().now_or_never(), Some(None));
+
+        // Inner stream is closed: stream is pending.
+        let mut stream = {
+            let mut yielded_once = false;
+
+            stream::poll_fn(move |_| {
+                if yielded_once {
+                    Poll::Pending
+                } else {
+                    yielded_once = true;
+
+                    Poll::Ready(Some(stream::poll_fn(|_| Poll::Ready(None::<()>))))
+                }
+            })
+            .switch()
+        };
+        assert_matches!(stream.next().now_or_never(), None);
+
+        // Inner stream is pending: stream is pending.
+        let mut stream = {
+            let mut yielded_once = false;
+
+            stream::poll_fn(move |_| {
+                if yielded_once {
+                    Poll::Pending
+                } else {
+                    yielded_once = true;
+
+                    Poll::Ready(Some(stream::pending::<()>()))
+                }
+            })
+            .switch()
+        };
+        assert_matches!(stream.next().now_or_never(), None);
     });
 }

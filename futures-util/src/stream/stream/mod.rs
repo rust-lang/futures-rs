@@ -122,6 +122,16 @@ pub use self::skip::Skip;
 mod skip_while;
 pub use self::skip_while::SkipWhile;
 
+mod switch;
+
+delegate_all!(
+    /// Stream for the [`switch`](StreamExt::switch) method.
+    Switch<St>(
+        switch::Switch<St, St::Item>
+    ): Debug + Sink + Stream + FusedStream + AccessInner[St, (.)] + New[|x: St| switch::Switch::new(x)]
+    where St: Stream
+);
+
 mod take;
 pub use self::take::Take;
 
@@ -1138,6 +1148,108 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<(), _>(ForEachConcurrent::new(self, limit.into(), f))
+    }
+
+    /// Flattens a higher-order stream into a first-order stream.
+    ///
+    /// This combinator flattens a stream of streams, i.e. an outer stream
+    /// yielding inner streams. This combinator always keeps the most recently
+    /// yielded inner stream, and yields items from it, until the outer stream
+    /// produces a new inner stream, at which point the inner stream to yield
+    /// items from is switched to the new one.
+    ///
+    /// # Examples
+    ///
+    /// An empty (outer) stream can be switched:
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, Empty, StreamExt, Switch};
+    ///
+    /// let stream: Switch<Empty<Empty<()>>> = stream::empty().switch();
+    ///
+    /// assert!(stream.collect::<Vec<_>>().await.is_empty());
+    /// # });
+    /// ```
+    ///
+    /// An outer stream can produce several inner streams — once switched, the
+    /// last one is immediately selected:
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter([
+    ///     stream::iter([1, 2, 3]),
+    ///     stream::iter([4, 5, 6]),
+    ///     stream::iter([7, 8, 9]),
+    /// ])
+    /// .switch();
+    ///
+    /// assert_eq!(vec![7, 8, 9], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    ///
+    /// One of the most interesting usecase is when an outer stream produces new
+    /// inner  streams dynamically. Let's imagine the outer stream produces inner
+    /// streams yielding a sequence of integers starting from a particular value.
+    /// For example:
+    ///
+    /// - outer stream yields 7:
+    ///   - inner stream yields 7, 8, 9, 10, 11…
+    /// - outer stream yields 42:
+    ///   - inner stream yields 42, 43, 44, 45, 46…
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
+    /// use std::pin::pin;
+    ///
+    /// // `receiver` is the outer stream: it yields integers received by
+    /// // `sender`.
+    /// let (sender, receiver) = mpsc::unbounded::<u8>();
+    ///
+    /// let mut stream = pin!(receiver
+    ///     // For every new received value from `sender`…
+    ///     .map(|init_value| {
+    ///         // … let's create a new inner stream.
+    ///         //
+    ///         // First off, the inner stream starts with `init_value`. Then,
+    ///         // it continues with incremented integers.
+    ///         let mut next_value = init_value;
+    ///
+    ///         stream::poll_fn(move |_| {
+    ///             let current_value = next_value;
+    ///             next_value += 1;
+    ///
+    ///             Poll::Ready(Some(current_value))
+    ///         })
+    ///     })
+    ///     .switch());
+    ///
+    /// // `stream` is pending until the outer stream yields something.
+    /// sender.unbounded_send(7).unwrap();
+    ///
+    /// // `stream` has switched to the inner stream.
+    /// assert_eq!(vec![7, 8, 9, 10, 11], stream.by_ref().take(5).collect::<Vec<_>>().await);
+    /// assert_eq!(vec![12, 13, 14, 15, 16], stream.by_ref().take(5).collect::<Vec<_>>().await);
+    ///
+    /// // The outer stream will yield a new value, which will create a new
+    /// // inner stream.
+    /// sender.unbounded_send(42).unwrap();
+    ///
+    /// // `stream` has been “reset” and will produce a new inner stream.
+    /// assert_eq!(vec![42, 43, 44, 45, 46], stream.take(5).collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn switch(self) -> Switch<Self>
+    where
+        Self: Sized,
+        Self::Item: Stream,
+    {
+        assert_stream::<<Self::Item as Stream>::Item, _>(Switch::new(self))
     }
 
     /// Attempt to execute an accumulating asynchronous computation over a
