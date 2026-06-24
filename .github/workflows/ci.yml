@@ -55,7 +55,7 @@ jobs:
       - uses: taiki-e/checkout-action@v1
       - name: Install Rust
         uses: taiki-e/github-actions/install-rust@nightly
-      - uses: taiki-e/setup-cross-toolchain-action@v1
+      - uses: taiki-e/setup-cross-toolchain-action@v1.40.1
         with:
           target: ${{ matrix.target }}
         if: matrix.target != ''
