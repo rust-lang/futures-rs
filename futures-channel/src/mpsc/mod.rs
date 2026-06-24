@@ -652,6 +652,26 @@ impl<T> BoundedSenderInner<T> {
         self.poll_unparked(Some(cx)).map(Ok)
     }
 
+    /// Polls the channel to determine if it is empty.
+    ///
+    /// # Return value
+    ///
+    /// This method returns:
+    ///
+    /// - `Poll::Ready(()` if there are no messages in the channel;
+    /// - `Poll::Pending` if there are messages in the channel.
+    #[cfg(feature = "sink")]
+    fn poll_is_empty(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        let state = decode_state(self.inner.state.load(SeqCst));
+        if state.num_messages == 0 {
+            return Poll::Ready(());
+        }
+
+        // If there are messages in the channel, we must park the task unconditionally.
+        self.sender_task.lock().unwrap().task = Some(cx.waker().clone());
+        Poll::Pending
+    }
+
     /// Returns whether the senders send to the same receiver.
     fn same_receiver(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.inner, &other.inner)
@@ -790,6 +810,24 @@ impl<T> Sender<T> {
 
         let ptr = self.0.as_ref().map(|inner| inner.ptr());
         ptr.hash(hasher);
+    }
+
+    /// Polls the channel to determine if it is empty.
+    ///
+    /// # Return value
+    ///
+    /// This method returns:
+    ///
+    /// - `Poll::Ready(()` if there are no messages in the channel or the [`Receiver`] is disconnected.
+    /// - `Poll::Pending` if there are messages in the channel.
+    #[cfg(feature = "sink")]
+    pub(crate) fn poll_is_empty(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        let inner = match self.0.as_mut() {
+            None => return Poll::Ready(()),
+            Some(inner) => inner,
+        };
+
+        inner.poll_is_empty(cx)
     }
 }
 
