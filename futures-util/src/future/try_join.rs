@@ -20,6 +20,18 @@ impl<Fut1: TryFuture, Fut2: TryFuture> TryJoin<Fut1, Fut2> {
     }
 }
 
+impl<Fut1, Fut2> Clone for TryJoin<Fut1, Fut2>
+where
+    Fut1: TryFuture + Clone,
+    Fut1::Ok: Clone,
+    Fut2: TryFuture + Clone,
+    Fut2::Ok: Clone,
+{
+    fn clone(&self) -> Self {
+        Self { fut1: self.fut1.clone(), fut2: self.fut2.clone() }
+    }
+}
+
 impl<Fut1, Fut2> fmt::Debug for TryJoin<Fut1, Fut2>
 where
     Fut1: TryFuture + fmt::Debug,
