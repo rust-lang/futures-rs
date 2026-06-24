@@ -23,6 +23,16 @@ pub type BoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + Send + 
 #[cfg(feature = "alloc")]
 pub type LocalBoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + 'a>>;
 
+/// [`BoxStream`] with [`TryStream`].
+#[cfg(feature = "alloc")]
+pub type BoxTryStream<'a, T, E> =
+    Pin<alloc::boxed::Box<dyn TryStream<Item = Result<T, E>, Ok = T, Error = E> + Send + 'a>>;
+
+/// [`BoxTryStream`], but without the `Send` requirement.
+#[cfg(feature = "alloc")]
+pub type LocalBoxTryStream<'a, T, E> =
+    Pin<alloc::boxed::Box<dyn TryStream<Item = Result<T, E>, Ok = T, Error = E> + 'a>>;
+
 /// A stream of values produced asynchronously.
 ///
 /// If `Future<Output = T>` is an asynchronous version of `T`, then `Stream<Item
