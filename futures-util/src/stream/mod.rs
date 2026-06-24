@@ -33,6 +33,9 @@ pub use self::stream::Chunks;
 #[cfg(feature = "alloc")]
 pub use self::stream::ReadyChunks;
 
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
+pub use self::stream::Shared;
+
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::stream::Forward;
