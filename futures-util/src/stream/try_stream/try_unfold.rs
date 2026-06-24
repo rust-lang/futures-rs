@@ -17,7 +17,7 @@ use pin_project_lite::pin_project;
 /// wait for the returned `TryFuture` to complete with `(a, b)`. It will then
 /// yield the value `a`, and use `b` as the next internal state.
 ///
-/// If the closure returns `None` instead of `Some(TryFuture)`, then the
+/// If the `TryFuture` returns `None` instead of `Some((Item, T))`, then the
 /// `try_unfold()` will stop producing items and return `Poll::Ready(None)` in
 /// future calls to `poll()`.
 ///
