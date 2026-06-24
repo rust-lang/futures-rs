@@ -65,6 +65,9 @@ pub use self::try_maybe_done::{try_maybe_done, TryMaybeDone};
 mod option;
 pub use self::option::OptionFuture;
 
+mod or_pending;
+pub use self::or_pending::OrPending;
+
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
