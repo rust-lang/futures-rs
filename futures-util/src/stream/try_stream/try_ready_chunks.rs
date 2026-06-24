@@ -122,5 +122,4 @@ impl<T, E: fmt::Display> fmt::Display for TryReadyChunksError<T, E> {
     }
 }
 
-#[cfg(feature = "std")]
-impl<T, E: fmt::Debug + fmt::Display> std::error::Error for TryReadyChunksError<T, E> {}
+impl<T, E: fmt::Debug + fmt::Display> core::error::Error for TryReadyChunksError<T, E> {}
