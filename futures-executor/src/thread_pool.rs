@@ -1,7 +1,7 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::future::Future;
+use core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, Spawn, SpawnError};
 use futures_util::future::FutureExt;

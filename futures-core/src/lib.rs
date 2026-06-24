@@ -17,7 +17,8 @@ extern crate std;
 
 pub mod future;
 #[doc(no_inline)]
-pub use self::future::{FusedFuture, Future, TryFuture};
+pub use self::future::{FusedFuture, TryFuture};
+pub use core::future::Future;
 
 pub mod stream;
 #[doc(no_inline)]

@@ -1,7 +1,7 @@
+use core::task::{Context, Poll};
 use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future::{abortable, Aborted, FutureExt};
-use futures::task::{Context, Poll};
 use futures_test::task::new_count_waker;
 
 #[test]

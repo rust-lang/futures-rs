@@ -2,13 +2,14 @@ use crate::task::{waker_ref, ArcWake};
 use alloc::sync::{Arc, Weak};
 use core::cell::UnsafeCell;
 use core::fmt;
+use core::future::Future;
 use core::hash::Hasher;
 use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, SeqCst};
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
+use core::task::{Context, Poll, Waker};
+use futures_core::future::FusedFuture;
 use slab::Slab;
 
 #[cfg(feature = "std")]

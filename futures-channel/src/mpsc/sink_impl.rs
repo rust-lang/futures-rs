@@ -1,5 +1,5 @@
 use super::{SendError, Sender, TrySendError, UnboundedSender};
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_sink::Sink;
 use std::pin::Pin;
 

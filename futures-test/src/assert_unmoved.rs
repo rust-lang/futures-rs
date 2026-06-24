@@ -1,6 +1,7 @@
-use futures_core::future::{FusedFuture, Future};
+use core::future::Future;
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 use futures_io::{
     self as io, AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom,
 };
@@ -169,8 +170,8 @@ impl<T> PinnedDrop for AssertUnmoved<T> {
 
 #[cfg(test)]
 mod tests {
-    use futures_core::future::Future;
-    use futures_core::task::{Context, Poll};
+    use core::future::Future;
+    use core::task::{Context, Poll};
     use futures_util::future::pending;
     use futures_util::task::noop_waker;
     use std::pin::Pin;

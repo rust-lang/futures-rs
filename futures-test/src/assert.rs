@@ -4,7 +4,7 @@ use futures_core::stream::Stream;
 pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}
 
 /// Assert that the next poll to the provided stream will return
-/// [`Poll::Pending`](futures_core::task::Poll::Pending).
+/// [`Poll::Pending`](core::task::Poll::Pending).
 ///
 /// # Examples
 ///
@@ -42,7 +42,7 @@ macro_rules! assert_stream_pending {
 }
 
 /// Assert that the next poll to the provided stream will return
-/// [`Poll::Ready`](futures_core::task::Poll::Ready) with the provided item.
+/// [`Poll::Ready`](core::task::Poll::Ready) with the provided item.
 ///
 /// # Examples
 ///
@@ -86,7 +86,7 @@ macro_rules! assert_stream_next {
 }
 
 /// Assert that the next poll to the provided stream will return an empty
-/// [`Poll::Ready`](futures_core::task::Poll::Ready) signalling the
+/// [`Poll::Ready`](core::task::Poll::Ready) signalling the
 /// completion of the stream.
 ///
 /// # Examples

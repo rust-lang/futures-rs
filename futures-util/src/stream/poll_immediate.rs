@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 use futures_core::Stream;
 use pin_project_lite::pin_project;
 
@@ -59,7 +59,7 @@ impl<S: Stream> super::FusedStream for PollImmediate<S> {
 /// ```
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
-/// use futures::task::Poll;
+/// use core::task::Poll;
 ///
 /// let mut r = stream::poll_immediate(Box::pin(stream::iter(1_u32..3)));
 /// assert_eq!(r.next().await, Some(Poll::Ready(1)));

@@ -1,10 +1,10 @@
+use core::task::{Context, Poll};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
 use futures::io::{
     AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt,
     BufReader, SeekFrom,
 };
-use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
 use pin_project::pin_project;
 use std::cmp;

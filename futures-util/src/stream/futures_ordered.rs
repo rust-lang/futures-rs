@@ -2,15 +2,13 @@ use crate::stream::{FuturesUnordered, StreamExt};
 use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
+use core::future::Future;
 use core::iter::FromIterator;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_core::stream::Stream;
-use futures_core::{
-    task::{Context, Poll},
-    FusedStream,
-};
+use futures_core::FusedStream;
 use pin_project_lite::pin_project;
 
 pin_project! {

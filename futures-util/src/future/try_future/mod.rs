@@ -6,11 +6,8 @@
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
 use core::pin::Pin;
-use futures_core::{
-    future::TryFuture,
-    stream::TryStream,
-    task::{Context, Poll},
-};
+use core::task::{Context, Poll};
+use futures_core::{future::TryFuture, stream::TryStream};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 

@@ -1,9 +1,10 @@
+use core::future::poll_fn;
+use core::task::{Context, Poll};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{poll_fn, FutureExt};
+use futures::future::FutureExt;
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{Stream, StreamExt};
-use futures::task::{Context, Poll};
 use futures_channel::mpsc::{RecvError, TryRecvError};
 use futures_test::task::{new_count_waker, noop_context};
 use std::pin::pin;

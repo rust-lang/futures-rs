@@ -1,5 +1,5 @@
 use core::ptr::null;
-use futures_core::task::{RawWaker, RawWakerVTable, Waker};
+use core::task::{RawWaker, RawWakerVTable, Waker};
 
 unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
@@ -20,7 +20,7 @@ const fn raw_panic_waker() -> RawWaker {
     RawWaker::new(null(), &PANIC_WAKER_VTABLE)
 }
 
-/// Create a new [`Waker`](futures_core::task::Waker) which will
+/// Create a new [`Waker`](core::task::Waker) which will
 /// panic when `wake()` is called on it. The [`Waker`] can be converted
 /// into a [`Waker`] which will behave the same way.
 ///
@@ -38,7 +38,7 @@ pub fn panic_waker() -> Waker {
 }
 
 /// Get a global reference to a
-/// [`Waker`](futures_core::task::Waker) referencing a singleton
+/// [`Waker`](core::task::Waker) referencing a singleton
 /// instance of a [`Waker`] which panics when woken.
 ///
 /// # Examples

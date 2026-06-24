@@ -1,5 +1,5 @@
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_io::{AsyncRead, IoSliceMut};
 use std::fmt;
 use std::io;

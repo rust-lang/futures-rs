@@ -7,6 +7,7 @@ use crate::task::AtomicWaker;
 use alloc::sync::{Arc, Weak};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
+use core::future::Future;
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 use core::mem;
@@ -14,9 +15,8 @@ use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{AtomicBool, AtomicPtr};
-use futures_core::future::Future;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
 mod abort;

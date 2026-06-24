@@ -1,5 +1,6 @@
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use core::future::Future;
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 use pin_project::pin_project;
 use std::pin::Pin;
 

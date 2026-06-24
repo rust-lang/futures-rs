@@ -1,8 +1,8 @@
 use super::assert_stream;
 use core::marker;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 
 /// Stream for the [`pending()`] function.
 #[derive(Debug)]

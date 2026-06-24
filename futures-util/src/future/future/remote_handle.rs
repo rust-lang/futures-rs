@@ -1,11 +1,8 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
+    core::future::Future,
+    core::task::{ready, Context, Poll},
     futures_channel::oneshot::{self, Receiver, Sender},
-    futures_core::{
-        future::Future,
-        ready,
-        task::{Context, Poll},
-    },
     pin_project_lite::pin_project,
     std::{
         any::Any,

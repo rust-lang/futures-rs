@@ -1,11 +1,11 @@
 use super::assert_future;
 use crate::future::FutureExt;
 use alloc::vec::Vec;
+use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 
 /// Future for the [`select_all`] function.
 #[derive(Debug)]

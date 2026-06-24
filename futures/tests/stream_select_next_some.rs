@@ -1,8 +1,8 @@
+use core::task::{Context, Poll};
 use futures::executor::block_on;
 use futures::future::{self, FusedFuture, FutureExt};
 use futures::select;
 use futures::stream::{FuturesUnordered, StreamExt};
-use futures::task::{Context, Poll};
 use futures_test::future::FutureTestExt;
 use futures_test::task::new_count_waker;
 

@@ -3,8 +3,8 @@
 use super::assert_stream;
 use core::fmt;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 
 /// Stream for the [`poll_fn`] function.
 #[must_use = "streams do nothing unless polled"]
@@ -28,7 +28,7 @@ impl<F> fmt::Debug for PollFn<F> {
 ///
 /// ```
 /// use futures::stream::poll_fn;
-/// use futures::task::Poll;
+/// use core::task::Poll;
 ///
 /// let mut counter = 1usize;
 ///

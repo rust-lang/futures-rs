@@ -1,9 +1,9 @@
 use core::fmt;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;

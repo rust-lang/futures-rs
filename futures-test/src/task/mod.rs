@@ -10,23 +10,23 @@
 //! Task related testing utilities.
 //!
 //! This module provides utilities for creating test
-//! [`Context`](futures_core::task::Context)s,
-//! [`Waker`](futures_core::task::Waker)s and
+//! [`Context`](core::task::Context)s,
+//! [`Waker`](core::task::Waker)s and
 //! [`Spawn`](futures_task::Spawn) implementations.
 //!
 //! Test contexts:
 //! - [`noop_context`] creates a context that ignores calls to
-//!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker).
+//!   [`cx.waker().wake_by_ref()`](core::task::Waker).
 //! - [`panic_context`] creates a context that panics when
-//!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker) is called.
+//!   [`cx.waker().wake_by_ref()`](core::task::Waker) is called.
 //!
 //! Test wakers:
 //! - [`noop_waker`] creates a waker that ignores calls to
-//!   [`wake`](futures_core::task::Waker).
+//!   [`wake`](core::task::Waker).
 //! - [`panic_waker`](panic_waker()) creates a waker that panics when
-//!   [`wake`](futures_core::task::Waker) is called.
+//!   [`wake`](core::task::Waker) is called.
 //! - [`new_count_waker`] creates a waker that increments a counter whenever
-//!   [`wake`](futures_core::task::Waker) is called.
+//!   [`wake`](core::task::Waker) is called.
 //!
 //! Test spawners:
 //! - [`NoopSpawner`] ignores calls to

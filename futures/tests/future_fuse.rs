@@ -1,5 +1,5 @@
+use core::task::Context;
 use futures::future::{self, FutureExt};
-use futures::task::Context;
 use futures_test::task::panic_waker;
 
 #[test]

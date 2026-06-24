@@ -3,12 +3,9 @@
 
 //! Assert Send/Sync/Unpin for all public types.
 
-use futures::{
-    future::Future,
-    sink::Sink,
-    stream::Stream,
-    task::{Context, Poll},
-};
+use core::future::Future;
+use core::task::{Context, Poll};
+use futures::{sink::Sink, stream::Stream};
 use static_assertions::{assert_impl_all as assert_impl, assert_not_impl_all as assert_not_impl};
 use std::cell::Cell;
 use std::marker::PhantomPinned;

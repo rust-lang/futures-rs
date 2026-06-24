@@ -1,6 +1,6 @@
+use core::future::poll_fn;
 use futures::channel::mpsc;
 use futures::executor::block_on;
-use futures::future::poll_fn;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};

@@ -3,11 +3,11 @@
 extern crate test;
 use crate::test::Bencher;
 
+use core::task::Poll;
 use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
-use futures::task::Poll;
 use std::collections::VecDeque;
 use std::thread;
 

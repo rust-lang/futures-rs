@@ -2,9 +2,9 @@
 
 use super::assert_future;
 use core::fmt;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 
 /// Future for the [`poll_fn`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -22,8 +22,8 @@ impl<F> Unpin for PollFn<F> {}
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::future::poll_fn;
-/// use futures::task::{Context, Poll};
+/// use core::future::poll_fn;
+/// use core::task::{Context, Poll};
 ///
 /// fn read_line(_cx: &mut Context<'_>) -> Poll<String> {
 ///     Poll::Ready("Hello, World!".into())

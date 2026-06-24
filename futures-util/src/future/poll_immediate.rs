@@ -1,7 +1,8 @@
 use super::assert_future;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::task::{Context, Poll};
-use futures_core::{FusedFuture, Future, Stream};
+use core::task::{Context, Poll};
+use futures_core::{FusedFuture, Stream};
 use pin_project_lite::pin_project;
 
 pin_project! {
@@ -50,7 +51,7 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
 /// # futures::executor::block_on(async {
 /// use core::pin::pin;
 ///
-/// use futures::task::Poll;
+/// use core::task::Poll;
 /// use futures::{StreamExt, future};
 /// use future::FusedFuture;
 ///
