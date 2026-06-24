@@ -128,6 +128,9 @@ pub use self::take::Take;
 mod take_while;
 pub use self::take_while::TakeWhile;
 
+mod map_while;
+pub use self::map_while::MapWhile;
+
 mod take_until;
 pub use self::take_until::TakeUntil;
 
@@ -992,6 +995,36 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_stream::<Self::Item, _>(TakeWhile::new(self, f))
+    }
+
+    /// Maps elements from this stream while the provided asynchronous future
+    /// resolves to `Some(_)`.
+    ///
+    /// This function, like `Iterator::map_while`, will take elements from the
+    /// stream until the future `f` resolves to `None`. Once one element
+    /// returns `None`, it will always return that the stream is done.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec![1, 4, 0, 2]);
+    ///
+    /// let stream = stream.map_while(|x| future::ready(u32::checked_div(16, x)));
+    ///
+    /// assert_eq!(vec![16, 4], stream.collect::<Vec<_>>().await);
+    /// # });
+    /// ```
+    fn map_while<Fut, F, T>(self, f: F) -> MapWhile<Self, Fut, F>
+    where
+        F: FnMut(Self::Item) -> Fut,
+        Fut: Future<Output = Option<T>>,
+        Self: Sized,
+    {
+        assert_stream::<T, _>(MapWhile::new(self, f))
     }
 
     /// Take elements from this stream until the provided future resolves.
