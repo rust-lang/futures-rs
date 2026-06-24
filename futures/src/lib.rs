@@ -188,7 +188,7 @@ pub mod executor {
 
     pub use futures_executor::{
         block_on, block_on_stream, enter, BlockingStream, Enter, EnterError, LocalPool,
-        LocalSpawner,
+        LocalPoolGen, LocalSpawner,
     };
 
     #[cfg(feature = "thread-pool")]
