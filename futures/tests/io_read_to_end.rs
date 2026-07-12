@@ -48,7 +48,7 @@ fn issue2310() {
     impl Drop for VecWrapper {
         fn drop(&mut self) {
             // Observe uninitialized bytes
-            println!("{:?}", &self.inner);
+            println!("{:?}", self.inner);
             // Overwrite heap contents
             for b in &mut self.inner {
                 *b = 0x90;
