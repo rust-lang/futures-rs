@@ -63,6 +63,7 @@ impl SharedPollState {
     /// Attempts to start polling, returning stored state in case of success.
     /// Returns `None` if either waker is waking at the moment.
     fn start_polling(&self) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
@@ -86,6 +87,7 @@ impl SharedPollState {
         &self,
         to_poll: u8,
     ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
@@ -121,6 +123,7 @@ impl SharedPollState {
     ///   * `POLLING` phase can't start if some of the wakers are active
     ///     So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
     fn stop_polling(&self, to_poll: u8, will_be_woken: bool) -> u8 {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |mut value| {
                 let mut next_value = to_poll;
@@ -138,6 +141,7 @@ impl SharedPollState {
 
     /// Toggles state to non-waking, allowing to start polling.
     fn stop_waking(&self) -> u8 {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
