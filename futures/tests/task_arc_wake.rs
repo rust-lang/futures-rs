@@ -1,4 +1,5 @@
-use futures::task::{self, ArcWake, Waker};
+use core::task::Waker;
+use futures::task::{self, ArcWake};
 use std::panic;
 use std::sync::{Arc, Mutex};
 

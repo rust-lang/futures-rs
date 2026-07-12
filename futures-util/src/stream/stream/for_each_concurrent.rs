@@ -1,10 +1,11 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::fmt;
+use core::future::Future;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {

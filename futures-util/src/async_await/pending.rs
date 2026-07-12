@@ -1,11 +1,11 @@
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
 
 /// A macro which yields to the event loop once.
 ///
-/// This is equivalent to returning [`Poll::Pending`](futures_core::task::Poll)
-/// from a [`Future::poll`](futures_core::future::Future::poll) implementation.
+/// This is equivalent to returning [`Poll::Pending`](core::task::Poll)
+/// from a [`Future::poll`](core::future::Future::poll) implementation.
 /// Similarly, when using this macro, it must be ensured that [`wake`](std::task::Waker::wake)
 /// is called somewhere when further progress can be made.
 ///

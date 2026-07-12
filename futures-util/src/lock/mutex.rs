@@ -8,8 +8,9 @@ use std::{fmt, mem};
 
 use slab::Slab;
 
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
+use core::future::Future;
+use core::task::{Context, Poll, Waker};
+use futures_core::future::FusedFuture;
 
 /// A futures-aware mutex.
 ///

@@ -3,7 +3,7 @@
 mod pending_once;
 pub use self::pending_once::PendingOnce;
 
-use futures_core::future::Future;
+use core::future::Future;
 use std::thread;
 
 pub use crate::assert_unmoved::AssertUnmoved;
@@ -26,7 +26,7 @@ pub trait FutureTestExt: Future {
         AssertUnmoved::new(self)
     }
 
-    /// Introduces one [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// Introduces one [`Poll::Pending`](core::task::Poll::Pending)
     /// before polling the given future.
     ///
     /// # Examples
@@ -34,7 +34,7 @@ pub trait FutureTestExt: Future {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::future::FutureExt;
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
@@ -79,7 +79,7 @@ pub trait FutureTestExt: Future {
         thread::spawn(|| futures_executor::block_on(self));
     }
 
-    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// Introduces an extra [`Poll::Pending`](core::task::Poll::Pending)
     /// in between each call to poll.
     ///
     /// # Examples
@@ -87,7 +87,7 @@ pub trait FutureTestExt: Future {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::future::{self, Future};
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;

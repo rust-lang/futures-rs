@@ -1,7 +1,8 @@
 use super::assert_future;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use core::task::{Context, Poll};
+use futures_core::future::FusedFuture;
 
 /// Future for the [`always_ready`](always_ready()) function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]

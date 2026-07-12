@@ -1,8 +1,8 @@
 use super::assert_stream;
 use crate::stream::{select_with_strategy, PollNext, SelectWithStrategy};
 use core::pin::Pin;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 use pin_project_lite::pin_project;
 
 pin_project! {

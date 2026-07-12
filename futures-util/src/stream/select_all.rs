@@ -4,9 +4,9 @@ use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::pin::Pin;
 
-use futures_core::ready;
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 
 use super::assert_stream;
 use crate::stream::{futures_unordered, FuturesUnordered, StreamExt, StreamFuture};

@@ -1,7 +1,9 @@
+use core::future::poll_fn;
+use core::task::{Context, Poll, Waker};
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
-use futures::future::{self, lazy, poll_fn, Future};
-use futures::task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker};
+use futures::future::{self, lazy, Future};
+use futures::task::{LocalSpawn, LocalSpawnExt, Spawn, SpawnExt};
 use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::pin::Pin;

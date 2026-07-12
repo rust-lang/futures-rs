@@ -1,14 +1,11 @@
 use crate::task::{self as task03, ArcWake as ArcWake03, WakerRef};
+use core::task::{RawWaker, RawWakerVTable};
 use futures_01::{
     task as task01, Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01,
 };
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01, StartSend as StartSend01};
-use futures_core::{
-    future::TryFuture as TryFuture03,
-    stream::TryStream as TryStream03,
-    task::{RawWaker, RawWakerVTable},
-};
+use futures_core::{future::TryFuture as TryFuture03, stream::TryStream as TryStream03};
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
 #[cfg(feature = "sink")]

@@ -96,7 +96,9 @@
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
 #[doc(no_inline)]
-pub use futures_core::future::{Future, TryFuture};
+pub use core::future::Future;
+#[doc(no_inline)]
+pub use futures_core::future::TryFuture;
 #[doc(no_inline)]
 pub use futures_util::future::{FutureExt, TryFutureExt};
 
@@ -118,7 +120,7 @@ pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 // Macro reexports
-pub use futures_core::ready; // Readiness propagation
+pub use core::task::ready; // Readiness propagation
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 pub use futures_util::select;

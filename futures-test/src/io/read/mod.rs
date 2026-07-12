@@ -23,7 +23,7 @@ pub trait AsyncReadTestExt: AsyncRead {
         AssertUnmoved::new(self)
     }
 
-    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// Introduces an extra [`Poll::Pending`](core::task::Poll::Pending)
     /// in between each read of the reader.
     ///
     /// # Examples
@@ -31,7 +31,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
@@ -62,7 +62,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::io::{AsyncBufRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
@@ -97,7 +97,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// ```
     /// use core::pin::pin;
     ///
-    /// use futures::task::Poll;
+    /// use core::task::Poll;
     /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;

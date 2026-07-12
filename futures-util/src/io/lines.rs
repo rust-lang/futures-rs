@@ -1,7 +1,7 @@
 use super::read_line::read_line_internal;
-use futures_core::ready;
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
 use pin_project_lite::pin_project;
 use std::io;

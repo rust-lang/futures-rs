@@ -9,15 +9,13 @@ use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::convert::Infallible;
+use core::future::Future;
 use core::pin::pin;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
-use futures_core::{
-    future::Future,
-    stream::Stream,
-    task::{Context, Poll},
-};
+use futures_core::stream::Stream;
 
 // Combinators
 

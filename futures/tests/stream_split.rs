@@ -1,7 +1,7 @@
+use core::task::{Context, Poll};
 use futures::executor::block_on;
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
-use futures::task::{Context, Poll};
 use pin_project::pin_project;
 use std::pin::Pin;
 

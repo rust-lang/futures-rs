@@ -1,7 +1,7 @@
 use super::assert_stream;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 
 /// An stream that repeats elements of type `A` endlessly by
 /// applying the provided closure `F: FnMut() -> A`.

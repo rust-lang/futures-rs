@@ -1,10 +1,12 @@
+use core::future::poll_fn;
+use core::task::{Context, Poll, Waker};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
-use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
+use futures::future::{self, Future, FutureExt, TryFutureExt};
 use futures::ready;
 use futures::sink::{self, Sink, SinkErrInto, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
-use futures::task::{self, ArcWake, Context, Poll, Waker};
+use futures::task::{self, ArcWake};
 use futures_test::task::panic_context;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;

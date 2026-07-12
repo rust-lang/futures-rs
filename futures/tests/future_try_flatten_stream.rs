@@ -1,9 +1,9 @@
+use core::task::{Context, Poll};
 use futures::executor::block_on_stream;
 use futures::future::{err, ok, TryFutureExt};
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::stream::{self, StreamExt};
-use futures::task::{Context, Poll};
 use std::marker::PhantomData;
 use std::pin::Pin;
 

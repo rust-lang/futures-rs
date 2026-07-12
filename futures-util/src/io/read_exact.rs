@@ -1,7 +1,7 @@
 use crate::io::AsyncRead;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::future::Future;
+use core::task::ready;
+use core::task::{Context, Poll};
 use std::io;
 use std::mem;
 use std::pin::Pin;

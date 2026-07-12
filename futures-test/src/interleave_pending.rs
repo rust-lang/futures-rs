@@ -1,4 +1,5 @@
-use futures_core::future::{FusedFuture, Future};
+use core::future::Future;
+use futures_core::future::FusedFuture;
 use futures_core::stream::{FusedStream, Stream};
 use futures_io::{
     self as io, AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom,

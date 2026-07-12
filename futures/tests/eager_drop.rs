@@ -1,6 +1,6 @@
+use core::task::{Context, Poll};
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
-use futures::task::{Context, Poll};
 use futures_test::future::FutureTestExt;
 use pin_project::pin_project;
 use std::pin::Pin;

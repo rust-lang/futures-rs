@@ -1,9 +1,10 @@
+use core::task::Context;
 use futures::channel::mpsc;
 use futures::executor::{block_on, ThreadPool};
 use futures::future::{ready, FutureExt};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
-use futures::task::{Context, SpawnExt};
+use futures::task::SpawnExt;
 use futures_test::future::FutureTestExt;
 use futures_test::task::{new_count_waker, panic_context};
 use std::sync::Arc;

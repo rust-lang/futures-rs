@@ -1,9 +1,9 @@
+use core::future::Future;
+use core::task::{Context, Poll};
 use futures::channel::mpsc;
 use futures::executor::block_on;
-use futures::future::Future;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
 use futures_channel::mpsc::TryRecvError;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};

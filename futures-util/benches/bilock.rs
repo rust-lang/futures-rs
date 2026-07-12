@@ -3,7 +3,7 @@
 
 extern crate test;
 
-use futures::task::Poll;
+use core::task::Poll;
 use futures_test::task::noop_context;
 use futures_util::lock::BiLock;
 

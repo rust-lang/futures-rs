@@ -1,8 +1,8 @@
 use super::Feed;
+use core::future::Future;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::task::ready;
+use core::task::{Context, Poll};
 use futures_sink::Sink;
 
 /// Future for the [`send`](super::SinkExt::send) method.

@@ -1,7 +1,7 @@
 use crate::enter;
-use futures_core::future::Future;
+use core::future::Future;
+use core::task::{Context, Poll};
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::stream::FuturesUnordered;
