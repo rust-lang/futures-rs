@@ -1,13 +1,18 @@
-use super::assert_stream;
 use core::{fmt, pin::Pin};
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
+use super::assert_stream;
+
 /// Type to tell [`SelectWithStrategy`] which stream to poll next.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PollNext {
     /// Poll the first stream.
+    #[default]
     Left,
     /// Poll the second stream.
     Right,
@@ -27,12 +32,6 @@ impl PollNext {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
         }
-    }
-}
-
-impl Default for PollNext {
-    fn default() -> Self {
-        Self::Left
     }
 }
 
@@ -75,6 +74,7 @@ pin_project! {
     }
 }
 
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// This function will attempt to pull items from both streams. You provide a
 /// closure to tell [`SelectWithStrategy`] which stream to poll. The closure can
 /// store state on `SelectWithStrategy` to which it will receive a `&mut` on every
@@ -116,7 +116,7 @@ pin_project! {
 ///
 /// ### Round Robin
 /// This example shows how to select from both streams round robin.
-/// Note: this special case is provided by [`futures-util::stream::select`].
+/// Note: this special case is provided by [`stream::select`](crate::stream::select()).
 ///
 /// ```rust
 /// # futures::executor::block_on(async {
@@ -240,11 +240,7 @@ where
     match poll_side(select, other, cx) {
         Poll::Ready(None) => {
             select.internal_state.finish(other);
-            if first_done {
-                Poll::Ready(None)
-            } else {
-                Poll::Pending
-            }
+            if first_done { Poll::Ready(None) } else { Poll::Pending }
         }
         a => a,
     }

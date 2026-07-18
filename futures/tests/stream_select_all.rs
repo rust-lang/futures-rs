@@ -1,8 +1,10 @@
-use futures::channel::mpsc;
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureExt};
-use futures::stream::{self, select_all, FusedStream, SelectAll, StreamExt};
-use futures::task::Poll;
+use futures::{
+    channel::mpsc,
+    executor::{block_on, block_on_stream},
+    future::{self, FutureExt},
+    stream::{self, FusedStream, SelectAll, StreamExt, select_all},
+    task::Poll,
+};
 use futures_test::task::noop_context;
 
 #[test]

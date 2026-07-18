@@ -1,8 +1,12 @@
-use crate::io::{AsyncSeek, SeekFrom};
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::pin::Pin;
 use std::io;
-use std::pin::Pin;
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+
+use crate::io::{AsyncSeek, SeekFrom};
 
 /// Future for the [`seek`](crate::io::AsyncSeekExt::seek) method.
 #[derive(Debug)]

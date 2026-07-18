@@ -1,14 +1,16 @@
-use super::read_line::read_line_internal;
-use futures_core::ready;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use alloc::{string::String, vec::Vec};
+use core::{mem, pin::Pin};
+use std::io;
+
+use futures_core::{
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
+};
 use futures_io::AsyncBufRead;
 use pin_project_lite::pin_project;
-use std::io;
-use std::mem;
-use std::pin::Pin;
-use std::string::String;
-use std::vec::Vec;
+
+use super::read_line::read_line_internal;
 
 pin_project! {
     /// Stream for the [`lines`](super::AsyncBufReadExt::lines) method.
@@ -35,6 +37,7 @@ impl<R: AsyncBufRead> Stream for Lines<R> {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
         let n = ready!(read_line_internal(this.reader, cx, this.buf, this.bytes, this.read))?;
+        *this.read = 0;
         if n == 0 && this.buf.is_empty() {
             return Poll::Ready(None);
         }

@@ -1,10 +1,13 @@
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::AsyncRead;
+use alloc::vec::Vec;
+use core::{iter, pin::Pin};
 use std::io;
-use std::pin::Pin;
-use std::vec::Vec;
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::AsyncRead;
 
 /// Future for the [`read_to_end`](super::AsyncReadExt::read_to_end) method.
 #[derive(Debug)]
@@ -55,12 +58,10 @@ pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
     let mut g = Guard { len: buf.len(), buf };
     loop {
         if g.len == g.buf.len() {
-            unsafe {
-                g.buf.reserve(32);
-                let capacity = g.buf.capacity();
-                g.buf.set_len(capacity);
-                super::initialize(&rd, &mut g.buf[g.len..]);
-            }
+            g.buf.reserve(32);
+            let spare_capacity = g.buf.capacity() - g.buf.len();
+            // FIXME: switch to `Vec::resize` once rust-lang/rust#120050 is fixed
+            g.buf.extend(iter::repeat(0).take(spare_capacity));
         }
 
         let buf = &mut g.buf[g.len..];

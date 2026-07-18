@@ -1,12 +1,17 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future;
-use futures::stream::{FuturesUnordered, StreamExt};
-use futures::task::Poll;
+use std::{
+    panic::{self, AssertUnwindSafe},
+    sync::{Arc, Barrier},
+    thread,
+};
+
+use futures::{
+    channel::oneshot,
+    executor::{block_on, block_on_stream},
+    future,
+    stream::{FuturesUnordered, StreamExt},
+    task::Poll,
+};
 use futures_test::task::noop_context;
-use std::panic::{self, AssertUnwindSafe};
-use std::sync::{Arc, Barrier};
-use std::thread;
 
 #[test]
 fn basic_usage() {

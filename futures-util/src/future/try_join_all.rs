@@ -1,18 +1,18 @@
 //! Definition of the `TryJoinAll` combinator, waiting for all of a list of
 //! futures to finish with either success or error.
 
-use alloc::boxed::Box;
-use alloc::vec::Vec;
-use core::fmt;
-use core::future::Future;
-use core::iter::FromIterator;
-use core::mem;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use alloc::{boxed::Box, vec::Vec};
+use core::{
+    fmt,
+    future::Future,
+    iter::FromIterator,
+    mem,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-use super::{assert_future, join_all, TryFuture, TryMaybeDone};
-
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+use super::{TryFuture, TryMaybeDone, assert_future, join_all};
+#[cfg(target_has_atomic = "ptr")]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
 
 enum FinalState<E = ()> {
@@ -37,7 +37,7 @@ where
     Small {
         elems: Pin<Box<[TryMaybeDone<F>]>>,
     },
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     Big {
         fut: TryCollect<FuturesOrdered<F>, Vec<F::Ok>>,
     },
@@ -55,7 +55,7 @@ where
             TryJoinAllKind::Small { ref elems } => {
                 f.debug_struct("TryJoinAll").field("elems", elems).finish()
             }
-            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+            #[cfg(target_has_atomic = "ptr")]
             TryJoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
@@ -120,8 +120,7 @@ where
 {
     let iter = iter.into_iter();
 
-    #[cfg(target_os = "none")]
-    #[cfg_attr(target_os = "none", cfg(not(target_has_atomic = "ptr")))]
+    #[cfg(not(target_has_atomic = "ptr"))]
     {
         let kind = TryJoinAllKind::Small {
             elems: iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into(),
@@ -132,7 +131,7 @@ where
         )
     }
 
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     {
         let kind = match iter.size_hint().1 {
             Some(max) if max <= join_all::SMALL => TryJoinAllKind::Small {
@@ -184,7 +183,7 @@ where
                     }
                 }
             }
-            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+            #[cfg(target_has_atomic = "ptr")]
             TryJoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
         }
     }

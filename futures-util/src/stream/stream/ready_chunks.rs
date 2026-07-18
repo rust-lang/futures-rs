@@ -1,11 +1,15 @@
-use crate::stream::{Fuse, StreamExt};
 use alloc::vec::Vec;
 use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, StreamExt};
 
 pin_project! {
     /// Stream for the [`ready_chunks`](super::StreamExt::ready_chunks) method.
@@ -41,7 +45,7 @@ impl<St: Stream> Stream for ReadyChunks<St> {
                 // Flush all collected data if underlying stream doesn't contain
                 // more ready values
                 Poll::Pending => {
-                    return if items.is_empty() { Poll::Pending } else { Poll::Ready(Some(items)) }
+                    return if items.is_empty() { Poll::Pending } else { Poll::Ready(Some(items)) };
                 }
 
                 // Push the ready item into the buffer and check whether it is full.

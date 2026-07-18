@@ -1,9 +1,12 @@
-use crate::future::{assert_future, maybe_done, MaybeDone};
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use crate::future::{MaybeDone, assert_future, maybe_done};
 
 pin_project! {
     /// Future for the [`join`](super::FutureExt::join) method.

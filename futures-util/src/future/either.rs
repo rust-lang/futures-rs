@@ -1,7 +1,12 @@
-use core::pin::Pin;
-use core::task::{Context, Poll};
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::{FusedStream, Stream};
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::{FusedStream, Stream},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
@@ -199,11 +204,11 @@ where
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
 mod if_std {
-    use super::*;
-
     use futures_io::{
         AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, Result, SeekFrom,
     };
+
+    use super::*;
 
     impl<A, B> AsyncRead for Either<A, B>
     where

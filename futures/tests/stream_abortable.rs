@@ -1,10 +1,13 @@
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::stream::{abortable, Stream, StreamExt};
-use futures::task::{Context, Poll};
-use futures::SinkExt;
-use futures_test::task::new_count_waker;
 use std::pin::Pin;
+
+use futures::{
+    SinkExt,
+    channel::mpsc,
+    executor::block_on,
+    stream::{Stream, StreamExt, abortable},
+    task::{Context, Poll},
+};
+use futures_test::task::new_count_waker;
 
 #[test]
 fn abortable_works() {

@@ -3,12 +3,16 @@
 //! This is a single-producer, single-consumer channel.
 
 use alloc::sync::Arc;
-use core::fmt;
-use core::pin::Pin;
-use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering::SeqCst;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
+use core::{
+    fmt,
+    pin::Pin,
+    sync::atomic::{AtomicBool, Ordering::SeqCst},
+};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll, Waker},
+};
 
 use crate::lock::Lock;
 
@@ -178,11 +182,7 @@ impl<T> Inner<T> {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
         }
-        if self.complete.load(SeqCst) {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        }
+        if self.complete.load(SeqCst) { Poll::Ready(()) } else { Poll::Pending }
     }
 
     fn is_canceled(&self) -> bool {

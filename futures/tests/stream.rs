@@ -1,18 +1,16 @@
-use std::cell::Cell;
-use std::iter;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::task::Context;
+use std::{cell::Cell, iter, pin::Pin, rc::Rc, sync::Arc, task::Context};
 
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::future::{self, Future};
-use futures::lock::Mutex;
-use futures::sink::SinkExt;
-use futures::stream::{self, StreamExt};
-use futures::task::Poll;
-use futures::{ready, FutureExt};
+use futures::{
+    FutureExt,
+    channel::mpsc,
+    executor::block_on,
+    future::{self, Future},
+    lock::Mutex,
+    ready,
+    sink::SinkExt,
+    stream::{self, StreamExt},
+    task::Poll,
+};
 use futures_core::Stream;
 use futures_executor::ThreadPool;
 use futures_test::task::noop_context;
@@ -50,11 +48,7 @@ fn scan() {
         let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
             .scan(1, |mut state, e| async move {
                 state += 1;
-                if e < state {
-                    Some((state, e))
-                } else {
-                    None
-                }
+                if e < state { Some((state, e)) } else { None }
             })
             .collect::<Vec<_>>()
             .await;
@@ -78,14 +72,15 @@ fn scan() {
 
 #[test]
 fn flatten_unordered() {
-    use futures::executor::block_on;
-    use futures::stream::*;
-    use futures::task::*;
-    use std::convert::identity;
-    use std::pin::Pin;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::thread;
-    use std::time::Duration;
+    use std::{
+        convert::identity,
+        pin::Pin,
+        sync::atomic::{AtomicBool, Ordering},
+        thread,
+        time::Duration,
+    };
+
+    use futures::{executor::block_on, stream::*, task::*};
 
     struct DataStream {
         data: Vec<u8>,
@@ -360,11 +355,7 @@ fn flatten_unordered() {
                 spawned = true;
             }
 
-            if ready.load(Ordering::Acquire) {
-                Poll::Ready(value.clone())
-            } else {
-                Poll::Pending
-            }
+            if ready.load(Ordering::Acquire) { Poll::Ready(value.clone()) } else { Poll::Pending }
         })
     }
 
@@ -421,11 +412,7 @@ fn take_until() {
         let mut i = 0;
         future::poll_fn(move |_cx| {
             i += 1;
-            if i <= stop_on {
-                Poll::Pending
-            } else {
-                Poll::Ready(())
-            }
+            if i <= stop_on { Poll::Pending } else { Poll::Ready(()) }
         })
     }
 

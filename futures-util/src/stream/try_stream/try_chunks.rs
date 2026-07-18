@@ -1,14 +1,16 @@
-use crate::stream::{Fuse, StreamExt};
-
 use alloc::vec::Vec;
-use core::pin::Pin;
-use core::{fmt, mem};
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{Context, Poll};
+use core::{fmt, mem, pin::Pin};
+
+use futures_core::{
+    ready,
+    stream::{FusedStream, Stream, TryStream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, StreamExt};
 
 pin_project! {
     /// Stream for the [`try_chunks`](super::TryStreamExt::try_chunks) method.

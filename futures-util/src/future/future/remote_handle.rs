@@ -1,25 +1,22 @@
-use {
-    crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Receiver, Sender},
-    futures_core::{
-        future::Future,
-        ready,
-        task::{Context, Poll},
-    },
-    pin_project_lite::pin_project,
-    std::{
-        any::Any,
-        boxed::Box,
-        fmt,
-        panic::{self, AssertUnwindSafe},
-        pin::Pin,
-        sync::{
-            atomic::{AtomicBool, Ordering},
-            Arc,
-        },
-        thread,
-    },
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    any::Any,
+    fmt,
+    panic::AssertUnwindSafe,
+    pin::Pin,
+    sync::atomic::{AtomicBool, Ordering},
 };
+use std::{panic, thread};
+
+use futures_channel::oneshot::{self, Receiver, Sender};
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use pin_project_lite::pin_project;
+
+use crate::future::{CatchUnwind, FutureExt};
 
 /// The handle to a remote future returned by
 /// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
@@ -69,7 +66,7 @@ impl<T: 'static> Future for RemoteHandle<T> {
     }
 }
 
-type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
+type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<dyn Any + Send + 'static>>;
 
 pin_project! {
     /// A future which sends its output to the corresponding `RemoteHandle`.

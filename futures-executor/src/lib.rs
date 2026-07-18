@@ -37,24 +37,25 @@
 //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![allow(clippy::thread_local_initializer_can_be_made_const)] // clippy bug: this lint doesn't consider MSRV
 
+#[cfg(feature = "std")]
+extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "std")]
 mod local_pool;
 #[cfg(feature = "std")]
-pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
+pub use crate::local_pool::{BlockingStream, LocalPool, LocalSpawner, block_on, block_on_stream};
 
 #[cfg(feature = "thread-pool")]
 #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
@@ -71,4 +72,4 @@ pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 #[cfg(feature = "std")]
 mod enter;
 #[cfg(feature = "std")]
-pub use crate::enter::{enter, Enter, EnterError};
+pub use crate::enter::{Enter, EnterError, enter};

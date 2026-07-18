@@ -1,12 +1,15 @@
-use crate::stream::{Fuse, StreamExt};
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::{Stream, TryStream},
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, StreamExt};
 
 pin_project! {
     /// Future for the [`send_all`](super::SinkExt::send_all) method.

@@ -4,10 +4,11 @@
 //! thing that ever blocks, so this is assisted with a fast user-space
 //! implementation of a lock that can only have a `try_lock` operation.
 
-use core::cell::UnsafeCell;
-use core::ops::{Deref, DerefMut};
-use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering::SeqCst;
+use core::{
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering::SeqCst},
+};
 
 /// A "mutex" around a value, similar to `std::sync::Mutex<T>`.
 ///
@@ -50,11 +51,7 @@ impl<T> Lock<T> {
     /// If `None` is returned then the lock is already locked, either elsewhere
     /// on this thread or on another thread.
     pub(crate) fn try_lock(&self) -> Option<TryLock<'_, T>> {
-        if !self.locked.swap(true, SeqCst) {
-            Some(TryLock { __ptr: self })
-        } else {
-            None
-        }
+        if !self.locked.swap(true, SeqCst) { Some(TryLock { __ptr: self }) } else { None }
     }
 }
 

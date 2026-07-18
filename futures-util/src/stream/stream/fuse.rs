@@ -1,7 +1,10 @@
 use core::pin::Pin;
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
@@ -58,11 +61,7 @@ impl<S: Stream> Stream for Fuse<S> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.done {
-            (0, Some(0))
-        } else {
-            self.stream.size_hint()
-        }
+        if self.done { (0, Some(0)) } else { self.stream.size_hint() }
     }
 }
 

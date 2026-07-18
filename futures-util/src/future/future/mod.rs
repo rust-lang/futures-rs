@@ -5,12 +5,11 @@
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-use core::convert::Infallible;
-use core::pin::Pin;
+use core::{
+    convert::Infallible,
+    pin::{Pin, pin},
+};
 
-use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
-use crate::future::{assert_future, Either};
-use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{
@@ -18,7 +17,12 @@ use futures_core::{
     stream::Stream,
     task::{Context, Poll},
 };
-use pin_utils::pin_mut;
+
+use crate::{
+    fns::{InspectFn, IntoFn, OkFn, inspect_fn, into_fn, ok_fn},
+    future::{Either, assert_future},
+    stream::assert_stream,
+};
 
 // Combinators
 
@@ -42,7 +46,7 @@ delegate_all!(
     where F: Future
 );
 
-pub use fuse::Fuse;
+pub use self::fuse::Fuse;
 
 delegate_all!(
     /// Future for the [`map`](super::FutureExt::map) method.
@@ -107,9 +111,9 @@ mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 mod shared;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::shared::{Shared, WeakShared};
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -295,6 +299,7 @@ pub trait FutureExt: Future {
     /// # futures::executor::block_on(async {
     /// use futures::future::FutureExt;
     ///
+    /// # #[allow(clippy::async_yields_async)]
     /// let nested_future = async { async { 1 } };
     /// let future = nested_future.flatten();
     /// assert_eq!(future.await, 1);
@@ -426,9 +431,9 @@ pub trait FutureExt: Future {
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
     where
-        Self: Sized + ::std::panic::UnwindSafe,
+        Self: Sized + ::core::panic::UnwindSafe,
     {
-        assert_future::<Result<Self::Output, Box<dyn std::any::Any + Send>>, _>(CatchUnwind::new(
+        assert_future::<Result<Self::Output, Box<dyn core::any::Any + Send>>, _>(CatchUnwind::new(
             self,
         ))
     }
@@ -440,7 +445,7 @@ pub trait FutureExt: Future {
     /// into a cloneable future. It enables a future to be polled by multiple
     /// threads.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or 'spin' feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -474,7 +479,7 @@ pub trait FutureExt: Future {
     /// join_handle.join().unwrap();
     /// # });
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
     fn shared(self) -> Shared<Self>
     where
         Self: Sized,
@@ -592,8 +597,7 @@ pub trait FutureExt: Future {
         let noop_waker = crate::task::noop_waker();
         let mut cx = Context::from_waker(&noop_waker);
 
-        let this = self;
-        pin_mut!(this);
+        let this = pin!(self);
         match this.poll(&mut cx) {
             Poll::Ready(x) => Some(x),
             _ => None,

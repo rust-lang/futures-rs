@@ -82,70 +82,62 @@
 //! inside an async block as written above.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
-compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
-
-#[doc(no_inline)]
-pub use futures_core::future::{Future, TryFuture};
-#[doc(no_inline)]
-pub use futures_util::future::{FutureExt, TryFutureExt};
-
-#[doc(no_inline)]
-pub use futures_core::stream::{Stream, TryStream};
-#[doc(no_inline)]
-pub use futures_util::stream::{StreamExt, TryStreamExt};
-
-#[doc(no_inline)]
-pub use futures_sink::Sink;
-#[doc(no_inline)]
-pub use futures_util::sink::SinkExt;
-
-#[cfg(feature = "std")]
-#[doc(no_inline)]
-pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
-#[cfg(feature = "std")]
-#[doc(no_inline)]
-pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-
-// Macro reexports
-pub use futures_core::ready; // Readiness propagation
-pub use futures_util::pin_mut;
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::select;
-#[cfg(feature = "async-await")]
-pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
-
-// Module reexports
-#[doc(inline)]
-pub use futures_util::{future, sink, stream, task};
-
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::stream_select;
+compile_error!(
+    "The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features"
+);
 
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use futures_channel as channel;
-#[cfg(feature = "alloc")]
-#[doc(inline)]
-pub use futures_util::lock;
-
+#[doc(no_inline)]
+pub use futures_core::future::{Future, TryFuture};
+// Macro reexports
+pub use futures_core::ready; // Readiness propagation
+#[doc(no_inline)]
+pub use futures_core::stream::{Stream, TryStream};
+#[cfg(feature = "std")]
+#[doc(no_inline)]
+pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
+#[doc(no_inline)]
+pub use futures_sink::Sink;
+#[doc(no_inline)]
+pub use futures_util::future::{FutureExt, TryFutureExt};
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use futures_util::io;
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use futures_util::lock;
+#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
+pub use futures_util::select;
+#[doc(no_inline)]
+pub use futures_util::sink::SinkExt;
+#[doc(no_inline)]
+pub use futures_util::stream::{StreamExt, TryStreamExt};
+#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
+pub use futures_util::stream_select;
+#[cfg(feature = "std")]
+#[doc(no_inline)]
+pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+// Module reexports
+#[doc(inline)]
+pub use futures_util::{future, sink, stream, task};
+#[cfg(feature = "async-await")]
+pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
 
-#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "executor")))]
 pub mod executor {
@@ -189,16 +181,14 @@ pub mod executor {
     //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
     pub use futures_executor::{
-        block_on, block_on_stream, enter, BlockingStream, Enter, EnterError, LocalPool,
-        LocalSpawner,
+        BlockingStream, Enter, EnterError, LocalPool, LocalSpawner, block_on, block_on_stream,
+        enter,
     };
-
     #[cfg(feature = "thread-pool")]
     #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
 }
 
-#[allow(clippy::mixed_attributes_style)] // https://github.com/rust-lang/rust-clippy/issues/12435
 #[cfg(feature = "compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
 pub mod compat {
@@ -207,14 +197,13 @@ pub mod compat {
     //! This module is only available when the `compat` feature of this
     //! library is activated.
 
+    #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
+    pub use futures_util::compat::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
     pub use futures_util::compat::{
         Compat, Compat01As03, Compat01As03Sink, CompatSink, Executor01As03, Executor01CompatExt,
         Executor01Future, Future01CompatExt, Sink01CompatExt, Stream01CompatExt,
     };
-
-    #[cfg(feature = "io-compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-    pub use futures_util::compat::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 }
 
 pub mod prelude {
@@ -231,23 +220,22 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use crate::future::{self, Future, TryFuture};
-    pub use crate::sink::{self, Sink};
-    pub use crate::stream::{self, Stream, TryStream};
-
     #[doc(no_inline)]
     pub use crate::future::{FutureExt as _, TryFutureExt as _};
-    #[doc(no_inline)]
-    pub use crate::sink::SinkExt as _;
-    #[doc(no_inline)]
-    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
-
     #[cfg(feature = "std")]
     pub use crate::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
-
     #[cfg(feature = "std")]
     #[doc(no_inline)]
     pub use crate::io::{
         AsyncBufReadExt as _, AsyncReadExt as _, AsyncSeekExt as _, AsyncWriteExt as _,
+    };
+    #[doc(no_inline)]
+    pub use crate::sink::SinkExt as _;
+    #[doc(no_inline)]
+    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
+    pub use crate::{
+        future::{self, Future, TryFuture},
+        sink::{self, Sink},
+        stream::{self, Stream, TryStream},
     };
 }

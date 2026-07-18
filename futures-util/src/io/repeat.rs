@@ -1,9 +1,11 @@
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, IoSliceMut};
-use std::fmt;
+use core::{fmt, pin::Pin};
 use std::io;
-use std::pin::Pin;
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::{AsyncRead, IoSliceMut};
 
 /// Reader for the [`repeat()`] function.
 #[must_use = "readers do nothing unless polled"]

@@ -3,8 +3,7 @@
 use futures_io::AsyncRead;
 
 pub use super::limited::Limited;
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
+pub use crate::{assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending};
 
 /// Additional combinators for testing async readers.
 pub trait AsyncReadTestExt: AsyncRead {
@@ -29,14 +28,15 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use futures::pin_mut;
     ///
     /// let reader = Cursor::new(&[1, 2, 3]).interleave_pending();
-    /// pin_mut!(reader);
+    /// let mut reader = pin!(reader);
     ///
     /// let mut cx = noop_context();
     ///
@@ -59,14 +59,15 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// The returned reader will also implement `AsyncBufRead` if the underlying reader does.
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::io::{AsyncBufRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use futures::pin_mut;
     ///
     /// let reader = Cursor::new(&[1, 2, 3]).interleave_pending();
-    /// pin_mut!(reader);
+    /// let mut reader = pin!(reader);
     ///
     /// let mut cx = noop_context();
     ///
@@ -93,14 +94,15 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::io::{AsyncRead, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use futures::pin_mut;
     ///
     /// let reader = Cursor::new(&[1, 2, 3, 4, 5]).limited(2);
-    /// pin_mut!(reader);
+    /// let mut reader = pin!(reader);
     ///
     /// let mut cx = noop_context();
     ///

@@ -1,5 +1,7 @@
-use core::fmt::{self, Debug};
-use core::marker::PhantomData;
+use core::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+};
 
 pub trait FnOnce1<A> {
     type Output;
@@ -30,7 +32,7 @@ where
 }
 
 // Not used, but present for completeness
-#[allow(unreachable_pub)]
+#[allow(dead_code, unreachable_pub)]
 pub trait Fn1<A>: FnMut1<A> {
     fn call(&self, arg: A) -> Self::Output;
 }

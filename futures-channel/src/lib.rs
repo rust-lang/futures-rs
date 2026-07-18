@@ -12,28 +12,27 @@
 //! library is activated, and it is activated by default.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
-#![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod lock;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "std")]
 pub mod mpsc;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub mod oneshot;

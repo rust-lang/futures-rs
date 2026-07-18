@@ -16,13 +16,8 @@
 //! This module is only available when the `std` feature of this
 //! library is activated, and it is activated by default.
 
-#[cfg(feature = "io-compat")]
-#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-use crate::compat::Compat;
-use crate::future::assert_future;
-use crate::stream::assert_stream;
-use std::{pin::Pin, ptr, string::String, vec::Vec};
-
+use alloc::{string::String, vec::Vec};
+use core::pin::Pin;
 // Re-export some types from `std::io` so that users don't have to deal
 // with conflicts when `use`ing `futures::io` and `std::io`.
 #[doc(no_inline)]
@@ -30,17 +25,14 @@ pub use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 
 pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 
+#[cfg(feature = "io-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
+use crate::compat::Compat;
+use crate::{future::assert_future, stream::assert_stream};
+
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
 const DEFAULT_BUF_SIZE: usize = 8 * 1024;
-
-/// Initializes a buffer if necessary.
-///
-/// A buffer is currently always initialized.
-#[inline]
-unsafe fn initialize<R: AsyncRead>(_reader: &R, buf: &mut [u8]) {
-    unsafe { ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len()) }
-}
 
 mod allow_std;
 pub use self::allow_std::AllowStdIo;
@@ -61,19 +53,19 @@ mod close;
 pub use self::close::Close;
 
 mod copy;
-pub use self::copy::{copy, Copy};
+pub use self::copy::{Copy, copy};
 
 mod copy_buf;
-pub use self::copy_buf::{copy_buf, CopyBuf};
+pub use self::copy_buf::{CopyBuf, copy_buf};
 
 mod copy_buf_abortable;
-pub use self::copy_buf_abortable::{copy_buf_abortable, CopyBufAbortable};
+pub use self::copy_buf_abortable::{CopyBufAbortable, copy_buf_abortable};
 
 mod cursor;
 pub use self::cursor::Cursor;
 
 mod empty;
-pub use self::empty::{empty, Empty};
+pub use self::empty::{Empty, empty};
 
 mod fill_buf;
 pub use self::fill_buf::FillBuf;
@@ -113,13 +105,13 @@ mod read_until;
 pub use self::read_until::ReadUntil;
 
 mod repeat;
-pub use self::repeat::{repeat, Repeat};
+pub use self::repeat::{Repeat, repeat};
 
 mod seek;
 pub use self::seek::Seek;
 
 mod sink;
-pub use self::sink::{sink, Sink};
+pub use self::sink::{Sink, sink};
 
 mod split;
 pub use self::split::{ReadHalf, ReuniteError, WriteHalf};

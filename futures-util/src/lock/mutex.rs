@@ -1,15 +1,20 @@
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex as StdMutex};
-use std::{fmt, mem};
+use alloc::sync::Arc;
+use core::{
+    cell::UnsafeCell,
+    fmt,
+    marker::PhantomData,
+    mem,
+    ops::{Deref, DerefMut},
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use std::sync::Mutex as StdMutex;
 
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll, Waker},
+};
 use slab::Slab;
-
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
 
 /// A futures-aware mutex.
 ///
@@ -73,7 +78,7 @@ const HAS_WAITERS: usize = 1 << 1;
 
 impl<T> Mutex<T> {
     /// Creates a new futures-aware mutex.
-    pub fn new(t: T) -> Self {
+    pub const fn new(t: T) -> Self {
         Self {
             state: AtomicUsize::new(0),
             waiters: StdMutex::new(Slab::new()),
@@ -102,11 +107,7 @@ impl<T: ?Sized> Mutex<T> {
     /// If the lock is currently held, this will return `None`.
     pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
         let old_state = self.state.fetch_or(IS_LOCKED, Ordering::Acquire);
-        if (old_state & IS_LOCKED) == 0 {
-            Some(MutexGuard { mutex: self })
-        } else {
-            None
-        }
+        if (old_state & IS_LOCKED) == 0 { Some(MutexGuard { mutex: self }) } else { None }
     }
 
     /// Attempt to acquire the lock immediately.
@@ -279,6 +280,7 @@ impl<T: ?Sized> Drop for OwnedMutexLockFuture<T> {
 /// An RAII guard returned by the `lock_owned` and `try_lock_owned` methods.
 /// When this structure is dropped (falls out of scope), the lock will be
 /// unlocked.
+#[clippy::has_significant_drop]
 pub struct OwnedMutexGuard<T: ?Sized> {
     mutex: Arc<Mutex<T>>,
 }
@@ -388,6 +390,7 @@ impl<T: ?Sized> Drop for MutexLockFuture<'_, T> {
 /// An RAII guard returned by the `lock` and `try_lock` methods.
 /// When this structure is dropped (falls out of scope), the lock will be
 /// unlocked.
+#[clippy::has_significant_drop]
 pub struct MutexGuard<'a, T: ?Sized> {
     mutex: &'a Mutex<T>,
 }
@@ -449,6 +452,7 @@ impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
 
 /// An RAII guard returned by the `MutexGuard::map` and `MappedMutexGuard::map` methods.
 /// When this structure is dropped (falls out of scope), the lock will be unlocked.
+#[clippy::has_significant_drop]
 pub struct MappedMutexGuard<'a, T: ?Sized, U: ?Sized> {
     mutex: &'a Mutex<T>,
     value: *mut U,
@@ -546,15 +550,16 @@ unsafe impl<T: ?Sized + Sync, U: ?Sized + Sync> Sync for MappedMutexGuard<'_, T,
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::format;
+
+    use super::*;
 
     #[test]
     fn test_mutex_guard_debug_not_recurse() {
         let mutex = Mutex::new(42);
         let guard = mutex.try_lock().unwrap();
-        let _ = format!("{:?}", guard);
+        let _ = format!("{guard:?}");
         let guard = MutexGuard::map(guard, |n| n);
-        let _ = format!("{:?}", guard);
+        let _ = format!("{guard:?}");
     }
 }

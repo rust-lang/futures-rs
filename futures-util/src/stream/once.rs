@@ -1,10 +1,14 @@
-use super::assert_stream;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use super::assert_stream;
 
 /// Creates a stream of a single element.
 ///
@@ -52,11 +56,7 @@ impl<Fut: Future> Stream for Once<Fut> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.future.is_some() {
-            (1, Some(1))
-        } else {
-            (0, Some(0))
-        }
+        if self.future.is_some() { (1, Some(1)) } else { (0, Some(0)) }
     }
 }
 

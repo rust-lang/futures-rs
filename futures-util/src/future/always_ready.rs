@@ -1,7 +1,11 @@
-use super::assert_future;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll},
+};
+
+use super::assert_future;
 
 /// Future for the [`always_ready`](always_ready()) function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -40,7 +44,7 @@ impl<T, F: Fn() -> T> Future for AlwaysReady<T, F> {
 
 /// Creates a future that is always immediately ready with a value.
 ///
-/// This is particularly useful in avoiding a heap allocation when an API needs [`Box<dyn Future<Output = T>>`],
+/// This is particularly useful in avoiding a heap allocation when an API needs `Box<dyn Future<Output = T>>`,
 /// as [`AlwaysReady`] does not have to store a boolean for `is_finished`.
 ///
 /// # Examples

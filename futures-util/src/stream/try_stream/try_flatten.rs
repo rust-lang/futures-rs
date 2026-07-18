@@ -1,7 +1,10 @@
 use core::pin::Pin;
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    ready,
+    stream::{FusedStream, Stream, TryStream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;

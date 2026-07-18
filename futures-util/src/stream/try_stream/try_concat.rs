@@ -1,8 +1,11 @@
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::TryStream;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::TryStream,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
 pin_project! {
@@ -38,11 +41,7 @@ where
 
         Poll::Ready(Ok(loop {
             if let Some(x) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                if let Some(a) = this.accum {
-                    a.extend(x)
-                } else {
-                    *this.accum = Some(x)
-                }
+                if let Some(a) = this.accum { a.extend(x) } else { *this.accum = Some(x) }
             } else {
                 break this.accum.take().unwrap_or_default();
             }

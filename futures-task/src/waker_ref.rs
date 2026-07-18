@@ -1,10 +1,12 @@
-use super::arc_wake::ArcWake;
-use super::waker::waker_vtable;
 use alloc::sync::Arc;
-use core::marker::PhantomData;
-use core::mem::ManuallyDrop;
-use core::ops::Deref;
-use core::task::{RawWaker, Waker};
+use core::{
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    ops::Deref,
+    task::{RawWaker, Waker},
+};
+
+use super::{arc_wake::ArcWake, waker::waker_vtable};
 
 /// A [`Waker`] that is only valid for a given lifetime.
 ///

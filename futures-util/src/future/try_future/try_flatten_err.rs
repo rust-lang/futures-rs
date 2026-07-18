@@ -1,7 +1,10 @@
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::{FusedFuture, Future, TryFuture},
+    ready,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
 pin_project! {

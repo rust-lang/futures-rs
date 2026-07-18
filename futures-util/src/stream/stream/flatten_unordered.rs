@@ -9,8 +9,6 @@ use core::{
     sync::atomic::{AtomicU8, Ordering},
 };
 
-use pin_project_lite::pin_project;
-
 use futures_core::{
     future::Future,
     ready,
@@ -19,7 +17,8 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use futures_task::{waker, ArcWake};
+use futures_task::{ArcWake, waker};
+use pin_project_lite::pin_project;
 
 use crate::stream::FuturesUnordered;
 
@@ -63,14 +62,11 @@ impl SharedPollState {
     /// Attempts to start polling, returning stored state in case of success.
     /// Returns `None` if either waker is waking at the moment.
     fn start_polling(&self) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                if value & WAKING == NONE {
-                    Some(POLLING)
-                } else {
-                    None
-                }
+                if value & WAKING == NONE { Some(POLLING) } else { None }
             })
             .ok()?;
         let bomb = PollStateBomb::new(self, Self::reset);
@@ -86,6 +82,7 @@ impl SharedPollState {
         &self,
         to_poll: u8,
     ) -> Option<(u8, PollStateBomb<'_, impl FnOnce(&Self) -> u8>)> {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
@@ -94,11 +91,7 @@ impl SharedPollState {
                     next_value |= WAKING;
                 }
 
-                if next_value != value {
-                    Some(next_value)
-                } else {
-                    None
-                }
+                if next_value != value { Some(next_value) } else { None }
             })
             .ok()?;
 
@@ -119,8 +112,9 @@ impl SharedPollState {
     /// - `!WAKING` as
     ///   * Wakers called during the `POLLING` phase won't propagate their calls
     ///   * `POLLING` phase can't start if some of the wakers are active
-    ///   So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
+    ///     So no wrapped waker can touch the inner waker's cell, it's safe to poll again.
     fn stop_polling(&self, to_poll: u8, will_be_woken: bool) -> u8 {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |mut value| {
                 let mut next_value = to_poll;
@@ -138,16 +132,13 @@ impl SharedPollState {
 
     /// Toggles state to non-waking, allowing to start polling.
     fn stop_waking(&self) -> u8 {
+        #[allow(deprecated)] // fetch_update was renamed to try_update in rust 1.95.0
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
                 let next_value = value & !WAKING | WOKEN;
 
-                if next_value != value {
-                    Some(next_value)
-                } else {
-                    None
-                }
+                if next_value != value { Some(next_value) } else { None }
             })
             .unwrap_or_else(identity);
 
@@ -371,7 +362,7 @@ where
 {
     /// Checks if current `inner_streams` bucket size is greater than optional limit.
     fn is_exceeded_limit(&self) -> bool {
-        self.limit.map_or(false, |limit| self.inner_streams.len() >= limit.get())
+        self.limit.is_some_and(|limit| self.inner_streams.len() >= limit.get())
     }
 }
 

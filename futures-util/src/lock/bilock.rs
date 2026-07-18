@@ -1,13 +1,15 @@
 //! Futures-powered synchronization primitives.
 
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::cell::UnsafeCell;
-use core::ops::{Deref, DerefMut};
-use core::pin::Pin;
-use core::sync::atomic::AtomicPtr;
-use core::sync::atomic::Ordering::SeqCst;
-use core::{fmt, ptr};
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    cell::UnsafeCell,
+    fmt,
+    ops::{Deref, DerefMut},
+    pin::Pin,
+    ptr,
+    sync::atomic::{AtomicPtr, Ordering::SeqCst},
+};
+
 #[cfg(feature = "bilock")]
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll, Waker};
@@ -139,7 +141,6 @@ impl<T> BiLock<T> {
     ///
     /// This function consumes the `BiLock<T>` and returns a sentinel future,
     /// `BiLockAcquire<T>`. The returned future will resolve to
-    /// `BiLockAcquired<T>` which represents a locked lock similarly to
     /// `BiLockGuard<T>`.
     ///
     /// Note that the returned future will never resolve to an error.

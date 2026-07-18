@@ -1,8 +1,10 @@
-use core::fmt;
-use core::pin::Pin;
-use futures_core::ready;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 
 use crate::lock::BiLock;
@@ -159,9 +161,10 @@ impl<T: core::any::Any, Item> std::error::Error for ReuniteError<T, Item> {}
 
 #[cfg(test)]
 mod tests {
+    use core::marker::PhantomData;
+
     use super::*;
     use crate::stream::StreamExt;
-    use core::marker::PhantomData;
 
     struct NopStream<Item> {
         phantom: PhantomData<Item>,

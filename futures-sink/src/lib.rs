@@ -4,23 +4,25 @@
 //! asynchronously.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
-#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_docs,
+    // unsafe_op_in_unsafe_fn, // unsafe_op_in_unsafe_fn requires Rust 1.52
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-use core::ops::DerefMut;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    ops::DerefMut,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -162,8 +164,9 @@ where
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use core::convert::Infallible;
+
+    use super::*;
 
     impl<T> Sink<T> for alloc::vec::Vec<T> {
         type Error = Infallible;

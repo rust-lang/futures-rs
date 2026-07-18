@@ -1,10 +1,11 @@
-use futures_io::AsyncWrite;
-use futures_sink::Sink;
-use std::{
-    io::{self, IoSlice},
+use core::{
     pin::Pin,
     task::{Context, Poll},
 };
+use std::io::{self, IoSlice};
+
+use futures_io::AsyncWrite;
+use futures_sink::Sink;
 
 /// Async wrapper that tracks whether it has been closed.
 ///

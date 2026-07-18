@@ -1,9 +1,10 @@
+use std::pin::Pin;
+
 use futures::{
     executor::block_on,
     io::{self, AsyncRead, AsyncReadExt},
     task::{Context, Poll},
 };
-use std::pin::Pin;
 
 #[test]
 #[should_panic(expected = "assertion failed: n <= buf.len()")]
@@ -48,11 +49,9 @@ fn issue2310() {
     impl Drop for VecWrapper {
         fn drop(&mut self) {
             // Observe uninitialized bytes
-            println!("{:?}", &self.inner);
+            println!("{:?}", self.inner);
             // Overwrite heap contents
-            for b in &mut self.inner {
-                *b = 0x90;
-            }
+            self.inner.fill(0x90);
         }
     }
 

@@ -43,12 +43,12 @@ mod context;
 pub use self::context::{noop_context, panic_context};
 
 mod noop_spawner;
-pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
-
 pub use futures_util::task::{noop_waker, noop_waker_ref};
 
+pub use self::noop_spawner::{NoopSpawner, noop_spawner_mut};
+
 mod panic_spawner;
-pub use self::panic_spawner::{panic_spawner_mut, PanicSpawner};
+pub use self::panic_spawner::{PanicSpawner, panic_spawner_mut};
 
 mod panic_waker;
 pub use self::panic_waker::{panic_waker, panic_waker_ref};
@@ -57,4 +57,4 @@ mod record_spawner;
 pub use self::record_spawner::RecordSpawner;
 
 mod wake_counter;
-pub use self::wake_counter::{new_count_waker, AwokenCount};
+pub use self::wake_counter::{AwokenCount, new_count_waker};

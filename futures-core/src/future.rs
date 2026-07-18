@@ -1,18 +1,29 @@
 //! Futures.
 
-use core::ops::DerefMut;
-use core::pin::Pin;
-use core::task::{Context, Poll};
-
 #[doc(no_inline)]
 pub use core::future::Future;
+use core::{
+    ops::DerefMut,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
+///
+/// This type is often created by the [`boxed`] method on [`FutureExt`]. See its documentation for more.
+///
+/// [`boxed`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html#method.boxed
+/// [`FutureExt`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html
 #[cfg(feature = "alloc")]
 pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// `BoxFuture`, but without the `Send` requirement.
+///
+/// This type is often created by the [`boxed_local`] method on [`FutureExt`]. See its documentation for more.
+///
+/// [`boxed_local`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html#method.boxed_local
+/// [`FutureExt`]: https://docs.rs/futures/latest/futures/future/trait.FutureExt.html
 #[cfg(feature = "alloc")]
 pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
@@ -88,8 +99,9 @@ where
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use alloc::boxed::Box;
+
+    use super::*;
 
     impl<F: FusedFuture + ?Sized + Unpin> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {

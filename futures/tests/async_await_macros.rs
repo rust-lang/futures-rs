@@ -1,19 +1,23 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::block_on;
-use futures::future::{self, poll_fn, FutureExt};
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
+use std::{mem, pin::pin};
+
 use futures::{
-    join, pending, pin_mut, poll, select, select_biased, stream, stream_select, try_join,
+    channel::{mpsc, oneshot},
+    executor::block_on,
+    future::{self, FutureExt, poll_fn},
+    join, pending, poll, select, select_biased,
+    sink::SinkExt,
+    stream,
+    stream::StreamExt,
+    stream_select,
+    task::{Context, Poll},
+    try_join,
 };
-use std::mem;
 
 #[test]
 fn poll_and_pending() {
     let pending_once = async { pending!() };
     block_on(async {
-        pin_mut!(pending_once);
+        let mut pending_once = pin!(pending_once);
         assert_eq!(Poll::Pending, poll!(&mut pending_once));
         assert_eq!(Poll::Ready(()), poll!(&mut pending_once));
     });
@@ -30,7 +34,7 @@ fn join() {
     };
 
     block_on(async {
-        pin_mut!(fut);
+        let mut fut = pin!(fut);
         assert_eq!(Poll::Pending, poll!(&mut fut));
         tx1.send(1).unwrap();
         assert_eq!(Poll::Pending, poll!(&mut fut));

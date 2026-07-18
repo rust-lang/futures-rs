@@ -1,7 +1,11 @@
-use crate::future::FutureExt;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+
+use crate::future::FutureExt;
 
 /// A macro which returns the result of polling a future once within the
 /// current `async` context.

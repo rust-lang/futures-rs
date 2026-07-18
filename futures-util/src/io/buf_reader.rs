@@ -1,14 +1,16 @@
-use super::DEFAULT_BUF_SIZE;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use alloc::{boxed::Box, vec};
+use core::{cmp, fmt, pin::Pin};
+use std::io::{self, Read};
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
 use pin_project_lite::pin_project;
-use std::boxed::Box;
-use std::io::{self, Read};
-use std::pin::Pin;
-use std::vec;
-use std::{cmp, fmt};
+
+use super::DEFAULT_BUF_SIZE;
 
 pin_project! {
     /// The `BufReader` struct adds buffering to any reader.
@@ -195,7 +197,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
     /// [`BufReader::seek_relative`](BufReader::seek_relative) or
     /// [`BufReader::poll_seek_relative`](BufReader::poll_seek_relative).
     ///
-    /// See [`AsyncSeek`](futures_io::AsyncSeek) for more details.
+    /// See [`AsyncSeek`] for more details.
     ///
     /// Note: In the edge case where you're seeking with `SeekFrom::Current(n)`
     /// where `n` minus the internal buffer length overflows an `i64`, two

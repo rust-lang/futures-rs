@@ -3,6 +3,12 @@
 
 //! Assert Send/Sync/Unpin for all public types.
 
+use std::{
+    cell::Cell,
+    marker::{PhantomData, PhantomPinned},
+    pin::Pin,
+};
+
 use futures::{
     future::Future,
     sink::Sink,
@@ -10,8 +16,6 @@ use futures::{
     task::{Context, Poll},
 };
 use static_assertions::{assert_impl_all as assert_impl, assert_not_impl_all as assert_not_impl};
-use std::marker::PhantomPinned;
-use std::{marker::PhantomData, pin::Pin};
 
 type LocalFuture<T = *const ()> = Pin<Box<dyn Future<Output = T>>>;
 type LocalTryFuture<T = *const (), E = *const ()> = LocalFuture<Result<T, E>>;
@@ -74,8 +78,9 @@ impl<T, E> Sink<T> for PinnedSink<T, E> {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::channel`.
 mod channel {
-    use super::*;
     use futures::channel::*;
+
+    use super::*;
 
     assert_impl!(mpsc::Receiver<()>: Send);
     assert_not_impl!(mpsc::Receiver<*const ()>: Send);
@@ -141,8 +146,9 @@ mod channel {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::compat`.
 mod compat {
-    use super::*;
     use futures::compat::*;
+
+    use super::*;
 
     assert_impl!(Compat<()>: Send);
     assert_not_impl!(Compat<*const ()>: Send);
@@ -183,8 +189,9 @@ mod compat {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::executor`.
 mod executor {
-    use super::*;
     use futures::executor::*;
+
+    use super::*;
 
     assert_impl!(BlockingStream<SendStream>: Send);
     assert_not_impl!(BlockingStream<LocalStream>: Send);
@@ -221,8 +228,9 @@ mod executor {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::future`.
 mod future {
-    use super::*;
     use futures::future::*;
+
+    use super::*;
 
     assert_impl!(AbortHandle: Send);
     assert_impl!(AbortHandle: Sync);
@@ -647,8 +655,9 @@ mod future {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::io`.
 mod io {
-    use super::*;
     use futures::io::{Sink, *};
+
+    use super::*;
 
     assert_impl!(AllowStdIo<()>: Send);
     assert_not_impl!(AllowStdIo<*const ()>: Send);
@@ -885,8 +894,9 @@ mod io {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::lock`.
 mod lock {
-    use super::*;
     use futures::lock::*;
+
+    use super::*;
 
     #[cfg(feature = "bilock")]
     assert_impl!(BiLock<()>: Send);
@@ -961,9 +971,11 @@ mod lock {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::sink`.
 mod sink {
-    use super::*;
-    use futures::sink::{self, *};
     use std::marker::Send;
+
+    use futures::sink::{self, *};
+
+    use super::*;
 
     assert_impl!(Buffer<(), ()>: Send);
     assert_not_impl!(Buffer<(), *const ()>: Send);
@@ -1090,8 +1102,9 @@ mod sink {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::stream`.
 mod stream {
-    use super::*;
     use futures::{io, stream::*};
+
+    use super::*;
 
     assert_impl!(AndThen<(), (), ()>: Send);
     assert_not_impl!(AndThen<*const (), (), ()>: Send);
@@ -1836,6 +1849,7 @@ mod stream {
 
     assert_impl!(futures_unordered::Iter<'_, ()>: Send);
     assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Send);
+    assert_not_impl!(futures_unordered::Iter<'_, Cell<()>>: Send);
     assert_impl!(futures_unordered::Iter<'_, ()>: Sync);
     assert_not_impl!(futures_unordered::Iter<'_, *const ()>: Sync);
     assert_impl!(futures_unordered::Iter<'_, ()>: Unpin);
@@ -1858,6 +1872,7 @@ mod stream {
 
     assert_impl!(futures_unordered::IterPinRef<'_, ()>: Send);
     assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Send);
+    assert_not_impl!(futures_unordered::IterPinRef<'_, Cell<()>>: Send);
     assert_impl!(futures_unordered::IterPinRef<'_, ()>: Sync);
     assert_not_impl!(futures_unordered::IterPinRef<'_, *const ()>: Sync);
     assert_impl!(futures_unordered::IterPinRef<'_, PhantomPinned>: Unpin);
@@ -1872,8 +1887,9 @@ mod stream {
 
 /// Assert Send/Sync/Unpin for all public types in `futures::task`.
 mod task {
-    use super::*;
     use futures::task::*;
+
+    use super::*;
 
     assert_impl!(AtomicWaker: Send);
     assert_impl!(AtomicWaker: Sync);

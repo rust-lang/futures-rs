@@ -1,10 +1,11 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{AsyncBufReadExt, Cursor};
-use futures::stream::{self, StreamExt, TryStreamExt};
-use futures::task::Poll;
-use futures_test::io::AsyncReadTestExt;
-use futures_test::task::noop_context;
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{AsyncBufReadExt, Cursor},
+    stream::{self, StreamExt, TryStreamExt},
+    task::Poll,
+};
+use futures_test::{io::AsyncReadTestExt, task::noop_context};
 
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {
     let mut cx = noop_context();
@@ -26,10 +27,10 @@ fn read_until() {
     let mut v = Vec::new();
     assert_eq!(block_on(buf.read_until(b'3', &mut v)).unwrap(), 3);
     assert_eq!(v, b"123");
-    v.truncate(0);
+    v.clear();
     assert_eq!(block_on(buf.read_until(b'3', &mut v)).unwrap(), 1);
     assert_eq!(v, b"3");
-    v.truncate(0);
+    v.clear();
     assert_eq!(block_on(buf.read_until(b'3', &mut v)).unwrap(), 0);
     assert_eq!(v, []);
 }

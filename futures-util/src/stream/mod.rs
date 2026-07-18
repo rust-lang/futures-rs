@@ -17,129 +17,119 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 
 #[allow(clippy::module_inception)]
 mod stream;
+#[cfg(feature = "std")]
+pub use self::stream::CatchUnwind;
+#[cfg(feature = "alloc")]
+pub use self::stream::Chunks;
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::stream::Forward;
+#[cfg(feature = "alloc")]
+pub use self::stream::ReadyChunks;
 pub use self::stream::{
     All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
     Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
     SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then,
     TryFold, TryForEach, Unzip, Zip,
 };
-
-#[cfg(feature = "std")]
-pub use self::stream::CatchUnwind;
-
-#[cfg(feature = "alloc")]
-pub use self::stream::Chunks;
-
-#[cfg(feature = "alloc")]
-pub use self::stream::ReadyChunks;
-
-#[cfg(feature = "sink")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub use self::stream::Forward;
-
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::stream::{
     BufferUnordered, Buffered, FlatMapUnordered, FlattenUnordered, ForEachConcurrent,
     TryForEachConcurrent,
 };
-
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
 pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 
 mod try_stream;
-pub use self::try_stream::{
-    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, OrElse, TryAll, TryAny,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
-    TryStreamExt, TryTakeWhile, TryUnfold,
-};
-
 #[cfg(feature = "io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]
 pub use self::try_stream::IntoAsyncRead;
-
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-#[cfg(feature = "alloc")]
-pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered};
-
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::try_stream::TryForward;
-
+pub use self::try_stream::{
+    AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, OrElse, TryAll, TryAny, TryCollect,
+    TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile, TryStreamExt,
+    TryTakeWhile, TryUnfold, try_unfold,
+};
+#[cfg(target_has_atomic = "ptr")]
+#[cfg(feature = "alloc")]
+pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered};
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryChunks, TryChunksError, TryReadyChunks, TryReadyChunksError};
 
 // Primitive streams
 
 mod iter;
-pub use self::iter::{iter, Iter};
+pub use self::iter::{Iter, iter};
 
 mod repeat;
-pub use self::repeat::{repeat, Repeat};
+pub use self::repeat::{Repeat, repeat};
 
 mod repeat_with;
-pub use self::repeat_with::{repeat_with, RepeatWith};
+pub use self::repeat_with::{RepeatWith, repeat_with};
 
 mod empty;
-pub use self::empty::{empty, Empty};
+pub use self::empty::{Empty, empty};
 
 mod once;
-pub use self::once::{once, Once};
+pub use self::once::{Once, once};
 
 mod pending;
-pub use self::pending::{pending, Pending};
+pub use self::pending::{Pending, pending};
 
 mod poll_fn;
-pub use self::poll_fn::{poll_fn, PollFn};
+pub use self::poll_fn::{PollFn, poll_fn};
 
 mod poll_immediate;
-pub use self::poll_immediate::{poll_immediate, PollImmediate};
+pub use self::poll_immediate::{PollImmediate, poll_immediate};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{Select, select};
 
 mod select_with_strategy;
-pub use self::select_with_strategy::{select_with_strategy, PollNext, SelectWithStrategy};
+pub use self::select_with_strategy::{PollNext, SelectWithStrategy, select_with_strategy};
 
 mod unfold;
-pub use self::unfold::{unfold, Unfold};
+pub use self::unfold::{Unfold, unfold};
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod futures_ordered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::futures_ordered::FuturesOrdered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(any(target_has_atomic = "ptr", feature = "portable-atomic-alloc"))]
 #[cfg(feature = "alloc")]
 pub mod futures_unordered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(any(target_has_atomic = "ptr", feature = "portable-atomic-alloc"))]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use self::futures_unordered::FuturesUnordered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub mod select_all;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
-pub use self::select_all::{select_all, SelectAll};
+pub use self::select_all::{SelectAll, select_all};
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod abortable;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
+#[cfg(feature = "alloc")]
+pub use self::abortable::abortable;
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-#[cfg(feature = "alloc")]
-pub use abortable::abortable;
 
 // Just a helper function to ensure the streams we're returning all have the
 // right implementations.

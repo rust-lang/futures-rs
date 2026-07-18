@@ -2,7 +2,8 @@
 name = "futures"
 version = "0.4.0-alpha.0"
 edition = "2018"
-rust-version = "1.56"
+# NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
+rust-version = "1.71"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 keywords = ["futures", "async", "future"]
@@ -19,7 +20,7 @@ futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-f
 futures-task = { path = "../futures-task", version = "=0.4.0-alpha.0", default-features = false }
 futures-channel = { path = "../futures-channel", version = "=0.4.0-alpha.0", default-features = false, features = ["sink"] }
 futures-executor = { path = "../futures-executor", version = "=0.4.0-alpha.0", default-features = false, optional = true }
-futures-io = { path = "../futures-io", version = "0.3.30", default-features = false }
+futures-io = { path = "../futures-io", version = "0.3.32", default-features = false }
 futures-sink = { path = "../futures-sink", version = "=0.4.0-alpha.0", default-features = false }
 futures-util = { path = "../futures-util", version = "=0.4.0-alpha.0", default-features = false, features = ["sink"] }
 
@@ -40,6 +41,7 @@ compat = ["std", "futures-util/compat"]
 io-compat = ["compat", "futures-util/io-compat"]
 executor = ["std", "futures-executor/std"]
 thread-pool = ["executor", "futures-executor/thread-pool"]
+spin = ["futures-util/spin"]
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the

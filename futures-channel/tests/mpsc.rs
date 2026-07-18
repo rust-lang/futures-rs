@@ -1,14 +1,22 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{poll_fn, FutureExt};
-use futures::pin_mut;
-use futures::sink::{Sink, SinkExt};
-use futures::stream::{Stream, StreamExt};
-use futures::task::{Context, Poll};
+use std::{
+    pin::pin,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread,
+};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::{block_on, block_on_stream},
+    future::{FutureExt, poll_fn},
+    sink::{Sink, SinkExt},
+    stream::{Stream, StreamExt},
+    task::{Context, Poll},
+};
+use futures_channel::mpsc::{RecvError, TryRecvError};
 use futures_test::task::{new_count_waker, noop_context};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[allow(dead_code)]
 trait AssertSend: Send {}
@@ -30,7 +38,8 @@ fn send_recv_no_buffer() {
     // Run on a task context
     block_on(poll_fn(move |cx| {
         let (tx, rx) = mpsc::channel::<i32>(0);
-        pin_mut!(tx, rx);
+        let mut tx = pin!(tx);
+        let mut rx = pin!(rx);
 
         assert!(tx.as_mut().poll_flush(cx).is_ready());
         assert!(tx.as_mut().poll_ready(cx).is_ready());
@@ -428,6 +437,49 @@ fn stress_poll_ready() {
 }
 
 #[test]
+fn test_bounded_recv() {
+    let (dropped_tx, dropped_rx) = oneshot::channel();
+    let (tx, mut rx) = mpsc::channel(1);
+    thread::spawn(move || {
+        block_on(async move {
+            send_one_two_three(tx).await;
+            dropped_tx.send(()).unwrap();
+        });
+    });
+
+    let res = block_on(async move {
+        let mut res = Vec::new();
+        for _ in 0..3 {
+            res.push(rx.recv().await.unwrap());
+        }
+        dropped_rx.await.unwrap();
+        assert_eq!(rx.recv().await, Err(RecvError));
+        res
+    });
+    assert_eq!(res, [1, 2, 3]);
+}
+
+#[test]
+fn test_unbounded_recv() {
+    let (mut tx, mut rx) = mpsc::unbounded();
+
+    let res = block_on(async move {
+        let mut res = Vec::new();
+        for i in 1..=3 {
+            tx.send(i).await.unwrap();
+        }
+        drop(tx);
+
+        for _ in 0..3 {
+            res.push(rx.recv().await.unwrap());
+        }
+        assert_eq!(rx.recv().await, Err(RecvError));
+        res
+    });
+    assert_eq!(res, [1, 2, 3]);
+}
+
+#[test]
 fn try_send_1() {
     const N: usize = if cfg!(miri) { 100 } else { 3000 };
     let (mut tx, rx) = mpsc::channel(0);
@@ -502,12 +554,12 @@ fn try_send_recv() {
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap_err(); // should be full
-    rx.try_next().unwrap();
-    rx.try_next().unwrap();
-    rx.try_next().unwrap_err(); // should be empty
+    rx.try_recv().unwrap();
+    rx.try_recv().unwrap();
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
     tx.try_send("hello").unwrap();
-    rx.try_next().unwrap();
-    rx.try_next().unwrap_err(); // should be empty
+    rx.try_recv().unwrap();
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
 }
 
 #[test]
@@ -542,8 +594,7 @@ fn is_connected_to() {
 
 #[test]
 fn hash_receiver() {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
+    use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
     let mut hasher_a1 = DefaultHasher::new();
     let mut hasher_a2 = DefaultHasher::new();

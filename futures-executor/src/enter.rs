@@ -1,7 +1,6 @@
-use std::cell::Cell;
-use std::fmt;
+use core::{cell::Cell, fmt};
 
-std::thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
+std::thread_local!(static ENTERED: Cell<bool> = const { Cell::new(false) });
 
 /// Represents an executor context.
 ///
@@ -34,8 +33,8 @@ impl std::error::Error for EnterError {}
 /// executor.
 ///
 /// Executor implementations should call this function before beginning to
-/// execute a task, and drop the returned [`Enter`](Enter) value after
-/// completing task execution:
+/// execute a task, and drop the returned [`Enter`] value after completing
+/// task execution:
 ///
 /// ```
 /// use futures::executor::enter;

@@ -1,12 +1,13 @@
-use crate::stream::{FuturesUnordered, StreamExt};
-use core::fmt;
-use core::mem;
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, num::NonZeroUsize, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::Stream,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use crate::stream::{FuturesUnordered, StreamExt};
 
 pin_project! {
     /// Future for the
@@ -113,7 +114,7 @@ where
                     // Empty the stream and futures so that we know
                     // the future has completed.
                     this.stream.set(None);
-                    drop(mem::replace(this.futures, FuturesUnordered::new()));
+                    drop(core::mem::take(this.futures));
                     return Poll::Ready(Err(e));
                 }
             }

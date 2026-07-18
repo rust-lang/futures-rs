@@ -1,10 +1,12 @@
-use futures::channel::oneshot;
-use futures::future::{self, Future, FutureExt, TryFutureExt};
-use futures::task::{Context, Poll};
+use std::{pin::Pin, sync::mpsc};
+
+use futures::{
+    channel::oneshot,
+    future::{self, Future, FutureExt, TryFutureExt},
+    task::{Context, Poll},
+};
 use futures_test::future::FutureTestExt;
 use pin_project::pin_project;
-use std::pin::Pin;
-use std::sync::mpsc;
 
 #[test]
 fn map_ok() {

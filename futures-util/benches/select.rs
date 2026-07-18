@@ -1,10 +1,12 @@
 #![feature(test)]
 
 extern crate test;
-use crate::test::Bencher;
+use futures::{
+    executor::block_on,
+    stream::{StreamExt, repeat, select},
+};
 
-use futures::executor::block_on;
-use futures::stream::{repeat, select, StreamExt};
+use crate::test::Bencher;
 
 #[bench]
 fn select_streams(b: &mut Bencher) {

@@ -3,14 +3,6 @@
 //! This module contains a number of functions for working with `Streams`s
 //! that return `Result`s, allowing for short-circuiting computations.
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
-use crate::fns::{
-    inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, InspectErrFn, InspectOkFn,
-    IntoFn, MapErrFn, MapOkFn,
-};
-use crate::future::assert_future;
-use crate::stream::{assert_stream, Inspect, Map};
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
@@ -22,6 +14,17 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
+
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+use crate::{
+    fns::{
+        InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, inspect_err_fn, inspect_ok_fn,
+        into_fn, map_err_fn, map_ok_fn,
+    },
+    future::assert_future,
+    stream::{Inspect, Map, assert_stream},
+};
 
 mod and_then;
 pub use self::and_then::AndThen;
@@ -89,10 +92,10 @@ pub use self::try_filter_map::TryFilterMap;
 mod try_flatten;
 pub use self::try_flatten::TryFlatten;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod try_flatten_unordered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::try_flatten_unordered::TryFlattenUnordered;
 
@@ -113,7 +116,7 @@ mod try_ready_chunks;
 pub use self::try_ready_chunks::{TryReadyChunks, TryReadyChunksError};
 
 mod try_unfold;
-pub use self::try_unfold::{try_unfold, TryUnfold};
+pub use self::try_unfold::{TryUnfold, try_unfold};
 
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;
@@ -121,17 +124,17 @@ pub use self::try_skip_while::TrySkipWhile;
 mod try_take_while;
 pub use self::try_take_while::TryTakeWhile;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod try_buffer_unordered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::try_buffer_unordered::TryBufferUnordered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod try_buffered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::try_buffered::TryBuffered;
 
@@ -286,7 +289,7 @@ pub trait TryStreamExt: TryStream {
     /// Any successful values produced by this stream will not be passed to the
     /// closure, and will be passed through.
     ///
-    /// The returned value of the closure must implement the [`TryFuture`](futures_core::future::TryFuture) trait
+    /// The returned value of the closure must implement the [`TryFuture`] trait
     /// and can represent some more work to be done before the composed stream
     /// is finished.
     ///
@@ -626,8 +629,11 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     /// ```
     /// # futures::executor::block_on(async {
-    /// use futures::stream::{self, StreamExt, TryStreamExt};
-    /// use futures::pin_mut;
+    /// use core::pin::pin;
+    ///
+    /// use futures::stream;
+    /// use futures::stream::StreamExt;
+    /// use futures::stream::TryStreamExt;
     ///
     /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
     /// let halves = stream.try_filter_map(|x| async move {
@@ -635,7 +641,7 @@ pub trait TryStreamExt: TryStream {
     ///     Ok(ret)
     /// });
     ///
-    /// pin_mut!(halves);
+    /// let mut halves = pin!(halves);
     /// assert_eq!(halves.next().await, Some(Ok(3)));
     /// assert_eq!(halves.next().await, Some(Err("error")));
     /// # })
@@ -693,7 +699,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(values, vec![Ok(1), Ok(2), Ok(4), Err(3), Err(5)]);
     /// # });
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn try_flatten_unordered(self, limit: impl Into<Option<usize>>) -> TryFlattenUnordered<Self>
     where
@@ -766,7 +772,7 @@ pub trait TryStreamExt: TryStream {
     /// the subsequent successful results of the stream. If the stream is empty,
     /// the default value will be returned.
     ///
-    /// Works with all collections that implement the [`Extend`](std::iter::Extend) trait.
+    /// Works with all collections that implement the [`Extend`] trait.
     ///
     /// This method is similar to [`concat`](crate::stream::StreamExt::concat), but will
     /// exit early if an error is encountered in the stream.
@@ -803,7 +809,7 @@ pub trait TryStreamExt: TryStream {
 
     /// Attempt to execute several futures from a stream concurrently (unordered).
     ///
-    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
+    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their
@@ -862,7 +868,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(buffered.next().await, Some(Err("error in the stream")));
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn try_buffer_unordered(self, n: impl Into<Option<usize>>) -> TryBufferUnordered<Self>
     where
@@ -876,7 +882,7 @@ pub trait TryStreamExt: TryStream {
 
     /// Attempt to execute several futures from a stream concurrently.
     ///
-    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
+    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their
@@ -942,7 +948,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(buffered.next().await, Some(Err("error in the stream")));
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn try_buffered(self, n: impl Into<Option<usize>>) -> TryBuffered<Self>
     where
@@ -972,7 +978,7 @@ pub trait TryStreamExt: TryStream {
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
     /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
     /// ```
-    /// # if cfg!(miri) { return; } // Miri does not support epoll
+    /// # if cfg!(miri) { return; } // Miri does not support epoll_create
     /// use futures::future::{FutureExt, TryFutureExt};
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///

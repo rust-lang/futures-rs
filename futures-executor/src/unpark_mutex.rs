@@ -1,6 +1,7 @@
-use std::cell::UnsafeCell;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
+use core::{
+    cell::UnsafeCell,
+    sync::atomic::{AtomicUsize, Ordering::SeqCst},
+};
 
 /// A "lock" around data `D`, which employs a *helping* strategy.
 ///

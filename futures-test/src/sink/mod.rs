@@ -2,9 +2,9 @@
 
 use futures_sink::Sink;
 
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
-pub use crate::track_closed::TrackClosed;
+pub use crate::{
+    assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending, track_closed::TrackClosed,
+};
 
 /// Additional combinators for testing sinks.
 pub trait SinkTestExt<Item>: Sink<Item> {

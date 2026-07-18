@@ -1,12 +1,15 @@
-use crate::task::AtomicWaker;
-use alloc::sync::Arc;
-use core::cell::UnsafeCell;
-use core::ptr;
-use core::sync::atomic::AtomicPtr;
-use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
+use core::{cell::UnsafeCell, ptr};
 
-use super::abort::abort;
-use super::task::Task;
+use super::{
+    Arc,
+    abort::abort,
+    atomic::{
+        AtomicPtr,
+        Ordering::{AcqRel, Acquire, Relaxed, Release},
+    },
+    task::Task,
+};
+use crate::task::AtomicWaker;
 
 pub(super) enum Dequeue<Fut> {
     Data(*const Task<Fut>),
@@ -27,6 +30,8 @@ pub(super) struct ReadyToRunQueue<Fut> {
 /// An MPSC queue into which the tasks containing the futures are inserted
 /// whenever the future inside is scheduled for polling.
 impl<Fut> ReadyToRunQueue<Fut> {
+    // FIXME: this takes raw pointer without safety conditions.
+
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
     pub(super) fn enqueue(&self, task: *const Task<Fut>) {
         unsafe {
@@ -67,7 +72,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
                 return Dequeue::Data(tail);
             }
 
-            if self.head.load(Acquire) as *const _ != tail {
+            if !core::ptr::eq(self.head.load(Acquire), tail) {
                 return Dequeue::Inconsistent;
             }
 

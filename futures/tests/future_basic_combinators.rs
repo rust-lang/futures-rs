@@ -1,6 +1,7 @@
+use std::sync::mpsc;
+
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures_test::future::FutureTestExt;
-use std::sync::mpsc;
 
 #[test]
 fn basic_future_combinators() {

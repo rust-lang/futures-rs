@@ -1,20 +1,22 @@
-use crate::enter;
-use crate::unpark_mutex::UnparkMutex;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
-use futures_task::{waker_ref, ArcWake};
-use futures_task::{FutureObj, Spawn, SpawnError};
+use alloc::{boxed::Box, format, string::String, sync::Arc};
+use core::{
+    fmt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use std::{
+    io,
+    sync::{Mutex, mpsc},
+    thread,
+};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+use futures_task::{ArcWake, FutureObj, Spawn, SpawnError, waker_ref};
 use futures_util::future::FutureExt;
-use std::boxed::Box;
-use std::cmp;
-use std::fmt;
-use std::format;
-use std::io;
-use std::string::String;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
+
+use crate::{enter, unpark_mutex::UnparkMutex};
 
 /// A general-purpose thread pool for scheduling tasks that poll futures to
 /// completion.
@@ -80,8 +82,7 @@ impl ThreadPool {
     /// Creates a new thread pool with the default configuration.
     ///
     /// See documentation for the methods in
-    /// [`ThreadPoolBuilder`](ThreadPoolBuilder) for details on the default
-    /// configuration.
+    /// [`ThreadPoolBuilder`] for details on the default configuration.
     pub fn new() -> Result<Self, io::Error> {
         ThreadPoolBuilder::new().create()
     }
@@ -89,8 +90,7 @@ impl ThreadPool {
     /// Create a default thread pool configuration, which can then be customized.
     ///
     /// See documentation for the methods in
-    /// [`ThreadPoolBuilder`](ThreadPoolBuilder) for details on the default
-    /// configuration.
+    /// [`ThreadPoolBuilder`] for details on the default configuration.
     pub fn builder() -> ThreadPoolBuilder {
         ThreadPoolBuilder::new()
     }
@@ -190,13 +190,8 @@ impl ThreadPoolBuilder {
     ///
     /// See the other methods on this type for details on the defaults.
     pub fn new() -> Self {
-        Self {
-            pool_size: cmp::max(1, num_cpus::get()),
-            stack_size: 0,
-            name_prefix: None,
-            after_start: None,
-            before_stop: None,
-        }
+        let pool_size = thread::available_parallelism().map_or(1, |p| p.get());
+        Self { pool_size, stack_size: 0, name_prefix: None, after_start: None, before_stop: None }
     }
 
     /// Set size of a future ThreadPool
@@ -265,7 +260,7 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Create a [`ThreadPool`](ThreadPool) with the given configuration.
+    /// Create a [`ThreadPool`] with the given configuration.
     pub fn create(&mut self) -> Result<ThreadPool, io::Error> {
         let (tx, rx) = mpsc::channel();
         let pool = ThreadPool {
@@ -283,7 +278,7 @@ impl ThreadPoolBuilder {
             let before_stop = self.before_stop.clone();
             let mut thread_builder = thread::Builder::new();
             if let Some(ref name_prefix) = self.name_prefix {
-                thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+                thread_builder = thread_builder.name(format!("{name_prefix}{counter}"));
             }
             if self.stack_size > 0 {
                 thread_builder = thread_builder.stack_size(self.stack_size);
@@ -360,6 +355,7 @@ impl ArcWake for WakeHandle {
 }
 
 #[cfg(test)]
+#[allow(clippy::alloc_instead_of_core, clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 mod tests {
     use super::*;
 

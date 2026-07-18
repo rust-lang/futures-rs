@@ -6,22 +6,24 @@
 //! - The [`SinkExt`] trait, which provides adapters for chaining and composing
 //!   sinks.
 
-use crate::future::{assert_future, Either};
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::Future,
+    stream::Stream,
+    task::{Context, Poll},
+};
+pub use futures_sink::Sink;
 
 #[cfg(feature = "compat")]
 use crate::compat::CompatSink;
-
-pub use futures_sink::Sink;
+use crate::future::{Either, assert_future};
 
 mod close;
 pub use self::close::Close;
 
 mod drain;
-pub use self::drain::{drain, Drain};
+pub use self::drain::{Drain, drain};
 
 mod fanout;
 pub use self::fanout::Fanout;
@@ -45,7 +47,7 @@ mod send_all;
 pub use self::send_all::SendAll;
 
 mod unfold;
-pub use self::unfold::{unfold, Unfold};
+pub use self::unfold::{Unfold, unfold};
 
 mod with;
 pub use self::with::With;

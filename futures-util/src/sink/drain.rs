@@ -1,9 +1,9 @@
-use super::assert_sink;
-use core::convert::Infallible;
-use core::marker::PhantomData;
-use core::pin::Pin;
+use core::{convert::Infallible, marker::PhantomData, pin::Pin};
+
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
+
+use super::assert_sink;
 
 /// Sink for the [`drain`] function.
 #[derive(Debug)]

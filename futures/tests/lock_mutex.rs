@@ -1,12 +1,17 @@
-use futures::channel::mpsc;
-use futures::executor::{block_on, ThreadPool};
-use futures::future::{ready, FutureExt};
-use futures::lock::Mutex;
-use futures::stream::StreamExt;
-use futures::task::{Context, SpawnExt};
-use futures_test::future::FutureTestExt;
-use futures_test::task::{new_count_waker, panic_context};
 use std::sync::Arc;
+
+use futures::{
+    channel::mpsc,
+    executor::{ThreadPool, block_on},
+    future::{FutureExt, ready},
+    lock::Mutex,
+    stream::StreamExt,
+    task::{Context, SpawnExt},
+};
+use futures_test::{
+    future::FutureTestExt,
+    task::{new_count_waker, panic_context},
+};
 
 #[test]
 fn mutex_acquire_uncontested() {

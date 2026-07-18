@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 
 pub(crate) fn test(args: TokenStream, item: TokenStream) -> TokenStream {
     if !args.is_empty() {

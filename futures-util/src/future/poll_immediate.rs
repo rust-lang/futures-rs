@@ -1,13 +1,17 @@
-use super::assert_future;
 use core::pin::Pin;
-use futures_core::task::{Context, Poll};
-use futures_core::{FusedFuture, Future, Stream};
+
+use futures_core::{
+    FusedFuture, Future, Stream,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use super::assert_future;
 
 pin_project! {
     /// Future for the [`poll_immediate`](poll_immediate()) function.
     ///
-    /// It will never return [Poll::Pending](core::task::Poll::Pending)
+    /// It will never return [Poll::Pending].
     #[derive(Debug, Clone)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct PollImmediate<T> {
@@ -43,22 +47,24 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
     }
 }
 
-/// A [Stream](crate::stream::Stream) implementation that can be polled repeatedly until the future is done.
-/// The stream will never return [Poll::Pending](core::task::Poll::Pending)
+/// A [Stream] implementation that can be polled repeatedly until the future is done.
+/// The stream will never return [Poll::Pending]
 /// so polling it in a tight loop is worse than using a blocking synchronous function.
 /// ```
 /// # futures::executor::block_on(async {
+/// use core::pin::pin;
+///
 /// use futures::task::Poll;
-/// use futures::{StreamExt, future, pin_mut};
+/// use futures::{StreamExt, future};
 /// use future::FusedFuture;
 ///
 /// let f = async { 1_u32 };
-/// pin_mut!(f);
+/// let f = pin!(f);
 /// let mut r = future::poll_immediate(f);
 /// assert_eq!(r.next().await, Some(Poll::Ready(1)));
 ///
 /// let f = async {futures::pending!(); 42_u8};
-/// pin_mut!(f);
+/// let f = pin!(f);
 /// let mut p = future::poll_immediate(f);
 /// assert_eq!(p.next().await, Some(Poll::Pending));
 /// assert!(!p.is_terminated());
@@ -87,7 +93,8 @@ where
 }
 
 /// Creates a future that is immediately ready with an Option of a value.
-/// Specifically this means that [poll](core::future::Future::poll()) always returns [Poll::Ready](core::task::Poll::Ready).
+/// Specifically this means that [poll](core::future::Future::poll()) always
+/// returns [Poll::Ready].
 ///
 /// # Caution
 ///
@@ -114,9 +121,12 @@ where
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::{future, pin_mut};
+/// use core::pin::pin;
+///
+/// use futures::future;
+///
 /// let f = async {futures::pending!(); 42_u8};
-/// pin_mut!(f);
+/// let mut f = pin!(f);
 /// assert_eq!(None, future::poll_immediate(&mut f).await);
 /// assert_eq!(42, f.await);
 /// # });

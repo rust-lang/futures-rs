@@ -1,8 +1,8 @@
+use core::{fmt, pin::Pin};
+use std::io;
+
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead};
-use std::fmt;
-use std::io;
-use std::pin::Pin;
 
 /// Reader for the [`empty()`] function.
 #[must_use = "readers do nothing unless polled"]

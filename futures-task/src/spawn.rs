@@ -1,5 +1,6 @@
-use crate::{FutureObj, LocalFutureObj};
 use core::fmt;
+
+use crate::{FutureObj, LocalFutureObj};
 
 /// The `Spawn` trait allows for pushing futures onto an executor that will
 /// run them to completion.
@@ -125,8 +126,9 @@ impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use alloc::{boxed::Box, rc::Rc};
+
+    use super::*;
 
     impl<Sp: ?Sized + Spawn> Spawn for Box<Sp> {
         fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
@@ -168,7 +170,7 @@ mod if_alloc {
         }
     }
 
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     impl<Sp: ?Sized + Spawn> Spawn for alloc::sync::Arc<Sp> {
         fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_obj(future)
@@ -179,7 +181,7 @@ mod if_alloc {
         }
     }
 
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     impl<Sp: ?Sized + LocalSpawn> LocalSpawn for alloc::sync::Arc<Sp> {
         fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
             (**self).spawn_local_obj(future)

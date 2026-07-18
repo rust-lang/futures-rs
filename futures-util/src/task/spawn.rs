@@ -1,17 +1,17 @@
-use futures_task::{LocalSpawn, Spawn};
-
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
-
-#[cfg(feature = "channel")]
-#[cfg(feature = "std")]
-use crate::future::{FutureExt, RemoteHandle};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
+
 #[cfg(feature = "alloc")]
 use futures_core::future::Future;
 #[cfg(feature = "alloc")]
 use futures_task::{FutureObj, LocalFutureObj, SpawnError};
+use futures_task::{LocalSpawn, Spawn};
+
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+#[cfg(feature = "channel")]
+#[cfg(feature = "std")]
+use crate::future::{FutureExt, RemoteHandle};
 
 impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 impl<Sp: ?Sized> LocalSpawnExt for Sp where Sp: LocalSpawn {}
@@ -56,8 +56,8 @@ pub trait SpawnExt: Spawn {
     /// Spawns a task that polls the given future to completion and returns a
     /// future that resolves to the spawned future's output.
     ///
-    /// This method returns a [`Result`] that contains a [`RemoteHandle`](crate::future::RemoteHandle), or, if
-    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`](crate::future::RemoteHandle) is a future that
+    /// This method returns a [`Result`] that contains a [`RemoteHandle`], or, if
+    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`] is a future that
     /// resolves to the output of the spawned future.
     ///
     /// ```
@@ -137,8 +137,8 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// Spawns a task that polls the given future to completion and returns a
     /// future that resolves to the spawned future's output.
     ///
-    /// This method returns a [`Result`] that contains a [`RemoteHandle`](crate::future::RemoteHandle), or, if
-    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`](crate::future::RemoteHandle) is a future that
+    /// This method returns a [`Result`] that contains a [`RemoteHandle`], or, if
+    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`] is a future that
     /// resolves to the output of the spawned future.
     ///
     /// ```

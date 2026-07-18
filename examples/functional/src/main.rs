@@ -1,7 +1,5 @@
-use futures::channel::mpsc;
 use futures::executor; //standard executors to provide a context for futures and streams
-use futures::executor::ThreadPool;
-use futures::StreamExt;
+use futures::{StreamExt, channel::mpsc, executor::ThreadPool};
 
 fn main() {
     let pool = ThreadPool::new().expect("Failed to build pool");

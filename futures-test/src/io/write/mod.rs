@@ -3,9 +3,9 @@
 use futures_io::AsyncWrite;
 
 pub use super::limited::Limited;
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
-pub use crate::track_closed::TrackClosed;
+pub use crate::{
+    assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending, track_closed::TrackClosed,
+};
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
@@ -30,14 +30,15 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
-    /// use futures::pin_mut;
     ///
     /// let writer = Cursor::new(vec![0u8; 4].into_boxed_slice()).interleave_pending_write();
-    /// pin_mut!(writer);
+    /// let mut writer = pin!(writer);
     ///
     /// let mut cx = noop_context();
     ///
@@ -70,14 +71,15 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::io::{AsyncWrite, Cursor};
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
-    /// use futures::pin_mut;
     ///
     /// let writer = Cursor::new(vec![0u8; 4].into_boxed_slice()).limited_write(2);
-    /// pin_mut!(writer);
+    /// let mut writer = pin!(writer);
     ///
     /// let mut cx = noop_context();
     ///

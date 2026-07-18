@@ -1,6 +1,9 @@
-use futures::executor::block_on;
-use futures::future::{self, Future};
 use std::task::Poll;
+
+use futures::{
+    executor::block_on,
+    future::{self, Future},
+};
 
 /// This tests verifies (through miri) that self-referencing
 /// futures are not invalidated when joining them.

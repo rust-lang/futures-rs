@@ -2,7 +2,8 @@
 name = "futures-executor"
 version = "0.4.0-alpha.0"
 edition = "2018"
-rust-version = "1.56"
+# NB: Sync with "Usage" section in README.md and util-msrv job in .github/workflows/ci.yml
+rust-version = "1.71"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 homepage = "https://rust-lang.github.io/futures-rs"
@@ -13,13 +14,12 @@ Executors for asynchronous tasks based on the futures-rs library.
 [features]
 default = ["std"]
 std = ["futures-core/std", "futures-task/std", "futures-util/std"]
-thread-pool = ["std", "num_cpus"]
+thread-pool = ["std"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "=1.0.0-alpha.0", default-features = false }
 futures-task = { path = "../futures-task", version = "=0.4.0-alpha.0", default-features = false }
 futures-util = { path = "../futures-util", version = "=0.4.0-alpha.0", default-features = false }
-num_cpus = { version = "1.8.0", optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", features = ["thread-pool"] }

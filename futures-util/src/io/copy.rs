@@ -1,10 +1,14 @@
-use super::{copy_buf, BufReader, CopyBuf};
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::pin::Pin;
+use std::io;
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncRead, AsyncWrite};
 use pin_project_lite::pin_project;
-use std::io;
-use std::pin::Pin;
+
+use super::{BufReader, CopyBuf, copy_buf};
 
 /// Creates a future which copies all the bytes from one object to another.
 ///

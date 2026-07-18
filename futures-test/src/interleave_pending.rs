@@ -1,14 +1,17 @@
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::{FusedStream, Stream};
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::{FusedStream, Stream},
+};
 use futures_io::{
     self as io, AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom,
 };
 use futures_sink::Sink;
 use pin_project::pin_project;
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
 
 /// Wrapper that interleaves [`Poll::Pending`] in calls to poll.
 ///

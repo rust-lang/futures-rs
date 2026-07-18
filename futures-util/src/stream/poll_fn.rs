@@ -1,10 +1,13 @@
 //! Definition of the `PollFn` combinator
 
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    stream::Stream,
+    task::{Context, Poll},
+};
+
 use super::assert_stream;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
 
 /// Stream for the [`poll_fn`] function.
 #[must_use = "streams do nothing unless polled"]

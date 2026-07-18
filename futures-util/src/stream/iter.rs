@@ -1,13 +1,34 @@
-use super::assert_stream;
 use core::pin::Pin;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    stream::Stream,
+    task::{Context, Poll},
+};
+
+use super::assert_stream;
 
 /// Stream for the [`iter`] function.
 #[derive(Debug, Clone)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Iter<I> {
     iter: I,
+}
+
+impl<I> Iter<I> {
+    /// Acquires a reference to the underlying iterator that this stream is pulling from.
+    pub fn get_ref(&self) -> &I {
+        &self.iter
+    }
+
+    /// Acquires a mutable reference to the underlying iterator that this stream is pulling from.
+    pub fn get_mut(&mut self) -> &mut I {
+        &mut self.iter
+    }
+
+    /// Consumes this stream, returning the underlying iterator.
+    pub fn into_inner(self) -> I {
+        self.iter
+    }
 }
 
 impl<I> Unpin for Iter<I> {}

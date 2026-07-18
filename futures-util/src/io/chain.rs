@@ -1,10 +1,12 @@
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+use std::io;
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncRead, IoSliceMut};
 use pin_project_lite::pin_project;
-use std::fmt;
-use std::io;
-use std::pin::Pin;
 
 pin_project! {
     /// Reader for the [`chain`](super::AsyncReadExt::chain) method.
@@ -131,10 +133,6 @@ where
     fn consume(self: Pin<&mut Self>, amt: usize) {
         let this = self.project();
 
-        if !*this.done_first {
-            this.first.consume(amt)
-        } else {
-            this.second.consume(amt)
-        }
+        if !*this.done_first { this.first.consume(amt) } else { this.second.consume(amt) }
     }
 }

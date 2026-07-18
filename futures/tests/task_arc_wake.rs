@@ -1,6 +1,9 @@
+use std::{
+    panic,
+    sync::{Arc, Mutex},
+};
+
 use futures::task::{self, ArcWake, Waker};
-use std::panic;
-use std::sync::{Arc, Mutex};
 
 struct CountingWaker {
     nr_wake: Mutex<i32>,
@@ -44,18 +47,17 @@ fn create_from_arc() {
     assert_eq!(1, Arc::strong_count(&some_w));
 }
 
-// TODO: rustc regression: https://github.com/rust-lang/rust/issues/121600
-// #[test]
-// fn ref_wake_same() {
-//     let some_w = Arc::new(CountingWaker::new());
-//
-//     let w1: Waker = task::waker(some_w.clone());
-//     let w2 = task::waker_ref(&some_w);
-//     let w3 = w2.clone();
-//
-//     assert!(w1.will_wake(&w2));
-//     assert!(w2.will_wake(&w3));
-// }
+#[test]
+fn ref_wake_same() {
+    let some_w = Arc::new(CountingWaker::new());
+
+    let w1: Waker = task::waker(some_w.clone());
+    let w2 = task::waker_ref(&some_w);
+    let w3 = w2.clone();
+
+    assert!(w1.will_wake(&w2));
+    assert!(w2.will_wake(&w3));
+}
 
 #[test]
 fn proper_refcount_on_wake_panic() {

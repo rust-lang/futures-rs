@@ -20,107 +20,102 @@ pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 // Extension traits and combinators
 #[allow(clippy::module_inception)]
 mod future;
+#[cfg(feature = "std")]
+pub use self::future::CatchUnwind;
+#[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
+pub use self::future::FlattenStream;
 pub use self::future::{
     Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then, UnitError,
 };
-
-#[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
-pub use self::future::FlattenStream;
-
-#[cfg(feature = "std")]
-pub use self::future::CatchUnwind;
-
 #[cfg(feature = "channel")]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
 pub use self::future::{Remote, RemoteHandle};
-
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::future::{Shared, WeakShared};
 
 mod try_future;
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::try_future::FlattenSink;
 pub use self::try_future::{
     AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, MapOkOrElse, OkInto, OrElse,
     TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
 };
 
-#[cfg(feature = "sink")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub use self::try_future::FlattenSink;
-
 // Primitive futures
 
 mod lazy;
-pub use self::lazy::{lazy, Lazy};
+pub use self::lazy::{Lazy, lazy};
 
 mod pending;
-pub use self::pending::{pending, Pending};
+pub use self::pending::{Pending, pending};
 
 mod maybe_done;
-pub use self::maybe_done::{maybe_done, MaybeDone};
+pub use self::maybe_done::{MaybeDone, maybe_done};
 
 mod try_maybe_done;
-pub use self::try_maybe_done::{try_maybe_done, TryMaybeDone};
+pub use self::try_maybe_done::{TryMaybeDone, try_maybe_done};
 
 mod option;
 pub use self::option::OptionFuture;
 
 mod poll_fn;
-pub use self::poll_fn::{poll_fn, PollFn};
+pub use self::poll_fn::{PollFn, poll_fn};
 
 mod poll_immediate;
-pub use self::poll_immediate::{poll_immediate, PollImmediate};
+pub use self::poll_immediate::{PollImmediate, poll_immediate};
 
 mod ready;
-pub use self::ready::{err, ok, ready, Ready};
+pub use self::ready::{Ready, err, ok, ready};
 
 mod always_ready;
-pub use self::always_ready::{always_ready, AlwaysReady};
+pub use self::always_ready::{AlwaysReady, always_ready};
 
 mod join;
-pub use self::join::{join, Join};
+pub use self::join::{Join, join};
 
 #[cfg(feature = "alloc")]
 mod join_all;
 #[cfg(feature = "alloc")]
-pub use self::join_all::{join_all, JoinAll};
+pub use self::join_all::{JoinAll, join_all};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{Select, select};
 
 #[cfg(feature = "alloc")]
 mod select_all;
 #[cfg(feature = "alloc")]
-pub use self::select_all::{select_all, SelectAll};
+pub use self::select_all::{SelectAll, select_all};
 
 mod try_join;
-pub use self::try_join::{try_join, TryJoin};
+pub use self::try_join::{TryJoin, try_join};
 
 #[cfg(feature = "alloc")]
 mod try_join_all;
 #[cfg(feature = "alloc")]
-pub use self::try_join_all::{try_join_all, TryJoinAll};
+pub use self::try_join_all::{TryJoinAll, try_join_all};
 
 mod try_select;
-pub use self::try_select::{try_select, TrySelect};
+pub use self::try_select::{TrySelect, try_select};
 
 #[cfg(feature = "alloc")]
 mod select_ok;
 #[cfg(feature = "alloc")]
-pub use self::select_ok::{select_ok, SelectOk};
+pub use self::select_ok::{SelectOk, select_ok};
 
 mod either;
 pub use self::either::Either;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod abortable;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
+#[cfg(feature = "alloc")]
+pub use self::abortable::abortable;
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
-#[cfg(feature = "alloc")]
-pub use abortable::abortable;
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.

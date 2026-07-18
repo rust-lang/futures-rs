@@ -1,9 +1,6 @@
-use super::task::Task;
-use super::FuturesUnordered;
-use core::marker::PhantomData;
-use core::pin::Pin;
-use core::ptr;
-use core::sync::atomic::Ordering::Relaxed;
+use core::{marker::PhantomData, pin::Pin, ptr, sync::atomic::Ordering::Relaxed};
+
+use super::{Arc, FuturesUnordered, task::Task};
 
 /// Mutable iterator over all futures in the unordered set.
 #[derive(Debug)]
@@ -50,19 +47,27 @@ impl<Fut: Unpin> Iterator for IntoIter<Fut> {
         }
 
         unsafe {
+            let head = *task;
+
             // Moving out of the future is safe because it is `Unpin`
-            let future = (*(**task).future.get()).take().unwrap();
+            let future = (*(*head).future.get()).take().unwrap();
 
             // Mutable access to a previously shared `FuturesUnordered` implies
             // that the other threads already released the object before the
             // current thread acquired it, so relaxed ordering can be used and
             // valid `next_all` checks can be skipped.
-            let next = (**task).next_all.load(Relaxed);
+            let next = (*head).next_all.load(Relaxed);
             *task = next;
-            if !task.is_null() {
-                *(**task).prev_all.get() = ptr::null_mut();
+            if !next.is_null() {
+                *(*next).prev_all.get() = ptr::null_mut();
             }
             self.len -= 1;
+
+            let arc = Arc::from_raw(head);
+            arc.next_all.store(self.inner.pending_next_all(), Relaxed);
+            *arc.prev_all.get() = ptr::null_mut();
+            self.inner.release_task(arc);
+
             Some(future)
         }
     }
@@ -160,11 +165,14 @@ impl<'a, Fut: Unpin> Iterator for Iter<'a, Fut> {
 
 impl<Fut: Unpin> ExactSizeIterator for Iter<'_, Fut> {}
 
-// SAFETY: we do nothing thread-local and there is no interior mutability,
-// so the usual structural `Send`/`Sync` apply.
-unsafe impl<Fut: Send> Send for IterPinRef<'_, Fut> {}
+// SAFETY: `IterPinRef` yields `Pin<&Fut>` shared references. Sending these
+// to another thread requires `Fut: Sync` since both the sender and receiver
+// can concurrently access the same `Fut` through their shared references.
+unsafe impl<Fut: Sync> Send for IterPinRef<'_, Fut> {}
 unsafe impl<Fut: Sync> Sync for IterPinRef<'_, Fut> {}
 
+// SAFETY: we do nothing thread-local and there is no interior mutability,
+// so the usual structural `Send`/`Sync` apply.
 unsafe impl<Fut: Send> Send for IterPinMut<'_, Fut> {}
 unsafe impl<Fut: Sync> Sync for IterPinMut<'_, Fut> {}
 

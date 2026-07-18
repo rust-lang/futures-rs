@@ -41,13 +41,15 @@
 // NOTE: this implementation is lifted from the standard library and only
 //       slightly modified
 
-pub(super) use self::PopResult::*;
-
-use std::boxed::Box;
-use std::cell::UnsafeCell;
-use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use alloc::boxed::Box;
+use core::{
+    cell::UnsafeCell,
+    ptr,
+    sync::atomic::{AtomicPtr, Ordering},
+};
 use std::thread;
+
+pub(super) use self::PopResult::*;
 
 /// A result of the `pop` function.
 pub(super) enum PopResult<T> {
@@ -127,11 +129,7 @@ impl<T> Queue<T> {
                 return Data(ret);
             }
 
-            if self.head.load(Ordering::Acquire) == tail {
-                Empty
-            } else {
-                Inconsistent
-            }
+            if self.head.load(Ordering::Acquire) == tail { Empty } else { Inconsistent }
         }
     }
 

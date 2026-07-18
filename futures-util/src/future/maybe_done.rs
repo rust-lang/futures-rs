@@ -1,11 +1,14 @@
 //! Definition of the MaybeDone combinator
 
+use core::{mem, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    ready,
+    task::{Context, Poll},
+};
+
 use super::assert_future;
-use core::mem;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
 
 /// A future that may have completed.
 ///
@@ -29,11 +32,12 @@ impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 ///
 /// ```
 /// # futures::executor::block_on(async {
+/// use core::pin::pin;
+///
 /// use futures::future;
-/// use futures::pin_mut;
 ///
 /// let future = future::maybe_done(async { 5 });
-/// pin_mut!(future);
+/// let mut future = pin!(future);
 /// assert_eq!(future.as_mut().take_output(), None);
 /// let () = future.as_mut().await;
 /// assert_eq!(future.as_mut().take_output(), Some(5));

@@ -2,21 +2,21 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(feature = "write-all-vectored", feature(io_slice_advance))]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_borrow)] // https://github.com/rust-lang/futures-rs/pull/2558#issuecomment-1030745203
-#![allow(clippy::arc_with_non_send_sync)] // false positive https://github.com/rust-lang/rust-clippy/issues/11076
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
-compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+compile_error!(
+    "The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features"
+);
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -25,7 +25,6 @@ extern crate std;
 
 // Macro re-exports
 pub use futures_core::ready;
-pub use pin_utils::pin_mut;
 
 #[cfg(feature = "async-await")]
 #[macro_use]
@@ -35,16 +34,17 @@ mod async_await;
 pub use self::async_await::*;
 
 // Not public API.
-#[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::*;
     pub use core::{
         option::Option::{self, None, Some},
         pin::Pin,
         result::Result::{Err, Ok},
     };
 
+    pub use crate::*;
+
+    #[cfg(feature = "async-await")]
     pub mod async_await {
         pub use crate::async_await::*;
     }
@@ -325,7 +325,7 @@ pub use crate::io::{
 #[cfg(feature = "alloc")]
 pub mod lock;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod abortable;
 

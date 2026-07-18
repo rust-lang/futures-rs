@@ -1,8 +1,10 @@
-use futures::channel::oneshot;
-use futures::future::{FutureExt, TryFutureExt};
+use std::{sync::mpsc, thread};
+
+use futures::{
+    channel::oneshot,
+    future::{FutureExt, TryFutureExt},
+};
 use futures_test::future::FutureTestExt;
-use std::sync::mpsc;
-use std::thread;
 
 #[test]
 fn oneshot_send1() {
@@ -68,11 +70,11 @@ fn oneshot_drop_rx() {
 #[test]
 fn oneshot_debug() {
     let (tx, rx) = oneshot::channel::<i32>();
-    assert_eq!(format!("{:?}", tx), "Sender { complete: false }");
-    assert_eq!(format!("{:?}", rx), "Receiver { complete: false }");
+    assert_eq!(format!("{tx:?}"), "Sender { complete: false }");
+    assert_eq!(format!("{rx:?}"), "Receiver { complete: false }");
     drop(rx);
-    assert_eq!(format!("{:?}", tx), "Sender { complete: true }");
+    assert_eq!(format!("{tx:?}"), "Sender { complete: true }");
     let (tx, rx) = oneshot::channel::<i32>();
     drop(tx);
-    assert_eq!(format!("{:?}", rx), "Receiver { complete: true }");
+    assert_eq!(format!("{rx:?}"), "Receiver { complete: true }");
 }

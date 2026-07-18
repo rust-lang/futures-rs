@@ -1,20 +1,26 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::block_on;
-use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
-use futures::ready;
-use futures::sink::{self, Sink, SinkErrInto, SinkExt};
-use futures::stream::{self, Stream, StreamExt};
-use futures::task::{self, ArcWake, Context, Poll, Waker};
+use std::{
+    cell::{Cell, RefCell},
+    collections::VecDeque,
+    convert::Infallible,
+    fmt, mem,
+    pin::{Pin, pin},
+    rc::Rc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::block_on,
+    future::{self, Future, FutureExt, TryFutureExt, poll_fn},
+    ready,
+    sink::{self, Sink, SinkErrInto, SinkExt},
+    stream::{self, Stream, StreamExt},
+    task::{self, ArcWake, Context, Poll, Waker},
+};
 use futures_test::task::panic_context;
-use std::cell::{Cell, RefCell};
-use std::collections::VecDeque;
-use std::convert::Infallible;
-use std::fmt;
-use std::mem;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 fn sassert_next<S>(s: &mut S, item: S::Item)
 where
@@ -179,11 +185,7 @@ impl<T: Unpin> Sink<T> for ManualAllow<T> {
     type Error = ();
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.allow.check(cx) {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        if self.allow.check(cx) { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: T) -> Result<(), Self::Error> {
@@ -509,22 +511,22 @@ fn sink_unfold() {
                 Ok::<_, String>(())
             }
         });
-        futures::pin_mut!(unfold);
+        let mut unfold = pin!(unfold);
         assert_eq!(unfold.as_mut().start_send(1), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Ready(Ok(())));
-        assert_eq!(rx.try_next().unwrap(), Some(1));
+        assert_eq!(rx.try_recv().unwrap(), 1);
 
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(2), Ok(()));
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(3), Ok(()));
-        assert_eq!(rx.try_next().unwrap(), Some(2));
-        assert!(rx.try_next().is_err());
+        assert_eq!(rx.try_recv().unwrap(), 2);
+        assert!(rx.try_recv().is_err());
         assert_eq!(unfold.as_mut().poll_ready(cx), Poll::Ready(Ok(())));
         assert_eq!(unfold.as_mut().start_send(4), Ok(()));
         assert_eq!(unfold.as_mut().poll_flush(cx), Poll::Pending); // Channel full
-        assert_eq!(rx.try_next().unwrap(), Some(3));
-        assert_eq!(rx.try_next().unwrap(), Some(4));
+        assert_eq!(rx.try_recv().unwrap(), 3);
+        assert_eq!(rx.try_recv().unwrap(), 4);
 
         Poll::Ready(())
     }))

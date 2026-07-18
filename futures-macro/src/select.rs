@@ -1,10 +1,13 @@
-//! The futures-rs `select! macro implementation.
+//! The futures-rs `select!` macro implementation.
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_quote, Expr, Ident, Pat, Token};
+use syn::{
+    Expr, Ident, Pat, Token,
+    parse::{Parse, ParseStream},
+    parse_quote,
+};
 
 mod kw {
     syn::custom_keyword!(complete);
@@ -221,7 +224,7 @@ fn select_inner(input: TokenStream, random: bool) -> TokenStream {
         }
     } else {
         quote! {
-            panic!("all futures in select! were completed,\
+            panic!("all futures in select! were completed, \
                     but no `complete =>` handler was provided")
         }
     };

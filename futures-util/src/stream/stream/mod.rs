@@ -3,13 +3,12 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use crate::future::{assert_future, Either};
-use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
+
 #[cfg(feature = "alloc")]
 use futures_core::stream::{BoxStream, LocalBoxStream};
 use futures_core::{
@@ -20,7 +19,11 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-use crate::fns::{inspect_fn, InspectFn};
+use crate::{
+    fns::{InspectFn, inspect_fn},
+    future::{Either, assert_future},
+    stream::assert_stream,
+};
 
 mod chain;
 pub use self::chain::Chain;
@@ -156,29 +159,29 @@ pub use self::ready_chunks::ReadyChunks;
 mod scan;
 pub use self::scan::Scan;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod buffer_unordered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::buffer_unordered::BufferUnordered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod buffered;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::buffered::Buffered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub(crate) mod flatten_unordered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::flatten_unordered::FlattenUnordered;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 delegate_all!(
     /// Stream for the [`flat_map_unordered`](StreamExt::flat_map_unordered) method.
@@ -188,28 +191,28 @@ delegate_all!(
     where St: Stream, U: Stream, U: Unpin, F: FnMut(St::Item) -> U
 );
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod for_each_concurrent;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::for_each_concurrent::ForEachConcurrent;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
 mod split;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 #[cfg(feature = "alloc")]
 pub use self::split::{ReuniteError, SplitSink, SplitStream};
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod try_for_each_concurrent;
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::try_for_each_concurrent::TryForEachConcurrent;
 
@@ -548,8 +551,7 @@ pub trait StreamExt: Stream {
     /// of all the subsequent results of the stream. If the stream is
     /// empty, the default value will be returned.
     ///
-    /// Works with all collections that implement the
-    /// [`Extend`](std::iter::Extend) trait.
+    /// Works with all collections that implement the [`Extend`] trait.
     ///
     /// # Examples
     ///
@@ -796,7 +798,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # });
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn flatten_unordered(self, limit: impl Into<Option<usize>>) -> FlattenUnordered<Self>
     where
@@ -878,7 +880,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(vec![1usize, 2, 2, 3, 3, 3, 4, 4, 4, 4], values);
     /// # });
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn flat_map_unordered<U, F>(
         self,
@@ -1125,7 +1127,7 @@ pub trait StreamExt: Stream {
     /// fut.await;
     /// # })
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn for_each_concurrent<Fut, F>(
         self,
@@ -1183,7 +1185,7 @@ pub trait StreamExt: Stream {
     /// yielding a future. That future will then be executed to completion
     /// before moving on to the next item.
     ///
-    /// The returned value is a [`Future`](futures_core::future::Future) where
+    /// The returned value is a [`Future`] where
     /// the [`Output`](futures_core::future::Future::Output) type is
     /// `Result<(), Fut::Error>`. If any of the intermediate futures returns
     /// an error, this future will return immediately with an error.
@@ -1222,9 +1224,8 @@ pub trait StreamExt: Stream {
     /// available, exiting as soon as an error occurs.
     ///
     /// This is similar to
-    /// [`StreamExt::for_each_concurrent`](crate::stream::StreamExt::for_each_concurrent),
-    /// but will resolve to an error immediately if the provided closure returns
-    /// an error.
+    /// [`StreamExt::for_each_concurrent`], but will resolve to an error
+    /// immediately if the provided closure returns an error.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
@@ -1258,7 +1259,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(Err(oneshot::Canceled), fut.await);
     /// # })
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn try_for_each_concurrent<Fut, F, E>(
         self,
@@ -1438,7 +1439,7 @@ pub trait StreamExt: Stream {
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
     where
-        Self: Sized + std::panic::UnwindSafe,
+        Self: Sized + core::panic::UnwindSafe,
     {
         assert_stream(CatchUnwind::new(self))
     }
@@ -1485,7 +1486,7 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn buffered(self, n: impl Into<Option<usize>>) -> Buffered<Self>
     where
@@ -1534,7 +1535,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(buffered.next().await, None);
     /// # Ok::<(), i32>(()) }).unwrap();
     /// ```
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn buffer_unordered(self, n: impl Into<Option<usize>>) -> BufferUnordered<Self>
     where
@@ -1697,7 +1698,7 @@ pub trait StreamExt: Stream {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     #[cfg(feature = "alloc")]
     fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)
     where

@@ -1,17 +1,21 @@
-use crate::stream::{FuturesUnordered, StreamExt};
 use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
-use core::cmp::Ordering;
-use core::fmt::{self, Debug};
-use core::iter::FromIterator;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::Stream;
+use core::{
+    cmp::Ordering,
+    fmt::{self, Debug},
+    iter::FromIterator,
+    pin::Pin,
+};
+
 use futures_core::{
-    task::{Context, Poll},
     FusedStream,
+    future::Future,
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
 };
 use pin_project_lite::pin_project;
+
+use crate::stream::{FuturesUnordered, StreamExt};
 
 pin_project! {
     #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -168,6 +172,17 @@ impl<Fut: Future> FuturesOrdered<Fut> {
         let wrapped = OrderWrapper { data: future, index: self.next_outgoing_index - 1 };
         self.next_outgoing_index -= 1;
         self.in_progress_queue.push(wrapped);
+    }
+
+    /// Clear the whole `FuturesOrdered` queue.
+    ///
+    /// This function clears the pending futures and the queued outputs
+    /// to make it fully empty.
+    pub fn clear(&mut self) {
+        self.in_progress_queue.clear();
+        self.queued_outputs.clear();
+        self.next_incoming_index = 0;
+        self.next_outgoing_index = 0;
     }
 }
 

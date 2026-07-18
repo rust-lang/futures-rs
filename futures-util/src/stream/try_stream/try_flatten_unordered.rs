@@ -1,17 +1,19 @@
-use core::marker::PhantomData;
-use core::pin::Pin;
+use core::{marker::PhantomData, pin::Pin};
 
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{Context, Poll};
+use futures_core::{
+    ready,
+    stream::{FusedStream, Stream, TryStream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-
 use pin_project_lite::pin_project;
 
-use crate::future::Either;
-use crate::stream::stream::flatten_unordered::{
-    FlattenUnorderedWithFlowController, FlowController, FlowStep,
+use crate::{
+    future::Either,
+    stream::stream::flatten_unordered::{
+        FlattenUnorderedWithFlowController, FlowController, FlowStep,
+    },
 };
 
 delegate_all!(

@@ -3,9 +3,8 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
 use core::pin::Pin;
+
 use futures_core::{
     future::TryFuture,
     stream::TryStream,
@@ -14,13 +13,17 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-use crate::fns::{
-    inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, map_ok_or_else_fn,
-    unwrap_or_else_fn, InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn,
-    UnwrapOrElseFn,
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+use crate::{
+    fns::{
+        InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn, UnwrapOrElseFn,
+        inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, map_ok_or_else_fn,
+        unwrap_or_else_fn,
+    },
+    future::{Inspect, Map, assert_future},
+    stream::assert_stream,
 };
-use crate::future::{assert_future, Inspect, Map};
-use crate::stream::assert_stream;
 
 // Combinators
 mod try_flatten;
@@ -310,7 +313,7 @@ pub trait TryFutureExt: TryFuture {
     }
 
     /// Maps this future's [`Error`](TryFuture::Error) to a new error type
-    /// using the [`Into`](std::convert::Into) trait.
+    /// using the [`Into`] trait.
     ///
     /// This method does for futures what the `?`-operator does for
     /// [`Result`]: It lets the compiler infer the type of the resulting
@@ -343,7 +346,7 @@ pub trait TryFutureExt: TryFuture {
     }
 
     /// Maps this future's [`Ok`](TryFuture::Ok) to a new type
-    /// using the [`Into`](std::convert::Into) trait.
+    /// using the [`Into`] trait.
     fn ok_into<U>(self) -> OkInto<Self, U>
     where
         Self: Sized,

@@ -1,10 +1,11 @@
-use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
-use pin_project::pin_project;
-use std::{
+use core::{
     cmp,
     pin::Pin,
     task::{Context, Poll},
 };
+
+use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
+use pin_project::pin_project;
 
 /// I/O wrapper that limits the number of bytes written or read on each call.
 ///

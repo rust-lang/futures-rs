@@ -1,8 +1,12 @@
-use crate::stream::TryStreamExt;
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::{FusedStream, TryStream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::{FusedStream, TryStream},
+    task::{Context, Poll},
+};
+
+use crate::stream::TryStreamExt;
 
 /// Future for the [`try_next`](super::TryStreamExt::try_next) method.
 #[derive(Debug)]

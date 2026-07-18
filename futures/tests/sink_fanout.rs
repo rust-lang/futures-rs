@@ -1,8 +1,10 @@
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::join;
-use futures::sink::SinkExt;
-use futures::stream::{self, StreamExt};
+use futures::{
+    channel::mpsc,
+    executor::block_on,
+    join,
+    sink::SinkExt,
+    stream::{self, StreamExt},
+};
 
 #[test]
 fn it_works() {

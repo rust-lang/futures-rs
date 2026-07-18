@@ -1,10 +1,14 @@
-use super::assert_sink;
-use crate::unfold_state::UnfoldState;
 use core::{future::Future, pin::Pin};
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use super::assert_sink;
+use crate::unfold_state::UnfoldState;
 
 pin_project! {
     /// Sink for the [`unfold`] function.
@@ -23,7 +27,10 @@ pin_project! {
 ///
 /// ```
 /// # futures::executor::block_on(async {
-/// use futures::sink::{self, SinkExt};
+/// use core::pin::pin;
+///
+/// use futures::sink;
+/// use futures::sink::SinkExt;
 ///
 /// let unfold = sink::unfold(0, |mut sum, i: i32| {
 ///     async move {
@@ -32,7 +39,7 @@ pin_project! {
 ///         Ok::<_, std::convert::Infallible>(sum)
 ///     }
 /// });
-/// futures::pin_mut!(unfold);
+/// let mut unfold = pin!(unfold);
 /// unfold.send(5).await?;
 /// # Ok::<(), std::convert::Infallible>(()) }).unwrap();
 /// ```

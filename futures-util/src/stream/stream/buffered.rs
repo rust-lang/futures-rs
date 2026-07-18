@@ -1,14 +1,16 @@
-use crate::stream::{Fuse, FusedStream, FuturesOrdered, StreamExt};
-use core::fmt;
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, num::NonZeroUsize, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, FusedStream, FuturesOrdered, StreamExt};
 
 pin_project! {
     /// Stream for the [`buffered`](super::StreamExt::buffered) method.
@@ -81,11 +83,7 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
-            Poll::Ready(None)
-        } else {
-            Poll::Pending
-        }
+        if this.stream.is_done() { Poll::Ready(None) } else { Poll::Pending }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

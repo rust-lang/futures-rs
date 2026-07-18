@@ -1,5 +1,7 @@
-use futures::executor::block_on_stream;
-use futures::stream::{self, StreamExt};
+use futures::{
+    executor::block_on_stream,
+    stream::{self, StreamExt},
+};
 
 #[test]
 fn panic_in_the_middle_of_the_stream() {

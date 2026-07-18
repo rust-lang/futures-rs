@@ -1,15 +1,13 @@
-use core::cell::UnsafeCell;
-use core::fmt;
-use core::task::Waker;
-
-use atomic::AtomicUsize;
-use atomic::Ordering::{AcqRel, Acquire, Release};
-
-#[cfg(feature = "portable-atomic")]
-use portable_atomic as atomic;
-
 #[cfg(not(feature = "portable-atomic"))]
 use core::sync::atomic;
+use core::{cell::UnsafeCell, fmt, task::Waker};
+
+use atomic::{
+    AtomicUsize,
+    Ordering::{AcqRel, Acquire, Release},
+};
+#[cfg(feature = "portable-atomic")]
+use portable_atomic as atomic;
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -48,7 +46,7 @@ use core::sync::atomic;
 /// use std::sync::Arc;
 /// use std::sync::atomic::AtomicBool;
 /// use std::sync::atomic::Ordering::Relaxed;
-/// use std::pin::Pin;
+/// use core::pin::Pin;
 ///
 /// struct Inner {
 ///     waker: AtomicWaker,
@@ -59,14 +57,14 @@ use core::sync::atomic;
 /// struct Flag(Arc<Inner>);
 ///
 /// impl Flag {
-///     pub fn new() -> Self {
+///     fn new() -> Self {
 ///         Self(Arc::new(Inner {
 ///             waker: AtomicWaker::new(),
 ///             set: AtomicBool::new(false),
 ///         }))
 ///     }
 ///
-///     pub fn signal(&self) {
+///     fn signal(&self) {
 ///         self.0.set.store(true, Relaxed);
 ///         self.0.waker.wake();
 ///     }
@@ -240,7 +238,7 @@ impl AtomicWaker {
     /// use futures::task::{Context, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
     /// use std::sync::atomic::Ordering::Relaxed;
-    /// use std::pin::Pin;
+    /// use core::pin::Pin;
     ///
     /// struct Flag {
     ///     waker: AtomicWaker,
@@ -385,7 +383,8 @@ impl AtomicWaker {
                 let waker = unsafe { (*self.waker.get()).take() };
 
                 // Release the lock
-                self.state.fetch_and(!WAKING, Release);
+                let old_state = self.state.swap(WAITING, Release);
+                debug_assert!(old_state == WAKING);
 
                 waker
             }

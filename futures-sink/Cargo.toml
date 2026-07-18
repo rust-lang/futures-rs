@@ -2,6 +2,7 @@
 name = "futures-sink"
 version = "0.4.0-alpha.0"
 edition = "2018"
+# NB: Sync with "Usage" section in README.md and core-msrv job in .github/workflows/ci.yml
 rust-version = "1.36"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"

@@ -1,15 +1,16 @@
-use futures::executor::block_on;
-use futures::future::{join_all, ready, Future, JoinAll};
-use futures::pin_mut;
-use std::fmt::Debug;
+use std::{fmt::Debug, pin::pin};
+
+use futures::{
+    executor::block_on,
+    future::{Future, JoinAll, join_all, ready},
+};
 
 #[track_caller]
 fn assert_done<T>(actual_fut: impl Future<Output = T>, expected: T)
 where
     T: PartialEq + Debug,
 {
-    pin_mut!(actual_fut);
-    let output = block_on(actual_fut);
+    let output = block_on(pin!(actual_fut));
     assert_eq!(output, expected);
 }
 

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
-use syn::{parse::Parser, punctuated::Punctuated, Expr, Index, Token};
+use quote::{ToTokens, format_ident, quote};
+use syn::{Expr, Index, Token, parse::Parser, punctuated::Punctuated};
 
 /// The `stream_select!` macro.
 pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Error> {

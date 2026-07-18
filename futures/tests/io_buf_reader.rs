@@ -1,16 +1,19 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{
-    AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt,
-    BufReader, SeekFrom,
+use std::{
+    cmp, io,
+    pin::{Pin, pin},
 };
-use futures::pin_mut;
-use futures::task::{Context, Poll};
+
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{
+        AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek,
+        AsyncSeekExt, BufReader, SeekFrom,
+    },
+    task::{Context, Poll},
+};
 use futures_test::task::noop_context;
 use pin_project::pin_project;
-use std::cmp;
-use std::io;
-use std::pin::Pin;
 
 // helper for maybe_pending_* tests
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {
@@ -157,7 +160,7 @@ fn test_buffered_reader_seek() {
     block_on(async {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
         let reader = BufReader::with_capacity(2, Cursor::new(inner));
-        pin_mut!(reader);
+        let mut reader = pin!(reader);
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
@@ -175,7 +178,7 @@ fn test_buffered_reader_seek_relative() {
     block_on(async {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
         let reader = BufReader::with_capacity(2, Cursor::new(inner));
-        pin_mut!(reader);
+        let mut reader = pin!(reader);
 
         assert!(reader.as_mut().seek_relative(3).await.is_ok());
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1][..]);
@@ -195,7 +198,7 @@ fn test_buffered_reader_invalidated_after_read() {
     block_on(async {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
         let reader = BufReader::with_capacity(3, Cursor::new(inner));
-        pin_mut!(reader);
+        let mut reader = pin!(reader);
 
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[5, 6, 7][..]);
         reader.as_mut().consume(3);
@@ -216,7 +219,7 @@ fn test_buffered_reader_invalidated_after_seek() {
     block_on(async {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
         let reader = BufReader::with_capacity(3, Cursor::new(inner));
-        pin_mut!(reader);
+        let mut reader = pin!(reader);
 
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[5, 6, 7][..]);
         reader.as_mut().consume(3);
@@ -265,7 +268,7 @@ fn test_buffered_reader_seek_underflow() {
 
     block_on(async {
         let reader = BufReader::with_capacity(5, AllowStdIo::new(PositionReader { pos: 0 }));
-        pin_mut!(reader);
+        let mut reader = pin!(reader);
         assert_eq!(reader.as_mut().fill_buf().await.unwrap(), &[0, 1, 2, 3, 4][..]);
         assert_eq!(reader.seek(SeekFrom::End(-5)).await.unwrap(), u64::MAX - 5);
         assert_eq!(reader.as_mut().fill_buf().await.unwrap().len(), 5);
@@ -288,11 +291,7 @@ fn test_short_reads() {
 
     impl io::Read for ShortReader {
         fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
-            if self.lengths.is_empty() {
-                Ok(0)
-            } else {
-                Ok(self.lengths.remove(0))
-            }
+            if self.lengths.is_empty() { Ok(0) } else { Ok(self.lengths.remove(0)) }
         }
     }
 
@@ -419,7 +418,7 @@ fn maybe_pending_seek() {
 
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
     let reader = BufReader::with_capacity(2, MaybePendingSeek::new(inner));
-    pin_mut!(reader);
+    let mut reader = pin!(reader);
 
     assert_eq!(run(reader.seek(SeekFrom::Current(3))).ok(), Some(3));
     assert_eq!(run(reader.as_mut().fill_buf()).ok(), Some(&[0, 1][..]));

@@ -1,10 +1,16 @@
-use futures::executor::block_on;
-use futures::future::poll_fn;
-use futures::task::{AtomicWaker, Poll};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::thread;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread,
+};
+
+use futures::{
+    executor::block_on,
+    future::poll_fn,
+    task::{AtomicWaker, Poll},
+};
 
 #[test]
 fn basic() {

@@ -2,8 +2,7 @@
 
 use futures_core::stream::Stream;
 
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
+pub use crate::{assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending};
 
 /// Additional combinators for testing streams.
 pub trait StreamTestExt: Stream {
@@ -28,14 +27,15 @@ pub trait StreamTestExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// use core::pin::pin;
+    ///
     /// use futures::task::Poll;
     /// use futures::stream::{self, Stream};
     /// use futures_test::task::noop_context;
     /// use futures_test::stream::StreamTestExt;
-    /// use futures::pin_mut;
     ///
     /// let stream = stream::iter(vec![1, 2]).interleave_pending();
-    /// pin_mut!(stream);
+    /// let mut stream = pin!(stream);
     ///
     /// let mut cx = noop_context();
     ///

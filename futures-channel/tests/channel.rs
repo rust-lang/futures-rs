@@ -1,10 +1,11 @@
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::future::poll_fn;
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
+use std::{
+    sync::atomic::{AtomicUsize, Ordering},
+    thread,
+};
+
+use futures::{
+    channel::mpsc, executor::block_on, future::poll_fn, sink::SinkExt, stream::StreamExt,
+};
 
 #[test]
 fn sequence() {

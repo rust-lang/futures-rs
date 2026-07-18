@@ -1,10 +1,10 @@
-use std::{
+use core::{
     cell::Cell,
-    collections::hash_map::DefaultHasher,
     hash::Hasher,
     num::Wrapping,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use std::collections::hash_map::DefaultHasher;
 
 // Based on [Fisher–Yates shuffle].
 //

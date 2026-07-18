@@ -1,11 +1,14 @@
+use futures_01::{
+    Future as Future01,
+    future::{ExecuteError as ExecuteError01, Executor as Executor01},
+};
+use futures_task::{FutureObj, Spawn as Spawn03, SpawnError as SpawnError03};
+
 use super::{Compat, Future01CompatExt};
 use crate::{
     future::{FutureExt, TryFutureExt, UnitError},
     task::SpawnExt,
 };
-use futures_01::future::{ExecuteError as ExecuteError01, Executor as Executor01};
-use futures_01::Future as Future01;
-use futures_task::{FutureObj, Spawn as Spawn03, SpawnError as SpawnError03};
 
 /// A future that can run on a futures 0.1
 /// [`Executor`](futures_01::future::Executor).
@@ -17,7 +20,7 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> + Clone + Send + 'st
     /// futures 0.3 [`Spawn`](futures_task::Spawn).
     ///
     /// ```
-    /// # if cfg!(miri) { return; } // Miri does not support epoll
+    /// # if cfg!(miri) { return; } // Miri does not support epoll_create
     /// use futures::task::SpawnExt;
     /// use futures::future::{FutureExt, TryFutureExt};
     /// use futures_util::compat::Executor01CompatExt;

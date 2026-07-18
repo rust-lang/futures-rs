@@ -1,12 +1,17 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, LocalPool};
-use futures::future::{self, FutureExt, LocalFutureObj, TryFutureExt};
-use futures::task::LocalSpawn;
-use std::cell::{Cell, RefCell};
-use std::panic::AssertUnwindSafe;
-use std::rc::Rc;
-use std::task::Poll;
-use std::thread;
+use std::{
+    cell::{Cell, RefCell},
+    panic::AssertUnwindSafe,
+    rc::Rc,
+    task::Poll,
+    thread,
+};
+
+use futures::{
+    channel::oneshot,
+    executor::{LocalPool, block_on},
+    future::{self, FutureExt, LocalFutureObj, TryFutureExt},
+    task::LocalSpawn,
+};
 
 struct CountClone(Rc<Cell<i32>>);
 
@@ -153,9 +158,9 @@ fn downgrade() {
 
 #[test]
 fn ptr_eq() {
+    use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+
     use future::FusedFuture;
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
 
     let (tx, rx) = oneshot::channel::<i32>();
     let shared = rx.shared();

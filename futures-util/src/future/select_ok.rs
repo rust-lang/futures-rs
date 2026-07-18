@@ -1,11 +1,13 @@
+use alloc::vec::Vec;
+use core::{iter::FromIterator, mem, pin::Pin};
+
+use futures_core::{
+    future::{Future, TryFuture},
+    task::{Context, Poll},
+};
+
 use super::assert_future;
 use crate::future::TryFutureExt;
-use alloc::vec::Vec;
-use core::iter::FromIterator;
-use core::mem;
-use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
-use futures_core::task::{Context, Poll};
 
 /// Future for the [`select_ok`] function.
 #[derive(Debug)]

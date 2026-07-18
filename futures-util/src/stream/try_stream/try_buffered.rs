@@ -1,12 +1,15 @@
-use crate::stream::{Fuse, FuturesOrdered, StreamExt};
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{Context, Poll};
+use core::{num::NonZeroUsize, pin::Pin};
+
+use futures_core::{
+    future::TryFuture,
+    stream::{Stream, TryStream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, FuturesOrdered, StreamExt};
 
 pin_project! {
     /// Stream for the [`try_buffered`](super::TryStreamExt::try_buffered) method.
@@ -66,11 +69,7 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
-            Poll::Ready(None)
-        } else {
-            Poll::Pending
-        }
+        if this.stream.is_done() { Poll::Ready(None) } else { Poll::Pending }
     }
 }
 

@@ -1,8 +1,8 @@
+use core::{fmt, pin::Pin};
+use std::io;
+
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncWrite, IoSlice};
-use std::fmt;
-use std::io;
-use std::pin::Pin;
 
 /// Writer for the [`sink()`] function.
 #[must_use = "writers do nothing unless polled"]

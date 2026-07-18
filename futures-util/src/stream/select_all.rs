@@ -1,15 +1,19 @@
 //! An unbounded set of streams
 
-use core::fmt::{self, Debug};
-use core::iter::FromIterator;
-use core::pin::Pin;
+use core::{
+    fmt::{self, Debug},
+    iter::FromIterator,
+    pin::Pin,
+};
 
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+use futures_core::{
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 
 use super::assert_stream;
-use crate::stream::{futures_unordered, FuturesUnordered, StreamExt, StreamFuture};
+use crate::stream::{FuturesUnordered, StreamExt, StreamFuture, futures_unordered};
 
 /// An unbounded set of streams
 ///
