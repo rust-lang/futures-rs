@@ -426,9 +426,9 @@ pub trait FutureExt: Future {
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
     where
-        Self: Sized + ::std::panic::UnwindSafe,
+        Self: Sized + ::core::panic::UnwindSafe,
     {
-        assert_future::<Result<Self::Output, Box<dyn std::any::Any + Send>>, _>(CatchUnwind::new(
+        assert_future::<Result<Self::Output, Box<dyn core::any::Any + Send>>, _>(CatchUnwind::new(
             self,
         ))
     }

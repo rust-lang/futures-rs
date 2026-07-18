@@ -1,4 +1,8 @@
 use crate::task::{self as task03, ArcWake as ArcWake03, WakerRef};
+use alloc::sync::Arc;
+#[cfg(feature = "sink")]
+use core::marker::PhantomData;
+use core::{mem, pin::Pin, task::Context};
 use futures_01::{
     task as task01, Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01,
 };
@@ -11,9 +15,6 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
-#[cfg(feature = "sink")]
-use std::marker::PhantomData;
-use std::{mem, pin::Pin, sync::Arc, task::Context};
 
 #[allow(clippy::too_long_first_doc_paragraph)] // clippy bug, see https://github.com/rust-lang/rust-clippy/issues/13315
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture) or
@@ -180,7 +181,7 @@ impl Current {
 
         let ptr = current_to_ptr(self);
         let vtable = &RawWakerVTable::new(clone, wake, wake, drop);
-        WakerRef::new_unowned(std::mem::ManuallyDrop::new(unsafe {
+        WakerRef::new_unowned(mem::ManuallyDrop::new(unsafe {
             task03::Waker::from_raw(RawWaker::new(ptr, vtable))
         }))
     }

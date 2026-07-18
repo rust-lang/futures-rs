@@ -1,18 +1,19 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::String;
+use alloc::sync::Arc;
+use core::fmt;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, Spawn, SpawnError};
 use futures_util::future::FutureExt;
-use std::boxed::Box;
-use std::fmt;
-use std::format;
 use std::io;
-use std::string::String;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::thread;
 
 /// A general-purpose thread pool for scheduling tasks that poll futures to
@@ -352,6 +353,7 @@ impl ArcWake for WakeHandle {
 }
 
 #[cfg(test)]
+#[allow(clippy::alloc_instead_of_core, clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 mod tests {
     use super::*;
 

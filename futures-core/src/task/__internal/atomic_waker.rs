@@ -48,7 +48,7 @@ use core::sync::atomic;
 /// use std::sync::Arc;
 /// use std::sync::atomic::AtomicBool;
 /// use std::sync::atomic::Ordering::Relaxed;
-/// use std::pin::Pin;
+/// use core::pin::Pin;
 ///
 /// struct Inner {
 ///     waker: AtomicWaker,
@@ -240,7 +240,7 @@ impl AtomicWaker {
     /// use futures::task::{Context, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
     /// use std::sync::atomic::Ordering::Relaxed;
-    /// use std::pin::Pin;
+    /// use core::pin::Pin;
     ///
     /// struct Flag {
     ///     waker: AtomicWaker,

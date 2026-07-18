@@ -1,3 +1,4 @@
+use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -6,7 +7,6 @@ use futures_io::{
 };
 use futures_sink::Sink;
 use pin_project::{pin_project, pinned_drop};
-use std::pin::Pin;
 use std::thread::panicking;
 
 /// Combinator that asserts that the underlying type is not moved after being polled.
@@ -168,12 +168,13 @@ impl<T> PinnedDrop for AssertUnmoved<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::alloc_instead_of_core, clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 mod tests {
+    use core::pin::Pin;
     use futures_core::future::Future;
     use futures_core::task::{Context, Poll};
     use futures_util::future::pending;
     use futures_util::task::noop_waker;
-    use std::pin::Pin;
 
     use super::AssertUnmoved;
 

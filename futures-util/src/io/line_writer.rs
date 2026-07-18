@@ -1,11 +1,11 @@
 use super::buf_writer::BufWriter;
+use core::pin::Pin;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_io::IoSlice;
 use pin_project_lite::pin_project;
 use std::io;
-use std::pin::Pin;
 
 pin_project! {
 /// Wrap a writer, like [`BufWriter`] does, but prioritizes buffering lines

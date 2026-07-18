@@ -1,5 +1,5 @@
-use std::cell::Cell;
-use std::fmt;
+use core::cell::Cell;
+use core::fmt;
 
 std::thread_local!(static ENTERED: Cell<bool> = const { Cell::new(false) });
 

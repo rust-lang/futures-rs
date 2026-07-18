@@ -1,8 +1,8 @@
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use std::io;
-use std::pin::Pin;
 
 /// Future for the [`close`](super::AsyncWriteExt::close) method.
 #[derive(Debug)]

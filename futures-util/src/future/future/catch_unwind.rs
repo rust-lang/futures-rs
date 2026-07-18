@@ -1,7 +1,8 @@
+use alloc::boxed::Box;
 use core::any::Any;
+use core::panic::{AssertUnwindSafe, UnwindSafe};
 use core::pin::Pin;
-use std::boxed::Box;
-use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
+use std::panic::catch_unwind;
 
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};

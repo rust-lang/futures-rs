@@ -1,14 +1,14 @@
 use super::read_line::read_line_internal;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::mem;
+use core::pin::Pin;
 use futures_core::ready;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
 use pin_project_lite::pin_project;
 use std::io;
-use std::mem;
-use std::pin::Pin;
-use std::string::String;
-use std::vec::Vec;
 
 pin_project! {
     /// Stream for the [`lines`](super::AsyncBufReadExt::lines) method.

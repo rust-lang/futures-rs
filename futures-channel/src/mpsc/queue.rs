@@ -43,10 +43,10 @@
 
 pub(super) use self::PopResult::*;
 
-use std::boxed::Box;
-use std::cell::UnsafeCell;
-use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use alloc::boxed::Box;
+use core::cell::UnsafeCell;
+use core::ptr;
+use core::sync::atomic::{AtomicPtr, Ordering};
 use std::thread;
 
 /// A result of the `pop` function.

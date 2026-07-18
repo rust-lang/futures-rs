@@ -21,7 +21,8 @@
 use crate::compat::Compat;
 use crate::future::assert_future;
 use crate::stream::assert_stream;
-use std::{pin::Pin, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
+use core::pin::Pin;
 
 // Re-export some types from `std::io` so that users don't have to deal
 // with conflicts when `use`ing `futures::io` and `std::io`.

@@ -1,4 +1,11 @@
 use crate::enter;
+use alloc::rc::{Rc, Weak};
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use core::ops::{Deref, DerefMut};
+use core::pin::pin;
+use core::sync::atomic::{AtomicBool, Ordering};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
@@ -6,16 +13,7 @@ use futures_task::{waker_ref, ArcWake};
 use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
-use std::pin::pin;
-use std::rc::{Rc, Weak};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 use std::thread::{self, Thread};
-use std::vec::Vec;
 
 /// A single-threaded task pool for polling futures to completion.
 ///
