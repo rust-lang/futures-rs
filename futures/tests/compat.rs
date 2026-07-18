@@ -1,5 +1,5 @@
 #![cfg(feature = "compat")]
-#![cfg(not(miri))] // Miri does not support epoll
+#![cfg(not(miri))] // Miri does not support epoll_create
 
 use futures::compat::Future01CompatExt;
 use futures::prelude::*;
