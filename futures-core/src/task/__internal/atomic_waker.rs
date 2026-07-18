@@ -59,14 +59,14 @@ use core::sync::atomic;
 /// struct Flag(Arc<Inner>);
 ///
 /// impl Flag {
-///     pub fn new() -> Self {
+///     fn new() -> Self {
 ///         Self(Arc::new(Inner {
 ///             waker: AtomicWaker::new(),
 ///             set: AtomicBool::new(false),
 ///         }))
 ///     }
 ///
-///     pub fn signal(&self) {
+///     fn signal(&self) {
 ///         self.0.set.store(true, Relaxed);
 ///         self.0.waker.wake();
 ///     }

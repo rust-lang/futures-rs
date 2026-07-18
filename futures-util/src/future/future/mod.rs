@@ -294,6 +294,7 @@ pub trait FutureExt: Future {
     /// # futures::executor::block_on(async {
     /// use futures::future::FutureExt;
     ///
+    /// # #[allow(clippy::async_yields_async)]
     /// let nested_future = async { async { 1 } };
     /// let future = nested_future.flatten();
     /// assert_eq!(future.await, 1);
