@@ -322,7 +322,7 @@ pub use crate::io::{
 #[cfg(feature = "alloc")]
 pub mod lock;
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 mod abortable;
 
