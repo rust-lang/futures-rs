@@ -314,7 +314,7 @@ pub trait TryFutureExt: TryFuture {
     }
 
     /// Maps this future's [`Error`](TryFuture::Error) to a new error type
-    /// using the [`Into`](std::convert::Into) trait.
+    /// using the [`Into`] trait.
     ///
     /// This method does for futures what the `?`-operator does for
     /// [`Result`]: It lets the compiler infer the type of the resulting
@@ -347,7 +347,7 @@ pub trait TryFutureExt: TryFuture {
     }
 
     /// Maps this future's [`Ok`](TryFuture::Ok) to a new type
-    /// using the [`Into`](std::convert::Into) trait.
+    /// using the [`Into`] trait.
     fn ok_into<U>(self) -> OkInto<Self, U>
     where
         Self: Sized,
