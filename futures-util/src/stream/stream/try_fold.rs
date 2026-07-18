@@ -1,9 +1,11 @@
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::ready;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future, TryFuture},
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
 pin_project! {

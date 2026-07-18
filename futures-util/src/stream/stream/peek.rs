@@ -1,15 +1,19 @@
-use crate::fns::FnOnce1;
-use crate::stream::{Fuse, StreamExt};
-use core::fmt;
-use core::marker::PhantomData;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+use core::{fmt, marker::PhantomData, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::{
+    fns::FnOnce1,
+    stream::{Fuse, StreamExt},
+};
 
 pin_project! {
     /// A `Stream` that implements a `peek` method.

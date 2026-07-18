@@ -1,12 +1,15 @@
-use super::atomic::AtomicPtr;
-use super::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
-use super::Arc;
-use crate::task::AtomicWaker;
-use core::cell::UnsafeCell;
-use core::ptr;
+use core::{cell::UnsafeCell, ptr};
 
-use super::abort::abort;
-use super::task::Task;
+use super::{
+    abort::abort,
+    atomic::{
+        AtomicPtr,
+        Ordering::{AcqRel, Acquire, Relaxed, Release},
+    },
+    task::Task,
+    Arc,
+};
+use crate::task::AtomicWaker;
 
 pub(super) enum Dequeue<Fut> {
     Data(*const Task<Fut>),

@@ -1,8 +1,11 @@
 //! Definition of the `Option` (optional step) combinator
 
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
 pin_project! {

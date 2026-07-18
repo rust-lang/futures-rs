@@ -1,20 +1,26 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::block_on;
-use futures::future::{self, poll_fn, Future, FutureExt, TryFutureExt};
-use futures::ready;
-use futures::sink::{self, Sink, SinkErrInto, SinkExt};
-use futures::stream::{self, Stream, StreamExt};
-use futures::task::{self, ArcWake, Context, Poll, Waker};
+use std::{
+    cell::{Cell, RefCell},
+    collections::VecDeque,
+    convert::Infallible,
+    fmt, mem,
+    pin::{pin, Pin},
+    rc::Rc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::block_on,
+    future::{self, poll_fn, Future, FutureExt, TryFutureExt},
+    ready,
+    sink::{self, Sink, SinkErrInto, SinkExt},
+    stream::{self, Stream, StreamExt},
+    task::{self, ArcWake, Context, Poll, Waker},
+};
 use futures_test::task::panic_context;
-use std::cell::{Cell, RefCell};
-use std::collections::VecDeque;
-use std::convert::Infallible;
-use std::fmt;
-use std::mem;
-use std::pin::{pin, Pin};
-use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 fn sassert_next<S>(s: &mut S, item: S::Item)
 where

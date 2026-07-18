@@ -1,8 +1,11 @@
+use core::{marker, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll},
+};
+
 use super::assert_future;
-use core::marker;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
 
 /// Future for the [`pending()`] function.
 #[derive(Debug)]

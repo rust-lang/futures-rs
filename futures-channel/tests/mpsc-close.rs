@@ -1,14 +1,19 @@
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::future::Future;
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
+use std::{
+    pin::Pin,
+    sync::{Arc, Weak},
+    thread,
+    time::{Duration, Instant},
+};
+
+use futures::{
+    channel::mpsc,
+    executor::block_on,
+    future::Future,
+    sink::SinkExt,
+    stream::StreamExt,
+    task::{Context, Poll},
+};
 use futures_channel::mpsc::TryRecvError;
-use std::pin::Pin;
-use std::sync::{Arc, Weak};
-use std::thread;
-use std::time::{Duration, Instant};
 
 #[test]
 fn smoke() {

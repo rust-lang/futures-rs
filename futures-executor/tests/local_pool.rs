@@ -1,15 +1,22 @@
-use futures::channel::oneshot;
-use futures::executor::LocalPool;
-use futures::future::{self, lazy, poll_fn, Future};
-use futures::task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker};
-use std::cell::{Cell, RefCell};
-use std::marker::PhantomData;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use std::{
+    cell::{Cell, RefCell},
+    marker::PhantomData,
+    pin::Pin,
+    rc::Rc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
+
+use futures::{
+    channel::oneshot,
+    executor::LocalPool,
+    future::{self, lazy, poll_fn, Future},
+    task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker},
+};
 
 struct Pending(PhantomData<Rc<()>>);
 

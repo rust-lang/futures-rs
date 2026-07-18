@@ -1,10 +1,14 @@
-use crate::stream::{Fuse, IntoStream, Stream, TryStream};
 use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    ready,
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, IntoStream, Stream, TryStream};
 
 pin_project! {
     /// Future for the [`try_forward`](super::TryStreamExt::try_forward) method.

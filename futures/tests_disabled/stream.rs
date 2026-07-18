@@ -1,8 +1,9 @@
-use futures::channel::mpsc;
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{err, ok};
-use futures::stream::{empty, iter_ok, poll_fn, Peekable};
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::{block_on, block_on_stream},
+    future::{err, ok},
+    stream::{empty, iter_ok, poll_fn, Peekable},
+};
 
 // mod support;
 // use support::*;

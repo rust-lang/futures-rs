@@ -1,7 +1,10 @@
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 
 /// Future for the [`feed`](super::SinkExt::feed) method.

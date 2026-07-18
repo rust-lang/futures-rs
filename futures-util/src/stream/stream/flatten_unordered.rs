@@ -9,8 +9,6 @@ use core::{
     sync::atomic::{AtomicU8, Ordering},
 };
 
-use pin_project_lite::pin_project;
-
 use futures_core::{
     future::Future,
     ready,
@@ -20,6 +18,7 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use futures_task::{waker, ArcWake};
+use pin_project_lite::pin_project;
 
 use crate::stream::FuturesUnordered;
 

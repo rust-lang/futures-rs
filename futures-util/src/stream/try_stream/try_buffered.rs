@@ -1,13 +1,18 @@
-use crate::future::{IntoFuture, TryFutureExt};
-use crate::stream::{Fuse, FuturesOrdered, IntoStream, StreamExt};
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{Context, Poll};
+use core::{num::NonZeroUsize, pin::Pin};
+
+use futures_core::{
+    future::TryFuture,
+    stream::{Stream, TryStream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::{
+    future::{IntoFuture, TryFutureExt},
+    stream::{Fuse, FuturesOrdered, IntoStream, StreamExt},
+};
 
 pin_project! {
     /// Stream for the [`try_buffered`](super::TryStreamExt::try_buffered) method.

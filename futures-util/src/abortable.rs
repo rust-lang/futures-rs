@@ -1,12 +1,18 @@
-use crate::task::AtomicWaker;
 use alloc::sync::Arc;
-use core::fmt;
-use core::pin::Pin;
-use core::sync::atomic::{AtomicBool, Ordering};
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
-use futures_core::Stream;
+use core::{
+    fmt,
+    pin::Pin,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+    Stream,
+};
 use pin_project_lite::pin_project;
+
+use crate::task::AtomicWaker;
 
 pin_project! {
     /// A future/stream which can be remotely short-circuited using an `AbortHandle`.

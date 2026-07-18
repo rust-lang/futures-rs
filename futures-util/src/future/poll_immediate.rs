@@ -1,8 +1,12 @@
-use super::assert_future;
 use core::pin::Pin;
-use futures_core::task::{Context, Poll};
-use futures_core::{FusedFuture, Future, Stream};
+
+use futures_core::{
+    task::{Context, Poll},
+    FusedFuture, Future, Stream,
+};
 use pin_project_lite::pin_project;
+
+use super::assert_future;
 
 pin_project! {
     /// Future for the [`poll_immediate`](poll_immediate()) function.

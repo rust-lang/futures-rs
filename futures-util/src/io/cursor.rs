@@ -1,9 +1,9 @@
-use alloc::boxed::Box;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::pin::Pin;
+use std::io;
+
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
-use std::io;
 
 /// A `Cursor` wraps an in-memory buffer and provides it with a
 /// [`AsyncSeek`] implementation.

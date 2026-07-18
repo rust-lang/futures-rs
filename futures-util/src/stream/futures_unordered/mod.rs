@@ -3,32 +3,36 @@
 //! This module is only available when the `std` or `alloc` feature of this
 //! library is activated, and it is activated by default.
 
-#[cfg(not(feature = "portable-atomic"))]
-use core::sync::atomic;
-
 #[cfg(not(feature = "portable-atomic-alloc"))]
 use alloc::sync::{Arc, Weak};
+#[cfg(not(feature = "portable-atomic"))]
+use core::sync::atomic;
+use core::{
+    cell::UnsafeCell,
+    fmt::{self, Debug},
+    iter::FromIterator,
+    marker::PhantomData,
+    mem,
+    pin::Pin,
+    ptr,
+};
 
+use atomic::{
+    AtomicBool, AtomicPtr,
+    Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst},
+};
+use futures_core::{
+    future::Future,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
+use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 #[cfg(feature = "portable-atomic")]
 use portable_atomic_crate as atomic;
-
 #[cfg(feature = "portable-atomic-alloc")]
 use portable_atomic_util::{Arc, Weak};
 
 use crate::task::AtomicWaker;
-use atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
-use atomic::{AtomicBool, AtomicPtr};
-use core::cell::UnsafeCell;
-use core::fmt::{self, Debug};
-use core::iter::FromIterator;
-use core::marker::PhantomData;
-use core::mem;
-use core::pin::Pin;
-use core::ptr;
-use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
-use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
 
 mod abort;
 

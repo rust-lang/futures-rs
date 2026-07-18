@@ -1,8 +1,12 @@
-use crate::io::AsyncRead;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
 use std::io::{self, IoSliceMut};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+
+use crate::io::AsyncRead;
 
 /// Future for the [`read_vectored`](super::AsyncReadExt::read_vectored) method.
 #[derive(Debug)]

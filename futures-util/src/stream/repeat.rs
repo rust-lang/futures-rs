@@ -1,7 +1,11 @@
-use super::assert_stream;
 use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
+
+use super::assert_stream;
 
 /// Stream for the [`repeat`] function.
 #[derive(Debug, Clone)]

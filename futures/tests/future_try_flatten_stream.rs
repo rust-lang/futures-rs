@@ -1,11 +1,12 @@
-use futures::executor::block_on_stream;
-use futures::future::{err, ok, TryFutureExt};
-use futures::sink::Sink;
-use futures::stream::Stream;
-use futures::stream::{self, StreamExt};
-use futures::task::{Context, Poll};
-use std::marker::PhantomData;
-use std::pin::Pin;
+use std::{marker::PhantomData, pin::Pin};
+
+use futures::{
+    executor::block_on_stream,
+    future::{err, ok, TryFutureExt},
+    sink::Sink,
+    stream::{self, Stream, StreamExt},
+    task::{Context, Poll},
+};
 
 #[test]
 fn successful_future() {

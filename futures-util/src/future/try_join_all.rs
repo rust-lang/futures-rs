@@ -1,17 +1,17 @@
 //! Definition of the `TryJoinAll` combinator, waiting for all of a list of
 //! futures to finish with either success or error.
 
-use alloc::boxed::Box;
-use alloc::vec::Vec;
-use core::fmt;
-use core::future::Future;
-use core::iter::FromIterator;
-use core::mem;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use alloc::{boxed::Box, vec::Vec};
+use core::{
+    fmt,
+    future::Future,
+    iter::FromIterator,
+    mem,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
-
 #[cfg(target_has_atomic = "ptr")]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
 use crate::TryFutureExt;

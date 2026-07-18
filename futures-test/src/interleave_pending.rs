@@ -2,8 +2,11 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::{FusedStream, Stream};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::{FusedStream, Stream},
+};
 use futures_io::{
     self as io, AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom,
 };

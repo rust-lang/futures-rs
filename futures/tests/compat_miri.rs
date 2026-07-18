@@ -1,7 +1,5 @@
 #![cfg(feature = "compat")]
-use futures::compat::Future01CompatExt;
-use futures::executor::block_on;
-use futures::future::TryFutureExt;
+use futures::{compat::Future01CompatExt, executor::block_on, future::TryFutureExt};
 
 #[test]
 // from https://github.com/rust-lang/futures-rs/issues/2514

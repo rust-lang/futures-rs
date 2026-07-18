@@ -41,13 +41,15 @@
 // NOTE: this implementation is lifted from the standard library and only
 //       slightly modified
 
-pub(super) use self::PopResult::*;
-
 use alloc::boxed::Box;
-use core::cell::UnsafeCell;
-use core::ptr;
-use core::sync::atomic::{AtomicPtr, Ordering};
+use core::{
+    cell::UnsafeCell,
+    ptr,
+    sync::atomic::{AtomicPtr, Ordering},
+};
 use std::thread;
+
+pub(super) use self::PopResult::*;
 
 /// A result of the `pop` function.
 pub(super) enum PopResult<T> {

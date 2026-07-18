@@ -1,12 +1,15 @@
-use crate::abortable::{AbortHandle, AbortInner, Aborted};
 use alloc::sync::Arc;
-use core::pin::Pin;
-use core::sync::atomic::Ordering;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::{pin::Pin, sync::atomic::Ordering};
+use std::io;
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncWrite};
 use pin_project_lite::pin_project;
-use std::io;
+
+use crate::abortable::{AbortHandle, AbortInner, Aborted};
 
 /// Creates a future which copies all the bytes from one object to another, with its `AbortHandle`.
 ///

@@ -1,7 +1,9 @@
-use futures::executor::block_on;
-use futures::future::{self, BoxFuture, FutureExt};
-use std::sync::mpsc;
-use std::thread;
+use std::{sync::mpsc, thread};
+
+use futures::{
+    executor::block_on,
+    future::{self, BoxFuture, FutureExt},
+};
 
 #[test]
 fn lots() {

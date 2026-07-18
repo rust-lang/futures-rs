@@ -3,9 +3,9 @@
 use futures_io::AsyncWrite;
 
 pub use super::limited::Limited;
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
-pub use crate::track_closed::TrackClosed;
+pub use crate::{
+    assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending, track_closed::TrackClosed,
+};
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {

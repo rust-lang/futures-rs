@@ -1,13 +1,15 @@
-use super::DEFAULT_BUF_SIZE;
 use alloc::vec::Vec;
-use core::fmt;
-use core::pin::Pin;
-use core::ptr;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin, ptr};
+use std::io::{self, Write};
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
 use pin_project_lite::pin_project;
-use std::io::{self, Write};
+
+use super::DEFAULT_BUF_SIZE;
 
 pin_project! {
     /// Wraps a writer and buffers its output.

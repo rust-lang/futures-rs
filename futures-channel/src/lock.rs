@@ -4,10 +4,11 @@
 //! thing that ever blocks, so this is assisted with a fast user-space
 //! implementation of a lock that can only have a `try_lock` operation.
 
-use core::cell::UnsafeCell;
-use core::ops::{Deref, DerefMut};
-use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering::SeqCst;
+use core::{
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering::SeqCst},
+};
 
 /// A "mutex" around a value, similar to `std::sync::Mutex<T>`.
 ///

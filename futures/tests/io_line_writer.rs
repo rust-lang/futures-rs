@@ -1,6 +1,9 @@
-use futures::executor::block_on;
-use futures::io::{AsyncWriteExt, LineWriter};
 use std::io;
+
+use futures::{
+    executor::block_on,
+    io::{AsyncWriteExt, LineWriter},
+};
 
 #[test]
 fn line_writer() {

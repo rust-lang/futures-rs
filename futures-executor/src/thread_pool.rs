@@ -1,20 +1,22 @@
-use crate::enter;
-use crate::unpark_mutex::UnparkMutex;
-use alloc::boxed::Box;
-use alloc::format;
-use alloc::string::String;
-use alloc::sync::Arc;
-use core::fmt;
-use core::sync::atomic::{AtomicUsize, Ordering};
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
-use futures_task::{waker_ref, ArcWake};
-use futures_task::{FutureObj, Spawn, SpawnError};
+use alloc::{boxed::Box, format, string::String, sync::Arc};
+use core::{
+    fmt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use std::{
+    io,
+    sync::{mpsc, Mutex},
+    thread,
+};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+use futures_task::{waker_ref, ArcWake, FutureObj, Spawn, SpawnError};
 use futures_util::future::FutureExt;
-use std::io;
-use std::sync::mpsc;
-use std::sync::Mutex;
-use std::thread;
+
+use crate::{enter, unpark_mutex::UnparkMutex};
 
 /// A general-purpose thread pool for scheduling tasks that poll futures to
 /// completion.

@@ -1,10 +1,9 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::fmt;
-use core::pin::Pin;
+use alloc::{string::String, vec::Vec};
+use core::{fmt, pin::Pin};
+use std::io;
+
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSlice, IoSliceMut, SeekFrom};
-use std::io;
 
 /// A simple wrapper type which allows types which implement only
 /// `std::io::Read` or `std::io::Write` to be used

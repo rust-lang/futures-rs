@@ -18,9 +18,11 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-use core::ops::DerefMut;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    ops::DerefMut,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -162,8 +164,9 @@ where
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use core::convert::Infallible;
+
+    use super::*;
 
     impl<T> Sink<T> for alloc::vec::Vec<T> {
         type Error = Infallible;

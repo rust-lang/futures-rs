@@ -81,7 +81,6 @@ macro_rules! document_join_macro {
 
 #[doc(hidden)]
 pub use futures_macro::join_internal;
-
 #[doc(hidden)]
 pub use futures_macro::try_join_internal;
 

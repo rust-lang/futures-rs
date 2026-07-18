@@ -1,15 +1,19 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{
-    AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt,
-    BufReader, SeekFrom,
+use std::{
+    cmp, io,
+    pin::{pin, Pin},
 };
-use futures::task::{Context, Poll};
+
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{
+        AllowStdIo, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek,
+        AsyncSeekExt, BufReader, SeekFrom,
+    },
+    task::{Context, Poll},
+};
 use futures_test::task::noop_context;
 use pin_project::pin_project;
-use std::cmp;
-use std::io;
-use std::pin::{pin, Pin};
 
 // helper for maybe_pending_* tests
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {

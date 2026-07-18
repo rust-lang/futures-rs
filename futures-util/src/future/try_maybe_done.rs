@@ -1,11 +1,14 @@
 //! Definition of the TryMaybeDone combinator
 
+use core::{mem, pin::Pin};
+
+use futures_core::{
+    future::{FusedFuture, Future, TryFuture},
+    ready,
+    task::{Context, Poll},
+};
+
 use super::assert_future;
-use core::mem;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
 
 /// A future that may have completed with an error.
 ///

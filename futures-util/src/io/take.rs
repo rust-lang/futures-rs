@@ -1,10 +1,12 @@
-use core::cmp;
-use core::pin::Pin;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use core::{cmp, pin::Pin};
+use std::io;
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncRead};
 use pin_project_lite::pin_project;
-use std::io;
 
 pin_project! {
     /// Reader for the [`take`](super::AsyncReadExt::take) method.

@@ -1,10 +1,13 @@
-use crate::lock::BiLock;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
+use core::{fmt, pin::Pin};
 use std::io;
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
+
+use crate::lock::BiLock;
 
 /// The readable half of an object returned from `AsyncRead::split`.
 #[derive(Debug)]

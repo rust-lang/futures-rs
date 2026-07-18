@@ -1,12 +1,11 @@
-use super::{atomic, Arc, Weak};
-
 use core::cell::UnsafeCell;
 
-use atomic::Ordering::{self, Relaxed, SeqCst};
-use atomic::{AtomicBool, AtomicPtr};
+use atomic::{
+    AtomicBool, AtomicPtr,
+    Ordering::{self, Relaxed, SeqCst},
+};
 
-use super::abort::abort;
-use super::ReadyToRunQueue;
+use super::{abort::abort, atomic, Arc, ReadyToRunQueue, Weak};
 
 /// Local version of `crate::arc_wake::ArcWake` to allow portable-atomic-util's
 /// `Arc` to be used.
@@ -177,16 +176,20 @@ impl<Fut> Drop for Task<Fut> {
 }
 
 mod waker_ref {
-    use super::ArcWake;
     #[cfg(not(feature = "portable-atomic-alloc"))]
     use alloc::sync::Arc;
-    use core::marker::PhantomData;
-    use core::mem;
-    use core::mem::ManuallyDrop;
-    use core::ops::Deref;
-    use core::task::{RawWaker, RawWakerVTable, Waker};
+    use core::{
+        marker::PhantomData,
+        mem,
+        mem::ManuallyDrop,
+        ops::Deref,
+        task::{RawWaker, RawWakerVTable, Waker},
+    };
+
     #[cfg(feature = "portable-atomic-alloc")]
     use portable_atomic_util::Arc;
+
+    use super::ArcWake;
 
     pub(crate) struct WakerRef<'a> {
         waker: ManuallyDrop<Waker>,

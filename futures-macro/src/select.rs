@@ -3,8 +3,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_quote, Expr, Ident, Pat, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_quote, Expr, Ident, Pat, Token,
+};
 
 mod kw {
     syn::custom_keyword!(complete);

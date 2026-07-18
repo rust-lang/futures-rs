@@ -1,10 +1,13 @@
 use core::pin::Pin;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use std::io;
+
+use futures_core::{
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::AsyncWrite;
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
-use std::io;
 
 #[derive(Debug)]
 struct Block<Item> {

@@ -1,5 +1,4 @@
-use futures::channel::mpsc;
-use futures::stream::Stream;
+use futures::{channel::mpsc, stream::Stream};
 
 #[test]
 fn unbounded_size_hint() {

@@ -1,7 +1,9 @@
-use super::{SendError, Sender, TrySendError, UnboundedSender};
 use core::pin::Pin;
+
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
+
+use super::{SendError, Sender, TrySendError, UnboundedSender};
 
 impl<T> Sink<T> for Sender<T> {
     type Error = SendError;

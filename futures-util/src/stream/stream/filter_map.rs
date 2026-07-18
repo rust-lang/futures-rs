@@ -1,13 +1,16 @@
-use crate::fns::FnMut1;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::fns::FnMut1;
 
 pin_project! {
     /// Stream for the [`filter_map`](super::StreamExt::filter_map) method.

@@ -79,17 +79,19 @@
 // by the queue structure.
 
 use alloc::sync::Arc;
-use core::fmt;
-use core::future::Future;
-use core::pin::Pin;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::SeqCst;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::__internal::AtomicWaker;
-use futures_core::task::{Context, Poll, Waker};
-use futures_core::FusedFuture;
-use std::sync::Mutex;
-use std::thread;
+use core::{
+    fmt,
+    future::Future,
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering::SeqCst},
+};
+use std::{sync::Mutex, thread};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{__internal::AtomicWaker, Context, Poll, Waker},
+    FusedFuture,
+};
 
 use crate::mpsc::queue::Queue;
 

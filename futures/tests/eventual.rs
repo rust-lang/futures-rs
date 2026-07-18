@@ -1,9 +1,11 @@
-use futures::channel::oneshot;
-use futures::executor::ThreadPool;
-use futures::future::{self, ok, Future, FutureExt, TryFutureExt};
-use futures::task::SpawnExt;
-use std::sync::mpsc;
-use std::thread;
+use std::{sync::mpsc, thread};
+
+use futures::{
+    channel::oneshot,
+    executor::ThreadPool,
+    future::{self, ok, Future, FutureExt, TryFutureExt},
+    task::SpawnExt,
+};
 
 fn run<F: Future + Send + 'static>(future: F) {
     let tp = ThreadPool::new().unwrap();

@@ -1,11 +1,15 @@
 use alloc::boxed::Box;
-use core::any::Any;
-use core::panic::{AssertUnwindSafe, UnwindSafe};
-use core::pin::Pin;
+use core::{
+    any::Any,
+    panic::{AssertUnwindSafe, UnwindSafe},
+    pin::Pin,
+};
 use std::panic::catch_unwind;
 
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
 
 pin_project! {

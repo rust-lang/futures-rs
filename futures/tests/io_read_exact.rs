@@ -1,5 +1,4 @@
-use futures::executor::block_on;
-use futures::io::AsyncReadExt;
+use futures::{executor::block_on, io::AsyncReadExt};
 
 #[test]
 fn read_exact() {

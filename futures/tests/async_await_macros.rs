@@ -1,12 +1,17 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::block_on;
-use futures::future::{self, poll_fn, FutureExt};
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use futures::task::{Context, Poll};
-use futures::{join, pending, poll, select, select_biased, stream, stream_select, try_join};
-use std::mem;
-use std::pin::pin;
+use std::{mem, pin::pin};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::block_on,
+    future::{self, poll_fn, FutureExt},
+    join, pending, poll, select, select_biased,
+    sink::SinkExt,
+    stream,
+    stream::StreamExt,
+    stream_select,
+    task::{Context, Poll},
+    try_join,
+};
 
 #[test]
 fn poll_and_pending() {

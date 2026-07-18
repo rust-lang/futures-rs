@@ -95,54 +95,46 @@
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
 compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
 
-#[doc(no_inline)]
-pub use futures_core::future::{Future, TryFuture};
-#[doc(no_inline)]
-pub use futures_util::future::{FutureExt, TryFutureExt};
-
-#[doc(no_inline)]
-pub use futures_core::stream::{Stream, TryStream};
-#[doc(no_inline)]
-pub use futures_util::stream::{StreamExt, TryStreamExt};
-
-#[doc(no_inline)]
-pub use futures_sink::Sink;
-#[doc(no_inline)]
-pub use futures_util::sink::SinkExt;
-
-#[cfg(feature = "std")]
-#[doc(no_inline)]
-pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
-#[cfg(feature = "std")]
-#[doc(no_inline)]
-pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-
-// Macro reexports
-pub use futures_core::ready; // Readiness propagation
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::select;
-#[cfg(feature = "async-await")]
-pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
-
-// Module reexports
-#[doc(inline)]
-pub use futures_util::{future, sink, stream, task};
-
-#[cfg(feature = "std")]
-#[cfg(feature = "async-await")]
-pub use futures_util::stream_select;
-
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use futures_channel as channel;
-#[cfg(feature = "alloc")]
-#[doc(inline)]
-pub use futures_util::lock;
-
+#[doc(no_inline)]
+pub use futures_core::future::{Future, TryFuture};
+// Macro reexports
+pub use futures_core::ready; // Readiness propagation
+#[doc(no_inline)]
+pub use futures_core::stream::{Stream, TryStream};
+#[cfg(feature = "std")]
+#[doc(no_inline)]
+pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
+#[doc(no_inline)]
+pub use futures_sink::Sink;
+#[doc(no_inline)]
+pub use futures_util::future::{FutureExt, TryFutureExt};
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use futures_util::io;
+#[cfg(feature = "alloc")]
+#[doc(inline)]
+pub use futures_util::lock;
+#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
+pub use futures_util::select;
+#[doc(no_inline)]
+pub use futures_util::sink::SinkExt;
+#[doc(no_inline)]
+pub use futures_util::stream::{StreamExt, TryStreamExt};
+#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
+pub use futures_util::stream_select;
+// Module reexports
+#[doc(inline)]
+pub use futures_util::{future, sink, stream, task};
+#[cfg(feature = "async-await")]
+pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
+#[cfg(feature = "std")]
+#[doc(no_inline)]
+pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 #[cfg(feature = "executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "executor")))]
@@ -190,7 +182,6 @@ pub mod executor {
         block_on, block_on_stream, enter, BlockingStream, Enter, EnterError, LocalPool,
         LocalSpawner,
     };
-
     #[cfg(feature = "thread-pool")]
     #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]
     pub use futures_executor::{ThreadPool, ThreadPoolBuilder};
@@ -204,14 +195,13 @@ pub mod compat {
     //! This module is only available when the `compat` feature of this
     //! library is activated.
 
+    #[cfg(feature = "io-compat")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
+    pub use futures_util::compat::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
     pub use futures_util::compat::{
         Compat, Compat01As03, Compat01As03Sink, CompatSink, Executor01As03, Executor01CompatExt,
         Executor01Future, Future01CompatExt, Sink01CompatExt, Stream01CompatExt,
     };
-
-    #[cfg(feature = "io-compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-    pub use futures_util::compat::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 }
 
 pub mod prelude {
@@ -228,23 +218,22 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use crate::future::{self, Future, TryFuture};
-    pub use crate::sink::{self, Sink};
-    pub use crate::stream::{self, Stream, TryStream};
-
     #[doc(no_inline)]
     pub use crate::future::{FutureExt as _, TryFutureExt as _};
-    #[doc(no_inline)]
-    pub use crate::sink::SinkExt as _;
-    #[doc(no_inline)]
-    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
-
     #[cfg(feature = "std")]
     pub use crate::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
-
     #[cfg(feature = "std")]
     #[doc(no_inline)]
     pub use crate::io::{
         AsyncBufReadExt as _, AsyncReadExt as _, AsyncSeekExt as _, AsyncWriteExt as _,
+    };
+    #[doc(no_inline)]
+    pub use crate::sink::SinkExt as _;
+    #[doc(no_inline)]
+    pub use crate::stream::{StreamExt as _, TryStreamExt as _};
+    pub use crate::{
+        future::{self, Future, TryFuture},
+        sink::{self, Sink},
+        stream::{self, Stream, TryStream},
     };
 }

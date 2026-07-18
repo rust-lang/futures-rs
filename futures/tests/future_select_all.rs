@@ -1,6 +1,9 @@
-use futures::executor::block_on;
-use futures::future::{ready, select_all};
 use std::collections::HashSet;
+
+use futures::{
+    executor::block_on,
+    future::{ready, select_all},
+};
 
 #[test]
 fn smoke() {

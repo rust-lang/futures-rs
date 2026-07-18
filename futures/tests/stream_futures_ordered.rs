@@ -1,10 +1,13 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, Future, FutureExt, TryFutureExt};
-use futures::stream::{FuturesOrdered, StreamExt};
-use futures::task::Poll;
-use futures_test::task::noop_context;
 use std::any::Any;
+
+use futures::{
+    channel::oneshot,
+    executor::{block_on, block_on_stream},
+    future::{self, join, Future, FutureExt, TryFutureExt},
+    stream::{FuturesOrdered, StreamExt},
+    task::Poll,
+};
+use futures_test::task::noop_context;
 
 #[test]
 fn works_1() {

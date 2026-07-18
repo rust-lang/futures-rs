@@ -1,11 +1,16 @@
 use alloc::boxed::Box;
-use core::any::Any;
-use core::panic::{AssertUnwindSafe, UnwindSafe};
-use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
-use pin_project_lite::pin_project;
+use core::{
+    any::Any,
+    panic::{AssertUnwindSafe, UnwindSafe},
+    pin::Pin,
+};
 use std::panic::catch_unwind;
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
+use pin_project_lite::pin_project;
 
 pin_project! {
     /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.

@@ -1,7 +1,10 @@
-use super::arc_wake::ArcWake;
 use alloc::sync::Arc;
-use core::mem;
-use core::task::{RawWaker, RawWakerVTable, Waker};
+use core::{
+    mem,
+    task::{RawWaker, RawWakerVTable, Waker},
+};
+
+use super::arc_wake::ArcWake;
 
 pub(super) fn waker_vtable<W: ArcWake + 'static>() -> &'static RawWakerVTable {
     &RawWakerVTable::new(
