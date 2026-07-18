@@ -1,5 +1,7 @@
 name: Release
 
+permissions: {}
+
 on:
   push:
     tags:
@@ -9,9 +11,11 @@ jobs:
   create-release:
     if: github.repository_owner == 'rust-lang'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # for taiki-e/create-gh-release-action
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: taiki-e/create-gh-release-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1.11.0
         with:
           changelog: CHANGELOG.md
           branch: 'master|[0-9]+\.[0-9]+'
