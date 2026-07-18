@@ -3,6 +3,7 @@ use core::fmt;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
@@ -51,16 +52,15 @@ where
     }
 
     delegate_access_inner!(stream, St, (.));
-}
 
-impl<St> Stream for BufferUnordered<St>
-where
-    St: Stream,
-    St::Item: Future,
-{
-    type Item = <St::Item as Future>::Output;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    /// Poll the underlying `Stream`, allowing the buffer to fill up.
+    ///
+    /// This does not poll the futures produced by the stream,
+    /// `Stream::poll_next` should be used to progress instead.
+    ///
+    /// When `Poll::Ready` is returned, the underlying stream has been
+    /// exhausted, and all of its futures have been buffered or consumed.
+    pub fn poll_stream(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         let mut this = self.project();
 
         // First up, try to spawn off as many futures as possible by filling up
@@ -72,6 +72,26 @@ where
             }
         }
 
+        if this.stream.is_done() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+impl<St> Stream for BufferUnordered<St>
+where
+    St: Stream,
+    St::Item: Future,
+{
+    type Item = <St::Item as Future>::Output;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let stream_res = self.as_mut().poll_stream(cx);
+
+        let this = self.project();
+
         // Attempt to pull the next value from the in_progress_queue
         match this.in_progress_queue.poll_next_unpin(cx) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
@@ -79,11 +99,8 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
-            Poll::Ready(None)
-        } else {
-            Poll::Pending
-        }
+        ready!(stream_res);
+        Poll::Ready(None)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
