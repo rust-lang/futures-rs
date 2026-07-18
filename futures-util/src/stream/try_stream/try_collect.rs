@@ -45,7 +45,7 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
         Poll::Ready(Ok(loop {
-            match ready!(this.stream.as_mut().try_poll_next(cx)?) {
+            match ready!(this.stream.as_mut().poll_next(cx)?) {
                 Some(x) => this.items.extend(Some(x)),
                 None => break mem::take(this.items),
             }

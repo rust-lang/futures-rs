@@ -78,7 +78,7 @@ jobs:
         rust:
           # This is the minimum Rust version supported by futures-core, futures-io, futures-sink.
           # When updating this, the reminder to update the minimum required version in README.md and Cargo.toml.
-          - '1.36'
+          - '1.52'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -91,7 +91,9 @@ jobs:
           tool: rust@${{ matrix.rust }},cargo-hack
           fallback: none
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-      - run: cargo hack --remove-dev-deps --workspace
+      - run: |
+          cargo hack --remove-dev-deps --workspace \
+            --exclude futures --exclude futures-util --exclude futures-task --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check no-default-features
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features \

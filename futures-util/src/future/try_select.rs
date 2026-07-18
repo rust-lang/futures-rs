@@ -5,7 +5,7 @@ use futures_core::{
     task::{Context, Poll},
 };
 
-use crate::future::{Either, TryFutureExt};
+use crate::future::{Either, FutureExt};
 
 /// Future for the [`try_select()`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
@@ -73,10 +73,10 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
-        match a.try_poll_unpin(cx) {
+        match a.poll_unpin(cx) {
             Poll::Ready(Err(x)) => Poll::Ready(Err(Either::Left((x, b)))),
             Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Left((x, b)))),
-            Poll::Pending => match b.try_poll_unpin(cx) {
+            Poll::Pending => match b.poll_unpin(cx) {
                 Poll::Ready(Err(x)) => Poll::Ready(Err(Either::Right((x, a)))),
                 Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Right((x, a)))),
                 Poll::Pending => {
