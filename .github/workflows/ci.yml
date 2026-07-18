@@ -91,7 +91,9 @@ jobs:
           tool: rust@${{ matrix.rust }},cargo-hack
           fallback: none
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
-      - run: cargo hack --remove-dev-deps --workspace
+      - run: |
+          cargo hack --remove-dev-deps --workspace \
+            --exclude futures --exclude futures-util --exclude futures-task --exclude futures-macro --exclude futures-executor --exclude futures-channel --exclude futures-test
       # Check no-default-features
       - run: |
           cargo hack build --workspace --ignore-private --no-default-features \

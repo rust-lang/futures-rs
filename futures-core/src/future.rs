@@ -81,11 +81,10 @@ mod if_alloc {
             <F as FusedFuture>::is_terminated(&**self)
         }
     }
+}
 
-    #[cfg(feature = "std")]
-    impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
-        fn is_terminated(&self) -> bool {
-            <F as FusedFuture>::is_terminated(&**self)
-        }
+impl<F: FusedFuture> FusedFuture for core::panic::AssertUnwindSafe<F> {
+    fn is_terminated(&self) -> bool {
+        <F as FusedFuture>::is_terminated(&**self)
     }
 }

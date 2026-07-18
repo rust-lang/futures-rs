@@ -202,22 +202,21 @@ mod if_alloc {
         }
     }
 
-    #[cfg(feature = "std")]
-    impl<S: Stream> Stream for std::panic::AssertUnwindSafe<S> {
-        type Item = S::Item;
-
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
-            unsafe { self.map_unchecked_mut(|x| &mut x.0) }.poll_next(cx)
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            self.0.size_hint()
-        }
-    }
-
     impl<S: ?Sized + FusedStream + Unpin> FusedStream for Box<S> {
         fn is_terminated(&self) -> bool {
             <S as FusedStream>::is_terminated(&**self)
         }
+    }
+}
+
+impl<S: Stream> Stream for core::panic::AssertUnwindSafe<S> {
+    type Item = S::Item;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
+        unsafe { self.map_unchecked_mut(|x| &mut x.0) }.poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
