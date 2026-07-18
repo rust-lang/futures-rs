@@ -41,7 +41,7 @@ delegate_all!(
     where F: Future
 );
 
-pub use fuse::Fuse;
+pub use self::fuse::Fuse;
 
 delegate_all!(
     /// Future for the [`map`](super::FutureExt::map) method.

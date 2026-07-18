@@ -3,7 +3,7 @@
 mod limited;
 
 pub mod read;
-pub use read::AsyncReadTestExt;
+pub use self::read::AsyncReadTestExt;
 
 pub mod write;
-pub use write::AsyncWriteTestExt;
+pub use self::write::AsyncWriteTestExt;

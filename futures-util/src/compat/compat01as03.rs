@@ -15,7 +15,7 @@ use std::task::Context;
 
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
+pub use self::io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
 /// object to a futures 0.3-compatible version,

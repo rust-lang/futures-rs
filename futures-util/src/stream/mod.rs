@@ -136,10 +136,10 @@ pub use self::select_all::{select_all, SelectAll};
 mod abortable;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
+pub use self::abortable::abortable;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use abortable::abortable;
+pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
 
 // Just a helper function to ensure the streams we're returning all have the
 // right implementations.

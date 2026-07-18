@@ -117,10 +117,10 @@ pub use self::either::Either;
 mod abortable;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
+pub use self::abortable::abortable;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use abortable::abortable;
+pub use crate::abortable::{AbortHandle, AbortRegistration, Abortable, Aborted};
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
