@@ -64,6 +64,37 @@ fn send_recv_no_buffer() {
 }
 
 #[test]
+fn sink_poll_flush() {
+    // Run on a task context
+    block_on(poll_fn(move |cx| {
+        let (tx, rx) = mpsc::channel::<i32>(2);
+        pin_mut!(tx, rx);
+
+        assert!(tx.as_mut().poll_flush(cx).is_ready());
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
+
+        // Send two messages, `poll_flush` should be pending after each of them.
+        assert!(tx.as_mut().start_send(1).is_ok());
+        assert!(tx.as_mut().poll_flush(cx).is_pending());
+
+        assert!(tx.as_mut().start_send(2).is_ok());
+        assert!(tx.as_mut().poll_flush(cx).is_pending());
+
+        // Take first message
+        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(1)));
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
+        assert!(tx.as_mut().poll_flush(cx).is_pending());
+
+        // Take second message
+        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(2)));
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
+        assert!(tx.as_mut().poll_flush(cx).is_ready());
+
+        Poll::Ready(())
+    }));
+}
+
+#[test]
 fn send_shared_recv() {
     let (mut tx1, rx) = mpsc::channel::<i32>(16);
     let mut rx = block_on_stream(rx);
