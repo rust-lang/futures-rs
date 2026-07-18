@@ -131,7 +131,7 @@ where
     type Item = Either<St::Ok, SingleStreamResult<St::Ok>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let item = ready!(self.project().stream.try_poll_next(cx));
+        let item = ready!(self.project().stream.poll_next(cx));
 
         let out = match item {
             Some(res) => match res {

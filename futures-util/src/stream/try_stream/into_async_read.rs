@@ -69,7 +69,7 @@ where
 
                     return Poll::Ready(Ok(len));
                 }
-                ReadState::PendingChunk => match ready!(this.stream.as_mut().try_poll_next(cx)) {
+                ReadState::PendingChunk => match ready!(this.stream.as_mut().poll_next(cx)) {
                     Some(Ok(chunk)) => {
                         if !chunk.as_ref().is_empty() {
                             *this.state = ReadState::Ready { chunk, chunk_start: 0 };
@@ -122,7 +122,7 @@ where
         let mut this = self.project();
 
         while let ReadState::PendingChunk = this.state {
-            match ready!(this.stream.as_mut().try_poll_next(cx)) {
+            match ready!(this.stream.as_mut().poll_next(cx)) {
                 Some(Ok(chunk)) => {
                     if !chunk.as_ref().is_empty() {
                         *this.state = ReadState::Ready { chunk, chunk_start: 0 };

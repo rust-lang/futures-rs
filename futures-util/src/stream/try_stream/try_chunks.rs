@@ -47,7 +47,7 @@ impl<St: TryStream> Stream for TryChunks<St> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut this = self.as_mut().project();
         loop {
-            match ready!(this.stream.as_mut().try_poll_next(cx)) {
+            match ready!(this.stream.as_mut().poll_next(cx)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.

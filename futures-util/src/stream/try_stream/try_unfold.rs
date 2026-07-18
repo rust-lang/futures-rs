@@ -108,7 +108,7 @@ where
                 Poll::Ready(None)
             }
             Some(future) => {
-                let step = ready!(future.try_poll(cx));
+                let step = ready!(future.poll(cx));
                 this.fut.set(None);
 
                 match step {
