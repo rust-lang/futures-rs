@@ -572,8 +572,7 @@ pub trait StreamExt: Stream {
     /// of all the subsequent results of the stream. If the stream is
     /// empty, the default value will be returned.
     ///
-    /// Works with all collections that implement the
-    /// [`Extend`](std::iter::Extend) trait.
+    /// Works with all collections that implement the [`Extend`] trait.
     ///
     /// # Examples
     ///

@@ -1,8 +1,8 @@
 use crate::task::{noop_waker_ref, panic_waker_ref};
 use futures_core::task::Context;
 
-/// Create a new [`Context`](core::task::Context) where the
-/// [waker](core::task::Context::waker) will panic if used.
+/// Create a new [`Context`] where the [waker](core::task::Context::waker)
+/// will panic if used.
 ///
 /// # Examples
 ///
@@ -16,8 +16,8 @@ pub fn panic_context() -> Context<'static> {
     Context::from_waker(panic_waker_ref())
 }
 
-/// Create a new [`Context`](core::task::Context) where the
-/// [waker](core::task::Context::waker) will ignore any uses.
+/// Create a new [`Context`] where the [waker](core::task::Context::waker)
+/// will ignore any uses.
 ///
 /// # Examples
 ///

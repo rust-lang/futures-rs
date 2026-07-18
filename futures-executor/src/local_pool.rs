@@ -23,8 +23,7 @@ use std::vec::Vec;
 /// thread. It's appropriate to poll strictly I/O-bound futures that do very
 /// little work in between I/O actions.
 ///
-/// To get a handle to the pool that implements
-/// [`Spawn`](futures_task::Spawn), use the
+/// To get a handle to the pool that implements [`Spawn`], use the
 /// [`spawner()`](LocalPool::spawner) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local_obj`](futures_task::LocalSpawn::spawn_local_obj).
@@ -34,7 +33,7 @@ pub struct LocalPool {
     incoming: Rc<Incoming>,
 }
 
-/// A handle to a [`LocalPool`] that implements [`Spawn`](futures_task::Spawn).
+/// A handle to a [`LocalPool`] that implements [`Spawn`].
 #[derive(Clone, Debug)]
 pub struct LocalSpawner {
     incoming: Weak<Incoming>,
