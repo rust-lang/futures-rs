@@ -1,6 +1,9 @@
+use std::{
+    panic,
+    sync::{Arc, Mutex},
+};
+
 use futures::task::{self, ArcWake, Waker};
-use std::panic;
-use std::sync::{Arc, Mutex};
 
 struct CountingWaker {
     nr_wake: Mutex<i32>,

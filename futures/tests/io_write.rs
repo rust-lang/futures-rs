@@ -1,8 +1,11 @@
+use std::{
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use futures::io::AsyncWrite;
 use futures_test::task::panic_context;
-use std::io;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 type MockWriterFun = Box<dyn FnMut(&[u8]) -> Poll<io::Result<usize>>>;
 

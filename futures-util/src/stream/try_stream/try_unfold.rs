@@ -1,11 +1,14 @@
-use super::assert_stream;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::TryFuture;
-use futures_core::ready;
-use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::TryFuture,
+    ready,
+    stream::Stream,
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use super::assert_stream;
 
 /// Creates a `TryStream` from a seed and a closure returning a `TryFuture`.
 ///

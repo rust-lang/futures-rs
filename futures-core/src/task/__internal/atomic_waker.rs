@@ -1,15 +1,13 @@
-use core::cell::UnsafeCell;
-use core::fmt;
-use core::task::Waker;
-
-use atomic::AtomicUsize;
-use atomic::Ordering::{AcqRel, Acquire, Release};
-
-#[cfg(feature = "portable-atomic")]
-use portable_atomic as atomic;
-
 #[cfg(not(feature = "portable-atomic"))]
 use core::sync::atomic;
+use core::{cell::UnsafeCell, fmt, task::Waker};
+
+use atomic::{
+    AtomicUsize,
+    Ordering::{AcqRel, Acquire, Release},
+};
+#[cfg(feature = "portable-atomic")]
+use portable_atomic as atomic;
 
 /// A synchronization primitive for task wakeup.
 ///

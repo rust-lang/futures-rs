@@ -1,9 +1,12 @@
-use crate::stream::{Fuse, StreamExt};
-use core::cmp;
-use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+use core::{cmp, pin::Pin};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, StreamExt};
 
 pin_project! {
     /// Stream for the [`zip`](super::StreamExt::zip) method.

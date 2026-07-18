@@ -3,14 +3,6 @@
 //! This module contains a number of functions for working with `Streams`s
 //! that return `Result`s, allowing for short-circuiting computations.
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
-use crate::fns::{
-    inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, InspectErrFn, InspectOkFn,
-    IntoFn, MapErrFn, MapOkFn,
-};
-use crate::future::assert_future;
-use crate::stream::{assert_stream, Inspect, Map};
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::pin::Pin;
@@ -22,6 +14,17 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
+
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+use crate::{
+    fns::{
+        inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, InspectErrFn, InspectOkFn,
+        IntoFn, MapErrFn, MapOkFn,
+    },
+    future::assert_future,
+    stream::{assert_stream, Inspect, Map},
+};
 
 mod and_then;
 pub use self::and_then::AndThen;

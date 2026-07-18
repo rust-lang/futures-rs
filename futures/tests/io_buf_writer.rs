@@ -1,12 +1,12 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{
-    AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom,
+use std::{io, pin::Pin};
+
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom},
+    task::{Context, Poll},
 };
-use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
-use std::io;
-use std::pin::Pin;
 
 struct MaybePending {
     inner: Vec<u8>,

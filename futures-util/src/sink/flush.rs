@@ -1,7 +1,9 @@
-use core::marker::PhantomData;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use core::{marker::PhantomData, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
 use futures_sink::Sink;
 
 /// Future for the [`flush`](super::SinkExt::flush) method.

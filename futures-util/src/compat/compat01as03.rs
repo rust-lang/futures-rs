@@ -1,12 +1,13 @@
 use alloc::boxed::Box;
-use core::cell::UnsafeCell;
-use core::pin::Pin;
-use core::task::Context;
-use futures_01::executor::{
-    spawn as spawn01, Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
-    UnsafeNotify as UnsafeNotify01,
+use core::{cell::UnsafeCell, pin::Pin, task::Context};
+
+use futures_01::{
+    executor::{
+        spawn as spawn01, Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
+        UnsafeNotify as UnsafeNotify01,
+    },
+    Async as Async01, Future as Future01, Stream as Stream01,
 };
-use futures_01::{Async as Async01, Future as Future01, Stream as Stream01};
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
 use futures_core::{future::Future as Future03, stream::Stream as Stream03, task as task03};
@@ -362,10 +363,12 @@ unsafe impl UnsafeNotify01 for NotifyWaker {
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 mod io {
-    use super::*;
-    use futures_io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
     use std::io::Error;
+
+    use futures_io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
     use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
+
+    use super::*;
 
     /// Extension trait for tokio-io [`AsyncRead`](tokio_io::AsyncRead)
     #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]

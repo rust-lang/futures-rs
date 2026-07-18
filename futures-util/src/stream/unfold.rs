@@ -1,12 +1,15 @@
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    ready,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
+use pin_project_lite::pin_project;
+
 use super::assert_stream;
 use crate::unfold_state::UnfoldState;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
-use pin_project_lite::pin_project;
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///

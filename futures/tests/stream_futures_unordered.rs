@@ -1,14 +1,20 @@
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, Future, FutureExt};
-use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
-use futures::task::{Context, Poll};
-use futures_test::future::FutureTestExt;
-use futures_test::task::noop_context;
-use futures_test::{assert_stream_done, assert_stream_next, assert_stream_pending};
-use std::iter::FromIterator;
-use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::{
+    iter::FromIterator,
+    pin::Pin,
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+};
+
+use futures::{
+    channel::oneshot,
+    executor::{block_on, block_on_stream},
+    future::{self, join, Future, FutureExt},
+    stream::{FusedStream, FuturesUnordered, StreamExt},
+    task::{Context, Poll},
+};
+use futures_test::{
+    assert_stream_done, assert_stream_next, assert_stream_pending, future::FutureTestExt,
+    task::noop_context,
+};
 
 #[test]
 fn is_terminated() {

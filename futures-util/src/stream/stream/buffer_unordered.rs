@@ -1,13 +1,15 @@
-use crate::stream::{Fuse, FuturesUnordered, StreamExt};
-use core::fmt;
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
+use core::{fmt, num::NonZeroUsize, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
+
+use crate::stream::{Fuse, FuturesUnordered, StreamExt};
 
 pin_project! {
     /// Stream for the [`buffer_unordered`](super::StreamExt::buffer_unordered)

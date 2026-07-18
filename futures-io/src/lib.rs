@@ -26,11 +26,12 @@ extern crate std;
 
 #[cfg(feature = "std")]
 mod if_std {
-    use alloc::boxed::Box;
-    use alloc::vec::Vec;
-    use core::ops::DerefMut;
-    use core::pin::Pin;
-    use core::task::{Context, Poll};
+    use alloc::{boxed::Box, vec::Vec};
+    use core::{
+        ops::DerefMut,
+        pin::Pin,
+        task::{Context, Poll},
+    };
     use std::io;
 
     // Re-export some types from `std::io` so that users don't have to deal

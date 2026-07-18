@@ -1,8 +1,10 @@
 //! Asynchronous streams.
 
-use core::ops::DerefMut;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    ops::DerefMut,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 /// An owned dynamically typed [`Stream`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
@@ -209,8 +211,9 @@ where
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use alloc::boxed::Box;
+
+    use super::*;
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;

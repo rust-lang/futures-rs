@@ -1,5 +1,7 @@
-use core::fmt::{self, Debug};
-use core::marker::PhantomData;
+use core::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+};
 
 pub trait FnOnce1<A> {
     type Output;

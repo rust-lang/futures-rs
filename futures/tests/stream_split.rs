@@ -1,9 +1,12 @@
-use futures::executor::block_on;
-use futures::sink::{Sink, SinkExt};
-use futures::stream::{self, Stream, StreamExt};
-use futures::task::{Context, Poll};
-use pin_project::pin_project;
 use std::pin::Pin;
+
+use futures::{
+    executor::block_on,
+    sink::{Sink, SinkExt},
+    stream::{self, Stream, StreamExt},
+    task::{Context, Poll},
+};
+use pin_project::pin_project;
 
 #[test]
 fn test_split() {

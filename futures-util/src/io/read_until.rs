@@ -1,10 +1,13 @@
 use alloc::vec::Vec;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::AsyncBufRead;
 use std::io;
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::AsyncBufRead;
 
 /// Future for the [`read_until`](super::AsyncBufReadExt::read_until) method.
 #[derive(Debug)]

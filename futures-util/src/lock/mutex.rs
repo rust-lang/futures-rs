@@ -1,16 +1,20 @@
 use alloc::sync::Arc;
-use core::cell::UnsafeCell;
-use core::marker::PhantomData;
-use core::ops::{Deref, DerefMut};
-use core::pin::Pin;
-use core::sync::atomic::{AtomicUsize, Ordering};
-use core::{fmt, mem};
+use core::{
+    cell::UnsafeCell,
+    fmt,
+    marker::PhantomData,
+    mem,
+    ops::{Deref, DerefMut},
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use std::sync::Mutex as StdMutex;
 
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll, Waker},
+};
 use slab::Slab;
-
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
 
 /// A futures-aware mutex.
 ///
@@ -550,8 +554,9 @@ unsafe impl<T: ?Sized + Sync, U: ?Sized + Sync> Sync for MappedMutexGuard<'_, T,
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::format;
+
+    use super::*;
 
     #[test]
     fn test_mutex_guard_debug_not_recurse() {

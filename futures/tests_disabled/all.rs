@@ -1,7 +1,10 @@
-use futures::channel::oneshot::{self, Canceled};
-use futures::executor::block_on;
-use futures::future;
 use std::sync::mpsc::{channel, TryRecvError};
+
+use futures::{
+    channel::oneshot::{self, Canceled},
+    executor::block_on,
+    future,
+};
 
 // mod support;
 // use support::*;

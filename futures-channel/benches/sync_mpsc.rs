@@ -1,19 +1,18 @@
 #![feature(test)]
 
 extern crate test;
-use crate::test::Bencher;
+use std::pin::Pin;
 
-use {
-    futures::{
-        channel::mpsc::{self, Sender, UnboundedSender},
-        ready,
-        sink::Sink,
-        stream::{Stream, StreamExt},
-        task::{Context, Poll},
-    },
-    futures_test::task::noop_context,
-    std::pin::Pin,
+use futures::{
+    channel::mpsc::{self, Sender, UnboundedSender},
+    ready,
+    sink::Sink,
+    stream::{Stream, StreamExt},
+    task::{Context, Poll},
 };
+use futures_test::task::noop_context;
+
+use crate::test::Bencher;
 
 /// Single producer, single consumer
 #[bench]

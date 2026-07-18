@@ -43,12 +43,10 @@ mod future_obj;
 pub use crate::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 mod noop_waker;
-pub use crate::noop_waker::noop_waker;
-pub use crate::noop_waker::noop_waker_ref;
-
-#[doc(no_inline)]
-pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 #[doc(no_inline)]
 pub use alloc::task::Wake;
+#[doc(no_inline)]
+pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+
+pub use crate::noop_waker::{noop_waker, noop_waker_ref};

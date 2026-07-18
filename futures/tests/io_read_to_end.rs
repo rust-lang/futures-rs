@@ -1,9 +1,10 @@
+use std::pin::Pin;
+
 use futures::{
     executor::block_on,
     io::{self, AsyncRead, AsyncReadExt},
     task::{Context, Poll},
 };
-use std::pin::Pin;
 
 #[test]
 #[should_panic(expected = "assertion failed: n <= buf.len()")]

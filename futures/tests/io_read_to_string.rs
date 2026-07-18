@@ -1,10 +1,11 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{AsyncReadExt, Cursor};
-use futures::stream::{self, StreamExt, TryStreamExt};
-use futures::task::Poll;
-use futures_test::io::AsyncReadTestExt;
-use futures_test::task::noop_context;
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{AsyncReadExt, Cursor},
+    stream::{self, StreamExt, TryStreamExt},
+    task::Poll,
+};
+use futures_test::{io::AsyncReadTestExt, task::noop_context};
 
 #[test]
 fn read_to_string() {

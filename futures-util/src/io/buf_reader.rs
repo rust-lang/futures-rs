@@ -1,14 +1,16 @@
-use super::DEFAULT_BUF_SIZE;
-use alloc::boxed::Box;
-use alloc::vec;
-use core::pin::Pin;
-use core::{cmp, fmt};
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
+use alloc::{boxed::Box, vec};
+use core::{cmp, fmt, pin::Pin};
+use std::io::{self, Read};
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
 use pin_project_lite::pin_project;
-use std::io::{self, Read};
+
+use super::DEFAULT_BUF_SIZE;
 
 pin_project! {
     /// The `BufReader` struct adds buffering to any reader.

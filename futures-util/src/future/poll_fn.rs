@@ -1,10 +1,13 @@
 //! Definition of the `PollFn` adapter combinator
 
+use core::{fmt, pin::Pin};
+
+use futures_core::{
+    future::Future,
+    task::{Context, Poll},
+};
+
 use super::assert_future;
-use core::fmt;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
 
 /// Future for the [`poll_fn`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]

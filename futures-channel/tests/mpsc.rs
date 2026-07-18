@@ -1,15 +1,22 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::{block_on, block_on_stream};
-use futures::future::{poll_fn, FutureExt};
-use futures::sink::{Sink, SinkExt};
-use futures::stream::{Stream, StreamExt};
-use futures::task::{Context, Poll};
+use std::{
+    pin::pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    thread,
+};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::{block_on, block_on_stream},
+    future::{poll_fn, FutureExt},
+    sink::{Sink, SinkExt},
+    stream::{Stream, StreamExt},
+    task::{Context, Poll},
+};
 use futures_channel::mpsc::{RecvError, TryRecvError};
 use futures_test::task::{new_count_waker, noop_context};
-use std::pin::pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[allow(dead_code)]
 trait AssertSend: Send {}
@@ -587,8 +594,7 @@ fn is_connected_to() {
 
 #[test]
 fn hash_receiver() {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
+    use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
     let mut hasher_a1 = DefaultHasher::new();
     let mut hasher_a2 = DefaultHasher::new();

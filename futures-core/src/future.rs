@@ -1,11 +1,12 @@
 //! Futures.
 
-use core::ops::DerefMut;
-use core::pin::Pin;
-use core::task::{Context, Poll};
-
 #[doc(no_inline)]
 pub use core::future::Future;
+use core::{
+    ops::DerefMut,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
@@ -95,8 +96,9 @@ where
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
-    use super::*;
     use alloc::boxed::Box;
+
+    use super::*;
 
     impl<F: FusedFuture + ?Sized + Unpin> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {

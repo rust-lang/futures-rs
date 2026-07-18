@@ -34,12 +34,13 @@ pub use self::async_await::*;
 // Not public API.
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::*;
     pub use core::{
         option::Option::{self, None, Some},
         pin::Pin,
         result::Result::{Err, Ok},
     };
+
+    pub use crate::*;
 
     #[cfg(feature = "async-await")]
     pub mod async_await {

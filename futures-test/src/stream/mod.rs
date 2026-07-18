@@ -2,8 +2,7 @@
 
 use futures_core::stream::Stream;
 
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
+pub use crate::{assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending};
 
 /// Additional combinators for testing streams.
 pub trait StreamTestExt: Stream {

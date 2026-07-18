@@ -1,13 +1,12 @@
 //! Additional combinators for testing futures.
 
 mod pending_once;
-pub use self::pending_once::PendingOnce;
-
-use futures_core::future::Future;
 use std::thread;
 
-pub use crate::assert_unmoved::AssertUnmoved;
-pub use crate::interleave_pending::InterleavePending;
+use futures_core::future::Future;
+
+pub use self::pending_once::PendingOnce;
+pub use crate::{assert_unmoved::AssertUnmoved, interleave_pending::InterleavePending};
 
 /// Additional combinators for testing futures.
 pub trait FutureTestExt: Future {

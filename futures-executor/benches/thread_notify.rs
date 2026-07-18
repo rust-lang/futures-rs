@@ -1,12 +1,15 @@
 #![feature(test)]
 
 extern crate test;
-use crate::test::Bencher;
-
-use futures::executor::block_on;
-use futures::future::Future;
-use futures::task::{Context, Poll, Waker};
 use std::pin::Pin;
+
+use futures::{
+    executor::block_on,
+    future::Future,
+    task::{Context, Poll, Waker},
+};
+
+use crate::test::Bencher;
 
 #[bench]
 fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
@@ -68,8 +71,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
 
 #[bench]
 fn thread_yield_multi_thread(b: &mut Bencher) {
-    use std::sync::mpsc;
-    use std::thread;
+    use std::{sync::mpsc, thread};
 
     const NUM: usize = 1_000;
 

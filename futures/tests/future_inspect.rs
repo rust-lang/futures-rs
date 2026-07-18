@@ -1,5 +1,7 @@
-use futures::executor::block_on;
-use futures::future::{self, FutureExt};
+use futures::{
+    executor::block_on,
+    future::{self, FutureExt},
+};
 
 #[test]
 fn smoke() {

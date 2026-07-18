@@ -1,10 +1,12 @@
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::AsyncWrite;
-use futures_io::IoSlice;
 use std::io;
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::{AsyncWrite, IoSlice};
 
 /// Future for the
 /// [`write_all_vectored`](super::AsyncWriteExt::write_all_vectored) method.
@@ -46,15 +48,19 @@ impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAllVectored<'_, '_, W> {
 #[allow(clippy::alloc_instead_of_core, clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 mod tests {
     use core::pin::Pin;
-    use std::cmp::min;
-    use std::future::Future;
-    use std::io;
-    use std::task::{Context, Poll};
-    use std::vec;
-    use std::vec::Vec;
+    use std::{
+        cmp::min,
+        future::Future,
+        io,
+        task::{Context, Poll},
+        vec,
+        vec::Vec,
+    };
 
-    use crate::io::{AsyncWrite, AsyncWriteExt, IoSlice};
-    use crate::task::noop_waker;
+    use crate::{
+        io::{AsyncWrite, AsyncWriteExt, IoSlice},
+        task::noop_waker,
+    };
 
     /// Create a new writer that reads from at most `n_bufs` and reads
     /// `per_call` bytes (in total) per call to write.

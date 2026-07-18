@@ -3,8 +3,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseStream};
-use syn::{Expr, Ident, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    Expr, Ident, Token,
+};
 
 #[derive(Default)]
 struct Join {

@@ -43,9 +43,9 @@ mod context;
 pub use self::context::{noop_context, panic_context};
 
 mod noop_spawner;
-pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
-
 pub use futures_util::task::{noop_waker, noop_waker_ref};
+
+pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
 
 mod panic_spawner;
 pub use self::panic_spawner::{panic_spawner_mut, PanicSpawner};

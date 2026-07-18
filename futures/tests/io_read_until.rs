@@ -1,10 +1,11 @@
-use futures::executor::block_on;
-use futures::future::{Future, FutureExt};
-use futures::io::{AsyncBufReadExt, Cursor};
-use futures::stream::{self, StreamExt, TryStreamExt};
-use futures::task::Poll;
-use futures_test::io::AsyncReadTestExt;
-use futures_test::task::noop_context;
+use futures::{
+    executor::block_on,
+    future::{Future, FutureExt},
+    io::{AsyncBufReadExt, Cursor},
+    stream::{self, StreamExt, TryStreamExt},
+    task::Poll,
+};
+use futures_test::{io::AsyncReadTestExt, task::noop_context};
 
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {
     let mut cx = noop_context();

@@ -1,22 +1,22 @@
-use {
-    crate::future::{CatchUnwind, FutureExt},
-    alloc::{boxed::Box, sync::Arc},
-    core::{
-        any::Any,
-        fmt,
-        panic::AssertUnwindSafe,
-        pin::Pin,
-        sync::atomic::{AtomicBool, Ordering},
-    },
-    futures_channel::oneshot::{self, Receiver, Sender},
-    futures_core::{
-        future::Future,
-        ready,
-        task::{Context, Poll},
-    },
-    pin_project_lite::pin_project,
-    std::{panic, thread},
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    any::Any,
+    fmt,
+    panic::AssertUnwindSafe,
+    pin::Pin,
+    sync::atomic::{AtomicBool, Ordering},
 };
+use std::{panic, thread};
+
+use futures_channel::oneshot::{self, Receiver, Sender};
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use pin_project_lite::pin_project;
+
+use crate::future::{CatchUnwind, FutureExt};
 
 /// The handle to a remote future returned by
 /// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,

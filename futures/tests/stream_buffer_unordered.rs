@@ -1,9 +1,11 @@
-use futures::channel::{mpsc, oneshot};
-use futures::executor::{block_on, block_on_stream};
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
-use std::sync::mpsc as std_mpsc;
-use std::thread;
+use std::{sync::mpsc as std_mpsc, thread};
+
+use futures::{
+    channel::{mpsc, oneshot},
+    executor::{block_on, block_on_stream},
+    sink::SinkExt,
+    stream::StreamExt,
+};
 
 #[test]
 #[ignore] // FIXME: https://github.com/rust-lang/futures-rs/issues/1790

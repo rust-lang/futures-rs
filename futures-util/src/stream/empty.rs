@@ -1,8 +1,11 @@
+use core::{marker::PhantomData, pin::Pin};
+
+use futures_core::{
+    stream::{FusedStream, Stream},
+    task::{Context, Poll},
+};
+
 use super::assert_stream;
-use core::marker::PhantomData;
-use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Context, Poll};
 
 /// Stream for the [`empty`] function.
 #[derive(Debug)]

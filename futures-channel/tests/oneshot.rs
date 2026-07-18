@@ -1,10 +1,12 @@
-use futures::channel::oneshot::{self, Sender};
-use futures::executor::block_on;
-use futures::future::{poll_fn, FutureExt};
-use futures::task::{Context, Poll};
+use std::{sync::mpsc, thread};
+
+use futures::{
+    channel::oneshot::{self, Sender},
+    executor::block_on,
+    future::{poll_fn, FutureExt},
+    task::{Context, Poll},
+};
 use futures_test::task::panic_waker_ref;
-use std::sync::mpsc;
-use std::thread;
 
 #[test]
 fn smoke_poll() {

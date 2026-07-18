@@ -316,9 +316,12 @@ jobs:
       - name: Install Rust and zizmor
         uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          tool: rust@stable+rustfmt,zizmor
+          tool: rust@nightly+rustfmt,zizmor
           fallback: none
-      - run: cargo fmt --all -- --check
+      # `cargo fmt` cannot recognize files not included in the current workspace and modules
+      # defined inside macros, so run rustfmt directly.
+      # We need to use nightly rustfmt because we use the unstable formatting options of rustfmt.
+      - run: rustfmt --check $(git ls-files '*.rs')
       - run: zizmor . -q --strict-collection
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,9 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
 
-use core::ptr::null;
-use core::task::{RawWaker, RawWakerVTable, Waker};
+use core::{
+    ptr::null,
+    task::{RawWaker, RawWakerVTable, Waker},
+};
 
 unsafe fn noop_clone(_data: *const ()) -> RawWaker {
     noop_raw_waker()

@@ -20,33 +20,28 @@ pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 // Extension traits and combinators
 #[allow(clippy::module_inception)]
 mod future;
+#[cfg(feature = "std")]
+pub use self::future::CatchUnwind;
+#[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
+pub use self::future::FlattenStream;
 pub use self::future::{
     Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then, UnitError,
 };
-
-#[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
-pub use self::future::FlattenStream;
-
-#[cfg(feature = "std")]
-pub use self::future::CatchUnwind;
-
 #[cfg(feature = "channel")]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
 pub use self::future::{Remote, RemoteHandle};
-
 #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::future::{Shared, WeakShared};
 
 mod try_future;
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::try_future::FlattenSink;
 pub use self::try_future::{
     AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
     OrElse, TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
 };
-
-#[cfg(feature = "sink")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub use self::try_future::FlattenSink;
 
 // Primitive futures
 

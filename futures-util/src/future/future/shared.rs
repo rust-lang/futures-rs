@@ -1,15 +1,23 @@
-use crate::task::{waker_ref, ArcWake};
 use alloc::sync::{Arc, Weak};
-use core::cell::UnsafeCell;
-use core::fmt;
-use core::hash::Hasher;
-use core::pin::Pin;
-use core::ptr;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, SeqCst};
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll, Waker};
+use core::{
+    cell::UnsafeCell,
+    fmt,
+    hash::Hasher,
+    pin::Pin,
+    ptr,
+    sync::atomic::{
+        AtomicUsize,
+        Ordering::{Acquire, SeqCst},
+    },
+};
+
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll, Waker},
+};
 use slab::Slab;
+
+use crate::task::{waker_ref, ArcWake};
 
 #[cfg(feature = "std")]
 type Mutex<T> = std::sync::Mutex<T>;

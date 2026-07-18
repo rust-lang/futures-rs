@@ -17,33 +17,27 @@ pub use futures_core::stream::{FusedStream, Stream, TryStream};
 
 #[allow(clippy::module_inception)]
 mod stream;
+#[cfg(feature = "std")]
+pub use self::stream::CatchUnwind;
+#[cfg(feature = "alloc")]
+pub use self::stream::Chunks;
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::stream::Forward;
+#[cfg(feature = "alloc")]
+pub use self::stream::ReadyChunks;
 pub use self::stream::{
     All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
     Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
     SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then,
     TryFold, TryForEach, Unzip, Zip,
 };
-
-#[cfg(feature = "std")]
-pub use self::stream::CatchUnwind;
-
-#[cfg(feature = "alloc")]
-pub use self::stream::Chunks;
-
-#[cfg(feature = "alloc")]
-pub use self::stream::ReadyChunks;
-
-#[cfg(feature = "sink")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub use self::stream::Forward;
-
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::stream::{
     BufferUnordered, Buffered, FlatMapUnordered, FlattenUnordered, ForEachConcurrent,
     TryForEachConcurrent,
 };
-
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "sink")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
@@ -51,25 +45,21 @@ pub use self::stream::{
 pub use self::stream::{ReuniteError, SplitSink, SplitStream};
 
 mod try_stream;
+#[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
+#[cfg(feature = "std")]
+pub use self::try_stream::IntoAsyncRead;
+#[cfg(feature = "sink")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
+pub use self::try_stream::TryForward;
 pub use self::try_stream::{
     try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll,
     TryAny, TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
     TryStreamExt, TryTakeWhile, TryUnfold,
 };
-
-#[cfg(feature = "io")]
-#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
-#[cfg(feature = "std")]
-pub use self::try_stream::IntoAsyncRead;
-
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryBufferUnordered, TryBuffered, TryFlattenUnordered};
-
-#[cfg(feature = "sink")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
-pub use self::try_stream::TryForward;
-
 #[cfg(feature = "alloc")]
 pub use self::try_stream::{TryChunks, TryChunksError, TryReadyChunks, TryReadyChunksError};
 

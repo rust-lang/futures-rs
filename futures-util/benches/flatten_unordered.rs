@@ -1,16 +1,18 @@
 #![feature(test)]
 
 extern crate test;
-use crate::test::Bencher;
+use std::{collections::VecDeque, thread};
 
-use futures::channel::oneshot;
-use futures::executor::block_on;
-use futures::future;
-use futures::stream::{self, StreamExt};
-use futures::task::Poll;
+use futures::{
+    channel::oneshot,
+    executor::block_on,
+    future,
+    stream::{self, StreamExt},
+    task::Poll,
+};
 use futures_util::FutureExt;
-use std::collections::VecDeque;
-use std::thread;
+
+use crate::test::Bencher;
 
 #[bench]
 fn oneshot_streams(b: &mut Bencher) {

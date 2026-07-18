@@ -16,20 +16,19 @@
 //! This module is only available when the `std` feature of this
 //! library is activated, and it is activated by default.
 
-#[cfg(feature = "io-compat")]
-#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-use crate::compat::Compat;
-use crate::future::assert_future;
-use crate::stream::assert_stream;
 use alloc::{string::String, vec::Vec};
 use core::pin::Pin;
-
 // Re-export some types from `std::io` so that users don't have to deal
 // with conflicts when `use`ing `futures::io` and `std::io`.
 #[doc(no_inline)]
 pub use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 
 pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
+
+#[cfg(feature = "io-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
+use crate::compat::Compat;
+use crate::{future::assert_future, stream::assert_stream};
 
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1

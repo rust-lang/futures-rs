@@ -3,20 +3,25 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
-use crate::future::{assert_future, Either};
-use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
-use core::convert::Infallible;
-use core::pin::pin;
-use core::pin::Pin;
+use core::{
+    convert::Infallible,
+    pin::{pin, Pin},
+};
+
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{
     future::Future,
     stream::Stream,
     task::{Context, Poll},
+};
+
+use crate::{
+    fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn},
+    future::{assert_future, Either},
+    stream::assert_stream,
 };
 
 // Combinators

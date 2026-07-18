@@ -1,8 +1,8 @@
-use crate::task::{self as task03, ArcWake as ArcWake03, WakerRef};
 use alloc::sync::Arc;
 #[cfg(feature = "sink")]
 use core::marker::PhantomData;
 use core::{mem, pin::Pin, task::Context};
+
 use futures_01::{
     task as task01, Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01,
 };
@@ -15,6 +15,8 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
+
+use crate::task::{self as task03, ArcWake as ArcWake03, WakerRef};
 
 #[allow(clippy::too_long_first_doc_paragraph)] // clippy bug, see https://github.com/rust-lang/rust-clippy/issues/13315
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture) or
@@ -219,9 +221,10 @@ where
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
 mod io {
-    use super::*;
     use futures_io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
     use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
+
+    use super::*;
 
     fn poll_03_to_io<T>(x: task03::Poll<Result<T, std::io::Error>>) -> Result<T, std::io::Error> {
         match x {

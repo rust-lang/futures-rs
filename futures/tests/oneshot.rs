@@ -1,8 +1,10 @@
-use futures::channel::oneshot;
-use futures::future::{FutureExt, TryFutureExt};
+use std::{sync::mpsc, thread};
+
+use futures::{
+    channel::oneshot,
+    future::{FutureExt, TryFutureExt},
+};
 use futures_test::future::FutureTestExt;
-use std::sync::mpsc;
-use std::thread;
 
 #[test]
 fn oneshot_send1() {

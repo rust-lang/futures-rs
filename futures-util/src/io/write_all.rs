@@ -1,10 +1,12 @@
-use core::mem;
-use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::ready;
-use futures_core::task::{Context, Poll};
-use futures_io::AsyncWrite;
+use core::{mem, pin::Pin};
 use std::io;
+
+use futures_core::{
+    future::Future,
+    ready,
+    task::{Context, Poll},
+};
+use futures_io::AsyncWrite;
 
 /// Future for the [`write_all`](super::AsyncWriteExt::write_all) method.
 #[derive(Debug)]
