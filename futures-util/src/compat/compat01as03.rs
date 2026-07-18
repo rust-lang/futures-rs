@@ -2,11 +2,11 @@ use alloc::boxed::Box;
 use core::{cell::UnsafeCell, pin::Pin, task::Context};
 
 use futures_01::{
-    executor::{
-        spawn as spawn01, Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
-        UnsafeNotify as UnsafeNotify01,
-    },
     Async as Async01, Future as Future01, Stream as Stream01,
+    executor::{
+        Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
+        UnsafeNotify as UnsafeNotify01, spawn as spawn01,
+    },
 };
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};

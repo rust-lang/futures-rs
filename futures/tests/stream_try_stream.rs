@@ -2,9 +2,9 @@ use core::pin::Pin;
 use std::convert::Infallible;
 
 use futures::{
-    stream::{self, repeat, Repeat, StreamExt, TryStreamExt},
-    task::Poll,
     Stream,
+    stream::{self, Repeat, StreamExt, TryStreamExt, repeat},
+    task::Poll,
 };
 use futures_executor::block_on;
 use futures_task::Context;

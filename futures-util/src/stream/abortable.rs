@@ -1,7 +1,7 @@
 use super::assert_stream;
 use crate::{
-    stream::{AbortHandle, Abortable},
     Stream,
+    stream::{AbortHandle, Abortable},
 };
 
 /// Creates a new `Abortable` stream and an `AbortHandle` which can be used to stop it.

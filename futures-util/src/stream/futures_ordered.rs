@@ -7,11 +7,11 @@ use core::{
 };
 
 use futures_core::{
+    FusedStream,
     future::Future,
     ready,
     stream::Stream,
     task::{Context, Poll},
-    FusedStream,
 };
 use pin_project_lite::pin_project;
 

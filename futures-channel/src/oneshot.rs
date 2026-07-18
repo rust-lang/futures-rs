@@ -182,11 +182,7 @@ impl<T> Inner<T> {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
         }
-        if self.complete.load(SeqCst) {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        }
+        if self.complete.load(SeqCst) { Poll::Ready(()) } else { Poll::Pending }
     }
 
     fn is_canceled(&self) -> bool {

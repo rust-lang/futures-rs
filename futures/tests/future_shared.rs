@@ -8,7 +8,7 @@ use std::{
 
 use futures::{
     channel::oneshot,
-    executor::{block_on, LocalPool},
+    executor::{LocalPool, block_on},
     future::{self, FutureExt, LocalFutureObj, TryFutureExt},
     task::LocalSpawn,
 };

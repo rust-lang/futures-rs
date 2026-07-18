@@ -10,12 +10,12 @@ use futures_sink::Sink;
 use pin_project_lite::pin_project;
 
 use crate::{
+    TryStreamExt,
     future::Either,
     stream::{
-        stream::flatten_unordered::{FlattenUnorderedWithFlowController, FlowController, FlowStep},
         IntoStream,
+        stream::flatten_unordered::{FlattenUnorderedWithFlowController, FlowController, FlowStep},
     },
-    TryStreamExt,
 };
 
 delegate_all!(

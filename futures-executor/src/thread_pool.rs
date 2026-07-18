@@ -5,7 +5,7 @@ use core::{
 };
 use std::{
     io,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
     thread,
 };
 
@@ -13,7 +13,7 @@ use futures_core::{
     future::Future,
     task::{Context, Poll},
 };
-use futures_task::{waker_ref, ArcWake, FutureObj, Spawn, SpawnError};
+use futures_task::{ArcWake, FutureObj, Spawn, SpawnError, waker_ref};
 use futures_util::future::FutureExt;
 
 use crate::{enter, unpark_mutex::UnparkMutex};

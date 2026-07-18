@@ -1,6 +1,6 @@
 use futures_01::{
-    future::{ExecuteError as ExecuteError01, Executor as Executor01},
     Future as Future01,
+    future::{ExecuteError as ExecuteError01, Executor as Executor01},
 };
 use futures_task::{FutureObj, Spawn as Spawn03, SpawnError as SpawnError03};
 

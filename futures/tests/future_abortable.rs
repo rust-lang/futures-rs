@@ -1,7 +1,7 @@
 use futures::{
     channel::oneshot,
     executor::block_on,
-    future::{abortable, Aborted, FutureExt},
+    future::{Aborted, FutureExt, abortable},
     task::{Context, Poll},
 };
 use futures_test::task::new_count_waker;

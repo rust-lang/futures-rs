@@ -4,8 +4,8 @@ use std::{
     pin::Pin,
     rc::Rc,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     thread,
     time::Duration,
@@ -14,7 +14,7 @@ use std::{
 use futures::{
     channel::oneshot,
     executor::LocalPool,
-    future::{self, lazy, poll_fn, Future},
+    future::{self, Future, lazy, poll_fn},
     task::{Context, LocalSpawn, LocalSpawnExt, Poll, Spawn, SpawnExt, Waker},
 };
 
@@ -191,11 +191,7 @@ fn try_run_one_returns_on_no_progress() {
                 Box::pin(poll_fn(move |ctx| {
                     cnt.set(cnt.get() + 1);
                     waker.set(Some(ctx.waker().clone()));
-                    if cnt.get() == ITER {
-                        Poll::Ready(())
-                    } else {
-                        Poll::Pending
-                    }
+                    if cnt.get() == ITER { Poll::Ready(()) } else { Poll::Pending }
                 }))
                 .into(),
             )
@@ -422,8 +418,8 @@ fn park_unpark_independence() {
             return Poll::Ready(());
         }
         done = true;
+        // some user-code that temporarily parks the thread
         cx.waker().wake_by_ref(); // (*)
-                                  // some user-code that temporarily parks the thread
         let test = thread::current();
         let latch = Arc::new(AtomicBool::new(false));
         let signal = latch.clone();

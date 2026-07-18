@@ -7,7 +7,7 @@
 use alloc::boxed::Box;
 use core::{
     convert::Infallible,
-    pin::{pin, Pin},
+    pin::{Pin, pin},
 };
 
 #[cfg(feature = "alloc")]
@@ -19,8 +19,8 @@ use futures_core::{
 };
 
 use crate::{
-    fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn},
-    future::{assert_future, Either},
+    fns::{InspectFn, IntoFn, OkFn, inspect_fn, into_fn, ok_fn},
+    future::{Either, assert_future},
     stream::assert_stream,
 };
 

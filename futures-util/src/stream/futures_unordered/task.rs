@@ -5,7 +5,7 @@ use atomic::{
     Ordering::{self, Relaxed, SeqCst},
 };
 
-use super::{abort::abort, atomic, Arc, ReadyToRunQueue, Weak};
+use super::{Arc, ReadyToRunQueue, Weak, abort::abort, atomic};
 
 /// Local version of `crate::arc_wake::ArcWake` to allow portable-atomic-util's
 /// `Arc` to be used.

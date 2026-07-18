@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use core::{mem, pin::Pin, task::Context};
 
 use futures_01::{
-    task as task01, Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01,
+    Async as Async01, Future as Future01, Poll as Poll01, Stream as Stream01, task as task01,
 };
 #[cfg(feature = "sink")]
 use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01, StartSend as StartSend01};

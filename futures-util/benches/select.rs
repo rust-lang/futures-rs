@@ -3,7 +3,7 @@
 extern crate test;
 use futures::{
     executor::block_on,
-    stream::{repeat, select, StreamExt},
+    stream::{StreamExt, repeat, select},
 };
 
 use crate::test::Bencher;

@@ -1,8 +1,8 @@
 use std::{
     pin::pin,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
     },
     thread,
 };
@@ -10,7 +10,7 @@ use std::{
 use futures::{
     channel::{mpsc, oneshot},
     executor::{block_on, block_on_stream},
-    future::{poll_fn, FutureExt},
+    future::{FutureExt, poll_fn},
     sink::{Sink, SinkExt},
     stream::{Stream, StreamExt},
     task::{Context, Poll},

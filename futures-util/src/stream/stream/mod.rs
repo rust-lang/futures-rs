@@ -20,8 +20,8 @@ use futures_core::{
 use futures_sink::Sink;
 
 use crate::{
-    fns::{inspect_fn, InspectFn},
-    future::{assert_future, Either},
+    fns::{InspectFn, inspect_fn},
+    future::{Either, assert_future},
     stream::assert_stream,
 };
 

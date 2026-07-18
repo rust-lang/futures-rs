@@ -61,11 +61,7 @@ impl<S: Stream> Stream for Fuse<S> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.done {
-            (0, Some(0))
-        } else {
-            self.stream.size_hint()
-        }
+        if self.done { (0, Some(0)) } else { self.stream.size_hint() }
     }
 }
 

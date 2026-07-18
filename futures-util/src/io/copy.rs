@@ -8,7 +8,7 @@ use futures_core::{
 use futures_io::{AsyncRead, AsyncWrite};
 use pin_project_lite::pin_project;
 
-use super::{copy_buf, BufReader, CopyBuf};
+use super::{BufReader, CopyBuf, copy_buf};
 
 /// Creates a future which copies all the bytes from one object to another.
 ///

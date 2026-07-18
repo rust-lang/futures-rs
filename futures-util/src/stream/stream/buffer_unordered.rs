@@ -81,11 +81,7 @@ where
         }
 
         // If more values are still coming from the stream, we're not done yet
-        if this.stream.is_done() {
-            Poll::Ready(None)
-        } else {
-            Poll::Pending
-        }
+        if this.stream.is_done() { Poll::Ready(None) } else { Poll::Pending }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

@@ -3,18 +3,18 @@ use std::{
     collections::VecDeque,
     convert::Infallible,
     fmt, mem,
-    pin::{pin, Pin},
+    pin::{Pin, pin},
     rc::Rc,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 use futures::{
     channel::{mpsc, oneshot},
     executor::block_on,
-    future::{self, poll_fn, Future, FutureExt, TryFutureExt},
+    future::{self, Future, FutureExt, TryFutureExt, poll_fn},
     ready,
     sink::{self, Sink, SinkErrInto, SinkExt},
     stream::{self, Stream, StreamExt},
@@ -185,11 +185,7 @@ impl<T: Unpin> Sink<T> for ManualAllow<T> {
     type Error = ();
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.allow.check(cx) {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        if self.allow.check(cx) { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: T) -> Result<(), Self::Error> {

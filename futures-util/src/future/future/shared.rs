@@ -17,7 +17,7 @@ use futures_core::{
 };
 use slab::Slab;
 
-use crate::task::{waker_ref, ArcWake};
+use crate::task::{ArcWake, waker_ref};
 
 #[cfg(feature = "std")]
 type Mutex<T> = std::sync::Mutex<T>;

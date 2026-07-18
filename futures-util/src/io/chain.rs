@@ -133,10 +133,6 @@ where
     fn consume(self: Pin<&mut Self>, amt: usize) {
         let this = self.project();
 
-        if !*this.done_first {
-            this.first.consume(amt)
-        } else {
-            this.second.consume(amt)
-        }
+        if !*this.done_first { this.first.consume(amt) } else { this.second.consume(amt) }
     }
 }

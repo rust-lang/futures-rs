@@ -17,7 +17,7 @@ use futures_core::{
 };
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use futures_task::{waker, ArcWake};
+use futures_task::{ArcWake, waker};
 use pin_project_lite::pin_project;
 
 use crate::stream::FuturesUnordered;
@@ -66,11 +66,7 @@ impl SharedPollState {
         let value = self
             .state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                if value & WAKING == NONE {
-                    Some(POLLING)
-                } else {
-                    None
-                }
+                if value & WAKING == NONE { Some(POLLING) } else { None }
             })
             .ok()?;
         let bomb = PollStateBomb::new(self, Self::reset);
@@ -95,11 +91,7 @@ impl SharedPollState {
                     next_value |= WAKING;
                 }
 
-                if next_value != value {
-                    Some(next_value)
-                } else {
-                    None
-                }
+                if next_value != value { Some(next_value) } else { None }
             })
             .ok()?;
 
@@ -146,11 +138,7 @@ impl SharedPollState {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
                 let next_value = value & !WAKING | WOKEN;
 
-                if next_value != value {
-                    Some(next_value)
-                } else {
-                    None
-                }
+                if next_value != value { Some(next_value) } else { None }
             })
             .unwrap_or_else(identity);
 

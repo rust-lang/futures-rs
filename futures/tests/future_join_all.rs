@@ -2,7 +2,7 @@ use std::{fmt::Debug, pin::pin};
 
 use futures::{
     executor::block_on,
-    future::{join_all, ready, Future, JoinAll},
+    future::{Future, JoinAll, join_all, ready},
 };
 
 #[track_caller]

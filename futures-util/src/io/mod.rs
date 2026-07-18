@@ -53,19 +53,19 @@ mod close;
 pub use self::close::Close;
 
 mod copy;
-pub use self::copy::{copy, Copy};
+pub use self::copy::{Copy, copy};
 
 mod copy_buf;
-pub use self::copy_buf::{copy_buf, CopyBuf};
+pub use self::copy_buf::{CopyBuf, copy_buf};
 
 mod copy_buf_abortable;
-pub use self::copy_buf_abortable::{copy_buf_abortable, CopyBufAbortable};
+pub use self::copy_buf_abortable::{CopyBufAbortable, copy_buf_abortable};
 
 mod cursor;
 pub use self::cursor::Cursor;
 
 mod empty;
-pub use self::empty::{empty, Empty};
+pub use self::empty::{Empty, empty};
 
 mod fill_buf;
 pub use self::fill_buf::FillBuf;
@@ -105,13 +105,13 @@ mod read_until;
 pub use self::read_until::ReadUntil;
 
 mod repeat;
-pub use self::repeat::{repeat, Repeat};
+pub use self::repeat::{Repeat, repeat};
 
 mod seek;
 pub use self::seek::Seek;
 
 mod sink;
-pub use self::sink::{sink, Sink};
+pub use self::sink::{Sink, sink};
 
 mod split;
 pub use self::split::{ReadHalf, ReuniteError, WriteHalf};

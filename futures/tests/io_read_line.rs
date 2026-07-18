@@ -1,10 +1,10 @@
 use futures::{
+    AsyncRead,
     executor::block_on,
     future::{Future, FutureExt},
     io::{AsyncBufReadExt, Cursor},
     stream::{self, StreamExt, TryStreamExt},
     task::Poll,
-    AsyncRead,
 };
 use futures_test::{io::AsyncReadTestExt, task::noop_context};
 

@@ -1,11 +1,11 @@
 use std::pin::Pin;
 
 use futures::{
+    SinkExt,
     channel::mpsc,
     executor::block_on,
-    stream::{abortable, Stream, StreamExt},
+    stream::{Stream, StreamExt, abortable},
     task::{Context, Poll},
-    SinkExt,
 };
 use futures_test::task::new_count_waker;
 

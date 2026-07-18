@@ -2,7 +2,7 @@ use std::{marker::PhantomData, pin::Pin};
 
 use futures::{
     executor::block_on_stream,
-    future::{err, ok, TryFutureExt},
+    future::{TryFutureExt, err, ok},
     sink::Sink,
     stream::{self, Stream, StreamExt},
     task::{Context, Poll},
