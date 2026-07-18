@@ -125,5 +125,4 @@ impl<T> fmt::Display for ReuniteError<T> {
     }
 }
 
-#[cfg(feature = "std")]
-impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
+impl<T: core::any::Any> core::error::Error for ReuniteError<T> {}

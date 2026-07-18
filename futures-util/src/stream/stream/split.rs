@@ -154,8 +154,7 @@ impl<T, Item> fmt::Display for ReuniteError<T, Item> {
     }
 }
 
-#[cfg(feature = "std")]
-impl<T: core::any::Any, Item> std::error::Error for ReuniteError<T, Item> {}
+impl<T: core::any::Any, Item> core::error::Error for ReuniteError<T, Item> {}
 
 #[cfg(test)]
 mod tests {
