@@ -12,7 +12,7 @@ use core::task::{Context, Poll};
 
 use super::{assert_future, MaybeDone};
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 use crate::stream::{Collect, FuturesOrdered, StreamExt};
 
 pub(crate) fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
@@ -31,7 +31,7 @@ where
     kind: JoinAllKind<F>,
 }
 
-#[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+#[cfg(target_has_atomic = "ptr")]
 pub(crate) const SMALL: usize = 30;
 
 enum JoinAllKind<F>
@@ -41,7 +41,7 @@ where
     Small {
         elems: Pin<Box<[MaybeDone<F>]>>,
     },
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     Big {
         fut: Collect<FuturesOrdered<F>, Vec<F::Output>>,
     },
@@ -57,7 +57,7 @@ where
             JoinAllKind::Small { ref elems } => {
                 f.debug_struct("JoinAll").field("elems", elems).finish()
             }
-            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+            #[cfg(target_has_atomic = "ptr")]
             JoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
@@ -106,8 +106,7 @@ where
 {
     let iter = iter.into_iter();
 
-    #[cfg(target_os = "none")]
-    #[cfg_attr(target_os = "none", cfg(not(target_has_atomic = "ptr")))]
+    #[cfg(not(target_has_atomic = "ptr"))]
     {
         let kind =
             JoinAllKind::Small { elems: iter.map(MaybeDone::Future).collect::<Box<[_]>>().into() };
@@ -115,7 +114,7 @@ where
         assert_future::<Vec<<I::Item as Future>::Output>, _>(JoinAll { kind })
     }
 
-    #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+    #[cfg(target_has_atomic = "ptr")]
     {
         let kind = match iter.size_hint().1 {
             Some(max) if max <= SMALL => JoinAllKind::Small {
@@ -154,7 +153,7 @@ where
                     Poll::Pending
                 }
             }
-            #[cfg_attr(target_os = "none", cfg(target_has_atomic = "ptr"))]
+            #[cfg(target_has_atomic = "ptr")]
             JoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
         }
     }
