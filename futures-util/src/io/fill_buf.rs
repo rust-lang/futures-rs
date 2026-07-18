@@ -1,9 +1,9 @@
+use core::pin::Pin;
+use core::slice;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
 use std::io;
-use std::pin::Pin;
-use std::slice;
 
 /// Future for the [`fill_buf`](super::AsyncBufReadExt::fill_buf) method.
 #[derive(Debug)]

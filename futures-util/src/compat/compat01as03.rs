@@ -1,3 +1,7 @@
+use alloc::boxed::Box;
+use core::cell::UnsafeCell;
+use core::pin::Pin;
+use core::task::Context;
 use futures_01::executor::{
     spawn as spawn01, Notify as Notify01, NotifyHandle as NotifyHandle01, Spawn as Spawn01,
     UnsafeNotify as UnsafeNotify01,
@@ -8,10 +12,6 @@ use futures_01::{AsyncSink as AsyncSink01, Sink as Sink01};
 use futures_core::{future::Future as Future03, stream::Stream as Stream03, task as task03};
 #[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
-use std::boxed::Box;
-use std::cell::UnsafeCell;
-use std::pin::Pin;
-use std::task::Context;
 
 #[cfg(feature = "io-compat")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]

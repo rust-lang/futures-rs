@@ -1,8 +1,8 @@
 use crate::io::AsyncRead;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use std::io;
-use std::pin::Pin;
 
 /// Future for the [`read`](super::AsyncReadExt::read) method.
 #[derive(Debug)]

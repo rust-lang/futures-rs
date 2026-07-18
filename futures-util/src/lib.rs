@@ -3,7 +3,13 @@
 
 #![no_std]
 #![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_borrow)] // https://github.com/rust-lang/futures-rs/pull/2558#issuecomment-1030745203
 

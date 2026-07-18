@@ -2,7 +2,13 @@
 
 #![no_std]
 #![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
-#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
+#![warn(
+    missing_docs,
+    // unsafe_op_in_unsafe_fn, // unsafe_op_in_unsafe_fn requires Rust 1.52
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

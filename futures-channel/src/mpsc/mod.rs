@@ -78,16 +78,17 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
+use alloc::sync::Arc;
+use core::fmt;
 use core::future::Future;
+use core::pin::Pin;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::SeqCst;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::__internal::AtomicWaker;
 use futures_core::task::{Context, Poll, Waker};
 use futures_core::FusedFuture;
-use std::fmt;
-use std::pin::Pin;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::thread;
 
 use crate::mpsc::queue::Queue;
@@ -784,9 +785,9 @@ impl<T> Sender<T> {
     /// Hashes the receiver into the provided hasher
     pub fn hash_receiver<H>(&self, hasher: &mut H)
     where
-        H: std::hash::Hasher,
+        H: core::hash::Hasher,
     {
-        use std::hash::Hash;
+        use core::hash::Hash;
 
         let ptr = self.0.as_ref().map(|inner| inner.ptr());
         ptr.hash(hasher);
@@ -865,9 +866,9 @@ impl<T> UnboundedSender<T> {
     /// Hashes the receiver into the provided hasher
     pub fn hash_receiver<H>(&self, hasher: &mut H)
     where
-        H: std::hash::Hasher,
+        H: core::hash::Hasher,
     {
-        use std::hash::Hash;
+        use core::hash::Hash;
 
         let ptr = self.0.as_ref().map(|inner| inner.ptr());
         ptr.hash(hasher);

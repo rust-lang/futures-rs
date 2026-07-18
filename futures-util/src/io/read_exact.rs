@@ -1,10 +1,10 @@
 use crate::io::AsyncRead;
+use core::mem;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use std::io;
-use std::mem;
-use std::pin::Pin;
 
 /// Future for the [`read_exact`](super::AsyncReadExt::read_exact) method.
 #[derive(Debug)]

@@ -1,10 +1,10 @@
+use core::fmt;
+use core::pin::Pin;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncRead, IoSliceMut};
 use pin_project_lite::pin_project;
-use std::fmt;
 use std::io;
-use std::pin::Pin;
 
 pin_project! {
     /// Reader for the [`chain`](super::AsyncReadExt::chain) method.

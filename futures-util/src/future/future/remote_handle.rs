@@ -1,5 +1,13 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
+    alloc::{boxed::Box, sync::Arc},
+    core::{
+        any::Any,
+        fmt,
+        panic::AssertUnwindSafe,
+        pin::Pin,
+        sync::atomic::{AtomicBool, Ordering},
+    },
     futures_channel::oneshot::{self, Receiver, Sender},
     futures_core::{
         future::Future,
@@ -7,18 +15,7 @@ use {
         task::{Context, Poll},
     },
     pin_project_lite::pin_project,
-    std::{
-        any::Any,
-        boxed::Box,
-        fmt,
-        panic::{self, AssertUnwindSafe},
-        pin::Pin,
-        sync::{
-            atomic::{AtomicBool, Ordering},
-            Arc,
-        },
-        thread,
-    },
+    std::{panic, thread},
 };
 
 /// The handle to a remote future returned by

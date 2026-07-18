@@ -1436,7 +1436,7 @@ pub trait StreamExt: Stream {
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
     where
-        Self: Sized + std::panic::UnwindSafe,
+        Self: Sized + core::panic::UnwindSafe,
     {
         assert_stream(CatchUnwind::new(self))
     }

@@ -1,12 +1,13 @@
 use super::read_to_end::read_to_end_internal;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::pin::Pin;
+use core::{mem, str};
 use futures_core::future::Future;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncRead;
-use std::pin::Pin;
-use std::string::String;
-use std::vec::Vec;
-use std::{io, mem, str};
+use std::io;
 
 /// Future for the [`read_to_string`](super::AsyncReadExt::read_to_string) method.
 #[derive(Debug)]

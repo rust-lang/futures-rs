@@ -1,7 +1,13 @@
 //! Utilities to make testing [`Future`s](futures_core::future::Future) easier
 
 #![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
-#![warn(missing_docs, unsafe_op_in_unsafe_fn)]
+#![warn(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![allow(clippy::test_attr_in_doctest)]
 
 #[cfg(not(feature = "std"))]
@@ -9,17 +15,19 @@ compile_error!(
     "`futures-test` must have the `std` feature activated, this is a default-active feature"
 );
 
+extern crate alloc;
+
 // Not public API.
 #[doc(hidden)]
 #[cfg(feature = "std")]
 pub mod __private {
-    pub use futures_core::{future, stream, task};
-    pub use futures_executor::block_on;
-    pub use std::{
+    pub use core::{
         option::Option::{None, Some},
         pin::Pin,
         result::Result::{Err, Ok},
     };
+    pub use futures_core::{future, stream, task};
+    pub use futures_executor::block_on;
 
     pub mod assert {
         pub use crate::assert::*;

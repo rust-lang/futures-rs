@@ -1,10 +1,11 @@
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex as StdMutex};
-use std::{fmt, mem};
+use alloc::sync::Arc;
+use core::cell::UnsafeCell;
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+use core::pin::Pin;
+use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{fmt, mem};
+use std::sync::Mutex as StdMutex;
 
 use slab::Slab;
 

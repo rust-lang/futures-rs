@@ -10,20 +10,28 @@
 
 #![no_std]
 #![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
-#![warn(missing_docs, /* unsafe_op_in_unsafe_fn */)] // unsafe_op_in_unsafe_fn requires Rust 1.52
+#![warn(
+    missing_docs,
+    // unsafe_op_in_unsafe_fn, // unsafe_op_in_unsafe_fn requires Rust 1.52
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(feature = "std")]
+extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "std")]
 mod if_std {
-    use std::boxed::Box;
+    use alloc::boxed::Box;
+    use alloc::vec::Vec;
+    use core::ops::DerefMut;
+    use core::pin::Pin;
+    use core::task::{Context, Poll};
     use std::io;
-    use std::ops::DerefMut;
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
-    use std::vec::Vec;
 
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.

@@ -1,5 +1,5 @@
+use core::cell::{Ref, RefCell};
 use futures_task::{FutureObj, Spawn, SpawnError};
-use std::cell::{Ref, RefCell};
 
 /// An implementation of [`Spawn`] that records any
 /// [`Future`](futures_core::future::Future)s spawned on it.

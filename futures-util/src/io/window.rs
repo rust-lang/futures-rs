@@ -1,4 +1,4 @@
-use std::ops::{Bound, Range, RangeBounds};
+use core::ops::{Bound, Range, RangeBounds};
 
 /// An owned window around an underlying buffer.
 ///
