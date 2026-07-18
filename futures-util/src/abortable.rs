@@ -1,6 +1,8 @@
 use crate::task::AtomicWaker;
 use alloc::sync::Arc;
+use core::borrow::BorrowMut;
 use core::fmt;
+use core::marker::PhantomData;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
 use futures_core::future::Future;
@@ -12,14 +14,15 @@ pin_project! {
     /// A future/stream which can be remotely short-circuited using an `AbortHandle`.
     #[derive(Debug, Clone)]
     #[must_use = "futures/streams do nothing unless you poll them"]
-    pub struct Abortable<T> {
+    pub struct Abortable<T, R = AbortRegistration> {
         #[pin]
         task: T,
         inner: Arc<AbortInner>,
+        phantom: PhantomData<R>,
     }
 }
 
-impl<T> Abortable<T> {
+impl<T, R> Abortable<T, R> {
     /// Creates a new `Abortable` future/stream using an existing `AbortRegistration`.
     /// `AbortRegistration`s can be acquired through `AbortHandle::new`.
     ///
@@ -55,8 +58,11 @@ impl<T> Abortable<T> {
     /// assert_eq!(stream.next().await, None);
     /// # });
     /// ```
-    pub fn new(task: T, reg: AbortRegistration) -> Self {
-        Self { task, inner: reg.inner }
+    pub fn new(task: T, mut reg: R) -> Self
+    where
+        R: BorrowMut<AbortRegistration>,
+    {
+        Self { task, inner: reg.borrow_mut().inner.clone(), phantom: PhantomData }
     }
 
     /// Checks whether the task has been aborted. Note that all this
@@ -129,7 +135,7 @@ impl fmt::Display for Aborted {
 #[cfg(feature = "std")]
 impl std::error::Error for Aborted {}
 
-impl<T> Abortable<T> {
+impl<T, R> Abortable<T, R> {
     fn try_poll<I>(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -160,7 +166,7 @@ impl<T> Abortable<T> {
     }
 }
 
-impl<Fut> Future for Abortable<Fut>
+impl<Fut, R> Future for Abortable<Fut, R>
 where
     Fut: Future,
 {
@@ -171,7 +177,7 @@ where
     }
 }
 
-impl<St> Stream for Abortable<St>
+impl<St, R> Stream for Abortable<St, R>
 where
     St: Stream,
 {
