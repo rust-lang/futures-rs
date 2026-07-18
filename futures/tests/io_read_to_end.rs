@@ -50,9 +50,7 @@ fn issue2310() {
             // Observe uninitialized bytes
             println!("{:?}", self.inner);
             // Overwrite heap contents
-            for b in &mut self.inner {
-                *b = 0x90;
-            }
+            self.inner.fill(0x90);
         }
     }
 
