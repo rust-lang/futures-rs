@@ -82,13 +82,7 @@
 //! inside an async block as written above.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
 #![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

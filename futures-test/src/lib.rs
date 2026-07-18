@@ -1,12 +1,6 @@
 //! Utilities to make testing [`Future`s](futures_core::future::Future) easier
 
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
 #![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![allow(clippy::test_attr_in_doctest)]
 

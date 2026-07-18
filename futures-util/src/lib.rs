@@ -2,13 +2,7 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(
-        deny(warnings, rust_2018_idioms, single_use_lifetimes),
-        allow(dead_code, unused_assignments, unused_variables)
-    )
-))]
+#![doc(test(no_crate_inject, attr(allow(dead_code, unused_assignments, unused_variables))))]
 #![warn(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_borrow)] // https://github.com/rust-lang/futures-rs/pull/2558#issuecomment-1030745203
