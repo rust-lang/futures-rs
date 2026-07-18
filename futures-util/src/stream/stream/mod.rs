@@ -548,8 +548,7 @@ pub trait StreamExt: Stream {
     /// of all the subsequent results of the stream. If the stream is
     /// empty, the default value will be returned.
     ///
-    /// Works with all collections that implement the
-    /// [`Extend`](std::iter::Extend) trait.
+    /// Works with all collections that implement the [`Extend`] trait.
     ///
     /// # Examples
     ///
@@ -1183,7 +1182,7 @@ pub trait StreamExt: Stream {
     /// yielding a future. That future will then be executed to completion
     /// before moving on to the next item.
     ///
-    /// The returned value is a [`Future`](futures_core::future::Future) where
+    /// The returned value is a [`Future`] where
     /// the [`Output`](futures_core::future::Future::Output) type is
     /// `Result<(), Fut::Error>`. If any of the intermediate futures returns
     /// an error, this future will return immediately with an error.
@@ -1222,9 +1221,8 @@ pub trait StreamExt: Stream {
     /// available, exiting as soon as an error occurs.
     ///
     /// This is similar to
-    /// [`StreamExt::for_each_concurrent`](crate::stream::StreamExt::for_each_concurrent),
-    /// but will resolve to an error immediately if the provided closure returns
-    /// an error.
+    /// [`StreamExt::for_each_concurrent`], but will resolve to an error
+    /// immediately if the provided closure returns an error.
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.

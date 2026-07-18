@@ -7,7 +7,7 @@ use pin_project_lite::pin_project;
 pin_project! {
     /// Future for the [`poll_immediate`](poll_immediate()) function.
     ///
-    /// It will never return [Poll::Pending](core::task::Poll::Pending)
+    /// It will never return [Poll::Pending].
     #[derive(Debug, Clone)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct PollImmediate<T> {
@@ -43,8 +43,8 @@ impl<T: Future> FusedFuture for PollImmediate<T> {
     }
 }
 
-/// A [Stream](crate::stream::Stream) implementation that can be polled repeatedly until the future is done.
-/// The stream will never return [Poll::Pending](core::task::Poll::Pending)
+/// A [Stream] implementation that can be polled repeatedly until the future is done.
+/// The stream will never return [Poll::Pending]
 /// so polling it in a tight loop is worse than using a blocking synchronous function.
 /// ```
 /// # futures::executor::block_on(async {
@@ -89,7 +89,8 @@ where
 }
 
 /// Creates a future that is immediately ready with an Option of a value.
-/// Specifically this means that [poll](core::future::Future::poll()) always returns [Poll::Ready](core::task::Poll::Ready).
+/// Specifically this means that [poll](core::future::Future::poll()) always
+/// returns [Poll::Ready].
 ///
 /// # Caution
 ///

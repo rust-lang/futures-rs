@@ -20,9 +20,9 @@ const fn raw_panic_waker() -> RawWaker {
     RawWaker::new(null(), &PANIC_WAKER_VTABLE)
 }
 
-/// Create a new [`Waker`](futures_core::task::Waker) which will
-/// panic when `wake()` is called on it. The [`Waker`] can be converted
-/// into a [`Waker`] which will behave the same way.
+/// Create a new [`Waker`] which will panic when `wake()` is called on it.
+/// The [`Waker`] can be converted into a [`Waker`] which will behave the same
+/// way.
 ///
 /// # Examples
 ///
@@ -37,9 +37,8 @@ pub fn panic_waker() -> Waker {
     unsafe { Waker::from_raw(raw_panic_waker()) }
 }
 
-/// Get a global reference to a
-/// [`Waker`](futures_core::task::Waker) referencing a singleton
-/// instance of a [`Waker`] which panics when woken.
+/// Get a global reference to a [`Waker`] referencing a singleton instance of
+/// a [`Waker`] which panics when woken.
 ///
 /// # Examples
 ///

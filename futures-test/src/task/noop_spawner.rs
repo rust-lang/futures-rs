@@ -1,7 +1,6 @@
 use futures_task::{FutureObj, Spawn, SpawnError};
 
-/// An implementation of [`Spawn`](futures_task::Spawn) that
-/// discards spawned futures when used.
+/// An implementation of [`Spawn`] that discards spawned futures when used.
 ///
 /// # Examples
 ///
