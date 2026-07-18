@@ -3,7 +3,7 @@ use std::{mem, pin::pin};
 use futures::{
     channel::{mpsc, oneshot},
     executor::block_on,
-    future::{self, poll_fn, FutureExt},
+    future::{self, FutureExt, poll_fn},
     join, pending, poll, select, select_biased,
     sink::SinkExt,
     stream,

@@ -3,10 +3,10 @@
 use std::{pin::Pin, thread};
 
 use futures::{
+    Future, StreamExt,
     executor::block_on,
     future, stream,
     task::{Context, Poll},
-    Future, StreamExt,
 };
 use futures_test::task::noop_context;
 use futures_util::lock::BiLock;

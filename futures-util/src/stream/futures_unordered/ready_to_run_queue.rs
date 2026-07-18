@@ -1,13 +1,13 @@
 use core::{cell::UnsafeCell, ptr};
 
 use super::{
+    Arc,
     abort::abort,
     atomic::{
         AtomicPtr,
         Ordering::{AcqRel, Acquire, Relaxed, Release},
     },
     task::Task,
-    Arc,
 };
 use crate::task::AtomicWaker;
 

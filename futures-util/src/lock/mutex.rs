@@ -107,11 +107,7 @@ impl<T: ?Sized> Mutex<T> {
     /// If the lock is currently held, this will return `None`.
     pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
         let old_state = self.state.fetch_or(IS_LOCKED, Ordering::Acquire);
-        if (old_state & IS_LOCKED) == 0 {
-            Some(MutexGuard { mutex: self })
-        } else {
-            None
-        }
+        if (old_state & IS_LOCKED) == 0 { Some(MutexGuard { mutex: self }) } else { None }
     }
 
     /// Attempt to acquire the lock immediately.

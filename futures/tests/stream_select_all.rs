@@ -2,7 +2,7 @@ use futures::{
     channel::mpsc,
     executor::{block_on, block_on_stream},
     future::{self, FutureExt},
-    stream::{self, select_all, FusedStream, SelectAll, StreamExt},
+    stream::{self, FusedStream, SelectAll, StreamExt, select_all},
     task::Poll,
 };
 use futures_test::task::noop_context;

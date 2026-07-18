@@ -53,9 +53,9 @@ pub use self::try_stream::IntoAsyncRead;
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::try_stream::TryForward;
 pub use self::try_stream::{
-    try_unfold, AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll,
-    TryAny, TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
-    TryStreamExt, TryTakeWhile, TryUnfold,
+    AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll, TryAny,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
+    TryStreamExt, TryTakeWhile, TryUnfold, try_unfold,
 };
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
@@ -66,37 +66,37 @@ pub use self::try_stream::{TryChunks, TryChunksError, TryReadyChunks, TryReadyCh
 // Primitive streams
 
 mod iter;
-pub use self::iter::{iter, Iter};
+pub use self::iter::{Iter, iter};
 
 mod repeat;
-pub use self::repeat::{repeat, Repeat};
+pub use self::repeat::{Repeat, repeat};
 
 mod repeat_with;
-pub use self::repeat_with::{repeat_with, RepeatWith};
+pub use self::repeat_with::{RepeatWith, repeat_with};
 
 mod empty;
-pub use self::empty::{empty, Empty};
+pub use self::empty::{Empty, empty};
 
 mod once;
-pub use self::once::{once, Once};
+pub use self::once::{Once, once};
 
 mod pending;
-pub use self::pending::{pending, Pending};
+pub use self::pending::{Pending, pending};
 
 mod poll_fn;
-pub use self::poll_fn::{poll_fn, PollFn};
+pub use self::poll_fn::{PollFn, poll_fn};
 
 mod poll_immediate;
-pub use self::poll_immediate::{poll_immediate, PollImmediate};
+pub use self::poll_immediate::{PollImmediate, poll_immediate};
 
 mod select;
-pub use self::select::{select, Select};
+pub use self::select::{Select, select};
 
 mod select_with_strategy;
-pub use self::select_with_strategy::{select_with_strategy, PollNext, SelectWithStrategy};
+pub use self::select_with_strategy::{PollNext, SelectWithStrategy, select_with_strategy};
 
 mod unfold;
-pub use self::unfold::{unfold, Unfold};
+pub use self::unfold::{Unfold, unfold};
 
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
@@ -119,7 +119,7 @@ pub mod select_all;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
 #[doc(inline)]
-pub use self::select_all::{select_all, SelectAll};
+pub use self::select_all::{SelectAll, select_all};
 
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]

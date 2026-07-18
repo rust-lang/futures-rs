@@ -3,7 +3,7 @@ use std::{sync::mpsc, thread};
 use futures::{
     channel::oneshot,
     executor::ThreadPool,
-    future::{self, ok, Future, FutureExt, TryFutureExt},
+    future::{self, Future, FutureExt, TryFutureExt, ok},
     task::SpawnExt,
 };
 

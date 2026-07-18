@@ -11,10 +11,10 @@ use core::{
     task::{Context, Poll},
 };
 
-use super::{assert_future, join_all, IntoFuture, TryFuture, TryMaybeDone};
+use super::{IntoFuture, TryFuture, TryMaybeDone, assert_future, join_all};
+use crate::TryFutureExt;
 #[cfg(target_has_atomic = "ptr")]
 use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
-use crate::TryFutureExt;
 
 enum FinalState<E = ()> {
     Pending,

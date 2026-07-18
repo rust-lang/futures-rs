@@ -88,9 +88,9 @@ use core::{
 use std::{sync::Mutex, thread};
 
 use futures_core::{
+    FusedFuture,
     stream::{FusedStream, Stream},
     task::{__internal::AtomicWaker, Context, Poll, Waker},
-    FusedFuture,
 };
 
 use crate::mpsc::queue::Queue;
@@ -556,7 +556,7 @@ impl<T> BoundedSenderInner<T> {
                 return Err(TrySendError {
                     err: SendError { kind: SendErrorKind::Disconnected },
                     val: msg,
-                })
+                });
             }
         };
 

@@ -2,7 +2,7 @@ use futures::{
     channel::{mpsc, oneshot},
     executor::{block_on, block_on_stream},
     future::{err, ok},
-    stream::{empty, iter_ok, poll_fn, Peekable},
+    stream::{Peekable, empty, iter_ok, poll_fn},
 };
 
 // mod support;

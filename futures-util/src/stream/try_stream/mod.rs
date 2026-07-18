@@ -19,11 +19,11 @@ use futures_sink::Sink;
 use crate::compat::Compat;
 use crate::{
     fns::{
-        inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, InspectErrFn, InspectOkFn,
-        IntoFn, MapErrFn, MapOkFn,
+        InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, inspect_err_fn, inspect_ok_fn,
+        into_fn, map_err_fn, map_ok_fn,
     },
     future::assert_future,
-    stream::{assert_stream, Inspect, Map},
+    stream::{Inspect, Map, assert_stream},
 };
 
 mod and_then;
@@ -119,7 +119,7 @@ mod try_ready_chunks;
 pub use self::try_ready_chunks::{TryReadyChunks, TryReadyChunksError};
 
 mod try_unfold;
-pub use self::try_unfold::{try_unfold, TryUnfold};
+pub use self::try_unfold::{TryUnfold, try_unfold};
 
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;

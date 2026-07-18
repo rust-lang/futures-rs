@@ -71,11 +71,7 @@ where
         let sink1_ready = this.sink1.poll_ready(cx)?.is_ready();
         let sink2_ready = this.sink2.poll_ready(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
@@ -92,11 +88,7 @@ where
         let sink1_ready = this.sink1.poll_flush(cx)?.is_ready();
         let sink2_ready = this.sink2.poll_flush(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -105,10 +97,6 @@ where
         let sink1_ready = this.sink1.poll_close(cx)?.is_ready();
         let sink2_ready = this.sink2.poll_close(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
-        if ready {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 }

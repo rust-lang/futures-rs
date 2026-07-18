@@ -1,6 +1,7 @@
 use std::{cell::Cell, iter, pin::Pin, rc::Rc, sync::Arc, task::Context};
 
 use futures::{
+    FutureExt,
     channel::mpsc,
     executor::block_on,
     future::{self, Future},
@@ -9,7 +10,6 @@ use futures::{
     sink::SinkExt,
     stream::{self, StreamExt},
     task::Poll,
-    FutureExt,
 };
 use futures_core::Stream;
 use futures_executor::ThreadPool;
@@ -48,11 +48,7 @@ fn scan() {
         let values = stream::iter(vec![1u8, 2, 3, 4, 6, 8, 2])
             .scan(1, |mut state, e| async move {
                 state += 1;
-                if e < state {
-                    Some((state, e))
-                } else {
-                    None
-                }
+                if e < state { Some((state, e)) } else { None }
             })
             .collect::<Vec<_>>()
             .await;
@@ -359,11 +355,7 @@ fn flatten_unordered() {
                 spawned = true;
             }
 
-            if ready.load(Ordering::Acquire) {
-                Poll::Ready(value.clone())
-            } else {
-                Poll::Pending
-            }
+            if ready.load(Ordering::Acquire) { Poll::Ready(value.clone()) } else { Poll::Pending }
         })
     }
 
@@ -420,11 +412,7 @@ fn take_until() {
         let mut i = 0;
         future::poll_fn(move |_cx| {
             i += 1;
-            if i <= stop_on {
-                Poll::Pending
-            } else {
-                Poll::Ready(())
-            }
+            if i <= stop_on { Poll::Pending } else { Poll::Ready(()) }
         })
     }
 

@@ -78,11 +78,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
 
         let _ = self.as_mut().try_empty_buffer(cx)?;
 
-        if self.buf.len() >= self.capacity {
-            Poll::Pending
-        } else {
-            Poll::Ready(Ok(()))
-        }
+        if self.buf.len() >= self.capacity { Poll::Pending } else { Poll::Ready(Ok(())) }
     }
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {

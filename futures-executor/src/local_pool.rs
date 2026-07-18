@@ -16,7 +16,7 @@ use futures_core::{
     stream::Stream,
     task::{Context, Poll},
 };
-use futures_task::{waker_ref, ArcWake, FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError};
+use futures_task::{ArcWake, FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, waker_ref};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 
 use crate::enter;
@@ -376,11 +376,7 @@ impl Spawn for LocalSpawner {
     }
 
     fn status(&self) -> Result<(), SpawnError> {
-        if self.incoming.upgrade().is_some() {
-            Ok(())
-        } else {
-            Err(SpawnError::shutdown())
-        }
+        if self.incoming.upgrade().is_some() { Ok(()) } else { Err(SpawnError::shutdown()) }
     }
 }
 
@@ -395,10 +391,6 @@ impl LocalSpawn for LocalSpawner {
     }
 
     fn status_local(&self) -> Result<(), SpawnError> {
-        if self.incoming.upgrade().is_some() {
-            Ok(())
-        } else {
-            Err(SpawnError::shutdown())
-        }
+        if self.incoming.upgrade().is_some() { Ok(()) } else { Err(SpawnError::shutdown()) }
     }
 }

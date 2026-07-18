@@ -4,8 +4,9 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{
+    Expr, Ident, Pat, Token,
     parse::{Parse, ParseStream},
-    parse_quote, Expr, Ident, Pat, Token,
+    parse_quote,
 };
 
 mod kw {

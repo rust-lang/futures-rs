@@ -1,4 +1,4 @@
-use std::sync::mpsc::{channel, TryRecvError};
+use std::sync::mpsc::{TryRecvError, channel};
 
 use futures::{
     channel::oneshot::{self, Canceled},

@@ -17,13 +17,13 @@ pub use futures_sink::Sink;
 
 #[cfg(feature = "compat")]
 use crate::compat::CompatSink;
-use crate::future::{assert_future, Either};
+use crate::future::{Either, assert_future};
 
 mod close;
 pub use self::close::Close;
 
 mod drain;
-pub use self::drain::{drain, Drain};
+pub use self::drain::{Drain, drain};
 
 mod fanout;
 pub use self::fanout::Fanout;
@@ -47,7 +47,7 @@ mod send_all;
 pub use self::send_all::SendAll;
 
 mod unfold;
-pub use self::unfold::{unfold, Unfold};
+pub use self::unfold::{Unfold, unfold};
 
 mod with;
 pub use self::with::With;

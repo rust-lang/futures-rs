@@ -37,7 +37,7 @@ pub use crate::waker::waker;
 mod waker_ref;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use crate::waker_ref::{waker_ref, WakerRef};
+pub use crate::waker_ref::{WakerRef, waker_ref};
 
 mod future_obj;
 pub use crate::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};

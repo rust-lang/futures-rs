@@ -3,7 +3,7 @@ use std::{sync::mpsc, thread};
 use futures::{
     channel::oneshot::{self, Sender},
     executor::block_on,
-    future::{poll_fn, FutureExt},
+    future::{FutureExt, poll_fn},
     task::{Context, Poll},
 };
 use futures_test::task::panic_waker_ref;

@@ -51,11 +51,7 @@ impl<T> Lock<T> {
     /// If `None` is returned then the lock is already locked, either elsewhere
     /// on this thread or on another thread.
     pub(crate) fn try_lock(&self) -> Option<TryLock<'_, T>> {
-        if !self.locked.swap(true, SeqCst) {
-            Some(TryLock { __ptr: self })
-        } else {
-            None
-        }
+        if !self.locked.swap(true, SeqCst) { Some(TryLock { __ptr: self }) } else { None }
     }
 }
 

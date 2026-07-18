@@ -6,7 +6,7 @@ use futures_core::{
 };
 use pin_project_lite::pin_project;
 
-use crate::future::{assert_future, try_maybe_done, TryMaybeDone};
+use crate::future::{TryMaybeDone, assert_future, try_maybe_done};
 
 pin_project! {
     /// Future for the [`try_join`](super::TryFutureExt::try_join) method.

@@ -7,7 +7,7 @@ use std::{
 use futures::{
     channel::oneshot,
     executor::{block_on, block_on_stream},
-    future::{self, join, Future, FutureExt},
+    future::{self, Future, FutureExt, join},
     stream::{FusedStream, FuturesUnordered, StreamExt},
     task::{Context, Poll},
 };

@@ -56,11 +56,7 @@ impl<Fut: Future> Stream for Once<Fut> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.future.is_some() {
-            (1, Some(1))
-        } else {
-            (0, Some(0))
-        }
+        if self.future.is_some() { (1, Some(1)) } else { (0, Some(0)) }
     }
 }
 

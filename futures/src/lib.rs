@@ -93,7 +93,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(feature = "bilock", not(feature = "unstable")))]
-compile_error!("The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features");
+compile_error!(
+    "The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features"
+);
 
 #[cfg(feature = "alloc")]
 #[doc(inline)]
@@ -127,14 +129,14 @@ pub use futures_util::stream::{StreamExt, TryStreamExt};
 #[cfg(feature = "std")]
 #[cfg(feature = "async-await")]
 pub use futures_util::stream_select;
+#[cfg(feature = "std")]
+#[doc(no_inline)]
+pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 // Module reexports
 #[doc(inline)]
 pub use futures_util::{future, sink, stream, task};
 #[cfg(feature = "async-await")]
 pub use futures_util::{join, pending, poll, select_biased, try_join}; // Async-await
-#[cfg(feature = "std")]
-#[doc(no_inline)]
-pub use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 #[cfg(feature = "executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "executor")))]
@@ -179,8 +181,8 @@ pub mod executor {
     //! [`spawn_local_obj`]: https://docs.rs/futures/0.3/futures/task/trait.LocalSpawn.html#tymethod.spawn_local_obj
 
     pub use futures_executor::{
-        block_on, block_on_stream, enter, BlockingStream, Enter, EnterError, LocalPool,
-        LocalSpawner,
+        BlockingStream, Enter, EnterError, LocalPool, LocalSpawner, block_on, block_on_stream,
+        enter,
     };
     #[cfg(feature = "thread-pool")]
     #[cfg_attr(docsrs, doc(cfg(feature = "thread-pool")))]

@@ -3,7 +3,7 @@ use std::any::Any;
 use futures::{
     channel::oneshot,
     executor::{block_on, block_on_stream},
-    future::{self, join, Future, FutureExt, TryFutureExt},
+    future::{self, Future, FutureExt, TryFutureExt, join},
     stream::{FuturesOrdered, StreamExt},
     task::Poll,
 };

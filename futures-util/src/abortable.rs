@@ -6,9 +6,9 @@ use core::{
 };
 
 use futures_core::{
+    Stream,
     future::Future,
     task::{Context, Poll},
-    Stream,
 };
 use pin_project_lite::pin_project;
 

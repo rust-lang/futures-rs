@@ -20,17 +20,17 @@ pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 pub use futures_core::task::__internal::AtomicWaker;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use futures_task::waker;
+pub use futures_task::ArcWake;
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use futures_task::ArcWake;
+pub use futures_task::waker;
 pub use futures_task::{
-    noop_waker, noop_waker_ref, FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError,
-    UnsafeFutureObj,
+    FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, UnsafeFutureObj, noop_waker,
+    noop_waker_ref,
 };
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
-pub use futures_task::{waker_ref, WakerRef};
+pub use futures_task::{WakerRef, waker_ref};
 
 mod spawn;
 pub use self::spawn::{LocalSpawnExt, SpawnExt};

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use futures::{
     channel::mpsc,
-    executor::{block_on, ThreadPool},
-    future::{ready, FutureExt},
+    executor::{ThreadPool, block_on},
+    future::{FutureExt, ready},
     lock::Mutex,
     stream::StreamExt,
     task::{Context, SpawnExt},

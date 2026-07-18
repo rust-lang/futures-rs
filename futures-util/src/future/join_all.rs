@@ -11,7 +11,7 @@ use core::{
     task::{Context, Poll},
 };
 
-use super::{assert_future, MaybeDone};
+use super::{MaybeDone, assert_future};
 #[cfg(target_has_atomic = "ptr")]
 use crate::stream::{Collect, FuturesOrdered, StreamExt};
 

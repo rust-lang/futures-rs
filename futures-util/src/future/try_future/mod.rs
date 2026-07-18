@@ -17,11 +17,11 @@ use futures_sink::Sink;
 use crate::compat::Compat;
 use crate::{
     fns::{
+        InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn, UnwrapOrElseFn,
         inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, map_ok_or_else_fn,
-        unwrap_or_else_fn, InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn,
-        UnwrapOrElseFn,
+        unwrap_or_else_fn,
     },
-    future::{assert_future, Inspect, Map},
+    future::{Inspect, Map, assert_future},
     stream::assert_stream,
 };
 
