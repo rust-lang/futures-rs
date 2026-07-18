@@ -289,7 +289,7 @@ pub trait TryStreamExt: TryStream {
     /// Any successful values produced by this stream will not be passed to the
     /// closure, and will be passed through.
     ///
-    /// The returned value of the closure must implement the [`TryFuture`](futures_core::future::TryFuture) trait
+    /// The returned value of the closure must implement the [`TryFuture`] trait
     /// and can represent some more work to be done before the composed stream
     /// is finished.
     ///
@@ -800,7 +800,7 @@ pub trait TryStreamExt: TryStream {
     /// the subsequent successful results of the stream. If the stream is empty,
     /// the default value will be returned.
     ///
-    /// Works with all collections that implement the [`Extend`](std::iter::Extend) trait.
+    /// Works with all collections that implement the [`Extend`] trait.
     ///
     /// This method is similar to [`concat`](crate::stream::StreamExt::concat), but will
     /// exit early if an error is encountered in the stream.
@@ -837,7 +837,7 @@ pub trait TryStreamExt: TryStream {
 
     /// Attempt to execute several futures from a stream concurrently (unordered).
     ///
-    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
+    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their
@@ -910,7 +910,7 @@ pub trait TryStreamExt: TryStream {
 
     /// Attempt to execute several futures from a stream concurrently.
     ///
-    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
+    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their
