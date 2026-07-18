@@ -1,7 +1,6 @@
 name: CI
 
-permissions:
-  contents: read
+permissions: {}
 
 on:
   pull_request:
@@ -31,6 +30,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  clippy:
+    uses: taiki-e/github-actions/.github/workflows/rust-clippy.yml@e6a1170cbd07eb898017958967912976fce18f2d # 2026.7.3
+    with:
+      implicit_provenance_casts: false # TODO
+  docs:
+    uses: taiki-e/github-actions/.github/workflows/rust-docs.yml@e6a1170cbd07eb898017958967912976fce18f2d # 2026.7.3
+
   test:
     name: cargo test
     strategy:
@@ -52,10 +58,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
-      - uses: taiki-e/setup-cross-toolchain-action@v1
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
+        with:
+          tool: rust@nightly
+          fallback: none
+      - uses: taiki-e/setup-cross-toolchain-action@3d9770ce98eb7dbcf378563182a5e8031165f75b # v1.41.0
         with:
           target: ${{ matrix.target }}
         if: matrix.target != ''
@@ -73,15 +82,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@main
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and cargo-hack
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          toolchain: ${{ matrix.rust }}
-      # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
-      # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+          # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
+          # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
+          tool: rust@${{ matrix.rust }},cargo-hack
+          fallback: none
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check no-default-features
@@ -108,13 +116,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@main
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and cargo-hack
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          toolchain: ${{ matrix.rust }}
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+          tool: rust@${{ matrix.rust }},cargo-hack
+          fallback: none
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       # Check default features
@@ -143,13 +150,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@main
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and cargo-hack
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          toolchain: ${{ matrix.rust }}
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+          tool: rust@${{ matrix.rust }},cargo-hack
+          fallback: none
       - run: cargo hack build --workspace --no-dev-deps
       - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
 
@@ -158,13 +164,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-      - name: Install cargo-minimal-versions
-        uses: taiki-e/install-action@cargo-minimal-versions
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust, cargo-hack, and cargo-minimal-versions
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
+        with:
+          tool: rust@nightly,cargo-hack,cargo-minimal-versions
+          fallback: none
       - run: cargo minimal-versions build --workspace --ignore-private --all-features
 
   no-std:
@@ -180,13 +185,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and cargo-hack
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          target: ${{ matrix.target }}
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+          tool: rust@nightly+${{ matrix.target }},cargo-hack
+          fallback: none
       # remove dev-dependencies to avoid https://github.com/rust-lang/cargo/issues/4866
       - run: cargo hack --remove-dev-deps --workspace
       - run: |
@@ -214,9 +218,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
+        with:
+          tool: rust@nightly
+          fallback: none
       - run: cargo bench --workspace --all-features
 
   features:
@@ -224,11 +231,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and cargo-hack
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
+        with:
+          tool: rust@nightly,cargo-hack
+          fallback: none
       # Check each specified feature works properly
       # * `--feature-powerset` - run for the feature powerset of the package
       # * `--depth 2` - limit the max number of simultaneous feature flags of `--feature-powerset`
@@ -247,11 +255,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          component: miri
+          tool: rust@nightly+miri
+          fallback: none
       - run: cargo miri test --workspace --all-features -- --skip panic_on_drop_fut
         env:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
@@ -276,7 +285,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - run: |
           printf 'TARGET=x86_64-unknown-linux-gnuasan\n' >>"${GITHUB_ENV}"
           printf 'ASAN_OPTIONS=detect_stack_use_after_return=1\n' >>"${GITHUB_ENV}"
@@ -287,9 +296,11 @@ jobs:
       - run: |
           printf 'TARGET=x86_64-unknown-linux-gnutsan\n' >>"${GITHUB_ENV}"
         if: matrix.sanitizer == 'thread'
-      - uses: taiki-e/github-actions/install-rust@nightly
+      - name: Install Rust
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          target: ${{ env.TARGET }}
+          tool: rust@stable+${{ env.TARGET }}
+          fallback: none
       - run: cargo test --workspace --all-features --target x86_64-unknown-linux-gnu --lib --tests -- --skip panic_on_drop_fut
         env:
           # TODO: Once `cfg(sanitize = "..")` is stable, replace
@@ -297,43 +308,17 @@ jobs:
           # `--cfg futures_sanitizer`.
           RUSTFLAGS: ${{ env.RUSTFLAGS }} --cfg futures_sanitizer
 
-  clippy:
-    name: cargo clippy
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@stable
-        with:
-          component: clippy
-      - run: cargo clippy --workspace --all-features --lib --bins --tests --examples
-
   tidy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@stable
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+      - name: Install Rust and zizmor
+        uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
         with:
-          component: rustfmt
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: zizmor
+          tool: rust@stable+rustfmt,zizmor
+          fallback: none
       - run: cargo fmt --all -- --check
-      - run: zizmor .
+      - run: zizmor . -q --strict-collection
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  docs:
-    name: cargo doc
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - name: Install Rust
-        uses: taiki-e/github-actions/install-rust@nightly
-      - run: cargo doc --workspace --no-deps --all-features
-        env:
-          RUSTDOCFLAGS: ${{ env.RUSTDOCFLAGS }} --cfg docsrs
