@@ -8,6 +8,16 @@ Releases may yanked if there is a security bug, a soundness bug, or a regression
 Note: In this file, do not use the hard wrap in the middle of a sentence for compatibility with GitHub comment style markdown rendering.
 -->
 
+# 0.3.33 - 2026-07-18
+
+* Fix `ReadLine`'s soundness issue regarding to exception safety. (#3020)
+* Fix unsound `Send` impl for `IterPinRef` and `Iter`. (#3003)
+* Fix stacked borrows violation in `compat01as03` implementation. (#3012)
+* Fix memory leak in `FuturesUnordered::IntoIter`. (#3005)
+* Add `portable-atomic-alloc` feature and use it in `FuturesUnordered`. (#3007)
+* Re-export `alloc::task::Wake`. (#3010)
+* Update `spin` to 0.12. (#3014)
+
 # 0.3.32 - 2026-02-15
 
 * Bump MSRV of utility crates to 1.71. (#2989)
