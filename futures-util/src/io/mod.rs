@@ -83,6 +83,9 @@ pub use self::into_sink::IntoSink;
 mod lines;
 pub use self::lines::Lines;
 
+mod pipe;
+pub use self::pipe::{pipe, PipeReader, PipeWriter};
+
 mod read;
 pub use self::read::Read;
 
