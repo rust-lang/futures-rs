@@ -20,12 +20,12 @@ use super::ReadyToRunQueue;
 ///
 /// Currently, there are two ways to convert `ArcWake` into [`Waker`]:
 ///
-/// * [`waker`](super::waker()) converts `Arc<impl ArcWake>` into [`Waker`].
-/// * [`waker_ref`](super::waker_ref()) converts `&Arc<impl ArcWake>` into [`WakerRef`] that
+/// * [`waker`](crate::task::waker()) converts `Arc<impl ArcWake>` into [`Waker`].
+/// * [`waker_ref`](crate::task::waker_ref()) converts `&Arc<impl ArcWake>` into [`WakerRef`] that
 ///   provides access to a [`&Waker`][`Waker`].
 ///
 /// [`Waker`]: std::task::Waker
-/// [`WakerRef`]: super::WakerRef
+/// [`WakerRef`]: crate::task::WakerRef
 // Note: Send + Sync required because `Arc<T>` doesn't automatically imply
 // those bounds, but `Waker` implements them.
 pub(crate) trait ArcWake: Send + Sync {
