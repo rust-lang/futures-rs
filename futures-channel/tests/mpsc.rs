@@ -1,12 +1,11 @@
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{poll_fn, FutureExt};
-use futures::sink::{Sink, SinkExt};
+use futures::sink::SinkExt;
 use futures::stream::{Stream, StreamExt};
 use futures::task::{Context, Poll};
 use futures_channel::mpsc::{RecvError, TryRecvError};
 use futures_test::task::{new_count_waker, noop_context};
-use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -27,40 +26,80 @@ fn send_recv() {
 }
 
 #[test]
-fn send_recv_no_buffer() {
-    // Run on a task context
-    block_on(poll_fn(move |cx| {
-        let (tx, rx) = mpsc::channel::<i32>(0);
-        let mut tx = pin!(tx);
-        let mut rx = pin!(rx);
+fn send_recv_buffer_zero() {
+    // Test that channel capacity = buffer + num_senders
+    // With buffer=0 and 1 sender, capacity should be 1
+    let (mut tx, rx) = mpsc::channel::<i32>(0);
+    let mut rx = block_on_stream(rx);
 
-        assert!(tx.as_mut().poll_flush(cx).is_ready());
-        assert!(tx.as_mut().poll_ready(cx).is_ready());
+    // First send should succeed (capacity = 0 + 1 sender = 1)
+    tx.try_send(1).unwrap();
 
-        // Send first message
-        assert!(tx.as_mut().start_send(1).is_ok());
-        assert!(tx.as_mut().poll_ready(cx).is_pending());
+    // Second send should fail - channel is full
+    assert!(tx.try_send(2).is_err());
 
-        // poll_ready said Pending, so no room in buffer, therefore new sends
-        // should get rejected with is_full.
-        assert!(tx.as_mut().start_send(0).unwrap_err().is_full());
-        assert!(tx.as_mut().poll_ready(cx).is_pending());
+    // Clone the sender - now capacity should be 2 (0 + 2 senders)
+    let mut tx2 = tx.clone();
 
-        // Take the value
-        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(1)));
-        assert!(tx.as_mut().poll_ready(cx).is_ready());
+    // Send on cloned sender should succeed (it's not parked, and capacity increased)
+    tx2.try_send(2).unwrap();
 
-        // Send second message
-        assert!(tx.as_mut().poll_ready(cx).is_ready());
-        assert!(tx.as_mut().start_send(2).is_ok());
-        assert!(tx.as_mut().poll_ready(cx).is_pending());
+    // Third send should fail - channel is full again
+    assert!(tx2.try_send(3).is_err());
 
-        // Take the value
-        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(2)));
-        assert!(tx.as_mut().poll_ready(cx).is_ready());
+    // Receive messages in order
+    assert_eq!(rx.next(), Some(1));
+    assert_eq!(rx.next(), Some(2));
 
-        Poll::Ready(())
-    }));
+    // Now the pending task should be able to complete
+    tx2.try_send(3).unwrap();
+    assert_eq!(rx.next(), Some(3));
+
+    // Drop both senders
+    drop(tx);
+    drop(tx2);
+
+    // Receiver should indicate stream ended
+    assert_eq!(rx.next(), None);
+}
+
+#[test]
+fn send_recv_buffer_zero_async() {
+    // Same as send_recv_buffer_zero but exercising the async send path (Sink trait)
+    // Tests that capacity = buffer + num_senders works correctly through poll_ready/start_send/poll_flush
+    let (mut tx, rx) = mpsc::channel::<i32>(0);
+    let mut rx = block_on_stream(rx);
+    let mut cx = noop_context();
+
+    // First send should succeed (capacity = 0 + 1 sender = 1)
+    block_on(tx.send(1)).unwrap();
+
+    // Second send should be pending - channel is full with one sender
+    assert_eq!(tx.send(2).poll_unpin(&mut cx), Poll::Pending);
+
+    // Clone the sender - now capacity should be 2 (0 + 2 senders)
+    let mut tx2 = tx.clone();
+
+    // Send on cloned sender should succeed (capacity increased)
+    block_on(tx2.send(2)).unwrap();
+
+    // Now try to send again on the original sender - should be pending (channel full again)
+    assert_eq!(tx.send(3).poll_unpin(&mut cx), Poll::Pending);
+
+    // Receive messages in order
+    assert_eq!(rx.next(), Some(1));
+    assert_eq!(rx.next(), Some(2));
+
+    // Now the pending task should be able to complete
+    assert_eq!(tx.send(3).poll_unpin(&mut cx), Poll::Ready(Ok(())));
+    assert_eq!(rx.next(), Some(3));
+
+    // Drop both senders
+    drop(tx);
+    drop(tx2);
+
+    // Receiver should indicate stream ended
+    assert_eq!(rx.next(), None);
 }
 
 #[test]
@@ -332,7 +371,7 @@ fn stress_drop_sender() {
     const ITER: usize = if cfg!(miri) { 100 } else { 10000 };
 
     fn list() -> impl Stream<Item = i32> {
-        let (tx, rx) = mpsc::channel(1);
+        let (tx, rx) = mpsc::channel(0);
         thread::spawn(move || {
             block_on(send_one_two_three(tx));
         });
@@ -432,7 +471,7 @@ fn stress_poll_ready() {
 #[test]
 fn test_bounded_recv() {
     let (dropped_tx, dropped_rx) = oneshot::channel();
-    let (tx, mut rx) = mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(0);
     thread::spawn(move || {
         block_on(async move {
             send_one_two_three(tx).await;
@@ -475,7 +514,7 @@ fn test_unbounded_recv() {
 #[test]
 fn try_send_1() {
     const N: usize = if cfg!(miri) { 100 } else { 3000 };
-    let (mut tx, rx) = mpsc::channel(0);
+    let (mut tx, rx) = mpsc::channel(1);
 
     let t = thread::spawn(move || {
         for i in 0..N {
@@ -639,7 +678,7 @@ fn send_backpressure() {
     let (waker, counter) = new_count_waker();
     let mut cx = Context::from_waker(&waker);
 
-    let (mut tx, mut rx) = mpsc::channel(1);
+    let (mut tx, mut rx) = mpsc::channel(0);
     block_on(tx.send(1)).unwrap();
 
     let mut task = tx.send(2);
@@ -660,11 +699,15 @@ fn send_backpressure_multi_senders() {
     let (waker, counter) = new_count_waker();
     let mut cx = Context::from_waker(&waker);
 
-    let (mut tx1, mut rx) = mpsc::channel(1);
+    let (mut tx1, mut rx) = mpsc::channel(0);
     let mut tx2 = tx1.clone();
     block_on(tx1.send(1)).unwrap();
 
     let mut task = tx2.send(2);
+    assert_eq!(task.poll_unpin(&mut cx), Poll::Ready(Ok(())));
+    assert_eq!(counter, 0);
+
+    let mut task = tx2.send(3);
     assert_eq!(task.poll_unpin(&mut cx), Poll::Pending);
     assert_eq!(counter, 0);
 

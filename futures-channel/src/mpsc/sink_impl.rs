@@ -14,14 +14,10 @@ impl<T> Sink<T> for Sender<T> {
         (*self).start_send(msg)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match (*self).poll_ready(cx) {
-            Poll::Ready(Err(ref e)) if e.is_disconnected() => {
-                // If the receiver disconnected, we consider the sink to be flushed.
-                Poll::Ready(Ok(()))
-            }
-            x => x,
-        }
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // MPSC channels have no private internal buffering in the sender; start_send
+        // immediately enqueues messages to receiver, so there is nothing to flush.
+        Poll::Ready(Ok(()))
     }
 
     fn poll_close(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
