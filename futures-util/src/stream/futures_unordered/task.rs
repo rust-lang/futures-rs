@@ -247,6 +247,7 @@ mod waker_ref {
         let _arc_clone: mem::ManuallyDrop<_> = arc.clone();
     }
 
+    #[inline(always)]
     unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
         unsafe { increase_refcount::<T>(data) }
         RawWaker::new(data, waker_vtable::<T>())

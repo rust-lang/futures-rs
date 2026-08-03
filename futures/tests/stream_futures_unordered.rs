@@ -508,3 +508,22 @@ fn into_iter_partial_doesnt_leak() {
 
     assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 4);
 }
+
+#[test]
+fn cloned_child_waker_preserves_identity() {
+    struct CheckWakerClone;
+
+    impl Future for CheckWakerClone {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+            let clone = cx.waker().clone();
+            assert!(cx.waker().will_wake(&clone));
+            Poll::Ready(())
+        }
+    }
+
+    let output =
+        block_on_stream(FuturesUnordered::from_iter([CheckWakerClone])).collect::<Vec<_>>();
+    assert_eq!(output, [()]);
+}
