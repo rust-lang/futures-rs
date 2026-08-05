@@ -382,8 +382,8 @@ impl SenderTask {
 ///
 /// # Panics
 ///
-/// This function panics if `buffer` is `usize::MAX / 4` or larger, the
-/// maximum buffer size permitted by the implementation.
+/// This function panics if `buffer >= usize::MAX / 4`; the largest
+/// permitted buffer size is `usize::MAX / 4 - 1`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
