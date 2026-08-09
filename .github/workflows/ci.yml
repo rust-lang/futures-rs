@@ -56,8 +56,12 @@ jobs:
             target: i686-unknown-linux-gnu
           - os: ubuntu-latest
             target: s390x-unknown-linux-gnu
+          - os: ubuntu-latest
+            rustflags: "--cfg futures_unstable_core_io"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      RUSTFLAGS: ${{ env.RUSTFLAGS }} ${{ matrix.rustflags }}
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
@@ -171,7 +175,7 @@ jobs:
       - run: cargo minimal-versions build --workspace --ignore-private --all-features
 
   no-std:
-    name: cargo build --target ${{ matrix.target }}
+    name: RUSTFLAGS=${{ matrix.core_io }} cargo build --target ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -180,8 +184,13 @@ jobs:
         target:
           - thumbv7m-none-eabi
           - thumbv6m-none-eabi
+        core_io:
+          - "--cfg futures_unstable_core_io"
+          - ""
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RUSTFLAGS: ${{ env.RUSTFLAGS }} ${{ matrix.core_io }}
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
