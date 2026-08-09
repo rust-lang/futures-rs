@@ -1,6 +1,7 @@
 use core::ptr::null;
 use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 
+#[inline(always)]
 unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
 }
