@@ -66,6 +66,7 @@ pub trait Future01CompatExt: Future01 {
     /// [`Future<Output = Result<T, E>>`](futures_core::future::Future).
     ///
     /// ```
+    /// # if cfg!(miri) { return; } // 0.1 task_impl uses ptr2int
     /// # futures::executor::block_on(async {
     /// # // TODO: These should be all using `futures::compat`, but that runs up against Cargo
     /// # // feature issues
@@ -92,6 +93,7 @@ pub trait Stream01CompatExt: Stream01 {
     /// [`Stream<Item = Result<T, E>>`](futures_core::stream::Stream).
     ///
     /// ```
+    /// # if cfg!(miri) { return; } // 0.1 task_impl uses ptr2int
     /// # futures::executor::block_on(async {
     /// use futures::stream::StreamExt;
     /// use futures_util::compat::Stream01CompatExt;
@@ -121,6 +123,7 @@ pub trait Sink01CompatExt: Sink01 {
     /// [`Sink<T, Error = E>`](futures_sink::Sink).
     ///
     /// ```
+    /// # if cfg!(miri) { return; } // 0.1 task_impl uses ptr2int
     /// # futures::executor::block_on(async {
     /// use futures::{sink::SinkExt, stream::StreamExt};
     /// use futures_util::compat::{Stream01CompatExt, Sink01CompatExt};

@@ -1,4 +1,5 @@
 #![cfg(feature = "compat")]
+#![cfg(not(miri))] // 0.1 task_impl uses ptr2int
 use futures::compat::Future01CompatExt;
 use futures::executor::block_on;
 use futures::future::TryFutureExt;
