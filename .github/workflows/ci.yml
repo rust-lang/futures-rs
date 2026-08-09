@@ -296,6 +296,7 @@ jobs:
         if: matrix.sanitizer == 'memory'
       - run: |
           printf 'TARGET=x86_64-unknown-linux-gnutsan\n' >>"${GITHUB_ENV}"
+          printf 'TSAN_OPTIONS=enable_adaptive_delay=1\n' >>"${GITHUB_ENV}"
         if: matrix.sanitizer == 'thread'
       - name: Install Rust
         uses: taiki-e/install-action@b8cecb83565409bcc297b2df6e77f030b2a468d5 # v2.82.0
