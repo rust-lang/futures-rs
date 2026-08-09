@@ -13,8 +13,6 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
 use crate::{
     fns::{
         InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, inspect_err_fn, inspect_ok_fn,
@@ -957,35 +955,6 @@ pub trait TryStreamExt: TryStream {
             self,
             n.into(),
         ))
-    }
-
-    /// Wraps a [`TryStream`] into a stream compatible with libraries using
-    /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
-    /// ```
-    /// # if cfg!(miri) { return; } // Miri does not support epoll_create
-    /// use futures::future::{FutureExt, TryFutureExt};
-    /// # let (tx, rx) = futures::channel::oneshot::channel();
-    ///
-    /// let future03 = async {
-    ///     println!("Running on the pool");
-    ///     tx.send(42).unwrap();
-    /// };
-    ///
-    /// let future01 = future03
-    ///     .unit_error() // Make it a TryFuture
-    ///     .boxed()  // Make it Unpin
-    ///     .compat();
-    ///
-    /// tokio::run(future01);
-    /// # assert_eq!(42, futures::executor::block_on(rx).unwrap());
-    /// ```
-    #[cfg(feature = "compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
-    fn compat(self) -> Compat<Self>
-    where
-        Self: Sized + Unpin,
-    {
-        Compat::new(self)
     }
 
     /// Adapter that converts this stream into an [`AsyncBufRead`](crate::io::AsyncBufRead).

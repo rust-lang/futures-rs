@@ -1,4 +1,3 @@
-#![cfg(feature = "compat")]
 #![allow(dead_code)]
 
 //! Assert Send/Sync/Unpin for all public types.
@@ -142,49 +141,6 @@ mod channel {
     assert_impl!(oneshot::Sender<()>: Sync);
     assert_not_impl!(oneshot::Sender<*const ()>: Sync);
     assert_impl!(oneshot::Sender<PhantomPinned>: Unpin);
-}
-
-/// Assert Send/Sync/Unpin for all public types in `futures::compat`.
-mod compat {
-    use futures::compat::*;
-
-    use super::*;
-
-    assert_impl!(Compat<()>: Send);
-    assert_not_impl!(Compat<*const ()>: Send);
-    assert_impl!(Compat<()>: Sync);
-    assert_not_impl!(Compat<*const ()>: Sync);
-    assert_impl!(Compat<()>: Unpin);
-    assert_not_impl!(Compat<PhantomPinned>: Unpin);
-
-    assert_impl!(Compat01As03<()>: Send);
-    assert_not_impl!(Compat01As03<*const ()>: Send);
-    assert_not_impl!(Compat01As03<()>: Sync);
-    assert_impl!(Compat01As03<PhantomPinned>: Unpin);
-
-    assert_impl!(Compat01As03Sink<(), ()>: Send);
-    assert_not_impl!(Compat01As03Sink<(), *const ()>: Send);
-    assert_not_impl!(Compat01As03Sink<*const (), ()>: Send);
-    assert_not_impl!(Compat01As03Sink<(), ()>: Sync);
-    assert_impl!(Compat01As03Sink<PhantomPinned, PhantomPinned>: Unpin);
-
-    assert_impl!(CompatSink<(), *const ()>: Send);
-    assert_not_impl!(CompatSink<*const (), ()>: Send);
-    assert_impl!(CompatSink<(), *const ()>: Sync);
-    assert_not_impl!(CompatSink<*const (), ()>: Sync);
-    assert_impl!(CompatSink<(), PhantomPinned>: Unpin);
-    assert_not_impl!(CompatSink<PhantomPinned, ()>: Unpin);
-
-    assert_impl!(Executor01As03<()>: Send);
-    assert_not_impl!(Executor01As03<*const ()>: Send);
-    assert_impl!(Executor01As03<()>: Sync);
-    assert_not_impl!(Executor01As03<*const ()>: Sync);
-    assert_impl!(Executor01As03<()>: Unpin);
-    assert_not_impl!(Executor01As03<PhantomPinned>: Unpin);
-
-    assert_impl!(Executor01Future: Send);
-    assert_not_impl!(Executor01Future: Sync);
-    assert_impl!(Executor01Future: Unpin);
 }
 
 /// Assert Send/Sync/Unpin for all public types in `futures::executor`.

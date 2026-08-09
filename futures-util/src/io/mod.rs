@@ -25,9 +25,6 @@ pub use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 
 pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 
-#[cfg(feature = "io-compat")]
-#[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-use crate::compat::Compat;
 use crate::{future::assert_future, stream::assert_stream};
 
 // used by `BufReader` and `BufWriter`
@@ -373,21 +370,6 @@ pub trait AsyncReadExt: AsyncRead {
     {
         assert_read(Take::new(self, limit))
     }
-
-    /// Wraps an [`AsyncRead`] in a compatibility wrapper that allows it to be
-    /// used as a futures 0.1 / tokio-io 0.1 `AsyncRead`. If the wrapped type
-    /// implements [`AsyncWrite`] as well, the result will also implement the
-    /// futures 0.1 / tokio 0.1 `AsyncWrite` trait.
-    ///
-    /// Requires the `io-compat` feature to enable.
-    #[cfg(feature = "io-compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-    fn compat(self) -> Compat<Self>
-    where
-        Self: Sized + Unpin,
-    {
-        Compat::new(self)
-    }
 }
 
 impl<R: AsyncRead + ?Sized> AsyncReadExt for R {}
@@ -534,18 +516,6 @@ pub trait AsyncWriteExt: AsyncWrite {
         Self: Unpin,
     {
         assert_future::<Result<()>, _>(WriteAllVectored::new(self, bufs))
-    }
-
-    /// Wraps an [`AsyncWrite`] in a compatibility wrapper that allows it to be
-    /// used as a futures 0.1 / tokio-io 0.1 `AsyncWrite`.
-    /// Requires the `io-compat` feature to enable.
-    #[cfg(feature = "io-compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
-    fn compat_write(self) -> Compat<Self>
-    where
-        Self: Sized + Unpin,
-    {
-        Compat::new(self)
     }
 
     /// Allow using an [`AsyncWrite`] as a [`Sink`](futures_sink::Sink)`<Item: AsRef<[u8]>>`.

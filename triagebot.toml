@@ -21,9 +21,6 @@ warn_non_default_branch = true
 [autolabel."A-channel"]
 trigger_files = ["futures-channel/src"]
 
-[autolabel."A-compat"]
-trigger_files = ["futures-util/src/compat"]
-
 [autolabel."A-executor"]
 trigger_files = ["futures-executor/src"]
 
