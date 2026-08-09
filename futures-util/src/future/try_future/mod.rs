@@ -13,8 +13,6 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
 use crate::{
     fns::{
         InspectErrFn, InspectOkFn, IntoFn, MapErrFn, MapOkFn, MapOkOrElseFn, UnwrapOrElseFn,
@@ -575,17 +573,6 @@ pub trait TryFutureExt: TryFuture {
         F: FnOnce(Self::Error) -> Self::Ok,
     {
         assert_future::<Self::Ok, _>(UnwrapOrElse::new(self, f))
-    }
-
-    /// Wraps a [`TryFuture`] into a future compatible with libraries using
-    /// futures 0.1 future definitions. Requires the `compat` feature to enable.
-    #[cfg(feature = "compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
-    fn compat(self) -> Compat<Self>
-    where
-        Self: Sized + Unpin,
-    {
-        Compat::new(self)
     }
 
     /// Wraps a [`TryFuture`] into a type that implements
