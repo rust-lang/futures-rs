@@ -5,6 +5,7 @@ use core::{
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
+#[inline(always)]
 unsafe fn noop_clone(_data: *const ()) -> RawWaker {
     noop_raw_waker()
 }
