@@ -132,9 +132,6 @@ jobs:
       - run: cargo hack build --workspace --exclude futures-test --ignore-private --no-default-features --features alloc --ignore-unknown-features
       # Check std feature
       - run: cargo hack build --workspace --ignore-private --no-default-features --features std --ignore-unknown-features
-      # Check compat feature (futures, futures-util)
-      # Exclude io-compat feature because the MSRV when it is enabled depends on the MSRV of tokio 0.1.
-      - run: cargo hack build -p futures -p futures-util --no-default-features --features std,compat
       # Check thread-pool feature (futures, futures-executor)
       - run: cargo hack build -p futures -p futures-executor --no-default-features --features std,thread-pool
 
@@ -157,7 +154,7 @@ jobs:
           tool: rust@${{ matrix.rust }},cargo-hack
           fallback: none
       - run: cargo hack build --workspace --no-dev-deps
-      - run: cargo build --tests --features default,thread-pool,io-compat --manifest-path futures/Cargo.toml
+      - run: cargo build --tests --features default,thread-pool --manifest-path futures/Cargo.toml
 
   minimal-versions:
     name: cargo minimal-versions build

@@ -306,10 +306,6 @@ pub use crate::sink::{Sink, SinkExt};
 
 pub mod task;
 
-#[cfg(feature = "compat")]
-#[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
-pub mod compat;
-
 #[cfg(feature = "io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 #[cfg(feature = "std")]

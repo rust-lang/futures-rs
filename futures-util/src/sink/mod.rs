@@ -15,8 +15,6 @@ use futures_core::{
 };
 pub use futures_sink::Sink;
 
-#[cfg(feature = "compat")]
-use crate::compat::CompatSink;
 use crate::future::{Either, assert_future};
 
 mod close;
@@ -283,17 +281,6 @@ pub trait SinkExt<Item>: Sink<Item> {
         Self: Sized,
     {
         assert_sink::<Item, Self::Error, _>(Either::Right(self))
-    }
-
-    /// Wraps a [`Sink`] into a sink compatible with libraries using
-    /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
-    #[cfg(feature = "compat")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "compat")))]
-    fn compat(self) -> CompatSink<Self, Item>
-    where
-        Self: Sized + Unpin,
-    {
-        CompatSink::new(self)
     }
 
     /// A convenience method for calling [`Sink::poll_ready`] on [`Unpin`]
