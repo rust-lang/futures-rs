@@ -8,6 +8,11 @@ Releases may yanked if there is a security bug, a soundness bug, or a regression
 Note: In this file, do not use the hard wrap in the middle of a sentence for compatibility with GitHub comment style markdown rendering.
 -->
 
+# 0.3.34 - 2026-08-11
+
+* Preserve cloned waker identity. (#3032)
+* Updato `syn` to 3. (#3028)
+
 # 0.3.33 - 2026-07-18
 
 * Fix `ReadLine`'s soundness issue regarding to exception safety. (#3020)
