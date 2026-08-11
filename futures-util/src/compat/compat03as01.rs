@@ -163,6 +163,7 @@ impl Current {
             current as *const Current as *const ()
         }
 
+        #[inline(always)]
         unsafe fn clone(ptr: *const ()) -> RawWaker {
             // Lazily create the `Arc` only when the waker is actually cloned.
             // FIXME: remove `transmute` when a `Waker` -> `RawWaker` conversion
