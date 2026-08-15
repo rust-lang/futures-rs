@@ -13,6 +13,7 @@ pub(crate) use self::bilock::BiLock;
 pub use self::bilock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use self::mutex::{
     MappedMutexGuard, Mutex, MutexGuard, MutexLockFuture, OwnedMutexGuard, OwnedMutexLockFuture,
 };
