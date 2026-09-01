@@ -28,7 +28,7 @@ pub use self::stream::Forward;
 pub use self::stream::ReadyChunks;
 pub use self::stream::{
     All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
-    Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
+    Fold, ForEach, Fuse, Inspect, Last, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
     SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then,
     TryFold, TryForEach, Unzip, Zip,
 };
