@@ -1371,6 +1371,13 @@ pub trait StreamExt: Stream {
     /// This is useful to allow applying stream adaptors while still retaining
     /// ownership of the original stream.
     ///
+    /// Note that the returned `&mut Self` only implements `Stream` if
+    /// `Self: Unpin`, so in generic code this method is only useful with an
+    /// additional [`Unpin`] bound. A stream that is not `Unpin` can be pinned
+    /// first, for example with [`pin_mut!`](https://docs.rs/pin-utils/latest/pin_utils/macro.pin_mut.html);
+    /// a `Pin<&mut Self>` obtained that way is `Unpin` and supports the same
+    /// borrow-then-continue pattern.
+    ///
     /// # Examples
     ///
     /// ```
