@@ -17,7 +17,7 @@ pub fn shuffle<T>(slice: &mut [T]) {
 }
 
 /// Return a value from `0..n`.
-fn gen_index(n: usize) -> usize {
+pub fn gen_index(n: usize) -> usize {
     (random() % n as u64) as usize
 }
 
