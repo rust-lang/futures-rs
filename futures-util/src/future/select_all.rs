@@ -10,7 +10,7 @@ use super::assert_future;
 use crate::future::FutureExt;
 
 /// Future for the [`select_all`] function.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectAll<Fut> {
     inner: Vec<Fut>,
