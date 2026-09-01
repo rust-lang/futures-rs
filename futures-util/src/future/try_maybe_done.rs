@@ -79,7 +79,7 @@ impl<Fut: TryFuture> Future for TryMaybeDone<Fut> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         unsafe {
             match self.as_mut().get_unchecked_mut() {
-                Self::Future(f) => match ready!(Pin::new_unchecked(f).try_poll(cx)) {
+                Self::Future(f) => match ready!(Pin::new_unchecked(f).poll(cx)) {
                     Ok(res) => self.set(Self::Done(res)),
                     Err(e) => {
                         self.set(Self::Gone);

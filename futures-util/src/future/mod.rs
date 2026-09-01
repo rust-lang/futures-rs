@@ -39,8 +39,8 @@ mod try_future;
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::try_future::FlattenSink;
 pub use self::try_future::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
-    OrElse, TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
+    AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, MapOkOrElse, OkInto, OrElse,
+    TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
 };
 
 // Primitive futures

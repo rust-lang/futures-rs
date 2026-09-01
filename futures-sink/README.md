@@ -11,7 +11,7 @@ Add this to your `Cargo.toml`:
 futures-sink = "0.3"
 ```
 
-The current `futures-sink` requires Rust 1.36 or later.
+The current `futures-sink` requires Rust 1.52 or later.
 
 ## License
 
