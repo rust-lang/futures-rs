@@ -81,7 +81,7 @@ where
 ///
 /// `try_join_all` will switch to the more powerful [`FuturesOrdered`] for performance
 /// reasons if the number of futures is large. You may want to look into using it or
-/// it's counterpart [`FuturesUnordered`][crate::stream::FuturesUnordered] directly.
+/// its counterpart [`FuturesUnordered`][crate::stream::FuturesUnordered] directly.
 ///
 /// Some examples for additional functionality provided by these are:
 ///
