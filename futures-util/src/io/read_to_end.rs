@@ -3,7 +3,6 @@ use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncRead;
 use std::io;
-use std::iter;
 use std::pin::Pin;
 use std::vec::Vec;
 
@@ -12,16 +11,43 @@ use std::vec::Vec;
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ReadToEnd<'a, R: ?Sized> {
     reader: &'a mut R,
-    buf: &'a mut Vec<u8>,
-    start_len: usize,
+    read_buf: ReadBuf<'a>,
 }
 
 impl<R: ?Sized + Unpin> Unpin for ReadToEnd<'_, R> {}
 
 impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToEnd<'a, R> {
     pub(super) fn new(reader: &'a mut R, buf: &'a mut Vec<u8>) -> Self {
-        let start_len = buf.len();
-        Self { reader, buf, start_len }
+        let read_buf = ReadBuf::new(buf);
+        Self { reader, read_buf }
+    }
+}
+
+// Owns the Vec and the read-state metadata, ensuring that
+// `buf.len() <= initialized <= buf.capacity()`.
+// Common functionality for `ReadToEnd` and `ReadToString`.
+#[derive(Debug)]
+pub(super) struct ReadBuf<'a> {
+    buf: &'a mut Vec<u8>,
+    original_len: usize,
+    initialized: usize,
+}
+
+impl<'a> ReadBuf<'a> {
+    #[inline]
+    pub(super) fn new(buf: &'a mut Vec<u8>) -> Self {
+        let len = buf.len();
+        Self { buf, original_len: len, initialized: len }
+    }
+
+    #[inline]
+    pub(super) fn as_slice(&self) -> &[u8] {
+        &self.buf
+    }
+
+    #[inline]
+    pub(super) fn reset(&mut self) {
+        self.buf.truncate(self.original_len);
     }
 }
 
@@ -45,26 +71,30 @@ impl Drop for Guard<'_> {
 // time is 4,500 times (!) slower than this if the reader has a very small
 // amount of data to return.
 //
-// Because we're extending the buffer with uninitialized data for trusted
-// readers, we need to make sure to truncate that if any of this panics.
+// Because we're resizing the buffer with zeroes that will be overwritten by
+// `poll_read`, we need to make sure to truncate them if something panics.
 pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
     mut rd: Pin<&mut R>,
     cx: &mut Context<'_>,
-    buf: &mut Vec<u8>,
-    start_len: usize,
+    rb: &mut ReadBuf<'_>,
 ) -> Poll<io::Result<usize>> {
-    let mut g = Guard { len: buf.len(), buf };
+    let mut g = Guard { len: rb.buf.len(), buf: &mut rb.buf };
     loop {
-        if g.len == g.buf.len() {
+        if g.len == rb.initialized {
+            // No pre-zeroed space remaining; need to grow.
             g.buf.reserve(32);
-            let spare_capacity = g.buf.capacity() - g.buf.len();
-            // FIXME: switch to `Vec::resize` once rust-lang/rust#120050 is fixed
-            g.buf.extend(iter::repeat(0).take(spare_capacity));
+            let capacity = g.buf.capacity();
+            g.buf.resize(capacity, 0);
+            rb.initialized = capacity;
         }
 
+        // Expose the pre-zeroed region [g.len..rb.initialized] to poll_read.
+        // Guard::drop restores len to g.len on Pending, so this must run every iteration.
+        // Safety: the bytes up to initialized have been filled with zeroes.
+        unsafe { g.buf.set_len(rb.initialized) };
         let buf = &mut g.buf[g.len..];
         match ready!(rd.as_mut().poll_read(cx, buf)) {
-            Ok(0) => return Poll::Ready(Ok(g.len - start_len)),
+            Ok(0) => return Poll::Ready(Ok(g.len - rb.original_len)),
             Ok(n) => {
                 // We can't allow bogus values from read. If it is too large, the returned vec could have its length
                 // set past its capacity, or if it overflows the vec could be shortened which could create an invalid
@@ -85,6 +115,6 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
-        read_to_end_internal(Pin::new(&mut this.reader), cx, this.buf, this.start_len)
+        read_to_end_internal(Pin::new(&mut this.reader), cx, &mut this.read_buf)
     }
 }
