@@ -1,49 +1,40 @@
-use super::read_to_end::read_to_end_internal;
+use super::read_to_end::{read_to_end_internal, ReadBuf};
 use futures_core::future::Future;
 use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncRead;
 use std::pin::Pin;
 use std::string::String;
-use std::vec::Vec;
-use std::{io, mem, str};
+use std::{io, str};
 
 /// Future for the [`read_to_string`](super::AsyncReadExt::read_to_string) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ReadToString<'a, R: ?Sized> {
     reader: &'a mut R,
-    buf: &'a mut String,
-    bytes: Vec<u8>,
-    start_len: usize,
+    read_buf: ReadBuf<'a>,
+    done: bool,
 }
 
 impl<R: ?Sized + Unpin> Unpin for ReadToString<'_, R> {}
 
 impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToString<'a, R> {
     pub(super) fn new(reader: &'a mut R, buf: &'a mut String) -> Self {
-        let start_len = buf.len();
-        Self { reader, bytes: mem::take(buf).into_bytes(), buf, start_len }
+        // Safety: we ensure that the string is truncated back to its original
+        // length if what we read was not valid utf8.
+        let bytes = unsafe { buf.as_mut_vec() };
+        let read_buf = ReadBuf::new(bytes);
+        Self { reader, read_buf, done: false }
     }
 }
 
-fn read_to_string_internal<R: AsyncRead + ?Sized>(
-    reader: Pin<&mut R>,
-    cx: &mut Context<'_>,
-    buf: &mut String,
-    bytes: &mut Vec<u8>,
-    start_len: usize,
-) -> Poll<io::Result<usize>> {
-    let ret = ready!(read_to_end_internal(reader, cx, bytes, start_len));
-    if str::from_utf8(bytes).is_err() {
-        Poll::Ready(ret.and_then(|_| {
-            Err(io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
-        }))
-    } else {
-        debug_assert!(buf.is_empty());
-        // Safety: `bytes` is a valid UTF-8 because `str::from_utf8` returned `Ok`.
-        mem::swap(unsafe { buf.as_mut_vec() }, bytes);
-        Poll::Ready(ret)
+impl<R: ?Sized> Drop for ReadToString<'_, R> {
+    fn drop(&mut self) {
+        if !self.done {
+            // If the future was canceled we cannot guarantee what we read so
+            // far is valid utf-8. Restore the initial contents of the string.
+            self.read_buf.reset();
+        }
     }
 }
 
@@ -54,7 +45,16 @@ where
     type Output = io::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self { reader, buf, bytes, start_len } = &mut *self;
-        read_to_string_internal(Pin::new(reader), cx, buf, bytes, *start_len)
+        let Self { reader, read_buf, done } = &mut *self;
+        let ret = ready!(read_to_end_internal(Pin::new(reader), cx, read_buf));
+        if str::from_utf8(read_buf.as_slice()).is_ok() {
+            *done = true;
+            Poll::Ready(ret)
+        } else {
+            Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "stream did not contain valid UTF-8",
+            )))
+        }
     }
 }
