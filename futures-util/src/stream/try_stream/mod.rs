@@ -153,6 +153,9 @@ pub use self::try_all::TryAll;
 mod try_any;
 pub use self::try_any::TryAny;
 
+mod try_find;
+pub use self::try_find::TryFind;
+
 impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
@@ -1091,5 +1094,38 @@ pub trait TryStreamExt: TryStream {
         Fut: Future<Output = bool>,
     {
         assert_future::<Result<bool, Self::Error>, _>(TryAny::new(self, f))
+    }
+
+    /// Attempt to find an item in the stream that satisfies an asynchronous predicate.
+    /// Returns the first `Ok` item for which the predicate returns `true`, or `Ok(None)` if
+    /// no such item is found. Exits early if an `Err` is encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use std::convert::Infallible;
+    ///
+    /// let number_stream = stream::iter(0..10).map(Ok::<_, Infallible>);
+    /// let found = number_stream.try_find(|&i| async move { i == 3 });
+    /// assert_eq!(found.await, Ok(Some(3)));
+    ///
+    /// let number_stream = stream::iter(0..10).map(Ok::<_, Infallible>);
+    /// let not_found = number_stream.try_find(|&i| async move { i == 99 });
+    /// assert_eq!(not_found.await, Ok(None));
+    ///
+    /// let stream_with_errors = stream::iter([Ok(1), Err("err"), Ok(3)]);
+    /// let found = stream_with_errors.try_find(|&i| async move { i == 3 });
+    /// assert_eq!(found.await, Err("err"));
+    /// # });
+    /// ```
+    fn try_find<Fut, F>(self, f: F) -> TryFind<Self, Fut, F>
+    where
+        Self: Sized,
+        F: FnMut(&Self::Ok) -> Fut,
+        Fut: Future<Output = bool>,
+    {
+        assert_future::<Result<Option<Self::Ok>, Self::Error>, _>(TryFind::new(self, f))
     }
 }

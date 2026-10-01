@@ -27,10 +27,10 @@ pub use self::stream::Forward;
 #[cfg(feature = "alloc")]
 pub use self::stream::ReadyChunks;
 pub use self::stream::{
-    All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
-    Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
-    SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile, Then,
-    TryFold, TryForEach, Unzip, Zip,
+    All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, Find, FlatMap,
+    Flatten, Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable,
+    Scan, SelectNextSome, Skip, SkipWhile, StreamExt, StreamFuture, Take, TakeUntil, TakeWhile,
+    Then, TryFold, TryForEach, Unzip, Zip,
 };
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]
@@ -54,7 +54,7 @@ pub use self::try_stream::IntoAsyncRead;
 pub use self::try_stream::TryForward;
 pub use self::try_stream::{
     AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll, TryAny,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
+    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFind, TryFlatten, TryNext, TrySkipWhile,
     TryStreamExt, TryTakeWhile, TryUnfold, try_unfold,
 };
 #[cfg(target_has_atomic = "ptr")]
