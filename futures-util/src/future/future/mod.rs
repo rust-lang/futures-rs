@@ -20,7 +20,7 @@ use futures_core::{
 
 use crate::{
     fns::{InspectFn, IntoFn, OkFn, inspect_fn, into_fn, ok_fn},
-    future::{Either, assert_future},
+    future::{Either, MaybeImmediate, assert_future},
     stream::assert_stream,
 };
 
@@ -602,5 +602,24 @@ pub trait FutureExt: Future {
             Poll::Ready(x) => Some(x),
             _ => None,
         }
+    }
+
+    /// Wraps a future into a `MaybeImmediate`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::future::FutureExt;
+    ///
+    /// let future = async { "hello" }.maybe_immediate();
+    /// assert_eq!("hello", future.await);
+    /// # });
+    /// ```
+    fn maybe_immediate(self) -> MaybeImmediate<Self>
+    where
+        Self: Sized,
+    {
+        assert_future::<Self::Output, _>(MaybeImmediate::new(self))
     }
 }
