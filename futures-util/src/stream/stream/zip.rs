@@ -67,7 +67,7 @@ where
     St2: Stream,
 {
     fn is_terminated(&self) -> bool {
-        self.stream1.is_terminated() && self.stream2.is_terminated()
+        self.stream1.is_terminated() || self.stream2.is_terminated()
     }
 }
 
