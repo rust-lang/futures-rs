@@ -77,13 +77,16 @@ impl<St: Stream> Stream for Chunks<St> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let chunk_len = usize::from(!self.items.is_empty());
         let (lower, upper) = self.stream.size_hint();
-        let lower = (lower / self.cap).saturating_add(chunk_len);
-        let upper = match upper {
-            Some(x) => x.checked_add(chunk_len),
-            None => None,
-        };
+
+        let lower = lower.saturating_add(self.items.len());
+        let lower = lower / self.cap + usize::from(lower % self.cap != 0);
+        let upper = upper.and_then(|upper| {
+            upper
+                .checked_add(self.items.len())
+                .map(|upper| upper / self.cap + usize::from(upper % self.cap != 0))
+        });
+
         (lower, upper)
     }
 }
