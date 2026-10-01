@@ -379,6 +379,11 @@ impl SenderTask {
 ///
 /// The [`Receiver`] returned implements the [`Stream`] trait, while [`Sender`]
 /// implements `Sink`.
+///
+/// # Panics
+///
+/// This function panics if `buffer >= usize::MAX / 4`; the largest
+/// permitted buffer size is `usize::MAX / 4 - 1`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
