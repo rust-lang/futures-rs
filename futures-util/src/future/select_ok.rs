@@ -10,7 +10,7 @@ use super::assert_future;
 use crate::future::TryFutureExt;
 
 /// Future for the [`select_ok`] function.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectOk<Fut> {
     inner: Vec<Fut>,
