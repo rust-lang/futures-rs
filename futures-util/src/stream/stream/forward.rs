@@ -51,8 +51,10 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let ForwardProj { mut sink, mut stream, buffered_item } = self.project();
         let mut si = sink.as_mut().as_pin_mut().expect("polled `Forward` after completion");
+        let mut iterations = 0;
 
         loop {
+            iterations += 1;
             // If we've got an item buffered already, we need to write it to the
             // sink before we can do anything else
             if buffered_item.is_some() {
@@ -63,6 +65,11 @@ where
             match stream.as_mut().poll_next(cx) {
                 Poll::Ready(Some(item)) => {
                     *buffered_item = Some(item);
+                    if iterations == 32 {
+                        ready!(si.as_mut().poll_flush(cx))?;
+                        cx.waker().wake_by_ref();
+                        return Poll::Pending;
+                    }
                 }
                 Poll::Ready(None) => {
                     ready!(si.poll_close(cx))?;
