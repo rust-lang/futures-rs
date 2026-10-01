@@ -30,7 +30,7 @@ pub use self::future::{
 #[cfg(feature = "channel")]
 #[cfg_attr(docsrs, doc(cfg(feature = "channel")))]
 #[cfg(feature = "std")]
-pub use self::future::{Remote, RemoteHandle};
+pub use self::future::{Remote, RemoteCompletionHandle, RemoteHandle};
 #[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 pub use self::future::{Shared, WeakShared};
 
