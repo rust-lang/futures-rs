@@ -1,5 +1,7 @@
-use futures::executor::block_on;
-use futures::future::{self, FutureExt};
+use futures::{
+    executor::block_on,
+    future::{self, FutureExt},
+};
 
 #[test]
 #[should_panic(expected = "RemoteHandle polled after Remote was dropped")]
