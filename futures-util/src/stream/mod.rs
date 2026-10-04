@@ -53,9 +53,9 @@ pub use self::try_stream::IntoAsyncRead;
 #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub use self::try_stream::TryForward;
 pub use self::try_stream::{
-    AndThen, ErrInto, InspectErr, InspectOk, IntoStream, MapErr, MapOk, OrElse, TryAll, TryAny,
-    TryCollect, TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile,
-    TryStreamExt, TryTakeWhile, TryUnfold, try_unfold,
+    AndThen, ErrInto, InspectErr, InspectOk, MapErr, MapOk, OrElse, TryAll, TryAny, TryCollect,
+    TryConcat, TryFilter, TryFilterMap, TryFlatten, TryNext, TrySkipWhile, TryStreamExt,
+    TryTakeWhile, TryUnfold, try_unfold,
 };
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "alloc")]

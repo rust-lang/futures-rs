@@ -83,7 +83,7 @@ where
 
         loop {
             let this = self.as_mut().project();
-            match this.stream.try_poll_next(cx)? {
+            match this.stream.poll_next(cx)? {
                 Poll::Ready(Some(item)) => ready!(self.as_mut().try_start_send(cx, item))?,
                 Poll::Ready(None) => {
                     ready!(Pin::new(this.sink).poll_flush(cx))?;

@@ -7,7 +7,7 @@ use futures_core::{
 };
 
 use super::assert_future;
-use crate::future::TryFutureExt;
+use crate::future::FutureExt;
 
 /// Future for the [`select_ok`] function.
 #[derive(Debug)]
@@ -51,7 +51,7 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item =
-                self.inner.iter_mut().enumerate().find_map(|(i, f)| match f.try_poll_unpin(cx) {
+                self.inner.iter_mut().enumerate().find_map(|(i, f)| match f.poll_unpin(cx) {
                     Poll::Pending => None,
                     Poll::Ready(e) => Some((i, e)),
                 });
