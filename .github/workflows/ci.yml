@@ -31,11 +31,11 @@ concurrency:
 
 jobs:
   clippy:
-    uses: taiki-e/github-actions/.github/workflows/rust-clippy.yml@dc24bff2366e8ddeea5e0e4168df3d6f4b93f596 # 2026.8.8
+    uses: taiki-e/github-actions/.github/workflows/rust-clippy.yml@04a42ca09aaeb9b6c0bce43c23fb9e13eb197d85 # 2026.9.9
     with:
       implicit_provenance_casts: false # TODO
   docs:
-    uses: taiki-e/github-actions/.github/workflows/rust-docs.yml@dc24bff2366e8ddeea5e0e4168df3d6f4b93f596 # 2026.8.8
+    uses: taiki-e/github-actions/.github/workflows/rust-docs.yml@04a42ca09aaeb9b6c0bce43c23fb9e13eb197d85 # 2026.9.9
 
   test:
     name: cargo test
@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly
           fallback: none
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           # cargo does not support for --features/--no-default-features with workspace, so use cargo-hack instead.
           # Refs: cargo#3620, cargo#4106, cargo#4463, cargo#4753, cargo#5015, cargo#5364, cargo#6195
@@ -121,7 +121,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@${{ matrix.rust }},cargo-hack
           fallback: none
@@ -152,7 +152,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@${{ matrix.rust }},cargo-hack
           fallback: none
@@ -166,7 +166,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust, cargo-hack, and cargo-minimal-versions
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly,cargo-hack,cargo-minimal-versions
           fallback: none
@@ -187,7 +187,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly+${{ matrix.target }},cargo-hack
           fallback: none
@@ -220,7 +220,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly
           fallback: none
@@ -233,7 +233,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust and cargo-hack
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly,cargo-hack
           fallback: none
@@ -257,7 +257,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly+miri
           fallback: none
@@ -298,7 +298,7 @@ jobs:
           printf 'TSAN_OPTIONS=enable_adaptive_delay=1\n' >>"${GITHUB_ENV}"
         if: matrix.sanitizer == 'thread'
       - name: Install Rust
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@stable+${{ env.TARGET }}
           fallback: none
@@ -315,7 +315,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - name: Install Rust, taplo, and zizmor
-        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+        uses: taiki-e/install-action@76c2e6406e52637deed7160d77bded76bd83e06e # v2.87.14
         with:
           tool: rust@nightly+rustfmt,taplo,zizmor
           fallback: none
