@@ -85,7 +85,7 @@ fn error_cancels_pending_futures_before_returning() {
     let mut inputs =
         vec![Either::Right(ok(remaining.clone())), Either::Left(pending), Either::Right(err(7))]
             .into_iter();
-    let mut joined = Box::pin(try_join_all(std::iter::from_fn(move || inputs.next())));
+    let mut joined = pin!(try_join_all(std::iter::from_fn(move || inputs.next())));
     assert_eq!(joined.as_mut().poll(&mut noop_context()), Poll::Ready(Err(7)));
     // Keep joined alive to ensure cancellation happens when returning the error.
     assert_eq!(Rc::strong_count(&remaining), 1);
@@ -96,7 +96,7 @@ fn later_error_wakes_collector() {
     let (sender, receiver) = oneshot::channel::<Result<usize, u8>>();
     let mut inputs =
         vec![Either::Left(pending()), Either::Right(receiver.map(Result::unwrap))].into_iter();
-    let mut joined = Box::pin(try_join_all(std::iter::from_fn(move || inputs.next())));
+    let mut joined = pin!(try_join_all(std::iter::from_fn(move || inputs.next())));
     let (waker, counter) = new_count_waker();
     let mut cx = Context::from_waker(&waker);
     assert_eq!(joined.as_mut().poll(&mut cx), Poll::Pending);
@@ -112,7 +112,7 @@ fn successful_results_keep_input_order() {
         for len in [2, 31, 64] {
             let (senders, receivers): (Vec<_>, Vec<_>) =
                 (0..len).map(|_| oneshot::channel()).unzip();
-            let mut joined = Box::pin(try_join_all(receivers));
+            let mut joined = pin!(try_join_all(receivers));
             assert_eq!(joined.as_mut().poll(&mut noop_context()), Poll::Pending);
             let mut senders: Vec<_> = senders.into_iter().enumerate().collect();
             if reverse {
