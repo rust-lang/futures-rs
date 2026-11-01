@@ -11,8 +11,10 @@ jobs:
   create-release:
     if: github.repository_owner == 'rust-lang'
     runs-on: ubuntu-latest
+    environment: publish
     permissions:
       contents: write # for taiki-e/create-gh-release-action
+      id-token: write # for OIDC Trusted Publishing exchange
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1.11.0
@@ -21,3 +23,10 @@ jobs:
           branch: 'master|[0-9]+\.[0-9]+'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
+      - name: Publish to crates.io
+        run: |
+          cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
