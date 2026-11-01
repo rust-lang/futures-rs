@@ -71,6 +71,9 @@ pub use self::any::Any;
 mod all;
 pub use self::all::All;
 
+mod find;
+pub use self::find::Find;
+
 #[cfg(feature = "sink")]
 mod forward;
 
@@ -716,6 +719,33 @@ pub trait StreamExt: Stream {
         Self: Sized,
     {
         assert_future::<bool, _>(All::new(self, f))
+    }
+
+    /// Searches for an element in a asynchronous stream that satisfies an predicate,
+    /// returning the first match or `None` if no match is found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let found = number_stream.find(|&i| async move { i == 3 });
+    /// assert_eq!(found.await, Some(3));
+    ///
+    /// let number_stream = stream::iter(0..10);
+    /// let not_found = number_stream.find(|&i| async move { i == 99 });
+    /// assert_eq!(not_found.await, None);
+    /// # });
+    /// ```
+    fn find<Fut, F>(self, f: F) -> Find<Self, Fut, F>
+    where
+        F: FnMut(&Self::Item) -> Fut,
+        Fut: Future<Output = bool>,
+        Self: Sized,
+    {
+        assert_future::<Option<Self::Item>, _>(Find::new(self, f))
     }
 
     /// Flattens a stream of streams into just one continuous stream.
