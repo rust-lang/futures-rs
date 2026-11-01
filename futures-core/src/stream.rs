@@ -228,6 +228,7 @@ mod if_alloc {
     }
 
     #[cfg(feature = "std")]
+    #[allow(clippy::std_instead_of_core)]
     impl<S: Stream> Stream for std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 

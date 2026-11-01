@@ -9,7 +9,7 @@ use futures::{
 #[test]
 fn ready() {
     block_on(future::poll_fn(|_| {
-        ready!(Poll::Ready(()),);
+        ready!(Poll::Ready(()));
         Poll::Ready(())
     }))
 }

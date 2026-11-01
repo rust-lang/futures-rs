@@ -107,6 +107,7 @@ mod if_alloc {
     }
 
     #[cfg(feature = "std")]
+    #[allow(clippy::std_instead_of_core)]
     impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)
