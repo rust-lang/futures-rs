@@ -22,6 +22,9 @@ use crate::future::{CatchUnwind, FutureExt};
 /// [`remote_handle`](crate::future::FutureExt::remote_handle). When you drop this,
 /// the remote future will be woken up to be dropped by the executor.
 ///
+/// Dropping the corresponding [`Remote`] before it completes causes this handle to
+/// panic when polled, with a clear message (rather than an empty unwind).
+///
 /// ## Unwind safety
 ///
 /// When the remote future panics, [Remote] will catch the unwind and transfer it to
@@ -60,8 +63,9 @@ impl<T: 'static> Future for RemoteHandle<T> {
             Ok(Ok(output)) => Poll::Ready(output),
             // the remote future panicked.
             Ok(Err(e)) => panic::resume_unwind(e),
-            // The oneshot sender was dropped.
-            Err(e) => panic::resume_unwind(Box::new(e)),
+            // The oneshot sender was dropped (Remote dropped before completing).
+            // oneshot::Canceled is not a panic payload, so resume_unwind would be silent.
+            Err(_canceled) => panic!("RemoteHandle polled after Remote was dropped"),
         }
     }
 }
