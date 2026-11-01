@@ -1,5 +1,5 @@
 use std::{
-    pin::pin,
+    pin::{Pin, pin},
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
@@ -659,6 +659,57 @@ fn send_backpressure() {
 
     let item = block_on(rx.next()).unwrap();
     assert_eq!(item, 2);
+}
+
+#[test]
+fn send_cancellation_at_acceptance_boundary() {
+    for buffer in [0, 1] {
+        let mut cx = noop_context();
+
+        let (mut tx, mut rx) = mpsc::channel(buffer);
+        let capacity = buffer + 1;
+        for item in 0..capacity {
+            assert!(Pin::new(&mut tx).poll_ready(&mut cx).is_ready());
+            Pin::new(&mut tx).start_send(item).unwrap();
+        }
+
+        let mut unaccepted = tx.send(99);
+        assert_eq!(unaccepted.poll_unpin(&mut cx), Poll::Pending);
+        drop(unaccepted);
+
+        for item in 0..capacity {
+            assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Ready(Some(item)));
+        }
+        assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Pending);
+
+        for item in 200..200 + capacity - 1 {
+            assert!(Pin::new(&mut tx).poll_ready(&mut cx).is_ready());
+            Pin::new(&mut tx).start_send(item).unwrap();
+        }
+
+        let mut accepted = tx.send(100);
+        assert_eq!(accepted.poll_unpin(&mut cx), Poll::Pending);
+        drop(accepted);
+        for item in 200..200 + capacity - 1 {
+            assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Ready(Some(item)));
+        }
+        assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Ready(Some(100)));
+        assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Pending);
+
+        if buffer > 0 {
+            assert!(Pin::new(&mut tx).poll_ready(&mut cx).is_ready());
+            Pin::new(&mut tx).start_send(201).unwrap();
+        }
+
+        let mut control = tx.send(101);
+        assert_eq!(control.poll_unpin(&mut cx), Poll::Pending);
+        if buffer > 0 {
+            assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Ready(Some(201)));
+        }
+        assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Ready(Some(101)));
+        assert_eq!(control.poll_unpin(&mut cx), Poll::Ready(Ok(())));
+        assert_eq!(rx.poll_next_unpin(&mut cx), Poll::Pending);
+    }
 }
 
 #[test]

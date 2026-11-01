@@ -214,6 +214,10 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// A future that completes after the given item has been fully processed
     /// into the sink, including flushing.
     ///
+    /// Dropping this future before it completes does not guarantee that the
+    /// item is discarded. The sink can accept the item before the future
+    /// finishes flushing.
+    ///
     /// Note that, **because of the flushing requirement, it is usually better
     /// to batch together items to send via `feed` or `send_all`,
     /// rather than flushing between each item.**
