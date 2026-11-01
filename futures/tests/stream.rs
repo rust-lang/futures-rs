@@ -503,6 +503,119 @@ fn ready_chunks() {
     });
 }
 
+struct HintedStream {
+    hint: (usize, Option<usize>),
+}
+
+impl Stream for HintedStream {
+    type Item = ();
+
+    fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let _ = self;
+        Poll::Pending
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.hint
+    }
+}
+
+struct PrefixPendingStream {
+    state: u8,
+}
+
+impl Stream for PrefixPendingStream {
+    type Item = ();
+
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.state {
+            0 => {
+                self.state = 1;
+                Poll::Ready(Some(()))
+            }
+            1 => {
+                self.state = 2;
+                Poll::Ready(Some(()))
+            }
+            2 => {
+                self.state = 3;
+                Poll::Pending
+            }
+            3 | 4 => {
+                self.state += 1;
+                Poll::Ready(Some(()))
+            }
+            _ => Poll::Ready(None),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.state {
+            0 => (4, Some(4)),
+            1 => (3, Some(3)),
+            2 | 3 => (2, Some(2)),
+            4 => (1, Some(1)),
+            _ => (0, Some(0)),
+        }
+    }
+}
+
+#[test]
+fn chunks_size_hint_uses_ceiling_bounds() {
+    assert_eq!(stream::iter(0..0).chunks(3).size_hint(), (0, Some(0)));
+    assert_eq!(stream::iter(0..6).chunks(3).size_hint(), (2, Some(2)));
+    assert_eq!(stream::iter(0..10).chunks(3).size_hint(), (4, Some(4)));
+    assert_eq!(stream::iter(0..10).chunks(1).size_hint(), (10, Some(10)));
+    assert_eq!(HintedStream { hint: (10, None) }.chunks(3).size_hint(), (4, None));
+}
+
+#[test]
+fn chunks_size_hint_includes_buffered_pending_items() {
+    let mut chunks = PrefixPendingStream { state: 0 }.chunks(3);
+    let mut cx = noop_context();
+
+    assert!(chunks.next().poll_unpin(&mut cx).is_pending());
+    assert_eq!(chunks.size_hint(), (2, Some(2)));
+    assert_eq!(block_on(chunks.next()), Some(vec![(), (), ()]));
+    assert_eq!(block_on(chunks.next()), Some(vec![()]));
+    assert_eq!(block_on(chunks.next()), None);
+}
+
+struct MaxAfterPrefixStream {
+    polled: bool,
+}
+
+impl Stream for MaxAfterPrefixStream {
+    type Item = ();
+
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.polled {
+            Poll::Pending
+        } else {
+            self.polled = true;
+            Poll::Ready(Some(()))
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, Some(usize::MAX))
+    }
+}
+
+#[test]
+fn chunks_size_hint_saturates_lower_bound_and_unknown_upper() {
+    let chunks = HintedStream { hint: (usize::MAX, Some(usize::MAX)) }.chunks(2);
+    assert_eq!(chunks.size_hint(), (usize::MAX / 2 + 1, Some(usize::MAX / 2 + 1)));
+
+    let chunks = HintedStream { hint: (usize::MAX, None) }.chunks(2);
+    assert_eq!(chunks.size_hint(), (usize::MAX / 2 + 1, None));
+
+    let mut chunks = MaxAfterPrefixStream { polled: false }.chunks(2);
+    let mut cx = noop_context();
+    assert!(chunks.next().poll_unpin(&mut cx).is_pending());
+    assert_eq!(chunks.size_hint(), (usize::MAX / 2 + 1, None));
+}
+
 struct SlowStream {
     times_should_poll: usize,
     times_polled: Rc<Cell<usize>>,
@@ -521,6 +634,21 @@ impl Stream for SlowStream {
         }
         Poll::Ready(Some(self.times_polled.get()))
     }
+}
+
+#[test]
+fn chunks_resume_and_terminate_after_pending() {
+    let times_polled = Rc::new(Cell::new(0));
+    let mut chunks =
+        SlowStream { times_should_poll: 4, times_polled: times_polled.clone() }.chunks(2);
+    let mut cx = noop_context();
+
+    assert!(chunks.next().poll_unpin(&mut cx).is_pending());
+    assert_eq!(chunks.size_hint(), (1, None));
+    assert_eq!(block_on(chunks.next()), Some(vec![1, 3]));
+    assert_eq!(block_on(chunks.next()), None);
+    assert_eq!(chunks.size_hint(), (0, Some(0)));
+    assert_eq!(times_polled.get(), 5);
 }
 
 #[test]
