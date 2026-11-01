@@ -235,6 +235,12 @@ pub trait StreamExt: Stream {
     /// pinning it to the stack using the `pin_mut!` macro from the `pin_utils`
     /// crate.
     ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. If `next` is used as an event in a
+    /// `select!` statement and some other branch completes first, then it is
+    /// guaranteed that no item was removed from this stream.
+    ///
     /// # Examples
     ///
     /// ```
