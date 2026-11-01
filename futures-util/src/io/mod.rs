@@ -28,7 +28,7 @@ pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
 use crate::{future::assert_future, stream::assert_stream};
 
 // used by `BufReader` and `BufWriter`
-// https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
+// https://github.com/rust-lang/rust/blob/master/library/alloc/src/io/read.rs
 const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 
 mod allow_std;
