@@ -483,9 +483,8 @@ pub trait FutureExt: Future {
     fn shared(self) -> Shared<Self>
     where
         Self: Sized,
-        Self::Output: Clone,
     {
-        assert_future::<Self::Output, _>(Shared::new(self))
+        Shared::new(self)
     }
 
     /// Turn this future into a future that yields `()` on completion and sends

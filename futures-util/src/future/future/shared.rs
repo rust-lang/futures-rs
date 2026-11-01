@@ -194,97 +194,30 @@ where
         };
         Arc::ptr_eq(lhs, rhs)
     }
-}
 
-impl<Fut> Inner<Fut>
-where
-    Fut: Future,
-{
-    /// Safety: callers must first ensure that `self.inner.state`
-    /// is `COMPLETE`
-    unsafe fn output(&self) -> &Fut::Output {
-        match unsafe { &*self.future_or_output.get() } {
-            FutureOrOutput::Output(item) => item,
-            FutureOrOutput::Future(_) => unreachable!(),
-        }
+    /// Get the output of the shared future.
+    ///
+    /// Will poll shared future if needed.
+    ///
+    /// Does not require `Fut::Output` to implement `Clone`.
+    pub async fn get_ref(&mut self) -> &Fut::Output {
+        core::future::poll_fn(|cx| self.poll_inner(cx)).await;
+        self.peek().unwrap()
     }
-}
 
-impl<Fut> Inner<Fut>
-where
-    Fut: Future,
-    Fut::Output: Clone,
-{
-    /// Registers the current task to receive a wakeup when we are awoken.
-    fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
-        #[cfg(feature = "std")]
-        let mut wakers_guard = self.notifier.wakers.lock().unwrap();
-        #[cfg(not(feature = "std"))]
-        let mut wakers_guard = self.notifier.wakers.lock();
-
-        let wakers_mut = wakers_guard.as_mut();
-
-        let wakers = match wakers_mut {
-            Some(wakers) => wakers,
-            None => return,
+    /// Poll the shared future.
+    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        let inner = match &mut self.inner {
+            Some(inner) => inner,
+            None => return Poll::Ready(()),
         };
-
-        let new_waker = cx.waker();
-
-        if *waker_key == NULL_WAKER_KEY {
-            *waker_key = wakers.insert(Some(new_waker.clone()));
-        } else {
-            match wakers[*waker_key] {
-                Some(ref old_waker) if new_waker.will_wake(old_waker) => {}
-                // Could use clone_from here, but Waker doesn't specialize it.
-                ref mut slot => *slot = Some(new_waker.clone()),
-            }
-        }
-        debug_assert!(*waker_key != NULL_WAKER_KEY);
-    }
-
-    /// Safety: callers must first ensure that `inner.state`
-    /// is `COMPLETE`
-    unsafe fn take_or_clone_output(self: Arc<Self>) -> Fut::Output {
-        match Arc::try_unwrap(self) {
-            Ok(inner) => match inner.future_or_output.into_inner() {
-                FutureOrOutput::Output(item) => item,
-                FutureOrOutput::Future(_) => unreachable!(),
-            },
-            Err(inner) => unsafe { inner.output().clone() },
-        }
-    }
-}
-
-impl<Fut> FusedFuture for Shared<Fut>
-where
-    Fut: Future,
-    Fut::Output: Clone,
-{
-    fn is_terminated(&self) -> bool {
-        self.inner.is_none()
-    }
-}
-
-impl<Fut> Future for Shared<Fut>
-where
-    Fut: Future,
-    Fut::Output: Clone,
-{
-    type Output = Fut::Output;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-
-        let inner = this.inner.take().expect("Shared future polled again after completion");
 
         // Fast path for when the wrapped future has already completed
         if inner.notifier.state.load(Acquire) == COMPLETE {
-            // Safety: We're in the COMPLETE state
-            return unsafe { Poll::Ready(inner.take_or_clone_output()) };
+            return Poll::Ready(());
         }
 
-        inner.record_waker(&mut this.waker_key, cx);
+        inner.record_waker(&mut self.waker_key, cx);
 
         match inner
             .notifier
@@ -298,13 +231,9 @@ where
             POLLING => {
                 // Another task is currently polling, at this point we just want
                 // to ensure that the waker for this task is registered
-                this.inner = Some(inner);
                 return Poll::Pending;
             }
-            COMPLETE => {
-                // Safety: We're in the COMPLETE state
-                return unsafe { Poll::Ready(inner.take_or_clone_output()) };
-            }
+            COMPLETE => return Poll::Ready(()),
             POISONED => panic!("inner future panicked during poll"),
             _ => unreachable!(),
         }
@@ -344,7 +273,6 @@ where
                     {
                         // Success
                         drop(reset);
-                        this.inner = Some(inner);
                         return Poll::Pending;
                     } else {
                         unreachable!()
@@ -374,6 +302,92 @@ where
         drop(reset); // Make borrow checker happy
         drop(wakers_guard);
 
+        Poll::Ready(())
+    }
+}
+
+impl<Fut> Inner<Fut>
+where
+    Fut: Future,
+{
+    /// Safety: callers must first ensure that `self.inner.state`
+    /// is `COMPLETE`
+    unsafe fn output(&self) -> &Fut::Output {
+        match unsafe { &*self.future_or_output.get() } {
+            FutureOrOutput::Output(item) => item,
+            FutureOrOutput::Future(_) => unreachable!(),
+        }
+    }
+
+    /// Registers the current task to receive a wakeup when we are awoken.
+    fn record_waker(&self, waker_key: &mut usize, cx: &mut Context<'_>) {
+        #[cfg(feature = "std")]
+        let mut wakers_guard = self.notifier.wakers.lock().unwrap();
+        #[cfg(not(feature = "std"))]
+        let mut wakers_guard = self.notifier.wakers.lock();
+
+        let wakers_mut = wakers_guard.as_mut();
+
+        let wakers = match wakers_mut {
+            Some(wakers) => wakers,
+            None => return,
+        };
+
+        let new_waker = cx.waker();
+
+        if *waker_key == NULL_WAKER_KEY {
+            *waker_key = wakers.insert(Some(new_waker.clone()));
+        } else {
+            match wakers[*waker_key] {
+                Some(ref old_waker) if new_waker.will_wake(old_waker) => {}
+                // Could use clone_from here, but Waker doesn't specialize it.
+                ref mut slot => *slot = Some(new_waker.clone()),
+            }
+        }
+        debug_assert!(*waker_key != NULL_WAKER_KEY);
+    }
+}
+
+impl<Fut> Inner<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
+    /// Safety: callers must first ensure that `inner.state`
+    /// is `COMPLETE`
+    unsafe fn take_or_clone_output(self: Arc<Self>) -> Fut::Output {
+        match Arc::try_unwrap(self) {
+            Ok(inner) => match inner.future_or_output.into_inner() {
+                FutureOrOutput::Output(item) => item,
+                FutureOrOutput::Future(_) => unreachable!(),
+            },
+            Err(inner) => unsafe { inner.output().clone() },
+        }
+    }
+}
+
+impl<Fut> FusedFuture for Shared<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
+    fn is_terminated(&self) -> bool {
+        self.inner.is_none()
+    }
+}
+
+impl<Fut> Future for Shared<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
+    type Output = Fut::Output;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        core::task::ready!(this.poll_inner(cx));
+
+        let inner = this.inner.take().expect("Shared future polled again after completion");
         // Safety: We're in the COMPLETE state
         unsafe { Poll::Ready(inner.take_or_clone_output()) }
     }
@@ -434,5 +448,64 @@ impl<Fut: Future> WeakShared<Fut> {
     /// to completion.
     pub fn upgrade(&self) -> Option<Shared<Fut>> {
         Some(Shared { inner: Some(self.0.upgrade()?), waker_key: NULL_WAKER_KEY })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use core::task::Poll;
+
+    use crate::FutureExt;
+
+    async fn pend_once<T>(value: T) -> T {
+        let mut pending = true;
+        core::future::poll_fn(|cx| {
+            if pending {
+                pending = false;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            } else {
+                Poll::Ready(())
+            }
+        })
+        .await;
+        value
+    }
+
+    #[test]
+    fn test_shared_get_ref_not_clone() {
+        futures::executor::block_on(async {
+            #[derive(Debug, Eq, PartialEq)]
+            struct NotClone(u32);
+
+            let mut shared_a = pend_once(NotClone(1337)).shared();
+            let mut shared_b = shared_a.clone();
+
+            assert_eq!(shared_a.peek(), None);
+            assert_eq!(shared_b.get_ref().await, &NotClone(1337));
+            assert_eq!(shared_a.peek(), Some(&NotClone(1337)));
+            assert_eq!(shared_a.get_ref().await, &NotClone(1337));
+            assert_eq!(shared_b.get_ref().await, &NotClone(1337));
+            assert_eq!(shared_a.peek(), Some(&NotClone(1337)));
+            assert_eq!(shared_b.peek(), Some(&NotClone(1337)));
+        })
+    }
+
+    #[test]
+    fn test_shared_get_clone() {
+        futures::executor::block_on(async {
+            let mut shared_a = pend_once(42).shared();
+            let mut shared_b = shared_a.clone();
+
+            assert_eq!(shared_a.peek(), None);
+            assert_eq!(shared_b.peek(), None);
+            assert_eq!(shared_b.get_ref().await, &42);
+            assert_eq!(shared_a.peek(), Some(&42));
+            assert_eq!(shared_b.peek(), Some(&42));
+            assert_eq!(shared_a.get_ref().await, &42);
+            assert_eq!(shared_b.get_ref().await, &42);
+            assert_eq!(shared_a.await, 42);
+            assert_eq!(shared_b.await, 42);
+        })
     }
 }
