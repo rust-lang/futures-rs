@@ -61,11 +61,11 @@ where
 
         Poll::Ready(loop {
             if let Some(fut) = this.future.as_mut().as_pin_mut() {
-                let item = ready!(fut.try_poll(cx));
+                let item = ready!(fut.poll(cx));
                 this.future.set(None);
                 break Some(item);
             } else {
-                match ready!(this.stream.as_mut().try_poll_next(cx)) {
+                match ready!(this.stream.as_mut().poll_next(cx)) {
                     Some(Ok(item)) => break Some(Ok(item)),
                     Some(Err(e)) => {
                         this.future.set(Some((this.f)(e)));

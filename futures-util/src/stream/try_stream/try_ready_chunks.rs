@@ -9,7 +9,7 @@ use futures_core::{
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
 
-use crate::stream::{Fuse, IntoStream, StreamExt};
+use crate::stream::{Fuse, StreamExt};
 
 pin_project! {
     /// Stream for the [`try_ready_chunks`](super::TryStreamExt::try_ready_chunks) method.
@@ -17,7 +17,7 @@ pin_project! {
     #[must_use = "streams do nothing unless polled"]
     pub struct TryReadyChunks<St: TryStream> {
         #[pin]
-        stream: Fuse<IntoStream<St>>,
+        stream: Fuse<St>,
         cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
     }
 }
@@ -26,10 +26,10 @@ impl<St: TryStream> TryReadyChunks<St> {
     pub(super) fn new(stream: St, capacity: usize) -> Self {
         assert!(capacity > 0);
 
-        Self { stream: IntoStream::new(stream).fuse(), cap: capacity }
+        Self { stream: stream.fuse(), cap: capacity }
     }
 
-    delegate_access_inner!(stream, St, (. .));
+    delegate_access_inner!(stream, St, (.));
 }
 
 type TryReadyChunksStreamError<St> =
