@@ -50,6 +50,9 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
                 if buffer.offset == bytes.len() {
                     break;
                 }
+                if written == 0 {
+                    return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
+                }
             }
         }
         *this.buffer = None;
