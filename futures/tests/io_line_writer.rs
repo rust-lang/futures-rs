@@ -1,8 +1,12 @@
-use std::io;
+use std::{
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use futures::{
     executor::block_on,
-    io::{AsyncWriteExt, LineWriter},
+    io::{AsyncWrite, AsyncWriteExt, LineWriter},
 };
 
 #[test]
@@ -73,4 +77,37 @@ fn line_vectored() {
 
     assert_eq!(block_on(line_writer.write_vectored(&[io::IoSlice::new(b"a\nb")])).unwrap(), 3);
     assert_eq!(line_writer.get_ref(), b"\nabaca\nb");
+}
+
+struct CountFlush(usize);
+
+impl AsyncWrite for CountFlush {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Poll::Ready(Ok(buf.len()))
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.0 += 1;
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[test]
+fn write_does_not_flush_inner() {
+    let mut writer = LineWriter::new(CountFlush(0));
+
+    block_on(writer.write(b"a\nb")).unwrap();
+    block_on(writer.write_vectored(&[io::IoSlice::new(b"c\n")])).unwrap();
+    assert_eq!(writer.get_ref().0, 0);
+
+    block_on(writer.flush()).unwrap();
+    assert_eq!(writer.get_ref().0, 1);
 }

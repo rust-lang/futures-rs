@@ -73,7 +73,7 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
             Some(newline_index) => newline_index + 1,
         };
 
-        ready!(this.buf_writer.as_mut().poll_flush(cx)?);
+        ready!(this.buf_writer.as_mut().flush_buf(cx)?);
 
         let lines = &buf[..newline_index];
 
@@ -122,7 +122,7 @@ impl<W: AsyncWrite> AsyncWrite for LineWriter<W> {
             Some(i) => i,
         };
 
-        ready!(this.buf_writer.as_mut().poll_flush(cx)?);
+        ready!(this.buf_writer.as_mut().flush_buf(cx)?);
 
         let (lines, tail) = bufs.split_at(last_newline_buf_idx + 1);
 
