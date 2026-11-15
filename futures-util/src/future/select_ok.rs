@@ -48,17 +48,14 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
     type Output = Result<(Fut::Ok, Vec<Fut>), Fut::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // loop until we've either exhausted all errors, a success was hit, or nothing is ready
-        loop {
-            let item =
-                self.inner.iter_mut().enumerate().find_map(|(i, f)| match f.try_poll_unpin(cx) {
-                    Poll::Pending => None,
-                    Poll::Ready(e) => Some((i, e)),
-                });
-            match item {
-                Some((idx, res)) => {
-                    // always remove Ok or Err, if it's not the last Err continue looping
-                    drop(self.inner.remove(idx));
+        // poll every future once, dropping the ones that failed
+        let mut i = 0;
+        while i < self.inner.len() {
+            match self.inner[i].try_poll_unpin(cx) {
+                Poll::Pending => i += 1,
+                Poll::Ready(res) => {
+                    // always remove Ok or Err, if it's not the last Err keep going
+                    drop(self.inner.remove(i));
                     match res {
                         Ok(e) => {
                             let rest = mem::take(&mut self.inner);
@@ -71,12 +68,9 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
                         }
                     }
                 }
-                None => {
-                    // based on the filter above, nothing is ready, return
-                    return Poll::Pending;
-                }
             }
         }
+        Poll::Pending
     }
 }
 
