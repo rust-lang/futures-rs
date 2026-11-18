@@ -11,10 +11,34 @@ use core::{
     task::{Context, Poll},
 };
 
+#[cfg(target_has_atomic = "ptr")]
+use pin_project_lite::pin_project;
+
 use super::{IntoFuture, TryFuture, TryMaybeDone, assert_future, join_all};
 use crate::TryFutureExt;
 #[cfg(target_has_atomic = "ptr")]
-use crate::stream::{FuturesOrdered, TryCollect, TryStreamExt};
+use crate::stream::{FuturesUnordered, StreamExt};
+
+#[cfg(target_has_atomic = "ptr")]
+pin_project! {
+    #[derive(Debug)]
+    struct Indexed<F> {
+        index: usize,
+        #[pin]
+        future: F,
+    }
+}
+
+#[cfg(target_has_atomic = "ptr")]
+impl<F: Future> Future for Indexed<F> {
+    type Output = (usize, F::Output);
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        let index = *this.index;
+        this.future.poll(cx).map(|output| (index, output))
+    }
+}
 
 enum FinalState<E = ()> {
     Pending,
@@ -31,6 +55,9 @@ where
     kind: TryJoinAllKind<F>,
 }
 
+// Futures are pinned within their collections; completed outputs are not pinned.
+impl<F: TryFuture> Unpin for TryJoinAll<F> {}
+
 enum TryJoinAllKind<F>
 where
     F: TryFuture,
@@ -40,7 +67,9 @@ where
     },
     #[cfg(target_has_atomic = "ptr")]
     Big {
-        fut: TryCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
+        futures: FuturesUnordered<Indexed<IntoFuture<F>>>,
+        outputs: Vec<F::Ok>,
+        indices: Vec<usize>,
     },
 }
 
@@ -57,7 +86,11 @@ where
                 f.debug_struct("TryJoinAll").field("elems", elems).finish()
             }
             #[cfg(target_has_atomic = "ptr")]
-            TryJoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
+            TryJoinAllKind::Big { ref futures, ref outputs, .. } => f
+                .debug_struct("TryJoinAll")
+                .field("futures", futures)
+                .field("outputs", outputs)
+                .finish(),
         }
     }
 }
@@ -79,9 +112,9 @@ where
 ///
 /// # See Also
 ///
-/// `try_join_all` will switch to the more powerful [`FuturesOrdered`] for performance
+/// `try_join_all` will switch to the more powerful [`FuturesUnordered`] for performance
 /// reasons if the number of futures is large. You may want to look into using it or
-/// its counterpart [`FuturesUnordered`][crate::stream::FuturesUnordered] directly.
+/// its counterpart [`FuturesOrdered`][crate::stream::FuturesOrdered] directly.
 ///
 /// Some examples for additional functionality provided by these are:
 ///
@@ -138,7 +171,11 @@ where
             Some(max) if max <= join_all::SMALL => TryJoinAllKind::Small {
                 elems: iter.map(TryMaybeDone::Future).collect::<Box<[_]>>().into(),
             },
-            _ => TryJoinAllKind::Big { fut: iter.collect::<FuturesOrdered<_>>().try_collect() },
+            _ => {
+                let futures: FuturesUnordered<_> =
+                    iter.enumerate().map(|(index, future)| Indexed { index, future }).collect();
+                TryJoinAllKind::Big { futures, outputs: Vec::new(), indices: Vec::new() }
+            }
         };
 
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
@@ -185,7 +222,33 @@ where
                 }
             }
             #[cfg(target_has_atomic = "ptr")]
-            TryJoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
+            TryJoinAllKind::Big { futures, outputs, indices } => {
+                let result = loop {
+                    match futures.poll_next_unpin(cx) {
+                        Poll::Pending => return Poll::Pending,
+                        Poll::Ready(Some((index, Ok(output)))) => {
+                            indices.push(index);
+                            outputs.push(output);
+                        }
+                        Poll::Ready(Some((_, Err(error)))) => break Err(error),
+                        Poll::Ready(None) => {
+                            for i in 0..indices.len() {
+                                while indices[i] != i {
+                                    // Each swap places one result at its original input index.
+                                    let index = indices[i];
+                                    indices.swap(i, index);
+                                    outputs.swap(i, index);
+                                }
+                            }
+                            break Ok(mem::take(outputs));
+                        }
+                    }
+                };
+                futures.clear();
+                outputs.clear();
+                indices.clear();
+                Poll::Ready(result)
+            }
         }
     }
 }
