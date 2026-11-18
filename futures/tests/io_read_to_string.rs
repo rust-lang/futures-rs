@@ -25,6 +25,26 @@ fn read_to_string() {
 }
 
 #[test]
+fn read_to_string_utf8_error() {
+    let mut c = Cursor::new(&b"12\xff"[..]);
+    let mut v = String::from("abc");
+    let res = block_on(c.read_to_string(&mut v));
+    assert_eq!(res.unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(v, "abc");
+}
+
+#[test]
+fn read_to_string_drop() {
+    // string contents should be preserved if the future is dropped
+    let mut c = Cursor::new(&b"12"[..]).interleave_pending();
+    let mut v = String::from("abc");
+    let mut f = c.read_to_string(&mut v);
+    assert!(f.poll_unpin(&mut noop_context()).is_pending());
+    drop(f);
+    assert_eq!(v, "abc");
+}
+
+#[test]
 fn interleave_pending() {
     fn run<F: Future + Unpin>(mut f: F) -> F::Output {
         let mut cx = noop_context();
