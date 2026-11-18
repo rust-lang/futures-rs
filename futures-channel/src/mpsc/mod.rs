@@ -377,6 +377,10 @@ impl SenderTask {
 /// guaranteed slot in the channel capacity, and on top of that there are
 /// `buffer` "first come, first serve" slots available to all senders.
 ///
+/// A send can place an item in the channel before its future completes.
+/// Dropping that future after the item is accepted does not remove it from
+/// the channel.
+///
 /// The [`Receiver`] returned implements the [`Stream`] trait, while [`Sender`]
 /// implements `Sink`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
