@@ -14,6 +14,9 @@ pub use futures_channel::oneshot as _;
 #[cfg(feature = "futures-core-alloc")]
 #[cfg(target_has_atomic = "ptr")]
 pub use futures_core::task::__internal::AtomicWaker as _;
+#[cfg(feature = "futures-io")]
+#[cfg(futures_unstable_core_io)]
+pub use futures_io::{AsyncRead as _, AsyncWrite as _};
 #[cfg(feature = "futures-task-alloc")]
 #[cfg(target_has_atomic = "ptr")]
 pub use futures_task::ArcWake as _;

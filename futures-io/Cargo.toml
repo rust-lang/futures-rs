@@ -13,7 +13,8 @@ The `AsyncRead`, `AsyncWrite`, `AsyncSeek`, and `AsyncBufRead` traits for the fu
 
 [features]
 default = ["std"]
-std = []
+std = ["alloc"]
+alloc = []
 
 # Unstable features
 # These features are outside of the normal semver guarantees and require the

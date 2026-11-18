@@ -18,20 +18,27 @@
     clippy::std_instead_of_core
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(futures_unstable_core_io, feature(core_io))]
 
-#[cfg(feature = "std")]
+#[allow(unused_extern_crates)]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", futures_unstable_core_io))]
 mod if_std {
+    #[cfg(feature = "alloc")]
     use alloc::{boxed::Box, vec::Vec};
+    #[cfg(futures_unstable_core_io)]
+    use core::io;
     use core::{
+        cmp,
         ops::DerefMut,
         pin::Pin,
         task::{Context, Poll},
     };
+    #[cfg(not(futures_unstable_core_io))]
     use std::io;
 
     // Re-export some types from `std::io` so that users don't have to deal
@@ -322,6 +329,7 @@ mod if_std {
         };
     }
 
+    #[cfg(feature = "alloc")]
     impl<T: ?Sized + AsyncRead + Unpin> AsyncRead for Box<T> {
         deref_async_read!();
     }
@@ -352,28 +360,27 @@ mod if_std {
         }
     }
 
-    macro_rules! delegate_async_read_to_stdio {
-        () => {
-            fn poll_read(
-                mut self: Pin<&mut Self>,
-                _: &mut Context<'_>,
-                buf: &mut [u8],
-            ) -> Poll<Result<usize>> {
-                Poll::Ready(io::Read::read(&mut *self, buf))
-            }
-
-            fn poll_read_vectored(
-                mut self: Pin<&mut Self>,
-                _: &mut Context<'_>,
-                bufs: &mut [IoSliceMut<'_>],
-            ) -> Poll<Result<usize>> {
-                Poll::Ready(io::Read::read_vectored(&mut *self, bufs))
-            }
-        };
-    }
-
     impl AsyncRead for &[u8] {
-        delegate_async_read_to_stdio!();
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            buf: &mut [u8],
+        ) -> Poll<Result<usize>> {
+            let amt = cmp::min(buf.len(), self.len());
+            let (a, b) = self.split_at(amt);
+
+            // First check if the amount of bytes we want to read is small:
+            // `copy_from_slice` will generally expand to a call to `memcpy`, and
+            // for a single byte the overhead is significant.
+            if amt == 1 {
+                buf[0] = a[0];
+            } else {
+                buf[..amt].copy_from_slice(a);
+            }
+
+            *self = b;
+            Poll::Ready(Ok(amt))
+        }
     }
 
     macro_rules! deref_async_write {
@@ -404,6 +411,7 @@ mod if_std {
         };
     }
 
+    #[cfg(feature = "alloc")]
     impl<T: ?Sized + AsyncWrite + Unpin> AsyncWrite for Box<T> {
         deref_async_write!();
     }
@@ -442,6 +450,7 @@ mod if_std {
         }
     }
 
+    #[cfg_attr(not(feature = "alloc"), allow(unused_macros))]
     macro_rules! delegate_async_write_to_stdio {
         () => {
             fn poll_write(
@@ -470,6 +479,7 @@ mod if_std {
         };
     }
 
+    #[cfg(feature = "alloc")]
     impl AsyncWrite for Vec<u8> {
         delegate_async_write_to_stdio!();
     }
@@ -486,6 +496,7 @@ mod if_std {
         };
     }
 
+    #[cfg(feature = "alloc")]
     impl<T: ?Sized + AsyncSeek + Unpin> AsyncSeek for Box<T> {
         deref_async_seek!();
     }
@@ -520,6 +531,7 @@ mod if_std {
         };
     }
 
+    #[cfg(feature = "alloc")]
     impl<T: ?Sized + AsyncBufRead + Unpin> AsyncBufRead for Box<T> {
         deref_async_buf_read!();
     }
@@ -542,22 +554,16 @@ mod if_std {
         }
     }
 
-    macro_rules! delegate_async_buf_read_to_stdio {
-        () => {
-            fn poll_fill_buf(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<&[u8]>> {
-                Poll::Ready(io::BufRead::fill_buf(self.get_mut()))
-            }
-
-            fn consume(self: Pin<&mut Self>, amt: usize) {
-                io::BufRead::consume(self.get_mut(), amt)
-            }
-        };
-    }
-
     impl AsyncBufRead for &[u8] {
-        delegate_async_buf_read_to_stdio!();
+        fn poll_fill_buf(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<&[u8]>> {
+            Poll::Ready(Ok(*self))
+        }
+
+        fn consume(mut self: Pin<&mut Self>, amt: usize) {
+            *self = &self[amt..];
+        }
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", futures_unstable_core_io))]
 pub use self::if_std::*;
