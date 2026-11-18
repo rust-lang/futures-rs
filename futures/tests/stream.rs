@@ -1,19 +1,510 @@
-use std::{cell::Cell, iter, pin::Pin, rc::Rc, sync::Arc, task::Context};
+use std::{
+    cell::{Cell, RefCell},
+    convert::Infallible,
+    iter,
+    pin::Pin,
+    rc::Rc,
+    sync::Arc,
+    task::{Context, Waker},
+};
 
 use futures::{
     FutureExt,
     channel::mpsc,
     executor::block_on,
-    future::{self, Future},
+    future::{self, FusedFuture, Future},
     lock::Mutex,
     ready,
     sink::SinkExt,
-    stream::{self, StreamExt},
+    stream::{self, Forward, StreamExt},
     task::Poll,
 };
 use futures_core::Stream;
 use futures_executor::ThreadPool;
-use futures_test::task::noop_context;
+use futures_sink::Sink;
+use futures_test::task::{new_count_waker, noop_context};
+
+struct CountedStream {
+    next: usize,
+    end: usize,
+    polls: Rc<Cell<usize>>,
+}
+
+impl Stream for CountedStream {
+    type Item = usize;
+
+    fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.polls.set(self.polls.get() + 1);
+        if self.next == self.end {
+            Poll::Ready(None)
+        } else {
+            let item = self.next;
+            self.next += 1;
+            Poll::Ready(Some(item))
+        }
+    }
+}
+
+struct RecordingSink {
+    items: Rc<RefCell<Vec<usize>>>,
+    closed: Rc<Cell<bool>>,
+}
+
+impl Sink<usize> for RecordingSink {
+    type Error = Infallible;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: usize) -> Result<(), Self::Error> {
+        self.items.borrow_mut().push(item);
+        Ok(())
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.closed.set(true);
+        Poll::Ready(Ok(()))
+    }
+}
+
+fn counted_forward(
+    end: usize,
+) -> (Forward<CountedStream, RecordingSink>, Rc<Cell<usize>>, Rc<RefCell<Vec<usize>>>, Rc<Cell<bool>>)
+{
+    let polls = Rc::new(Cell::new(0));
+    let items = Rc::new(RefCell::new(Vec::new()));
+    let closed = Rc::new(Cell::new(false));
+    let stream = CountedStream { next: 0, end, polls: polls.clone() };
+    let sink = RecordingSink { items: items.clone(), closed: closed.clone() };
+    (stream.forward(sink), polls, items, closed)
+}
+
+#[test]
+fn forward_ready_stream_returns_control_before_source_exhaustion() {
+    let (mut forward, polls, items, closed) = counted_forward(96);
+    let (waker, wakes) = new_count_waker();
+    let mut context = Context::from_waker(&waker);
+
+    let first_poll = Pin::new(&mut forward).poll(&mut context);
+    assert!(matches!(first_poll, Poll::Pending), "first poll: {:?}", first_poll);
+    assert!(polls.get() > 0);
+    assert!(polls.get() <= 32);
+    let accepted = items.borrow().clone();
+    assert!(accepted.iter().copied().eq(0..accepted.len()));
+    assert!(!closed.get());
+    assert!(wakes.get() > 0);
+
+    let mut result = Poll::Pending;
+    for _ in 0..8 {
+        result = Pin::new(&mut forward).poll(&mut context);
+        if result.is_ready() {
+            break;
+        }
+    }
+    assert!(matches!(result, Poll::Ready(Ok(()))), "final poll: {:?}", result);
+    assert_eq!(*items.borrow(), (0..96).collect::<Vec<_>>());
+    assert!(closed.get());
+    assert!(forward.is_terminated());
+}
+
+#[test]
+fn forward_finite_ready_controls_complete_in_order() {
+    for end in [0, 1, 32, 33] {
+        let (mut forward, polls, items, closed) = counted_forward(end);
+        let (waker, _) = new_count_waker();
+        let mut context = Context::from_waker(&waker);
+
+        if end <= 1 {
+            let first_poll = Pin::new(&mut forward).poll(&mut context);
+            assert!(matches!(first_poll, Poll::Ready(Ok(()))), "first poll: {:?}", first_poll);
+            assert_eq!(*items.borrow(), (0..end).collect::<Vec<_>>());
+            assert!(closed.get());
+            assert!(forward.is_terminated());
+            continue;
+        }
+
+        let mut result = Poll::Pending;
+
+        for _ in 0..8 {
+            result = Pin::new(&mut forward).poll(&mut context);
+            if result.is_ready() {
+                break;
+            }
+        }
+
+        assert!(matches!(result, Poll::Ready(Ok(()))));
+        assert_eq!(*items.borrow(), (0..end).collect::<Vec<_>>());
+        assert!(closed.get());
+        assert!(polls.get() <= end + 1);
+        assert!(forward.is_terminated());
+    }
+}
+
+struct PendingReadySink {
+    pending: bool,
+    items: Rc<RefCell<Vec<usize>>>,
+}
+
+impl Sink<usize> for PendingReadySink {
+    type Error = Infallible;
+
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        if self.pending {
+            self.pending = false;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: usize) -> Result<(), Self::Error> {
+        self.items.borrow_mut().push(item);
+        Ok(())
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[test]
+fn forward_preserves_buffered_item_when_sink_is_not_ready() {
+    let items = Rc::new(RefCell::new(Vec::new()));
+    let stream = CountedStream { next: 0, end: 1, polls: Rc::new(Cell::new(0)) };
+    let polls = stream.polls.clone();
+    let sink = PendingReadySink { pending: true, items: items.clone() };
+    let mut forward = stream.forward(sink);
+    let mut context = noop_context();
+
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Pending));
+    assert_eq!(polls.get(), 1);
+    assert!(items.borrow().is_empty());
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Ready(Ok(()))));
+    assert_eq!(*items.borrow(), vec![0]);
+}
+
+struct PendingStream {
+    state: usize,
+}
+
+impl Stream for PendingStream {
+    type Item = usize;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.state {
+            0 => {
+                self.state = 1;
+                Poll::Ready(Some(0))
+            }
+            1 => {
+                self.state = 2;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+            _ => Poll::Ready(None),
+        }
+    }
+}
+
+struct ErrorStream {
+    next: usize,
+    end: usize,
+    pending: bool,
+    events: Rc<RefCell<Vec<&'static str>>>,
+}
+
+impl Stream for ErrorStream {
+    type Item = usize;
+
+    fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.events.borrow_mut().push("source");
+        if self.next == self.end {
+            if self.pending {
+                self.pending = false;
+                Poll::Pending
+            } else {
+                Poll::Ready(None)
+            }
+        } else {
+            let item = self.next;
+            self.next += 1;
+            Poll::Ready(Some(item))
+        }
+    }
+}
+
+#[test]
+fn forward_keeps_natural_stream_pending_path() {
+    let items = Rc::new(RefCell::new(Vec::new()));
+    let flushes = Rc::new(Cell::new(0));
+    let sink = CountingFlushSink { items: items.clone(), flushes: flushes.clone() };
+    let mut forward = PendingStream { state: 0 }.forward(sink);
+    let (waker, wakes) = new_count_waker();
+    let mut context = Context::from_waker(&waker);
+
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Pending));
+    assert_eq!(*items.borrow(), vec![0]);
+    assert_eq!(flushes.get(), 1);
+    assert_eq!(wakes.get(), 1);
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Ready(Ok(()))));
+}
+
+struct CountingFlushSink {
+    items: Rc<RefCell<Vec<usize>>>,
+    flushes: Rc<Cell<usize>>,
+}
+
+impl Sink<usize> for CountingFlushSink {
+    type Error = Infallible;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: usize) -> Result<(), Self::Error> {
+        self.items.borrow_mut().push(item);
+        Ok(())
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.flushes.set(self.flushes.get() + 1);
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Failure {
+    Ready,
+    StartSend,
+    Flush,
+    Close,
+}
+
+struct FailingSink {
+    failure: Failure,
+    events: Rc<RefCell<Vec<&'static str>>>,
+}
+
+impl Sink<usize> for FailingSink {
+    type Error = &'static str;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.events.borrow_mut().push("ready");
+        if matches!(self.failure, Failure::Ready) {
+            Poll::Ready(Err("ready"))
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn start_send(self: Pin<&mut Self>, _: usize) -> Result<(), Self::Error> {
+        self.events.borrow_mut().push("start_send");
+        if matches!(self.failure, Failure::StartSend) { Err("start_send") } else { Ok(()) }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.events.borrow_mut().push("flush");
+        if matches!(self.failure, Failure::Flush) {
+            Poll::Ready(Err("flush"))
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.events.borrow_mut().push("close");
+        if matches!(self.failure, Failure::Close) {
+            Poll::Ready(Err("close"))
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+}
+
+#[test]
+fn forward_preserves_sink_errors() {
+    let mut context = noop_context();
+    let events = Rc::new(RefCell::new(Vec::new()));
+
+    let mut ready = ErrorStream { next: 0, end: 1, pending: false, events: events.clone() }
+        .forward(FailingSink { failure: Failure::Ready, events: events.clone() });
+    assert!(matches!(Pin::new(&mut ready).poll(&mut context), Poll::Ready(Err("ready"))));
+    assert_eq!(*events.borrow(), vec!["source", "ready"]);
+    assert!(!ready.is_terminated());
+
+    events.borrow_mut().clear();
+    let mut start_send = ErrorStream { next: 0, end: 1, pending: false, events: events.clone() }
+        .forward(FailingSink { failure: Failure::StartSend, events: events.clone() });
+    assert!(matches!(Pin::new(&mut start_send).poll(&mut context), Poll::Ready(Err("start_send"))));
+    assert_eq!(*events.borrow(), vec!["source", "ready", "start_send"]);
+    assert!(!start_send.is_terminated());
+
+    events.borrow_mut().clear();
+    let mut flush = ErrorStream { next: 0, end: 1, pending: true, events: events.clone() }
+        .forward(FailingSink { failure: Failure::Flush, events: events.clone() });
+    assert!(matches!(Pin::new(&mut flush).poll(&mut context), Poll::Ready(Err("flush"))));
+    assert_eq!(*events.borrow(), vec!["source", "ready", "start_send", "source", "flush"]);
+    assert!(!flush.is_terminated());
+
+    events.borrow_mut().clear();
+    let mut close = ErrorStream { next: 0, end: 0, pending: false, events: events.clone() }
+        .forward(FailingSink { failure: Failure::Close, events: events.clone() });
+    assert!(matches!(Pin::new(&mut close).poll(&mut context), Poll::Ready(Err("close"))));
+    assert_eq!(*events.borrow(), vec!["source", "close"]);
+    assert!(!close.is_terminated());
+}
+
+#[test]
+fn forward_propagates_artificial_flush_error() {
+    let mut context = noop_context();
+    let events = Rc::new(RefCell::new(Vec::new()));
+    let mut artificial_flush =
+        ErrorStream { next: 0, end: 32, pending: false, events: events.clone() }
+            .forward(FailingSink { failure: Failure::Flush, events: events.clone() });
+    assert!(matches!(
+        Pin::new(&mut artificial_flush).poll(&mut context),
+        Poll::Ready(Err("flush"))
+    ));
+    assert_eq!(events.borrow().last(), Some(&"flush"));
+    assert_eq!(events.borrow().iter().filter(|&&event| event == "flush").count(), 1);
+    assert_eq!(events.borrow().iter().filter(|&&event| event == "source").count(), 32);
+    assert!(!artificial_flush.is_terminated());
+}
+
+#[test]
+fn forward_preservation_controls() {
+    forward_preserves_sink_errors();
+    forward_preserves_buffered_item_when_sink_is_not_ready();
+    forward_keeps_natural_stream_pending_path();
+    forward_does_not_repoll_stream_while_close_is_pending();
+}
+
+struct PendingFlushSink {
+    items: Rc<RefCell<Vec<usize>>>,
+    pending: bool,
+    waiting_waker: Rc<RefCell<Option<Waker>>>,
+}
+
+impl Sink<usize> for PendingFlushSink {
+    type Error = Infallible;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: usize) -> Result<(), Self::Error> {
+        self.items.borrow_mut().push(item);
+        Ok(())
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        if self.pending {
+            self.pending = false;
+            *self.waiting_waker.borrow_mut() = Some(cx.waker().clone());
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[test]
+fn forward_waits_for_artificial_flush_wake() {
+    let items = Rc::new(RefCell::new(Vec::new()));
+    let waiting_waker = Rc::new(RefCell::new(None));
+    let polls = Rc::new(Cell::new(0));
+    let stream = CountedStream { next: 0, end: 96, polls: polls.clone() };
+    let sink = PendingFlushSink {
+        items: items.clone(),
+        pending: true,
+        waiting_waker: waiting_waker.clone(),
+    };
+    let mut forward = stream.forward(sink);
+    let (waker, wakes) = new_count_waker();
+    let mut context = Context::from_waker(&waker);
+
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Pending));
+    let accepted = items.borrow().clone();
+    assert!(polls.get() > 0);
+    assert!(polls.get() <= 32);
+    assert!(accepted.len() <= polls.get());
+    assert!(accepted.iter().copied().eq(0..accepted.len()));
+    assert!(polls.get() <= 32);
+    assert_eq!(wakes.get(), 0);
+    waiting_waker.borrow_mut().take().expect("flush waker").wake();
+    assert_eq!(wakes.get(), 1);
+
+    let mut result = Poll::Pending;
+    for _ in 0..8 {
+        result = Pin::new(&mut forward).poll(&mut context);
+        if result.is_ready() {
+            break;
+        }
+    }
+    assert!(matches!(result, Poll::Ready(Ok(()))));
+    assert_eq!(*items.borrow(), (0..96).collect::<Vec<_>>());
+}
+
+struct PendingCloseSink {
+    pending: bool,
+}
+
+impl Sink<usize> for PendingCloseSink {
+    type Error = Infallible;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, _: usize) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        if self.pending {
+            self.pending = false;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+}
+
+#[test]
+fn forward_does_not_repoll_stream_while_close_is_pending() {
+    let polls = Rc::new(Cell::new(0));
+    let stream = CountedStream { next: 0, end: 0, polls: polls.clone() };
+    let mut forward = stream.forward(PendingCloseSink { pending: true });
+    let mut context = noop_context();
+
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Pending));
+    assert_eq!(polls.get(), 1);
+    assert!(matches!(Pin::new(&mut forward).poll(&mut context), Poll::Ready(Ok(()))));
+    assert_eq!(polls.get(), 1);
+}
 
 #[test]
 fn select() {
