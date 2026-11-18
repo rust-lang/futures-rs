@@ -82,7 +82,7 @@ where
                     break this.pending_item.take().map(Ok);
                 }
                 *this.pending_item = None;
-            } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
+            } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)?) {
                 this.pending_fut.set(Some((this.f)(&item)));
                 *this.pending_item = Some(item);
             } else {

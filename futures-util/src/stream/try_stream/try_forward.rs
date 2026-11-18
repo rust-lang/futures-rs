@@ -8,7 +8,7 @@ use futures_core::{
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
 
-use crate::stream::{Fuse, IntoStream, Stream, TryStream};
+use crate::stream::{Fuse, Stream, TryStream};
 
 pin_project! {
     /// Future for the [`try_forward`](super::TryStreamExt::try_forward) method.
@@ -19,14 +19,14 @@ pin_project! {
         #[pin]
         sink: Option<Si>,
         #[pin]
-        stream: Fuse<IntoStream<St>>,
+        stream: Fuse<St>,
         buffered_item: Option<Item>,
     }
 }
 
 impl<St, Si, Item> TryForward<St, Si, Item> {
     pub(crate) fn new(stream: St, sink: Si) -> Self {
-        Self { sink: Some(sink), stream: Fuse::new(IntoStream::new(stream)), buffered_item: None }
+        Self { sink: Some(sink), stream: Fuse::new(stream), buffered_item: None }
     }
 }
 

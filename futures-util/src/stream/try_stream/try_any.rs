@@ -79,7 +79,7 @@ where
                 } // early exit
             } else if !*this.done {
                 // we're waiting on a new item from the stream
-                match ready!(this.stream.as_mut().try_poll_next(cx)) {
+                match ready!(this.stream.as_mut().poll_next(cx)) {
                     Some(Ok(item)) => {
                         this.future.set(Some((this.f)(item)));
                     }
