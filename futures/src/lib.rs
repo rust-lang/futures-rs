@@ -97,13 +97,14 @@ compile_error!(
     "The `bilock` feature requires the `unstable` feature as an explicit opt-in to unstable features"
 );
 
+// Macro reexports
+pub use core::task::ready; // Readiness propagation
+
 #[cfg(feature = "alloc")]
 #[doc(inline)]
 pub use futures_channel as channel;
 #[doc(no_inline)]
 pub use futures_core::future::{Future, TryFuture};
-// Macro reexports
-pub use futures_core::ready; // Readiness propagation
 #[doc(no_inline)]
 pub use futures_core::stream::{Stream, TryStream};
 #[cfg(feature = "std")]
