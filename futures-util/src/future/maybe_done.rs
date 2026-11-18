@@ -13,7 +13,7 @@ use super::assert_future;
 /// A future that may have completed.
 ///
 /// This is created by the [`maybe_done()`] function.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
     Future(/* #[pin] */ Fut),
