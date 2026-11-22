@@ -48,6 +48,12 @@ impl<T> RemoteHandle<T> {
     /// This method can be used if you want to drop the handle, but let the
     /// execution continue.
     pub fn forget(self) {
+        self.keep_running();
+    }
+
+    /// Disables cancellation on drop. The handle can still be awaited to obtain
+    /// the future's output.
+    pub fn keep_running(&self) {
         self.keep_running.store(true, Ordering::SeqCst);
     }
 }
