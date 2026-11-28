@@ -26,6 +26,8 @@ pub use self::stream::Chunks;
 pub use self::stream::Forward;
 #[cfg(feature = "alloc")]
 pub use self::stream::ReadyChunks;
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
+pub use self::stream::Shared;
 pub use self::stream::{
     All, Any, Chain, Collect, Concat, Count, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten,
     Fold, ForEach, Fuse, Inspect, Map, Next, NextIf, NextIfEq, Peek, PeekMut, Peekable, Scan,
